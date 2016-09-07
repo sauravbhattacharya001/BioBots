@@ -3,7 +3,7 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 14
 VisualStudioVersion = 14.0.25420.1
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Try", "Try\Try.csproj", "{7CC1447D-5E57-452C-907C-9A119C372649}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BioBots 1 tool", "Try\BioBots 1 tool.csproj", "{7CC1447D-5E57-452C-907C-9A119C372649}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{328AC709-B36D-4A05-ACC0-4C166969A05D}"
 EndProject
