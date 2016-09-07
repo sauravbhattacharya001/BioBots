@@ -1,0 +1,40 @@
+﻿<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+    <title>BioBots 1 tool</title>
+    <script src="http://ajax.aspnetcdn.com/ajax/jQuery/jquery-2.0.3.min.js"></script>
+    <script src="runMethod.js"></script>
+</head>
+<body>
+    <div>
+        <h2>Simple tool for Biobot statistics</h2>
+        <select id="property">
+            <option value="deadPercent">deadPercent</option>
+            <option value="livePercent">livepercent</option>
+            <option value="elasticity">elasticity</option>
+            <option value="cl_duration">cl_duration</option>
+            <option value="cl_intensity">cl_intensity</option>
+            <option value="extruder1">extruder1</option>
+            <option value="extruder2">extruder2</option>
+            <option value="layerHeight">layerHeight</option>
+            <option value="layerNum">layerNum</option>
+            <option value="serial">serial</option>
+        </select>
+
+        <select id="arithmetic">
+            <option value="greater">greater</option>
+            <option value="lesser">lesser</option>
+            <option value="equal">equal</option>
+        </select>
+
+        <input type="text" id="param" />
+
+        <input type="button" value="Count" onclick="runMethod();" />
+        <input type="button" value="Maximum" onclick="runMethod('Maximum');" />
+        <input type="button" value="Minimum" onclick="runMethod('Minimum');" />
+        <input type="button" value="Average" onclick="runMethod('Average');" />
+
+        <p id="print"> </p>
+    </div>
+</body>
+</html>
