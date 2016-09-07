@@ -3,16 +3,16 @@ using System.IO;
 using System.Linq;
 using System.Web.Http;
 using System.Web.Script.Serialization;
-using Tutorial.Models;
+using BioBots.Models;
 
-namespace Tutorial.Controllers
+namespace BioBots.Controllers
 {
     public class PrintsController : ApiController
     {
         Print[] prints;
         public PrintsController() : base()
         {
-            string path = @"C:\Users\onlin\OneDrive\Documents\Visual Studio 2015\Projects\Try\bioprint-data.json";
+            string path = @"C:\Users\onlin\OneDrive\Documents\Visual Studio 2015\Projects\BioBots\bioprint-data.json";
             string[] lines= File.ReadAllLines(path);
             string jsonInput = String.Concat(lines);
 

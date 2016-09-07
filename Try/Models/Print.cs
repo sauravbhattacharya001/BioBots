@@ -1,4 +1,4 @@
-﻿namespace Tutorial.Models
+﻿namespace BioBots.Models
 {
     public class Print
     {
