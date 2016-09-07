@@ -1,4 +1,4 @@
-# BioBots
+# BioBots Tool
 
 A simple tool for checking BioBot 1 print run statistics.
 
