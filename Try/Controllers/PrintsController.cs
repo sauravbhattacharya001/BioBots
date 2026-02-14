@@ -41,6 +41,13 @@ namespace BioBots.Controllers
             string path = ConfigurationManager.AppSettings["DataFilePath"]
                 ?? @"bioprint-data.json";
 
+            // Guard: skip the timestamp fast-path when the file is missing so
+            // LoadAndFilterPrints can throw a descriptive FileNotFoundException
+            // instead of File.GetLastWriteTimeUtc returning DateTime.MinValue
+            // or throwing a raw exception depending on the OS. (fixes #8)
+            if (!File.Exists(path))
+                return LoadAndFilterPrints(path);   // will throw with clear message
+
             DateTime lastWrite = File.GetLastWriteTimeUtc(path);
 
             // Fast path: timestamp unchanged, return cached data.
@@ -50,6 +57,9 @@ namespace BioBots.Controllers
             lock (_cacheLock)
             {
                 // Re-check after acquiring the lock (double-checked locking).
+                if (!File.Exists(path))
+                    return LoadAndFilterPrints(path);
+
                 lastWrite = File.GetLastWriteTimeUtc(path);
                 if (_cachedPrints != null && lastWrite == _cachedFileTimestamp)
                     return _cachedPrints;
