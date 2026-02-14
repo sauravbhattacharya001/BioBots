@@ -153,6 +153,14 @@ The bundled `index.html` provides an interactive query builder:
 3. **Enter a value** or click an aggregation button (Maximum/Minimum/Average)
 4. **View results** inline
 
+## 📊 Data Explorer
+
+The [Data Explorer](https://sauravbhattacharya001.github.io/BioBots/explorer.html) provides interactive visualizations:
+
+- **Distribution View** — Histogram of any metric with configurable bin count, hover tooltips, and summary statistics (min, max, mean, median, standard deviation)
+- **Correlation View** — Scatter plot comparing any two metrics with linear regression trend line, Pearson r coefficient, and R² value
+- All charts render client-side using Canvas API (zero dependencies)
+
 ## 🔧 Technical Details
 
 - **Thread-safe caching** — Double-checked locking pattern for concurrent request safety
