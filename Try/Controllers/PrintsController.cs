@@ -12,29 +12,64 @@ namespace BioBots.Controllers
 {
     public class PrintsController : ApiController
     {
-        // Cache parsed print data in a static Lazy<T> so the JSON file is read
-        // and deserialized exactly once (on first request), rather than on every
-        // controller instantiation. ASP.NET Web API creates a new controller per
-        // request, so this eliminates redundant I/O + parse + GC overhead. (fixes #5)
-        private static readonly Lazy<Print[]> _cachedPrints = new Lazy<Print[]>(LoadAndFilterPrints);
+        // Lock object to synchronize cache invalidation checks.
+        private static readonly object _cacheLock = new object();
+
+        // Cached print data and the file timestamp at the time of caching.
+        // When the file's LastWriteTimeUtc changes, the cache is refreshed.
+        // This replaces the old Lazy<T> approach so that edits to
+        // bioprint-data.json are picked up without an app restart. (fixes #6)
+        private static Print[] _cachedPrints;
+        private static DateTime _cachedFileTimestamp = DateTime.MinValue;
 
         Print[] prints;
 
         public PrintsController() : base()
         {
-            prints = _cachedPrints.Value;
+            prints = GetPrints();
+        }
+
+        /// <summary>
+        /// Returns the cached print data, reloading from disk only when the
+        /// data file has been modified since the last read. The file's
+        /// <see cref="File.GetLastWriteTimeUtc"/> is checked on every request
+        /// (cheap metadata I/O), but the expensive JSON parse only happens
+        /// when the timestamp differs. Thread-safe via double-checked locking.
+        /// </summary>
+        private static Print[] GetPrints()
+        {
+            string path = ConfigurationManager.AppSettings["DataFilePath"]
+                ?? @"bioprint-data.json";
+
+            DateTime lastWrite = File.GetLastWriteTimeUtc(path);
+
+            // Fast path: timestamp unchanged, return cached data.
+            if (_cachedPrints != null && lastWrite == _cachedFileTimestamp)
+                return _cachedPrints;
+
+            lock (_cacheLock)
+            {
+                // Re-check after acquiring the lock (double-checked locking).
+                lastWrite = File.GetLastWriteTimeUtc(path);
+                if (_cachedPrints != null && lastWrite == _cachedFileTimestamp)
+                    return _cachedPrints;
+
+                Trace.TraceInformation(
+                    "BioBots: Data file changed (was {0}, now {1}). Reloading...",
+                    _cachedFileTimestamp, lastWrite);
+
+                _cachedPrints = LoadAndFilterPrints(path);
+                _cachedFileTimestamp = lastWrite;
+                return _cachedPrints;
+            }
         }
 
         /// <summary>
         /// Load print data from the JSON file, deserialize, and filter out
-        /// records with missing required nested objects. Called once by
-        /// <see cref="_cachedPrints"/> and cached for the lifetime of the
-        /// application domain.
+        /// records with missing required nested objects.
         /// </summary>
-        private static Print[] LoadAndFilterPrints()
+        private static Print[] LoadAndFilterPrints(string path)
         {
-            string path = ConfigurationManager.AppSettings["DataFilePath"]
-                ?? @"bioprint-data.json";
             if (!File.Exists(path))
             {
                 throw new FileNotFoundException(
