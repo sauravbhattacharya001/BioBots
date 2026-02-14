@@ -1,0 +1,823 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>BioBots 1 — Data Table</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧬</text></svg>">
+    <style>
+        :root {
+            --bg: #0f172a;
+            --surface: #1e293b;
+            --border: #334155;
+            --text: #e2e8f0;
+            --muted: #94a3b8;
+            --accent: #38bdf8;
+            --accent-hover: #7dd3fc;
+            --success: #4ade80;
+            --error: #f87171;
+            --warning: #fbbf24;
+            --purple: #a78bfa;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            padding: 2rem 1rem;
+        }
+
+        .container { max-width: 1200px; margin: 0 auto; }
+
+        header { text-align: center; margin-bottom: 2rem; }
+
+        header h1 {
+            font-size: 2rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, var(--accent), var(--success));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        header p { color: var(--muted); margin-top: 0.5rem; }
+
+        .nav {
+            display: flex;
+            justify-content: center;
+            gap: 0.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .nav a {
+            color: var(--muted);
+            padding: 0.5rem 1rem;
+            border-radius: 8px;
+            text-decoration: none;
+            font-size: 0.9rem;
+            transition: all 0.2s;
+        }
+
+        .nav a:hover { color: var(--text); background: var(--surface); }
+        .nav a.active { color: var(--accent); background: var(--surface); border: 1px solid var(--border); }
+
+        .toolbar {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        .search-box {
+            flex: 1;
+            min-width: 200px;
+            position: relative;
+        }
+
+        .search-box input {
+            width: 100%;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            color: var(--text);
+            padding: 0.6rem 0.8rem 0.6rem 2.2rem;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        .search-box input:focus { border-color: var(--accent); }
+
+        .search-box::before {
+            content: '🔍';
+            position: absolute;
+            left: 0.7rem;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 0.85rem;
+        }
+
+        .filter-group {
+            display: flex;
+            gap: 0.5rem;
+            align-items: center;
+        }
+
+        .filter-group label {
+            font-size: 0.8rem;
+            color: var(--muted);
+            white-space: nowrap;
+        }
+
+        select, .filter-input {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            color: var(--text);
+            padding: 0.5rem 0.7rem;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            outline: none;
+        }
+
+        select:focus, .filter-input:focus { border-color: var(--accent); }
+
+        .filter-input { width: 80px; }
+
+        .stats-row {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 1rem;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        .stat-badge {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            padding: 0.3rem 0.8rem;
+            font-size: 0.8rem;
+            color: var(--muted);
+        }
+
+        .stat-badge .val { color: var(--accent); font-weight: 600; }
+
+        .export-btn {
+            margin-left: auto;
+            background: transparent;
+            color: var(--accent);
+            border: 1px solid var(--accent);
+            padding: 0.4rem 0.8rem;
+            border-radius: 8px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .export-btn:hover { background: rgba(56, 189, 248, 0.1); }
+
+        .table-wrap {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            overflow: hidden;
+        }
+
+        .table-scroll { overflow-x: auto; }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.85rem;
+        }
+
+        thead {
+            background: var(--bg);
+            position: sticky;
+            top: 0;
+            z-index: 2;
+        }
+
+        th {
+            padding: 0.7rem 0.8rem;
+            text-align: left;
+            color: var(--muted);
+            font-weight: 600;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            cursor: pointer;
+            user-select: none;
+            white-space: nowrap;
+            border-bottom: 1px solid var(--border);
+            transition: color 0.2s;
+        }
+
+        th:hover { color: var(--accent); }
+
+        th .sort-arrow {
+            margin-left: 0.3rem;
+            opacity: 0.3;
+            font-size: 0.7rem;
+        }
+
+        th.sorted .sort-arrow { opacity: 1; color: var(--accent); }
+
+        td {
+            padding: 0.6rem 0.8rem;
+            border-bottom: 1px solid rgba(51, 65, 85, 0.5);
+            white-space: nowrap;
+        }
+
+        tr:hover td { background: rgba(56, 189, 248, 0.03); }
+
+        tr.expanded td { background: rgba(56, 189, 248, 0.05); border-bottom: none; }
+
+        .detail-row td {
+            padding: 0;
+            background: rgba(56, 189, 248, 0.02);
+        }
+
+        .detail-content {
+            padding: 1rem 1.5rem;
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 1rem;
+        }
+
+        .detail-card {
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 0.8rem;
+        }
+
+        .detail-card h4 {
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            color: var(--muted);
+            letter-spacing: 0.05em;
+            margin-bottom: 0.5rem;
+        }
+
+        .detail-card .detail-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 0.2rem 0;
+            font-size: 0.82rem;
+        }
+
+        .detail-card .detail-label { color: var(--muted); }
+        .detail-card .detail-val { color: var(--text); font-weight: 500; }
+
+        .viability-bar {
+            display: flex;
+            height: 6px;
+            border-radius: 3px;
+            overflow: hidden;
+            background: var(--border);
+            margin-top: 0.5rem;
+        }
+
+        .viability-bar .live {
+            background: var(--success);
+            transition: width 0.3s;
+        }
+
+        .viability-bar .dead {
+            background: var(--error);
+            transition: width 0.3s;
+        }
+
+        .pagination {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 1rem;
+            border-top: 1px solid var(--border);
+        }
+
+        .page-btn {
+            background: var(--bg);
+            border: 1px solid var(--border);
+            color: var(--text);
+            padding: 0.4rem 0.7rem;
+            border-radius: 6px;
+            font-size: 0.8rem;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .page-btn:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
+        .page-btn:disabled { opacity: 0.3; cursor: default; }
+        .page-btn.active { background: var(--accent); color: var(--bg); border-color: var(--accent); }
+
+        .page-info { font-size: 0.8rem; color: var(--muted); }
+
+        .per-page {
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+            font-size: 0.8rem;
+            color: var(--muted);
+        }
+
+        .per-page select { padding: 0.3rem 0.5rem; font-size: 0.8rem; }
+
+        .cell-live { color: var(--success); }
+        .cell-dead { color: var(--error); }
+        .cell-number { font-variant-numeric: tabular-nums; }
+        .cell-muted { color: var(--muted); }
+
+        .expand-btn {
+            background: none;
+            border: none;
+            color: var(--muted);
+            cursor: pointer;
+            font-size: 0.9rem;
+            padding: 0.2rem 0.4rem;
+            border-radius: 4px;
+            transition: all 0.2s;
+        }
+
+        .expand-btn:hover { color: var(--accent); background: rgba(56, 189, 248, 0.1); }
+
+        .no-data {
+            text-align: center;
+            padding: 3rem;
+            color: var(--muted);
+            font-size: 0.95rem;
+        }
+
+        footer {
+            margin-top: 2rem;
+            text-align: center;
+            color: var(--muted);
+            font-size: 0.8rem;
+        }
+
+        footer a { color: var(--accent); text-decoration: none; }
+        footer a:hover { text-decoration: underline; }
+
+        @media (max-width: 768px) {
+            .toolbar { flex-direction: column; }
+            .search-box { min-width: 100%; }
+            .filter-group { flex-wrap: wrap; }
+            .detail-content { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🧬 BioBots 1 Data Table</h1>
+            <p>Browse, sort, and filter individual bioprint records</p>
+        </header>
+
+        <div class="nav">
+            <a href="index.html">Query Tool</a>
+            <a href="explorer.html">Data Explorer</a>
+            <a href="table.html" class="active">Data Table</a>
+        </div>
+
+        <div class="toolbar">
+            <div class="search-box">
+                <input type="text" id="searchInput" placeholder="Search by serial, email, or any value..." aria-label="Search records" />
+            </div>
+            <div class="filter-group">
+                <label for="filterMetric">Filter:</label>
+                <select id="filterMetric">
+                    <option value="">All Records</option>
+                    <optgroup label="Print Data">
+                        <option value="livePercent">Live %</option>
+                        <option value="deadPercent">Dead %</option>
+                        <option value="elasticity">Elasticity</option>
+                    </optgroup>
+                    <optgroup label="Crosslinking">
+                        <option value="cl_duration">CL Duration</option>
+                        <option value="cl_intensity">CL Intensity</option>
+                    </optgroup>
+                    <optgroup label="Pressure">
+                        <option value="extruder1">Extruder 1</option>
+                        <option value="extruder2">Extruder 2</option>
+                    </optgroup>
+                    <optgroup label="Resolution">
+                        <option value="layerHeight">Layer Height</option>
+                        <option value="layerNum">Layer Count</option>
+                    </optgroup>
+                </select>
+                <select id="filterOp">
+                    <option value="gt">></option>
+                    <option value="lt"><</option>
+                    <option value="eq">=</option>
+                    <option value="gte">≥</option>
+                    <option value="lte">≤</option>
+                </select>
+                <input type="text" class="filter-input" id="filterValue" placeholder="Value" aria-label="Filter value" />
+            </div>
+        </div>
+
+        <div class="stats-row">
+            <span class="stat-badge">Showing <span class="val" id="showCount">0</span> of <span class="val" id="totalCount">0</span> records</span>
+            <span class="stat-badge" id="selectionStats"></span>
+            <button class="export-btn" id="exportBtn" title="Export filtered data as CSV">📥 Export CSV</button>
+        </div>
+
+        <div class="table-wrap">
+            <div class="table-scroll">
+                <table id="dataTable" role="grid" aria-label="Bioprint records">
+                    <thead>
+                        <tr>
+                            <th data-col="expand" style="width:40px;cursor:default;"></th>
+                            <th data-col="serial">Serial <span class="sort-arrow">▲</span></th>
+                            <th data-col="email">Email <span class="sort-arrow">▲</span></th>
+                            <th data-col="livePercent">Live % <span class="sort-arrow">▲</span></th>
+                            <th data-col="deadPercent">Dead % <span class="sort-arrow">▲</span></th>
+                            <th data-col="elasticity">Elasticity <span class="sort-arrow">▲</span></th>
+                            <th data-col="cl_duration">CL Dur <span class="sort-arrow">▲</span></th>
+                            <th data-col="cl_intensity">CL Int <span class="sort-arrow">▲</span></th>
+                            <th data-col="extruder1">Ext 1 <span class="sort-arrow">▲</span></th>
+                            <th data-col="extruder2">Ext 2 <span class="sort-arrow">▲</span></th>
+                            <th data-col="layerHeight">Layer H <span class="sort-arrow">▲</span></th>
+                            <th data-col="layerNum">Layers <span class="sort-arrow">▲</span></th>
+                            <th data-col="wellplate">Well <span class="sort-arrow">▲</span></th>
+                        </tr>
+                    </thead>
+                    <tbody id="tableBody"></tbody>
+                </table>
+            </div>
+            <div class="pagination" id="pagination"></div>
+        </div>
+
+        <footer>
+            <p>Built with 🧬 by <a href="https://github.com/sauravbhattacharya001">Saurav Bhattacharya</a></p>
+            <p><a href="https://github.com/sauravbhattacharya001/BioBots">View Source</a></p>
+        </footer>
+    </div>
+
+    <script>
+    'use strict';
+
+    // ─── State ──────────────────────────────────────────
+    let allData = [];
+    let filteredData = [];
+    let sortCol = 'serial';
+    let sortDir = 'asc';
+    let currentPage = 1;
+    let pageSize = 25;
+    let expandedRows = new Set();
+
+    // ─── Metric Extraction ──────────────────────────────
+    const metricAccessors = {
+        serial:       p => p.user_info.serial,
+        email:        p => p.user_info.email,
+        livePercent:  p => p.print_data.livePercent,
+        deadPercent:  p => p.print_data.deadPercent,
+        elasticity:   p => p.print_data.elasticity,
+        cl_duration:  p => p.print_info.crosslinking.cl_duration,
+        cl_intensity: p => p.print_info.crosslinking.cl_intensity,
+        cl_enabled:   p => p.print_info.crosslinking.cl_enabled,
+        extruder1:    p => p.print_info.pressure.extruder1,
+        extruder2:    p => p.print_info.pressure.extruder2,
+        layerHeight:  p => p.print_info.resolution.layerHeight,
+        layerNum:     p => p.print_info.resolution.layerNum,
+        wellplate:    p => p.print_info.wellplate,
+        inputFile:    p => p.print_info.files ? p.print_info.files.input : '',
+        outputFile:   p => p.print_info.files ? p.print_info.files.output : '',
+    };
+
+    function getVal(record, col) {
+        const fn = metricAccessors[col];
+        return fn ? fn(record) : null;
+    }
+
+    // ─── Formatting ─────────────────────────────────────
+    function fmt(val, col) {
+        if (val == null) return '—';
+        if (col === 'email') return val;
+        if (col === 'cl_enabled') return val ? 'Yes' : 'No';
+        if (typeof val === 'number') {
+            if (Number.isInteger(val)) return val.toLocaleString();
+            return val.toFixed(2);
+        }
+        return String(val);
+    }
+
+    function cellClass(col) {
+        if (col === 'livePercent') return 'cell-number cell-live';
+        if (col === 'deadPercent') return 'cell-number cell-dead';
+        if (col === 'email') return 'cell-muted';
+        return 'cell-number';
+    }
+
+    // ─── Filtering ──────────────────────────────────────
+    function applyFilters() {
+        const query = document.getElementById('searchInput').value.toLowerCase().trim();
+        const metric = document.getElementById('filterMetric').value;
+        const op = document.getElementById('filterOp').value;
+        const rawVal = document.getElementById('filterValue').value.trim();
+
+        filteredData = allData.filter(record => {
+            // Text search across all fields
+            if (query) {
+                const haystack = JSON.stringify(record).toLowerCase();
+                if (!haystack.includes(query)) return false;
+            }
+
+            // Numeric filter
+            if (metric && rawVal !== '' && !isNaN(rawVal)) {
+                const recordVal = getVal(record, metric);
+                const target = parseFloat(rawVal);
+                if (recordVal == null) return false;
+                switch (op) {
+                    case 'gt':  if (!(recordVal > target)) return false; break;
+                    case 'lt':  if (!(recordVal < target)) return false; break;
+                    case 'eq':  if (!(Math.abs(recordVal - target) < 0.001)) return false; break;
+                    case 'gte': if (!(recordVal >= target)) return false; break;
+                    case 'lte': if (!(recordVal <= target)) return false; break;
+                }
+            }
+
+            return true;
+        });
+
+        // Sort
+        sortData();
+
+        currentPage = 1;
+        expandedRows.clear();
+        render();
+        updateStats();
+    }
+
+    function sortData() {
+        filteredData.sort((a, b) => {
+            let va = getVal(a, sortCol);
+            let vb = getVal(b, sortCol);
+            if (va == null && vb == null) return 0;
+            if (va == null) return 1;
+            if (vb == null) return -1;
+            if (typeof va === 'string') {
+                const cmp = va.localeCompare(vb);
+                return sortDir === 'asc' ? cmp : -cmp;
+            }
+            return sortDir === 'asc' ? va - vb : vb - va;
+        });
+    }
+
+    // ─── Stats ──────────────────────────────────────────
+    function updateStats() {
+        document.getElementById('showCount').textContent = filteredData.length;
+        document.getElementById('totalCount').textContent = allData.length;
+
+        const metric = document.getElementById('filterMetric').value;
+        const statsEl = document.getElementById('selectionStats');
+
+        if (metric && filteredData.length > 0) {
+            const vals = filteredData.map(r => getVal(r, metric)).filter(v => v != null && typeof v === 'number');
+            if (vals.length > 0) {
+                const min = Math.min(...vals);
+                const max = Math.max(...vals);
+                const avg = (vals.reduce((a, b) => a + b, 0) / vals.length);
+                statsEl.innerHTML = `${metric}: min <span class="val">${min.toFixed(2)}</span> · avg <span class="val">${avg.toFixed(2)}</span> · max <span class="val">${max.toFixed(2)}</span>`;
+            } else {
+                statsEl.textContent = '';
+            }
+        } else {
+            statsEl.textContent = '';
+        }
+    }
+
+    // ─── Render Table ───────────────────────────────────
+    function render() {
+        const tbody = document.getElementById('tableBody');
+        const start = (currentPage - 1) * pageSize;
+        const page = filteredData.slice(start, start + pageSize);
+
+        if (page.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="13" class="no-data">No records match your criteria</td></tr>';
+            renderPagination();
+            return;
+        }
+
+        const cols = ['serial', 'email', 'livePercent', 'deadPercent', 'elasticity',
+                       'cl_duration', 'cl_intensity', 'extruder1', 'extruder2',
+                       'layerHeight', 'layerNum', 'wellplate'];
+
+        let html = '';
+        page.forEach((record, idx) => {
+            const globalIdx = start + idx;
+            const isExpanded = expandedRows.has(globalIdx);
+
+            html += `<tr class="${isExpanded ? 'expanded' : ''}" data-idx="${globalIdx}">`;
+            html += `<td><button class="expand-btn" onclick="toggleRow(${globalIdx})" aria-label="Expand record" title="View details">${isExpanded ? '▼' : '▶'}</button></td>`;
+
+            cols.forEach(col => {
+                const val = getVal(record, col);
+                html += `<td class="${cellClass(col)}">${fmt(val, col)}</td>`;
+            });
+            html += '</tr>';
+
+            if (isExpanded) {
+                html += renderDetailRow(record);
+            }
+        });
+
+        tbody.innerHTML = html;
+        renderPagination();
+    }
+
+    function renderDetailRow(record) {
+        const live = getVal(record, 'livePercent') || 0;
+        const dead = getVal(record, 'deadPercent') || 0;
+        const clEnabled = getVal(record, 'cl_enabled');
+        const inputFile = getVal(record, 'inputFile');
+        const outputFile = getVal(record, 'outputFile');
+
+        return `<tr class="detail-row"><td colspan="13">
+            <div class="detail-content">
+                <div class="detail-card">
+                    <h4>Cell Viability</h4>
+                    <div class="detail-item"><span class="detail-label">Live</span><span class="detail-val cell-live">${live.toFixed(2)}%</span></div>
+                    <div class="detail-item"><span class="detail-label">Dead</span><span class="detail-val cell-dead">${dead.toFixed(2)}%</span></div>
+                    <div class="detail-item"><span class="detail-label">Elasticity</span><span class="detail-val">${fmt(getVal(record, 'elasticity'), 'elasticity')} kPa</span></div>
+                    <div class="viability-bar"><div class="live" style="width:${live}%"></div><div class="dead" style="width:${dead}%"></div></div>
+                </div>
+                <div class="detail-card">
+                    <h4>Crosslinking</h4>
+                    <div class="detail-item"><span class="detail-label">Enabled</span><span class="detail-val">${clEnabled ? '✅ Yes' : '❌ No'}</span></div>
+                    <div class="detail-item"><span class="detail-label">Duration</span><span class="detail-val">${fmt(getVal(record, 'cl_duration'), 'cl_duration')} ms</span></div>
+                    <div class="detail-item"><span class="detail-label">Intensity</span><span class="detail-val">${fmt(getVal(record, 'cl_intensity'), 'cl_intensity')}%</span></div>
+                </div>
+                <div class="detail-card">
+                    <h4>Pressure & Resolution</h4>
+                    <div class="detail-item"><span class="detail-label">Extruder 1</span><span class="detail-val">${fmt(getVal(record, 'extruder1'), 'extruder1')}</span></div>
+                    <div class="detail-item"><span class="detail-label">Extruder 2</span><span class="detail-val">${fmt(getVal(record, 'extruder2'), 'extruder2')}</span></div>
+                    <div class="detail-item"><span class="detail-label">Layer Height</span><span class="detail-val">${fmt(getVal(record, 'layerHeight'), 'layerHeight')} mm</span></div>
+                    <div class="detail-item"><span class="detail-label">Layers</span><span class="detail-val">${fmt(getVal(record, 'layerNum'), 'layerNum')}</span></div>
+                </div>
+                <div class="detail-card">
+                    <h4>Metadata</h4>
+                    <div class="detail-item"><span class="detail-label">Serial</span><span class="detail-val">#${getVal(record, 'serial')}</span></div>
+                    <div class="detail-item"><span class="detail-label">Email</span><span class="detail-val">${getVal(record, 'email')}</span></div>
+                    <div class="detail-item"><span class="detail-label">Wellplate</span><span class="detail-val">${fmt(getVal(record, 'wellplate'), 'wellplate')}</span></div>
+                    <div class="detail-item"><span class="detail-label">Input</span><span class="detail-val" style="font-size:0.75rem">${inputFile}</span></div>
+                    <div class="detail-item"><span class="detail-label">Output</span><span class="detail-val" style="font-size:0.75rem">${outputFile}</span></div>
+                </div>
+            </div>
+        </td></tr>`;
+    }
+
+    // ─── Pagination ─────────────────────────────────────
+    function renderPagination() {
+        const totalPages = Math.max(1, Math.ceil(filteredData.length / pageSize));
+        const el = document.getElementById('pagination');
+
+        let html = '';
+        html += `<div class="per-page"><label for="pageSizeSelect">Rows:</label><select id="pageSizeSelect" onchange="changePageSize(this.value)">`;
+        [10, 25, 50, 100].forEach(n => {
+            html += `<option value="${n}" ${n === pageSize ? 'selected' : ''}>${n}</option>`;
+        });
+        html += '</select></div>';
+
+        html += `<button class="page-btn" onclick="goPage(1)" ${currentPage === 1 ? 'disabled' : ''}>«</button>`;
+        html += `<button class="page-btn" onclick="goPage(${currentPage - 1})" ${currentPage === 1 ? 'disabled' : ''}>‹</button>`;
+
+        // Show page numbers around current
+        const range = 2;
+        let startPage = Math.max(1, currentPage - range);
+        let endPage = Math.min(totalPages, currentPage + range);
+
+        if (startPage > 1) html += '<span class="page-info">…</span>';
+
+        for (let i = startPage; i <= endPage; i++) {
+            html += `<button class="page-btn ${i === currentPage ? 'active' : ''}" onclick="goPage(${i})">${i}</button>`;
+        }
+
+        if (endPage < totalPages) html += '<span class="page-info">…</span>';
+
+        html += `<button class="page-btn" onclick="goPage(${currentPage + 1})" ${currentPage === totalPages ? 'disabled' : ''}>›</button>`;
+        html += `<button class="page-btn" onclick="goPage(${totalPages})" ${currentPage === totalPages ? 'disabled' : ''}>»</button>`;
+        html += `<span class="page-info">Page ${currentPage} of ${totalPages}</span>`;
+
+        el.innerHTML = html;
+    }
+
+    function goPage(page) {
+        const totalPages = Math.max(1, Math.ceil(filteredData.length / pageSize));
+        currentPage = Math.max(1, Math.min(page, totalPages));
+        expandedRows.clear();
+        render();
+    }
+
+    function changePageSize(val) {
+        pageSize = parseInt(val, 10);
+        currentPage = 1;
+        expandedRows.clear();
+        render();
+    }
+
+    // ─── Sort ───────────────────────────────────────────
+    function handleSort(col) {
+        if (col === 'expand') return;
+        if (sortCol === col) {
+            sortDir = sortDir === 'asc' ? 'desc' : 'asc';
+        } else {
+            sortCol = col;
+            sortDir = 'asc';
+        }
+
+        // Update header UI
+        document.querySelectorAll('th').forEach(th => {
+            th.classList.remove('sorted');
+            const arrow = th.querySelector('.sort-arrow');
+            if (arrow) arrow.textContent = '▲';
+        });
+        const activeHeader = document.querySelector(`th[data-col="${col}"]`);
+        if (activeHeader) {
+            activeHeader.classList.add('sorted');
+            const arrow = activeHeader.querySelector('.sort-arrow');
+            if (arrow) arrow.textContent = sortDir === 'asc' ? '▲' : '▼';
+        }
+
+        sortData();
+        currentPage = 1;
+        expandedRows.clear();
+        render();
+    }
+
+    // ─── Expand/Collapse ────────────────────────────────
+    function toggleRow(idx) {
+        if (expandedRows.has(idx)) {
+            expandedRows.delete(idx);
+        } else {
+            expandedRows.add(idx);
+        }
+        render();
+    }
+
+    // ─── CSV Export ─────────────────────────────────────
+    function exportCSV() {
+        const headers = ['serial', 'email', 'livePercent', 'deadPercent', 'elasticity',
+                         'cl_enabled', 'cl_duration', 'cl_intensity',
+                         'extruder1', 'extruder2', 'layerHeight', 'layerNum', 'wellplate',
+                         'inputFile', 'outputFile'];
+
+        let csv = headers.join(',') + '\n';
+        filteredData.forEach(record => {
+            const row = headers.map(col => {
+                const val = getVal(record, col);
+                if (val == null) return '';
+                if (typeof val === 'string') return '"' + val.replace(/"/g, '""') + '"';
+                return val;
+            });
+            csv += row.join(',') + '\n';
+        });
+
+        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `biobots-data-${new Date().toISOString().slice(0, 10)}.csv`;
+        link.click();
+        URL.revokeObjectURL(url);
+    }
+
+    // ─── Event Listeners ────────────────────────────────
+    let debounceTimer;
+
+    document.getElementById('searchInput').addEventListener('input', () => {
+        clearTimeout(debounceTimer);
+        debounceTimer = setTimeout(applyFilters, 200);
+    });
+
+    document.getElementById('filterMetric').addEventListener('change', applyFilters);
+    document.getElementById('filterOp').addEventListener('change', applyFilters);
+
+    document.getElementById('filterValue').addEventListener('input', () => {
+        clearTimeout(debounceTimer);
+        debounceTimer = setTimeout(applyFilters, 200);
+    });
+
+    document.getElementById('exportBtn').addEventListener('click', exportCSV);
+
+    document.querySelectorAll('th[data-col]').forEach(th => {
+        th.addEventListener('click', () => handleSort(th.dataset.col));
+    });
+
+    // Keyboard: Enter on filter value triggers filter
+    document.getElementById('filterValue').addEventListener('keydown', e => {
+        if (e.key === 'Enter') applyFilters();
+    });
+
+    // ─── Init ───────────────────────────────────────────
+    fetch('bioprint-data.json')
+        .then(r => {
+            if (!r.ok) throw new Error(`HTTP ${r.status}`);
+            return r.json();
+        })
+        .then(data => {
+            // Filter out records with missing nested objects
+            allData = data.filter(p =>
+                p.user_info && p.print_info && p.print_data &&
+                p.print_info.crosslinking && p.print_info.pressure &&
+                p.print_info.resolution
+            );
+            filteredData = [...allData];
+            sortData();
+            render();
+            updateStats();
+        })
+        .catch(err => {
+            document.getElementById('tableBody').innerHTML =
+                `<tr><td colspan="13" class="no-data">Failed to load data: ${err.message}</td></tr>`;
+        });
+    </script>
+</body>
+</html>

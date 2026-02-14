@@ -169,6 +169,18 @@ The [Data Explorer](https://sauravbhattacharya001.github.io/BioBots/explorer.htm
 - **Correlation View** — Scatter plot comparing any two metrics with linear regression trend line, Pearson r coefficient, and R² value
 - All charts render client-side using Canvas API (zero dependencies)
 
+## 📋 Data Table
+
+The [Data Table](https://sauravbhattacharya001.github.io/BioBots/table.html) lets you browse individual print records:
+
+- **Sortable columns** — Click any column header to sort ascending/descending
+- **Full-text search** — Filter by serial number, email, or any value
+- **Numeric filtering** — Filter records by metric with comparison operators (>, <, =, ≥, ≤)
+- **Expandable rows** — Click any row to see a detailed breakdown with viability bar, crosslinking status, file info
+- **CSV export** — Download filtered results for external analysis
+- **Pagination** — Configurable rows per page (10, 25, 50, 100)
+- **Live statistics** — Shows min/avg/max for selected filter metric across visible records
+
 ## 🔧 Technical Details
 
 - **Thread-safe caching** — Double-checked locking pattern for concurrent request safety
