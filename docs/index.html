@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>BioBots 1 — Bioprint Analytics Tool</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧬</text></svg>">
+    <style>
+        :root {
+            --bg: #0f172a;
+            --surface: #1e293b;
+            --border: #334155;
+            --text: #e2e8f0;
+            --muted: #94a3b8;
+            --accent: #38bdf8;
+            --accent-hover: #7dd3fc;
+            --success: #4ade80;
+            --error: #f87171;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 2rem 1rem;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+
+        header h1 {
+            font-size: 2rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, var(--accent), var(--success));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        header p {
+            color: var(--muted);
+            margin-top: 0.5rem;
+        }
+
+        .stats-bar {
+            display: flex;
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .stat-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 1rem 1.5rem;
+            text-align: center;
+            min-width: 120px;
+        }
+
+        .stat-card .value {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--accent);
+        }
+
+        .stat-card .label {
+            font-size: 0.75rem;
+            color: var(--muted);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-top: 0.25rem;
+        }
+
+        .card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 2rem;
+            width: 100%;
+            max-width: 600px;
+            margin-bottom: 1.5rem;
+        }
+
+        .card h2 {
+            font-size: 1.1rem;
+            margin-bottom: 1rem;
+            color: var(--muted);
+            font-weight: 500;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+        }
+
+        label {
+            font-size: 0.85rem;
+            color: var(--muted);
+            font-weight: 500;
+        }
+
+        select, input[type="text"] {
+            background: var(--bg);
+            border: 1px solid var(--border);
+            color: var(--text);
+            padding: 0.6rem 0.8rem;
+            border-radius: 8px;
+            font-size: 0.95rem;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        select:focus, input[type="text"]:focus {
+            border-color: var(--accent);
+        }
+
+        .btn-group {
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+            margin-top: 1rem;
+        }
+
+        button {
+            background: var(--accent);
+            color: var(--bg);
+            border: none;
+            padding: 0.6rem 1.2rem;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        button:hover {
+            background: var(--accent-hover);
+            transform: translateY(-1px);
+        }
+
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        button.secondary {
+            background: transparent;
+            color: var(--accent);
+            border: 1px solid var(--accent);
+        }
+
+        button.secondary:hover {
+            background: rgba(56, 189, 248, 0.1);
+        }
+
+        .result {
+            margin-top: 1.5rem;
+            padding: 1rem;
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            font-size: 1.1rem;
+            min-height: 2.5rem;
+            display: flex;
+            align-items: center;
+        }
+
+        .result.success { border-color: var(--success); color: var(--success); }
+        .result.error { border-color: var(--error); color: var(--error); }
+
+        footer {
+            margin-top: auto;
+            padding-top: 2rem;
+            color: var(--muted);
+            font-size: 0.8rem;
+            text-align: center;
+        }
+
+        footer a {
+            color: var(--accent);
+            text-decoration: none;
+        }
+
+        footer a:hover { text-decoration: underline; }
+
+        @media (max-width: 480px) {
+            .btn-group { flex-direction: column; }
+            button { width: 100%; }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>🧬 BioBots 1 Analytics</h1>
+        <p>Query and analyze bioprint run statistics from real experimental data</p>
+    </header>
+
+    <div class="stats-bar" id="statsBar">
+        <div class="stat-card">
+            <div class="value" id="totalPrints">—</div>
+            <div class="label">Total Prints</div>
+        </div>
+        <div class="stat-card">
+            <div class="value" id="avgViability">—</div>
+            <div class="label">Avg Live %</div>
+        </div>
+        <div class="stat-card">
+            <div class="value" id="avgElasticity">—</div>
+            <div class="label">Avg Elasticity</div>
+        </div>
+        <div class="stat-card">
+            <div class="value" id="totalMetrics">11</div>
+            <div class="label">Metrics</div>
+        </div>
+    </div>
+
+    <div class="card">
+        <h2>Query Parameters</h2>
+
+        <div class="form-group">
+            <label for="property">Metric</label>
+            <select id="property">
+                <optgroup label="Print Data">
+                    <option value="deadPercent">Dead Cell %</option>
+                    <option value="livePercent">Live Cell %</option>
+                    <option value="elasticity">Elasticity</option>
+                </optgroup>
+                <optgroup label="Crosslinking">
+                    <option value="cl_duration">CL Duration</option>
+                    <option value="cl_intensity">CL Intensity</option>
+                </optgroup>
+                <optgroup label="Pressure">
+                    <option value="extruder1">Extruder 1</option>
+                    <option value="extruder2">Extruder 2</option>
+                </optgroup>
+                <optgroup label="Resolution">
+                    <option value="layerHeight">Layer Height</option>
+                    <option value="layerNum">Layer Count</option>
+                </optgroup>
+                <optgroup label="Metadata">
+                    <option value="serial">Serial #</option>
+                    <option value="wellplate">Wellplate</option>
+                </optgroup>
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label for="arithmetic">Comparison</label>
+            <select id="arithmetic">
+                <option value="greater">Greater than</option>
+                <option value="lesser">Less than</option>
+                <option value="equal">Equal to</option>
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label for="param">Value</label>
+            <input type="text" id="param" placeholder="Enter a number" />
+        </div>
+
+        <div class="btn-group">
+            <button onclick="runQuery()">Count</button>
+            <button class="secondary" onclick="runAggregation('Maximum')">Maximum</button>
+            <button class="secondary" onclick="runAggregation('Minimum')">Minimum</button>
+            <button class="secondary" onclick="runAggregation('Average')">Average</button>
+        </div>
+
+        <div class="result" id="result" aria-live="polite">Select a metric and run a query</div>
+    </div>
+
+    <footer>
+        <p>Built with 🧬 by <a href="https://github.com/sauravbhattacharya001">Saurav Bhattacharya</a></p>
+        <p><a href="https://github.com/sauravbhattacharya001/BioBots">View Source</a></p>
+    </footer>
+
+    <script>
+    'use strict';
+
+    let printData = [];
+
+    // Metric extraction: maps metric name to the path within a print record
+    function getMetricValue(print, metric) {
+        const paths = {
+            deadPercent: p => p.print_data.deadPercent,
+            livePercent: p => p.print_data.livePercent,
+            elasticity: p => p.print_data.elasticity,
+            cl_duration: p => p.print_info.crosslinking.cl_duration,
+            cl_intensity: p => p.print_info.crosslinking.cl_intensity,
+            extruder1: p => p.print_info.pressure.extruder1,
+            extruder2: p => p.print_info.pressure.extruder2,
+            layerHeight: p => p.print_info.resolution.layerHeight,
+            layerNum: p => p.print_info.resolution.layerNum,
+            serial: p => p.user_info.serial,
+            wellplate: p => p.print_info.wellplate,
+        };
+        return paths[metric] ? paths[metric](print) : null;
+    }
+
+    function compare(value, operator, target) {
+        switch (operator) {
+            case 'greater': return value > target;
+            case 'lesser': return value < target;
+            case 'equal': return Math.abs(value - target) < 0.001;
+            default: return false;
+        }
+    }
+
+    function showResult(text, type) {
+        const el = document.getElementById('result');
+        el.textContent = text;
+        el.className = 'result ' + (type || '');
+    }
+
+    function runQuery() {
+        const metric = document.getElementById('property').value;
+        const op = document.getElementById('arithmetic').value;
+        const val = document.getElementById('param').value;
+
+        if (val === '' || isNaN(val) || !isFinite(val)) {
+            showResult('Please enter a valid number.', 'error');
+            return;
+        }
+
+        const target = parseFloat(val);
+        const count = printData.filter(p => {
+            const v = getMetricValue(p, metric);
+            return v !== null && compare(v, op, target);
+        }).length;
+
+        showResult(`${count} print(s) where ${metric} is ${op} than ${target}`, 'success');
+    }
+
+    function runAggregation(func) {
+        const metric = document.getElementById('property').value;
+        const values = printData
+            .map(p => getMetricValue(p, metric))
+            .filter(v => v !== null && !isNaN(v));
+
+        if (values.length === 0) {
+            showResult('No data available for this metric.', 'error');
+            return;
+        }
+
+        let result;
+        switch (func) {
+            case 'Maximum': result = Math.max(...values); break;
+            case 'Minimum': result = Math.min(...values); break;
+            case 'Average': result = (values.reduce((a, b) => a + b, 0) / values.length).toFixed(2); break;
+        }
+
+        showResult(`${func} ${metric}: ${result}`, 'success');
+    }
+
+    // Load data
+    fetch('bioprint-data.json')
+        .then(r => r.json())
+        .then(data => {
+            printData = data;
+            document.getElementById('totalPrints').textContent = data.length.toLocaleString();
+
+            const liveVals = data.map(p => p.print_data.livePercent).filter(v => v != null);
+            const elastVals = data.map(p => p.print_data.elasticity).filter(v => v != null);
+
+            if (liveVals.length > 0) {
+                document.getElementById('avgViability').textContent =
+                    (liveVals.reduce((a, b) => a + b, 0) / liveVals.length).toFixed(1) + '%';
+            }
+            if (elastVals.length > 0) {
+                document.getElementById('avgElasticity').textContent =
+                    (elastVals.reduce((a, b) => a + b, 0) / elastVals.length).toFixed(1);
+            }
+        })
+        .catch(err => {
+            showResult('Failed to load data: ' + err.message, 'error');
+        });
+    </script>
+</body>
+</html>
