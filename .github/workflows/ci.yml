@@ -1,0 +1,51 @@
+name: CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+
+jobs:
+  build:
+    runs-on: windows-latest
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup MSBuild
+        uses: microsoft/setup-msbuild@v2
+
+      - name: Setup NuGet
+        uses: NuGet/setup-nuget@v2
+
+      - name: Restore NuGet packages
+        run: nuget restore BioBotsTool.sln
+
+      - name: Build solution
+        run: msbuild BioBotsTool.sln /p:Configuration=Release /p:Platform="Any CPU" /m /verbosity:minimal
+
+  lint:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Validate JSON data file
+        run: python3 -c "import json; json.load(open('bioprint-data.json'))" && echo "✅ bioprint-data.json is valid JSON"
+
+      - name: Check for trailing whitespace
+        run: |
+          if grep -rn '\s$' Try/*.cs Try/**/*.cs 2>/dev/null; then
+            echo "⚠️ Trailing whitespace found in C# files"
+          else
+            echo "✅ No trailing whitespace in C# files"
+          fi
+
+      - name: Validate workflow files
+        run: |
+          for f in .github/workflows/*.yml; do
+            python3 -c "import yaml; yaml.safe_load(open('$f'))" && echo "✅ $f is valid YAML"
+          done
