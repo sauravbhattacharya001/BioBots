@@ -1,28 +1,39 @@
-﻿var uri = 'api/prints';
+'use strict';
 
-function formatItem(item) {
+var uri = 'api/prints';
 
-    var retVal = 'Email: ' + item.user_info.email;
-    retVal = retVal + 'Serial: ' + item.user_info.serial;
-    return retVal;
+/**
+ * Validates that a value is a finite number.
+ * @param {string} val - The value to validate.
+ * @returns {boolean} True if the value is a valid finite number.
+ */
+function isNumeric(val) {
+    return val !== '' && !isNaN(val) && isFinite(val);
 }
 
 function runMethod(func) {
 
     var property = $('#property option:selected').val();
     var arithmetic = $('#arithmetic option:selected').val();
-    var value = $('#param').val();
 
-    if (func == undefined)
+    var param;
+    if (func === undefined)
         param = $('#param').val();
     else
         param = func;
 
-    $.getJSON(uri + '/' + property + '/' + arithmetic + '/' + param)
+    // Validate that param is a valid number for comparison operations
+    if (!isNumeric(param)) {
+        $('#print').text('Please enter a valid number.');
+        return;
+    }
+
+    var encodedParam = encodeURIComponent(param);
+
+    $.getJSON(uri + '/' + property + '/' + arithmetic + '/' + encodedParam)
       .done(function (data) {
           $('#print').text(data);
       })
-
       .fail(function (jqXHR, textStatus, err) {
           $('#print').text('Error: ' + err);
       });
