@@ -1,5 +1,5 @@
-﻿<!DOCTYPE html>
-<html xmlns="http://www.w3.org/1999/xhtml">
+<!DOCTYPE html>
+<html lang="en" xmlns="http://www.w3.org/1999/xhtml">
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -8,36 +8,50 @@
     <script src="scripts/runMethod.js"></script>
 </head>
 <body>
-    <div>
+    <noscript>
+        <p><strong>JavaScript is required to use this tool.</strong> Please enable JavaScript in your browser and reload the page.</p>
+    </noscript>
+
+    <main>
         <h2>A simple tool for checking BioBot 1 print run statistics</h2>
-        <select id="property">
-            <option value="deadPercent">deadPercent</option>
-            <option value="livePercent">livePercent</option>
-            <option value="elasticity">elasticity</option>
-            <option value="cl_duration">cl_duration</option>
-            <option value="cl_intensity">cl_intensity</option>
-            <option value="extruder1">extruder1</option>
-            <option value="extruder2">extruder2</option>
-            <option value="layerHeight">layerHeight</option>
-            <option value="layerNum">layerNum</option>
-            <option value="serial">serial</option>
-            <option value="wellplate">wellplate</option>
-        </select>
 
-        <select id="arithmetic">
-            <option value="greater">greater</option>
-            <option value="lesser">lesser</option>
-            <option value="equal">equal</option>
-        </select>
+        <fieldset>
+            <legend>Query Parameters</legend>
 
-        <input type="text" id="param" />
+            <label for="property">Metric:</label>
+            <select id="property" aria-label="Select print metric">
+                <option value="deadPercent">deadPercent</option>
+                <option value="livePercent">livePercent</option>
+                <option value="elasticity">elasticity</option>
+                <option value="cl_duration">cl_duration</option>
+                <option value="cl_intensity">cl_intensity</option>
+                <option value="extruder1">extruder1</option>
+                <option value="extruder2">extruder2</option>
+                <option value="layerHeight">layerHeight</option>
+                <option value="layerNum">layerNum</option>
+                <option value="serial">serial</option>
+                <option value="wellplate">wellplate</option>
+            </select>
 
-        <input type="button" value="Count" onclick="runMethod();" />
-        <input type="button" value="Maximum" onclick="runMethod('Maximum');" />
-        <input type="button" value="Minimum" onclick="runMethod('Minimum');" />
-        <input type="button" value="Average" onclick="runMethod('Average');" />
+            <label for="arithmetic">Comparison:</label>
+            <select id="arithmetic" aria-label="Select comparison operator">
+                <option value="greater">greater</option>
+                <option value="lesser">lesser</option>
+                <option value="equal">equal</option>
+            </select>
 
-        <p id="print"> </p>
-    </div>
+            <label for="param">Value:</label>
+            <input type="text" id="param" placeholder="Enter a number" aria-label="Comparison value" />
+        </fieldset>
+
+        <div role="group" aria-label="Actions">
+            <input type="button" value="Count" onclick="runMethod();" />
+            <input type="button" value="Maximum" onclick="runMethod('Maximum');" />
+            <input type="button" value="Minimum" onclick="runMethod('Minimum');" />
+            <input type="button" value="Average" onclick="runMethod('Average');" />
+        </div>
+
+        <p id="print" aria-live="polite"> </p>
+    </main>
 </body>
 </html>
