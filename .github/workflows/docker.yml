@@ -1,0 +1,47 @@
+name: Docker Build
+
+on:
+  push:
+    branches: [master]
+    tags: ['v*']
+  pull_request:
+    branches: [master]
+
+env:
+  IMAGE_NAME: biobots-tool
+
+jobs:
+  docker:
+    runs-on: windows-latest
+
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Log in to GitHub Container Registry
+        if: github.event_name != 'pull_request'
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+
+      - name: Build Docker image
+        run: |
+          $tag = "ghcr.io/${{ github.repository_owner }}/${{ env.IMAGE_NAME }}".ToLower()
+          docker build -t "${tag}:latest" -t "${tag}:${{ github.sha }}" .
+          echo "IMAGE_TAG=${tag}" >> $env:GITHUB_ENV
+
+      - name: Push Docker image
+        if: github.event_name != 'pull_request'
+        run: |
+          $tag = "ghcr.io/${{ github.repository_owner }}/${{ env.IMAGE_NAME }}".ToLower()
+          docker push "${tag}:latest"
+          docker push "${tag}:${{ github.sha }}"
+
+          # Tag with version if this is a release tag
+          if ("${{ github.ref }}" -match "^refs/tags/v") {
+            $version = "${{ github.ref_name }}"
+            docker tag "${tag}:latest" "${tag}:${version}"
+            docker push "${tag}:${version}"
+          }
