@@ -1,0 +1,60 @@
+name: Publish NuGet Package
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Package version override (e.g. 1.0.1)'
+        required: false
+        type: string
+
+env:
+  NUGET_SOURCE: https://nuget.pkg.github.com/sauravbhattacharya001/index.json
+
+jobs:
+  publish:
+    runs-on: windows-latest
+
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup MSBuild
+        uses: microsoft/setup-msbuild@v2
+
+      - name: Setup NuGet
+        uses: NuGet/setup-nuget@v2
+
+      - name: Restore NuGet packages
+        run: nuget restore BioBotsTool.sln
+
+      - name: Build solution (Release)
+        run: msbuild BioBotsTool.sln /p:Configuration=Release /p:Platform="Any CPU" /m /verbosity:minimal
+
+      - name: Determine version
+        id: version
+        run: |
+          if ("${{ inputs.version }}") {
+            $ver = "${{ inputs.version }}"
+          } elseif ("${{ github.event.release.tag_name }}") {
+            $ver = "${{ github.event.release.tag_name }}" -replace '^v', ''
+          } else {
+            $ver = "1.0.0"
+          }
+          echo "VERSION=$ver" >> $env:GITHUB_OUTPUT
+          Write-Host "Package version: $ver"
+
+      - name: Pack NuGet package
+        run: nuget pack BioBots.Models.nuspec -Version ${{ steps.version.outputs.VERSION }} -Properties Configuration=Release -OutputDirectory ./nupkg
+
+      - name: Add GitHub Packages source
+        run: nuget sources add -Name "github" -Source "${{ env.NUGET_SOURCE }}" -Username ${{ github.actor }} -Password ${{ secrets.GITHUB_TOKEN }} -StorePasswordInClearText
+
+      - name: Push NuGet package
+        run: nuget push ./nupkg/*.nupkg -Source "github" -ApiKey ${{ secrets.GITHUB_TOKEN }} -SkipDuplicate

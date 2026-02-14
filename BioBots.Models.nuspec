@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<package xmlns="http://schemas.microsoft.com/packaging/2013/05/nuspec.xsd">
+  <metadata>
+    <id>BioBots.Models</id>
+    <version>1.0.0</version>
+    <title>BioBots Models</title>
+    <authors>Saurav Bhattacharya</authors>
+    <owners>sauravbhattacharya001</owners>
+    <license type="expression">MIT</license>
+    <projectUrl>https://github.com/sauravbhattacharya001/BioBots</projectUrl>
+    <repository type="git" url="https://github.com/sauravbhattacharya001/BioBots.git" />
+    <requireLicenseAcceptance>false</requireLicenseAcceptance>
+    <description>Data models and API types for the BioBots Tool — a REST API for querying BioBot 1 bioprinter statistics including cell viability, print resolution, crosslinking parameters, and extruder pressure data.</description>
+    <tags>biobots bioprinting 3d-printing tissue-engineering bioprinter data-models</tags>
+    <releaseNotes>Initial release — Print, UserInfo, PrintInfo, PrintData, Crosslinking, Resolution, Pressure, and Files model classes for BioBot 1 print run data.</releaseNotes>
+    <copyright>Copyright (c) 2026 Saurav Bhattacharya</copyright>
+    <dependencies>
+      <group targetFramework=".NETFramework4.5.2" />
+    </dependencies>
+  </metadata>
+  <files>
+    <file src="Try\bin\Try.dll" target="lib\net452\" />
+  </files>
+</package>

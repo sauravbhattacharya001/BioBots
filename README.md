@@ -185,6 +185,30 @@ The [Data Explorer](https://sauravbhattacharya001.github.io/BioBots/explorer.htm
 | jQuery 3.7.1 | Frontend API client |
 | JSON | Data storage format |
 
+## 📦 Packages
+
+### NuGet (GitHub Packages)
+
+The `BioBots.Models` package provides the data model classes (`Print`, `UserInfo`, `PrintInfo`, `PrintData`, etc.) for use in other .NET projects.
+
+```bash
+# Add the GitHub Packages source (one-time)
+dotnet nuget add source https://nuget.pkg.github.com/sauravbhattacharya001/index.json \
+  --name github-biobots --username YOUR_GITHUB_USERNAME --password YOUR_GITHUB_PAT
+
+# Install the package
+dotnet add package BioBots.Models
+```
+
+Packages are published automatically on each [GitHub Release](https://github.com/sauravbhattacharya001/BioBots/releases).
+
+### Docker (GitHub Container Registry)
+
+```bash
+docker pull ghcr.io/sauravbhattacharya001/biobots-tool:latest
+docker run -p 8080:80 ghcr.io/sauravbhattacharya001/biobots-tool:latest
+```
+
 ## 📄 License
 
 [MIT](LICENSE) — Saurav Bhattacharya
