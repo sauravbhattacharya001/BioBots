@@ -11,6 +11,14 @@ function isNumeric(val) {
     return val !== '' && !isNaN(val) && isFinite(val);
 }
 
+/**
+ * Set the enabled state of all action buttons.
+ * @param {boolean} enabled - Whether buttons should be enabled.
+ */
+function setButtonsEnabled(enabled) {
+    $('input[type="button"]').prop('disabled', !enabled);
+}
+
 function runMethod(func) {
 
     var property = $('#property option:selected').val();
@@ -32,11 +40,18 @@ function runMethod(func) {
 
     var encodedParam = encodeURIComponent(param);
 
+    // Disable buttons and show loading state to prevent duplicate requests
+    setButtonsEnabled(false);
+    $('#print').text('Loading...');
+
     $.getJSON(uri + '/' + property + '/' + arithmetic + '/' + encodedParam)
       .done(function (data) {
           $('#print').text(data);
       })
       .fail(function (jqXHR, textStatus, err) {
           $('#print').text('Error: ' + err);
+      })
+      .always(function () {
+          setButtonsEnabled(true);
       });
 }
