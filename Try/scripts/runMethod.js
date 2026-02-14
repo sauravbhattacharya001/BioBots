@@ -55,3 +55,8 @@ function runMethod(func) {
           setButtonsEnabled(true);
       });
 }
+
+// CommonJS export for testing (no-op in browsers where `module` is undefined)
+if (typeof module !== 'undefined' && module.exports) {
+    module.exports = { isNumeric, setButtonsEnabled, runMethod, _uri: uri };
+}
