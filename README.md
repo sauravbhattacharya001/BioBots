@@ -8,13 +8,15 @@ To run this project you will need Visual Studio 2015. You can download it from h
 
 ## JSON Settings
 
-Ensure you have your own JSON file for the tool to run on. Navigate to `Controllers/PrintsController.cs`, line 15:
+The controller reads print data from a JSON file. By default it looks for
+`bioprint-data.json` in the application root. To use a custom path, add a
+`DataFilePath` entry to the `<appSettings>` section of your `Web.config`:
 
-```csharp
-string path = @"C:\path\to\your\bioprint-data.json";
+```xml
+<appSettings>
+  <add key="DataFilePath" value="C:\path\to\your\bioprint-data.json" />
+</appSettings>
 ```
-
-Replace this line with the appropriate path to your `bioprint-data.json` file.
 
 ## Product Snapshot
 

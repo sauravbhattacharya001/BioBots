@@ -152,11 +152,6 @@ namespace BioBots.Controllers
         [Route("api/prints/wellplate/{arithmetic}/{param}")]
         [HttpGet]
         public IHttpActionResult GetPrintFromWellplate(string arithmetic, string param)
-        {
-            if (arithmetic == "equal")
-                return QueryIntMetric(arithmetic, param, p => p.print_info.wellplate);
-
-            return NotFound();
-        }
+            => QueryIntMetric(arithmetic, param, p => p.print_info.wellplate);
     }
 }
