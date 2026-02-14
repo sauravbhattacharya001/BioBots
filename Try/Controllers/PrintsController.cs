@@ -12,8 +12,26 @@ namespace BioBots.Controllers
 {
     public class PrintsController : ApiController
     {
+        // Cache parsed print data in a static Lazy<T> so the JSON file is read
+        // and deserialized exactly once (on first request), rather than on every
+        // controller instantiation. ASP.NET Web API creates a new controller per
+        // request, so this eliminates redundant I/O + parse + GC overhead. (fixes #5)
+        private static readonly Lazy<Print[]> _cachedPrints = new Lazy<Print[]>(LoadAndFilterPrints);
+
         Print[] prints;
+
         public PrintsController() : base()
+        {
+            prints = _cachedPrints.Value;
+        }
+
+        /// <summary>
+        /// Load print data from the JSON file, deserialize, and filter out
+        /// records with missing required nested objects. Called once by
+        /// <see cref="_cachedPrints"/> and cached for the lifetime of the
+        /// application domain.
+        /// </summary>
+        private static Print[] LoadAndFilterPrints()
         {
             string path = ConfigurationManager.AppSettings["DataFilePath"]
                 ?? @"bioprint-data.json";
@@ -23,8 +41,10 @@ namespace BioBots.Controllers
                     "Data file not found. Set 'DataFilePath' in appSettings or place bioprint-data.json in the application root.",
                     path);
             }
-            string[] lines = File.ReadAllLines(path);
-            string jsonInput = String.Concat(lines);
+
+            // Use ReadAllText instead of ReadAllLines + Concat to avoid an
+            // unnecessary intermediate string[] allocation.
+            string jsonInput = File.ReadAllText(path);
 
             JavaScriptSerializer jsonSerializer = new JavaScriptSerializer();
             jsonSerializer.MaxJsonLength = int.MaxValue;
@@ -46,7 +66,9 @@ namespace BioBots.Controllers
                 }
                 valid.Add(p);
             }
-            prints = valid.ToArray();
+
+            Trace.TraceInformation("BioBots: Loaded {0} valid print records (cached).", valid.Count);
+            return valid.ToArray();
         }
 
         /// <summary>
