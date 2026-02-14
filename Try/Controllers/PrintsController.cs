@@ -1,5 +1,7 @@
 using System;
+using System.Collections.Generic;
 using System.Configuration;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Web.Http;
@@ -26,15 +28,37 @@ namespace BioBots.Controllers
 
             JavaScriptSerializer jsonSerializer = new JavaScriptSerializer();
             jsonSerializer.MaxJsonLength = int.MaxValue;
-            prints = jsonSerializer.Deserialize<Print[]>(jsonInput);
+            var allPrints = jsonSerializer.Deserialize<Print[]>(jsonInput);
+
+            // Filter out records with missing required nested objects to
+            // prevent NullReferenceException in query selectors. (fixes #4)
+            var valid = new List<Print>();
+            for (int i = 0; i < allPrints.Length; i++)
+            {
+                var p = allPrints[i];
+                if (p.user_info == null || p.print_info == null || p.print_data == null
+                    || p.print_info.crosslinking == null || p.print_info.pressure == null
+                    || p.print_info.resolution == null)
+                {
+                    Trace.TraceWarning(
+                        "BioBots: Skipping record at index {0} — missing required nested object(s).", i);
+                    continue;
+                }
+                valid.Add(p);
+            }
+            prints = valid.ToArray();
         }
 
         /// <summary>
         /// Generic query method for integer metrics.
         /// Handles Maximum, Minimum, Average aggregations and greater/lesser/equal comparisons.
+        /// Returns 404 if no valid records remain after null filtering.
         /// </summary>
         private IHttpActionResult QueryIntMetric(string arithmetic, string param, Func<Print, int> selector)
         {
+            if (prints.Length == 0)
+                return NotFound();
+
             if (param == "Maximum") return Ok(prints.Max(selector));
             if (param == "Minimum") return Ok(prints.Min(selector));
             if (param == "Average") return Ok(prints.Average(selector));
@@ -53,9 +77,13 @@ namespace BioBots.Controllers
         /// <summary>
         /// Generic query method for double metrics.
         /// Handles Maximum, Minimum, Average aggregations and greater/lesser/equal comparisons.
+        /// Returns 404 if no valid records remain after null filtering.
         /// </summary>
         private IHttpActionResult QueryDoubleMetric(string arithmetic, string param, Func<Print, double> selector)
         {
+            if (prints.Length == 0)
+                return NotFound();
+
             if (param == "Maximum") return Ok(prints.Max(selector));
             if (param == "Minimum") return Ok(prints.Min(selector));
             if (param == "Average") return Ok(prints.Average(selector));
