@@ -31,7 +31,9 @@ namespace BioBots.Controllers
         // When the file's LastWriteTimeUtc changes, the cache is refreshed.
         // This replaces the old Lazy<T> approach so that edits to
         // bioprint-data.json are picked up without an app restart. (fixes #6)
-        private static Print[] _cachedPrints;
+        // Volatile ensures cross-thread visibility without a full lock on the
+        // fast path (double-checked locking pattern).
+        private static volatile Print[] _cachedPrints;
         private static DateTime _cachedFileTimestamp = DateTime.MinValue;
 
         // Pre-computed aggregation stats for each metric, built at cache load time.
@@ -134,6 +136,13 @@ namespace BioBots.Controllers
                 allPrints = serializer.Deserialize<Print[]>(jsonReader);
             }
 
+            // Guard against empty or malformed JSON files that deserialize to null
+            if (allPrints == null || allPrints.Length == 0)
+            {
+                Trace.TraceWarning("BioBots: Data file '{0}' is empty or contains no valid JSON array.", path);
+                return new Print[0];
+            }
+
             // Filter out records with missing required nested objects to
             // prevent NullReferenceException in query selectors. (fixes #4)
             var valid = new List<Print>(allPrints.Length);
@@ -225,6 +234,11 @@ namespace BioBots.Controllers
         /// Comparison queries (greater/lesser/equal) still scan the array — O(n).
         /// Returns 404 if no valid records remain after null filtering.
         /// </summary>
+        private static readonly HashSet<string> ValidArithmetic = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            "greater", "lesser", "equal"
+        };
+
         private IHttpActionResult QueryIntMetric(string metricKey, string arithmetic, string param, Func<Print, int> selector)
         {
             if (prints.Length == 0)
@@ -238,6 +252,10 @@ namespace BioBots.Controllers
                 if (param == "Minimum") return Ok((int)ms.Min);
                 if (param == "Average") return Ok(ms.Average);
             }
+
+            // Validate arithmetic operator before attempting numeric parse
+            if (!ValidArithmetic.Contains(arithmetic))
+                return BadRequest($"Invalid comparison operator: '{arithmetic}'. Expected 'greater', 'lesser', or 'equal'.");
 
             int value;
             if (!int.TryParse(param, out value))
@@ -273,6 +291,10 @@ namespace BioBots.Controllers
                 if (param == "Minimum") return Ok(ms.Min);
                 if (param == "Average") return Ok(ms.Average);
             }
+
+            // Validate arithmetic operator before attempting numeric parse
+            if (!ValidArithmetic.Contains(arithmetic))
+                return BadRequest($"Invalid comparison operator: '{arithmetic}'. Expected 'greater', 'lesser', or 'equal'.");
 
             double value;
             if (!double.TryParse(param, out value))
