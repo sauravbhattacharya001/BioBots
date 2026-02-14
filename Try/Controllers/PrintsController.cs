@@ -134,8 +134,12 @@ namespace BioBots.Controllers
         /// <summary>
         /// Generic query method for double metrics.
         /// Handles Maximum, Minimum, Average aggregations and greater/lesser/equal comparisons.
+        /// Uses epsilon-based tolerance for equality to avoid IEEE 754 floating-point
+        /// precision issues (e.g. 50.1 stored as 50.09999999999999). Fixes #7.
         /// Returns 404 if no valid records remain after null filtering.
         /// </summary>
+        private const double Epsilon = 1e-9;
+
         private IHttpActionResult QueryDoubleMetric(string arithmetic, string param, Func<Print, double> selector)
         {
             if (prints.Length == 0)
@@ -151,7 +155,7 @@ namespace BioBots.Controllers
 
             if (arithmetic == "greater") return Ok(prints.Count(p => selector(p) > value));
             if (arithmetic == "lesser")  return Ok(prints.Count(p => selector(p) < value));
-            if (arithmetic == "equal")   return Ok(prints.Count(p => selector(p) == value));
+            if (arithmetic == "equal")   return Ok(prints.Count(p => Math.Abs(selector(p) - value) < Epsilon));
 
             return NotFound();
         }
