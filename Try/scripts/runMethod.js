@@ -17,13 +17,15 @@ function runMethod(func) {
     var arithmetic = $('#arithmetic option:selected').val();
 
     var param;
-    if (func === undefined)
-        param = $('#param').val();
-    else
+    var isAggregation = (func !== undefined);
+    if (isAggregation)
         param = func;
+    else
+        param = $('#param').val();
 
-    // Validate that param is a valid number for comparison operations
-    if (!isNumeric(param)) {
+    // Only validate numeric input for comparison operations (greater/lesser/equal),
+    // not for aggregation functions (Maximum, Minimum, Average)
+    if (!isAggregation && !isNumeric(param)) {
         $('#print').text('Please enter a valid number.');
         return;
     }
