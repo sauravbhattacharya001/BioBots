@@ -8,10 +8,18 @@ Analyze 3D bioprinting run data — cell viability, print resolution, crosslinki
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![CI](https://github.com/sauravbhattacharya001/BioBots/actions/workflows/ci.yml/badge.svg)](https://github.com/sauravbhattacharya001/BioBots/actions/workflows/ci.yml)
+[![Docker Build](https://github.com/sauravbhattacharya001/BioBots/actions/workflows/docker.yml/badge.svg)](https://github.com/sauravbhattacharya001/BioBots/actions/workflows/docker.yml)
+[![GitHub Pages](https://github.com/sauravbhattacharya001/BioBots/actions/workflows/pages.yml/badge.svg)](https://sauravbhattacharya001.github.io/BioBots/)
 ![Tests](https://img.shields.io/badge/tests-50%20passed-brightgreen)
 ![C#](https://img.shields.io/badge/C%23-ASP.NET%20Web%20API-purple)
 ![.NET Framework](https://img.shields.io/badge/.NET%20Framework-4.x-blue)
 [![Visual Studio](https://img.shields.io/badge/IDE-Visual%20Studio%202015+-blueviolet)](https://visualstudio.microsoft.com/)
+[![GitHub issues](https://img.shields.io/github/issues/sauravbhattacharya001/BioBots)](https://github.com/sauravbhattacharya001/BioBots/issues)
+[![GitHub last commit](https://img.shields.io/github/last-commit/sauravbhattacharya001/BioBots)](https://github.com/sauravbhattacharya001/BioBots/commits/master)
+[![GitHub repo size](https://img.shields.io/github/repo-size/sauravbhattacharya001/BioBots)](https://github.com/sauravbhattacharya001/BioBots)
+![GitHub stars](https://img.shields.io/github/stars/sauravbhattacharya001/BioBots?style=social)
+[![Contributions Welcome](https://img.shields.io/badge/contributions-welcome-brightgreen.svg)](CONTRIBUTING.md)
+[![Docker Image](https://img.shields.io/badge/Docker-ghcr.io-blue?logo=docker)](https://github.com/sauravbhattacharya001/BioBots/pkgs/container/biobots-tool)
 
 </div>
 
