@@ -1,0 +1,77 @@
+# Label definitions for actions/labeler
+# See: https://github.com/actions/labeler
+
+# Language / component labels
+csharp:
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'Try/**/*.cs'
+          - '*.sln'
+          - '*.csproj'
+          - '*.nuspec'
+
+javascript:
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'Try/scripts/**/*.js'
+          - 'package.json'
+          - 'package-lock.json'
+
+# Area labels
+api:
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'Try/Controllers/**'
+          - 'Try/Models/**'
+          - 'Try/App_Start/**'
+          - 'Try/Filters/**'
+
+frontend:
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'Try/index.html'
+          - 'Try/scripts/**'
+          - 'docs/**'
+
+data:
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'bioprint-data.json'
+          - 'docs/bioprint-data.json'
+
+tests:
+  - changed-files:
+      - any-glob-to-any-file:
+          - '__tests__/**'
+
+ci:
+  - changed-files:
+      - any-glob-to-any-file:
+          - '.github/workflows/**'
+          - '.github/labeler.yml'
+          - '.github/dependabot.yml'
+
+docker:
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'Dockerfile'
+          - '.dockerignore'
+          - 'docker-compose*.yml'
+
+documentation:
+  - changed-files:
+      - any-glob-to-any-file:
+          - '*.md'
+          - 'docs/**/*.html'
+          - 'CONTRIBUTING.md'
+          - 'CHANGELOG.md'
+
+config:
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'Try/Web.config'
+          - 'Try/Web.*.config'
+          - 'Try/packages.config'
+          - '.editorconfig'
+          - '.gitattributes'
+          - '.gitignore'
