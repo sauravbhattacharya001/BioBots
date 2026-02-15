@@ -5,12 +5,12 @@ using System.Runtime.InteropServices;
 // General Information about an assembly is controlled through the following 
 // set of attributes. Change these attribute values to modify the information
 // associated with an assembly.
-[assembly: AssemblyTitle("Try")]
-[assembly: AssemblyDescription("")]
+[assembly: AssemblyTitle("BioBots Tool")]
+[assembly: AssemblyDescription("REST API and web interface for querying BioBot 1 bioprinter statistics")]
 [assembly: AssemblyConfiguration("")]
-[assembly: AssemblyCompany("")]
-[assembly: AssemblyProduct("Try")]
-[assembly: AssemblyCopyright("Copyright ©  2016")]
+[assembly: AssemblyCompany("Saurav Bhattacharya")]
+[assembly: AssemblyProduct("BioBots Tool")]
+[assembly: AssemblyCopyright("Copyright © 2016-2026 Saurav Bhattacharya")]
 [assembly: AssemblyTrademark("")]
 [assembly: AssemblyCulture("")]
 
