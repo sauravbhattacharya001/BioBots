@@ -10,7 +10,7 @@ Analyze 3D bioprinting run data — cell viability, print resolution, crosslinki
 [![CI](https://github.com/sauravbhattacharya001/BioBots/actions/workflows/ci.yml/badge.svg)](https://github.com/sauravbhattacharya001/BioBots/actions/workflows/ci.yml)
 [![Docker Build](https://github.com/sauravbhattacharya001/BioBots/actions/workflows/docker.yml/badge.svg)](https://github.com/sauravbhattacharya001/BioBots/actions/workflows/docker.yml)
 [![GitHub Pages](https://github.com/sauravbhattacharya001/BioBots/actions/workflows/pages.yml/badge.svg)](https://sauravbhattacharya001.github.io/BioBots/)
-![Tests](https://img.shields.io/badge/tests-50%20passed-brightgreen)
+![Tests](https://img.shields.io/badge/tests-87%20passed-brightgreen)
 ![C#](https://img.shields.io/badge/C%23-ASP.NET%20Web%20API-purple)
 ![.NET Framework](https://img.shields.io/badge/.NET%20Framework-4.x-blue)
 [![Visual Studio](https://img.shields.io/badge/IDE-Visual%20Studio%202015+-blueviolet)](https://visualstudio.microsoft.com/)
@@ -167,6 +167,16 @@ The [Data Explorer](https://sauravbhattacharya001.github.io/BioBots/explorer.htm
 
 - **Distribution View** — Histogram of any metric with configurable bin count, hover tooltips, and summary statistics (min, max, mean, median, standard deviation)
 - **Correlation View** — Scatter plot comparing any two metrics with linear regression trend line, Pearson r coefficient, and R² value
+- All charts render client-side using Canvas API (zero dependencies)
+
+## 🔬 Print Comparison
+
+The [Print Comparison](https://sauravbhattacharya001.github.io/BioBots/compare.html) tool lets you compare 2–4 individual print records side by side:
+
+- **Search & Select** — Find prints by serial number, email, or index; or add random records
+- **Radar Chart** — Normalized radar/spider chart overlaying all selected prints across 10 metrics
+- **Metric Breakdown** — Side-by-side table with per-metric values, best/worst highlighting (🏆), inline bars, and spread calculation
+- **Smart Insights** — Auto-generated cards: highest viability, best elasticity, most layers, viability spread, crosslinking effect analysis, pressure balance assessment
 - All charts render client-side using Canvas API (zero dependencies)
 
 ## 📋 Data Table

@@ -1,0 +1,922 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>BioBots 1 — Print Comparison</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧬</text></svg>">
+    <style>
+        :root {
+            --bg: #0f172a;
+            --surface: #1e293b;
+            --border: #334155;
+            --text: #e2e8f0;
+            --muted: #94a3b8;
+            --accent: #38bdf8;
+            --accent-hover: #7dd3fc;
+            --success: #4ade80;
+            --error: #f87171;
+            --warning: #fbbf24;
+            --purple: #a78bfa;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            padding: 2rem 1rem;
+        }
+
+        .container { max-width: 1100px; margin: 0 auto; }
+
+        header { text-align: center; margin-bottom: 2rem; }
+
+        header h1 {
+            font-size: 2rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, var(--accent), var(--success));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        header p { color: var(--muted); margin-top: 0.5rem; }
+
+        .nav {
+            display: flex;
+            justify-content: center;
+            gap: 0.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .nav a {
+            color: var(--muted);
+            text-decoration: none;
+            padding: 0.5rem 1rem;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            transition: all 0.2s;
+        }
+
+        .nav a:hover { color: var(--text); background: var(--surface); }
+        .nav a.active { color: var(--accent); background: var(--surface); border: 1px solid var(--border); }
+
+        .card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .card h2 {
+            font-size: 1rem;
+            margin-bottom: 1rem;
+            color: var(--muted);
+            font-weight: 500;
+        }
+
+        /* Selection controls */
+        .selector-row {
+            display: flex;
+            gap: 0.75rem;
+            flex-wrap: wrap;
+            align-items: end;
+        }
+
+        .selector-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.3rem;
+            flex: 1;
+            min-width: 180px;
+        }
+
+        .selector-group label {
+            font-size: 0.8rem;
+            color: var(--muted);
+            font-weight: 500;
+        }
+
+        select, input[type="text"] {
+            background: var(--bg);
+            border: 1px solid var(--border);
+            color: var(--text);
+            padding: 0.5rem 0.7rem;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        select:focus, input[type="text"]:focus { border-color: var(--accent); }
+
+        button {
+            background: var(--accent);
+            color: var(--bg);
+            border: none;
+            padding: 0.5rem 1.2rem;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            white-space: nowrap;
+        }
+
+        button:hover { background: var(--accent-hover); transform: translateY(-1px); }
+        button:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+        button.secondary {
+            background: transparent;
+            color: var(--accent);
+            border: 1px solid var(--accent);
+        }
+
+        button.secondary:hover { background: rgba(56, 189, 248, 0.1); }
+
+        button.danger {
+            background: transparent;
+            color: var(--error);
+            border: 1px solid var(--error);
+        }
+
+        button.danger:hover { background: rgba(248, 113, 113, 0.1); }
+
+        /* Selected prints chips */
+        .chips {
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+            margin-top: 1rem;
+        }
+
+        .chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.4rem;
+            padding: 0.35rem 0.75rem;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 500;
+            border: 1px solid;
+        }
+
+        .chip .remove-btn {
+            cursor: pointer;
+            opacity: 0.7;
+            font-size: 0.75rem;
+            line-height: 1;
+        }
+
+        .chip .remove-btn:hover { opacity: 1; }
+
+        /* Color assignments */
+        .color-0 { border-color: #38bdf8; color: #38bdf8; background: rgba(56, 189, 248, 0.1); }
+        .color-1 { border-color: #4ade80; color: #4ade80; background: rgba(74, 222, 128, 0.1); }
+        .color-2 { border-color: #fbbf24; color: #fbbf24; background: rgba(251, 191, 36, 0.1); }
+        .color-3 { border-color: #a78bfa; color: #a78bfa; background: rgba(167, 139, 250, 0.1); }
+
+        .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; }
+        .dot-0 { background: #38bdf8; }
+        .dot-1 { background: #4ade80; }
+        .dot-2 { background: #fbbf24; }
+        .dot-3 { background: #a78bfa; }
+
+        /* Radar chart */
+        .chart-container {
+            position: relative;
+            width: 100%;
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            overflow: hidden;
+        }
+
+        canvas { display: block; width: 100%; height: auto; }
+
+        /* Comparison table */
+        .compare-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.9rem;
+        }
+
+        .compare-table th, .compare-table td {
+            padding: 0.65rem 0.8rem;
+            text-align: left;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .compare-table th {
+            color: var(--muted);
+            font-weight: 500;
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            position: sticky;
+            top: 0;
+            background: var(--surface);
+        }
+
+        .compare-table tbody tr:hover { background: rgba(56, 189, 248, 0.05); }
+
+        .compare-table .metric-name {
+            color: var(--text);
+            font-weight: 500;
+        }
+
+        .compare-table .best { font-weight: 700; }
+        .compare-table .worst { opacity: 0.5; }
+
+        .bar-cell {
+            position: relative;
+        }
+
+        .bar-bg {
+            position: absolute;
+            left: 0;
+            top: 50%;
+            transform: translateY(-50%);
+            height: 4px;
+            border-radius: 2px;
+            opacity: 0.3;
+        }
+
+        .bar-bg-0 { background: #38bdf8; }
+        .bar-bg-1 { background: #4ade80; }
+        .bar-bg-2 { background: #fbbf24; }
+        .bar-bg-3 { background: #a78bfa; }
+
+        /* Insights */
+        .insights {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 1rem;
+            margin-top: 1rem;
+        }
+
+        .insight-card {
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 1rem;
+        }
+
+        .insight-card h3 {
+            font-size: 0.8rem;
+            color: var(--muted);
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            margin-bottom: 0.5rem;
+        }
+
+        .insight-card .value {
+            font-size: 1.3rem;
+            font-weight: 700;
+            color: var(--accent);
+        }
+
+        .insight-card .detail {
+            font-size: 0.8rem;
+            color: var(--muted);
+            margin-top: 0.3rem;
+        }
+
+        .empty-state {
+            text-align: center;
+            color: var(--muted);
+            padding: 3rem 1rem;
+        }
+
+        .empty-state .icon { font-size: 3rem; margin-bottom: 1rem; }
+        .empty-state p { margin-top: 0.5rem; font-size: 0.9rem; }
+
+        /* Legend */
+        .legend {
+            display: flex;
+            gap: 1.5rem;
+            justify-content: center;
+            margin-top: 1rem;
+            flex-wrap: wrap;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+            font-size: 0.85rem;
+            color: var(--muted);
+        }
+
+        /* Search */
+        .search-container {
+            position: relative;
+            flex: 1;
+            min-width: 200px;
+        }
+
+        .search-container input {
+            width: 100%;
+        }
+
+        .search-results {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            max-height: 200px;
+            overflow-y: auto;
+            z-index: 100;
+            display: none;
+            margin-top: 4px;
+        }
+
+        .search-results.visible { display: block; }
+
+        .search-result-item {
+            padding: 0.5rem 0.8rem;
+            cursor: pointer;
+            font-size: 0.85rem;
+            color: var(--text);
+            border-bottom: 1px solid var(--border);
+            transition: background 0.1s;
+        }
+
+        .search-result-item:last-child { border-bottom: none; }
+        .search-result-item:hover { background: rgba(56, 189, 248, 0.1); }
+        .search-result-item .sub { color: var(--muted); font-size: 0.75rem; }
+
+        footer {
+            margin-top: 2rem;
+            color: var(--muted);
+            font-size: 0.8rem;
+            text-align: center;
+        }
+
+        footer a { color: var(--accent); text-decoration: none; }
+        footer a:hover { text-decoration: underline; }
+
+        @media (max-width: 600px) {
+            .selector-row { flex-direction: column; }
+            .compare-table { font-size: 0.8rem; }
+            .compare-table th, .compare-table td { padding: 0.4rem 0.5rem; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🔬 Print Comparison</h1>
+            <p>Select 2–4 print records and compare metrics side by side</p>
+        </header>
+
+        <div class="nav">
+            <a href="index.html">Query Tool</a>
+            <a href="explorer.html">Data Explorer</a>
+            <a href="table.html">Data Table</a>
+            <a href="compare.html" class="active">Compare</a>
+        </div>
+
+        <!-- Selection -->
+        <div class="card">
+            <h2>Select Prints to Compare</h2>
+            <div class="selector-row">
+                <div class="search-container">
+                    <input type="text" id="searchInput" placeholder="Search by serial #, email, or index..." autocomplete="off" />
+                    <div class="search-results" id="searchResults"></div>
+                </div>
+                <button onclick="addRandom()" class="secondary" title="Add a random print">🎲 Random</button>
+                <button onclick="clearAll()" class="danger" title="Clear all selections">✕ Clear</button>
+            </div>
+            <div class="chips" id="selectedChips"></div>
+        </div>
+
+        <!-- Radar Chart -->
+        <div id="comparisonContent">
+            <div class="empty-state" id="emptyState">
+                <div class="icon">🔬</div>
+                <p><strong>No prints selected</strong></p>
+                <p>Search for prints above or click Random to add records for comparison</p>
+            </div>
+        </div>
+
+        <!-- Radar -->
+        <div class="card" id="radarCard" style="display:none;">
+            <h2>Radar Comparison</h2>
+            <div class="chart-container">
+                <canvas id="radarCanvas" width="700" height="500"></canvas>
+            </div>
+            <div class="legend" id="radarLegend"></div>
+        </div>
+
+        <!-- Metric Table -->
+        <div class="card" id="tableCard" style="display:none;">
+            <h2>Metric Breakdown</h2>
+            <div style="overflow-x:auto;">
+                <table class="compare-table" id="compareTable">
+                    <thead id="tableHead"></thead>
+                    <tbody id="tableBody"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Insights -->
+        <div class="card" id="insightsCard" style="display:none;">
+            <h2>Comparison Insights</h2>
+            <div class="insights" id="insightsGrid"></div>
+        </div>
+
+        <footer>
+            <p>Built with 🧬 by <a href="https://github.com/sauravbhattacharya001">Saurav Bhattacharya</a></p>
+            <p><a href="https://github.com/sauravbhattacharya001/BioBots">View Source</a></p>
+        </footer>
+    </div>
+
+    <script>
+    'use strict';
+
+    // ── Constants ──────────────────────────────────────────
+    const COLORS = ['#38bdf8', '#4ade80', '#fbbf24', '#a78bfa'];
+    const MAX_SELECTIONS = 4;
+
+    const METRICS = [
+        { key: 'livePercent',  label: 'Live Cell %',      unit: '%',   higherBetter: true,  get: p => p.print_data.livePercent },
+        { key: 'deadPercent',  label: 'Dead Cell %',      unit: '%',   higherBetter: false, get: p => p.print_data.deadPercent },
+        { key: 'elasticity',   label: 'Elasticity',       unit: 'kPa', higherBetter: true,  get: p => p.print_data.elasticity },
+        { key: 'cl_duration',  label: 'CL Duration',      unit: 'ms',  higherBetter: null,  get: p => p.print_info.crosslinking.cl_duration },
+        { key: 'cl_intensity', label: 'CL Intensity',     unit: '%',   higherBetter: null,  get: p => p.print_info.crosslinking.cl_intensity },
+        { key: 'extruder1',    label: 'Extruder 1',       unit: '',    higherBetter: null,  get: p => p.print_info.pressure.extruder1 },
+        { key: 'extruder2',    label: 'Extruder 2',       unit: '',    higherBetter: null,  get: p => p.print_info.pressure.extruder2 },
+        { key: 'layerHeight',  label: 'Layer Height',     unit: 'mm',  higherBetter: null,  get: p => p.print_info.resolution.layerHeight },
+        { key: 'layerNum',     label: 'Layer Count',      unit: '',    higherBetter: true,  get: p => p.print_info.resolution.layerNum },
+        { key: 'wellplate',    label: 'Wellplate',        unit: '',    higherBetter: null,  get: p => p.print_info.wellplate },
+    ];
+
+    // ── State ─────────────────────────────────────────────
+    let printData = [];
+    let selected = []; // array of { index, print }
+
+    // ── Data Loading ──────────────────────────────────────
+    fetch('bioprint-data.json')
+        .then(r => r.json())
+        .then(data => {
+            printData = data.filter(p =>
+                p.print_data && p.print_info && p.user_info &&
+                p.print_info.crosslinking && p.print_info.pressure && p.print_info.resolution
+            );
+        })
+        .catch(err => {
+            document.getElementById('emptyState').innerHTML =
+                '<div class="icon">⚠️</div><p>Failed to load data: ' + err.message + '</p>';
+        });
+
+    // ── Search ────────────────────────────────────────────
+    const searchInput = document.getElementById('searchInput');
+    const searchResults = document.getElementById('searchResults');
+
+    searchInput.addEventListener('input', function() {
+        const q = this.value.trim().toLowerCase();
+        if (q.length === 0) {
+            searchResults.classList.remove('visible');
+            return;
+        }
+
+        const results = [];
+        for (let i = 0; i < printData.length && results.length < 20; i++) {
+            const p = printData[i];
+            const serial = String(p.user_info.serial);
+            const email = (p.user_info.email || '').toLowerCase();
+            const idx = String(i);
+
+            if (serial.includes(q) || email.includes(q) || idx === q) {
+                if (!selected.some(s => s.index === i)) {
+                    results.push(i);
+                }
+            }
+        }
+
+        if (results.length === 0) {
+            searchResults.innerHTML = '<div class="search-result-item" style="color:var(--muted);">No matching prints found</div>';
+        } else {
+            searchResults.innerHTML = results.map(i => {
+                const p = printData[i];
+                return `<div class="search-result-item" onclick="addPrint(${i})">
+                    <strong>#${i}</strong> — Serial ${p.user_info.serial}
+                    <div class="sub">${p.user_info.email} · Live: ${p.print_data.livePercent}% · Elasticity: ${p.print_data.elasticity} kPa</div>
+                </div>`;
+            }).join('');
+        }
+
+        searchResults.classList.add('visible');
+    });
+
+    searchInput.addEventListener('focus', function() {
+        if (this.value.trim().length > 0) {
+            searchResults.classList.add('visible');
+        }
+    });
+
+    document.addEventListener('click', function(e) {
+        if (!e.target.closest('.search-container')) {
+            searchResults.classList.remove('visible');
+        }
+    });
+
+    // ── Selection Management ──────────────────────────────
+    function addPrint(index) {
+        if (selected.length >= MAX_SELECTIONS) return;
+        if (selected.some(s => s.index === index)) return;
+
+        selected.push({ index, print: printData[index] });
+        searchInput.value = '';
+        searchResults.classList.remove('visible');
+        updateUI();
+    }
+
+    function removePrint(index) {
+        selected = selected.filter(s => s.index !== index);
+        updateUI();
+    }
+
+    function addRandom() {
+        if (selected.length >= MAX_SELECTIONS || printData.length === 0) return;
+        const available = [];
+        for (let i = 0; i < printData.length; i++) {
+            if (!selected.some(s => s.index === i)) available.push(i);
+        }
+        if (available.length === 0) return;
+        const idx = available[Math.floor(Math.random() * available.length)];
+        addPrint(idx);
+    }
+
+    function clearAll() {
+        selected = [];
+        updateUI();
+    }
+
+    // ── UI Update ─────────────────────────────────────────
+    function updateUI() {
+        renderChips();
+
+        const hasData = selected.length >= 2;
+        document.getElementById('emptyState').style.display = hasData ? 'none' : '';
+        document.getElementById('radarCard').style.display = hasData ? '' : 'none';
+        document.getElementById('tableCard').style.display = hasData ? '' : 'none';
+        document.getElementById('insightsCard').style.display = hasData ? '' : 'none';
+
+        if (selected.length === 1) {
+            document.getElementById('emptyState').innerHTML =
+                '<div class="icon">☝️</div><p><strong>Add at least one more print</strong></p><p>Select 2–4 prints to see the comparison</p>';
+            document.getElementById('emptyState').style.display = '';
+        } else if (selected.length === 0) {
+            document.getElementById('emptyState').innerHTML =
+                '<div class="icon">🔬</div><p><strong>No prints selected</strong></p><p>Search for prints above or click Random to add records for comparison</p>';
+        }
+
+        if (hasData) {
+            drawRadar();
+            buildTable();
+            buildInsights();
+        }
+    }
+
+    function renderChips() {
+        const container = document.getElementById('selectedChips');
+        container.innerHTML = selected.map((s, ci) =>
+            `<div class="chip color-${ci}">
+                <span class="dot dot-${ci}"></span>
+                Print #${s.index} (S/N ${s.print.user_info.serial})
+                <span class="remove-btn" onclick="removePrint(${s.index})">✕</span>
+            </div>`
+        ).join('');
+    }
+
+    // ── Radar Chart ───────────────────────────────────────
+    function drawRadar() {
+        const canvas = document.getElementById('radarCanvas');
+        const W = 700, H = 500;
+        const dpr = window.devicePixelRatio || 1;
+        canvas.width = W * dpr;
+        canvas.height = H * dpr;
+        canvas.style.width = W + 'px';
+        canvas.style.height = H + 'px';
+        const ctx = canvas.getContext('2d');
+        ctx.scale(dpr, dpr);
+
+        const cx = W / 2;
+        const cy = H / 2;
+        const radius = Math.min(W, H) / 2 - 60;
+        const numAxes = METRICS.length;
+        const angleStep = (2 * Math.PI) / numAxes;
+
+        // Clear
+        ctx.fillStyle = '#0f172a';
+        ctx.fillRect(0, 0, W, H);
+
+        // Compute global min/max per metric for normalization
+        const ranges = METRICS.map(m => {
+            const vals = selected.map(s => {
+                try { return m.get(s.print); } catch { return null; }
+            }).filter(v => v !== null && isFinite(v));
+            const allVals = printData.map(p => {
+                try { return m.get(p); } catch { return null; }
+            }).filter(v => v !== null && isFinite(v));
+            return {
+                min: Math.min(...allVals),
+                max: Math.max(...allVals),
+                range: Math.max(...allVals) - Math.min(...allVals) || 1
+            };
+        });
+
+        // Draw concentric rings
+        ctx.strokeStyle = '#1e293b';
+        ctx.lineWidth = 1;
+        for (let ring = 1; ring <= 5; ring++) {
+            const r = (ring / 5) * radius;
+            ctx.beginPath();
+            for (let i = 0; i <= numAxes; i++) {
+                const angle = i * angleStep - Math.PI / 2;
+                const x = cx + r * Math.cos(angle);
+                const y = cy + r * Math.sin(angle);
+                if (i === 0) ctx.moveTo(x, y);
+                else ctx.lineTo(x, y);
+            }
+            ctx.closePath();
+            ctx.stroke();
+        }
+
+        // Draw axes
+        ctx.strokeStyle = '#334155';
+        for (let i = 0; i < numAxes; i++) {
+            const angle = i * angleStep - Math.PI / 2;
+            ctx.beginPath();
+            ctx.moveTo(cx, cy);
+            ctx.lineTo(cx + radius * Math.cos(angle), cy + radius * Math.sin(angle));
+            ctx.stroke();
+        }
+
+        // Draw axis labels
+        ctx.fillStyle = '#94a3b8';
+        ctx.font = '11px -apple-system, sans-serif';
+        ctx.textBaseline = 'middle';
+        for (let i = 0; i < numAxes; i++) {
+            const angle = i * angleStep - Math.PI / 2;
+            const labelR = radius + 20;
+            const x = cx + labelR * Math.cos(angle);
+            const y = cy + labelR * Math.sin(angle);
+
+            // Adjust alignment based on position
+            if (Math.abs(Math.cos(angle)) < 0.1) {
+                ctx.textAlign = 'center';
+            } else if (Math.cos(angle) > 0) {
+                ctx.textAlign = 'left';
+            } else {
+                ctx.textAlign = 'right';
+            }
+
+            ctx.fillText(METRICS[i].label, x, y);
+        }
+
+        // Draw each selected print's polygon
+        for (let si = 0; si < selected.length; si++) {
+            const print = selected[si].print;
+            const color = COLORS[si];
+
+            const points = [];
+            for (let i = 0; i < numAxes; i++) {
+                let val;
+                try { val = METRICS[i].get(print); } catch { val = null; }
+                if (val === null || !isFinite(val)) val = ranges[i].min;
+
+                // Normalize to 0-1
+                const norm = (val - ranges[i].min) / ranges[i].range;
+                const r = norm * radius;
+                const angle = i * angleStep - Math.PI / 2;
+                points.push({
+                    x: cx + r * Math.cos(angle),
+                    y: cy + r * Math.sin(angle)
+                });
+            }
+
+            // Fill
+            ctx.globalAlpha = 0.12;
+            ctx.fillStyle = color;
+            ctx.beginPath();
+            points.forEach((p, i) => i === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y));
+            ctx.closePath();
+            ctx.fill();
+
+            // Stroke
+            ctx.globalAlpha = 0.9;
+            ctx.strokeStyle = color;
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            points.forEach((p, i) => i === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y));
+            ctx.closePath();
+            ctx.stroke();
+
+            // Dots
+            ctx.globalAlpha = 1;
+            ctx.fillStyle = color;
+            for (const p of points) {
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, 4, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
+
+        ctx.globalAlpha = 1;
+
+        // Legend
+        document.getElementById('radarLegend').innerHTML = selected.map((s, i) =>
+            `<div class="legend-item"><span class="dot dot-${i}"></span>Print #${s.index} (S/N ${s.print.user_info.serial})</div>`
+        ).join('');
+    }
+
+    // ── Comparison Table ──────────────────────────────────
+    function buildTable() {
+        const head = document.getElementById('tableHead');
+        const body = document.getElementById('tableBody');
+
+        // Header
+        let headHtml = '<tr><th>Metric</th>';
+        for (let i = 0; i < selected.length; i++) {
+            headHtml += `<th><span class="dot dot-${i}"></span> Print #${selected[i].index}</th>`;
+        }
+        headHtml += '<th>Spread</th></tr>';
+        head.innerHTML = headHtml;
+
+        // Body rows
+        let bodyHtml = '';
+        for (const m of METRICS) {
+            const values = selected.map(s => {
+                try { return m.get(s.print); } catch { return null; }
+            });
+
+            const numericVals = values.filter(v => v !== null && isFinite(v));
+            const allDataVals = printData.map(p => {
+                try { return m.get(p); } catch { return null; }
+            }).filter(v => v !== null && isFinite(v));
+            const globalMax = allDataVals.length > 0 ? Math.max(...allDataVals) : 1;
+
+            let bestIdx = -1, worstIdx = -1;
+            if (numericVals.length >= 2 && m.higherBetter !== null) {
+                const sorted = [...numericVals].sort((a, b) => a - b);
+                const bestVal = m.higherBetter ? sorted[sorted.length - 1] : sorted[0];
+                const worstVal = m.higherBetter ? sorted[0] : sorted[sorted.length - 1];
+                bestIdx = values.indexOf(bestVal);
+                worstIdx = values.indexOf(worstVal);
+                if (bestVal === worstVal) { bestIdx = -1; worstIdx = -1; }
+            }
+
+            const spread = numericVals.length >= 2
+                ? (Math.max(...numericVals) - Math.min(...numericVals)).toFixed(2)
+                : '—';
+
+            bodyHtml += `<tr><td class="metric-name">${m.label} ${m.unit ? '(' + m.unit + ')' : ''}</td>`;
+            for (let i = 0; i < selected.length; i++) {
+                const v = values[i];
+                const formatted = v !== null && isFinite(v) ? formatNum(v) : '—';
+                const cls = i === bestIdx ? 'best' : (i === worstIdx ? 'worst' : '');
+                const icon = i === bestIdx ? ' 🏆' : '';
+                const barWidth = (v !== null && globalMax > 0) ? Math.round((Math.abs(v) / globalMax) * 80) : 0;
+
+                bodyHtml += `<td class="bar-cell ${cls}">
+                    <div class="bar-bg bar-bg-${i}" style="width:${barWidth}%;"></div>
+                    <span style="position:relative;z-index:1;">${formatted}${icon}</span>
+                </td>`;
+            }
+            bodyHtml += `<td style="color:var(--muted);">${spread}</td></tr>`;
+        }
+
+        // Crosslinking row
+        bodyHtml += `<tr><td class="metric-name">Crosslinking</td>`;
+        for (let i = 0; i < selected.length; i++) {
+            const enabled = selected[i].print.print_info.crosslinking.cl_enabled;
+            bodyHtml += `<td>${enabled ? '<span style="color:var(--success)">✅ Enabled</span>' : '<span style="color:var(--error)">❌ Disabled</span>'}</td>`;
+        }
+        bodyHtml += '<td>—</td></tr>';
+
+        body.innerHTML = bodyHtml;
+    }
+
+    // ── Insights ──────────────────────────────────────────
+    function buildInsights() {
+        const grid = document.getElementById('insightsGrid');
+        const insights = [];
+
+        // Highest viability
+        let bestViability = { val: -1, idx: -1 };
+        for (let i = 0; i < selected.length; i++) {
+            const v = selected[i].print.print_data.livePercent;
+            if (v > bestViability.val) bestViability = { val: v, idx: i };
+        }
+        if (bestViability.idx >= 0) {
+            insights.push({
+                title: 'Highest Cell Viability',
+                value: bestViability.val.toFixed(1) + '%',
+                detail: `Print #${selected[bestViability.idx].index} has the best live cell percentage`,
+                color: COLORS[bestViability.idx]
+            });
+        }
+
+        // Best elasticity
+        let bestElast = { val: -1, idx: -1 };
+        for (let i = 0; i < selected.length; i++) {
+            const v = selected[i].print.print_data.elasticity;
+            if (v > bestElast.val) bestElast = { val: v, idx: i };
+        }
+        if (bestElast.idx >= 0) {
+            insights.push({
+                title: 'Highest Elasticity',
+                value: bestElast.val.toFixed(1) + ' kPa',
+                detail: `Print #${selected[bestElast.idx].index} produced the most elastic structure`,
+                color: COLORS[bestElast.idx]
+            });
+        }
+
+        // Most layers
+        let bestLayers = { val: -1, idx: -1 };
+        for (let i = 0; i < selected.length; i++) {
+            const v = selected[i].print.print_info.resolution.layerNum;
+            if (v > bestLayers.val) bestLayers = { val: v, idx: i };
+        }
+        if (bestLayers.idx >= 0) {
+            insights.push({
+                title: 'Most Layers',
+                value: bestLayers.val,
+                detail: `Print #${selected[bestLayers.idx].index} used the most layers (finer detail)`,
+                color: COLORS[bestLayers.idx]
+            });
+        }
+
+        // Viability spread
+        const viabilities = selected.map(s => s.print.print_data.livePercent).filter(v => v != null);
+        if (viabilities.length >= 2) {
+            const spread = Math.max(...viabilities) - Math.min(...viabilities);
+            insights.push({
+                title: 'Viability Spread',
+                value: spread.toFixed(1) + '%',
+                detail: spread > 30 ? 'Large variation — significantly different outcomes' : spread > 10 ? 'Moderate variation between prints' : 'Prints are fairly similar in viability',
+                color: 'var(--accent)'
+            });
+        }
+
+        // Crosslinking comparison
+        const clEnabled = selected.filter(s => s.print.print_info.crosslinking.cl_enabled).length;
+        const clDisabled = selected.length - clEnabled;
+        if (clEnabled > 0 && clDisabled > 0) {
+            const enabledViabilities = selected.filter(s => s.print.print_info.crosslinking.cl_enabled)
+                .map(s => s.print.print_data.livePercent);
+            const disabledViabilities = selected.filter(s => !s.print.print_info.crosslinking.cl_enabled)
+                .map(s => s.print.print_data.livePercent);
+            const avgEnabled = enabledViabilities.reduce((a, b) => a + b, 0) / enabledViabilities.length;
+            const avgDisabled = disabledViabilities.reduce((a, b) => a + b, 0) / disabledViabilities.length;
+
+            insights.push({
+                title: 'Crosslinking Effect',
+                value: (avgEnabled > avgDisabled ? '+' : '') + (avgEnabled - avgDisabled).toFixed(1) + '%',
+                detail: `Crosslinked prints average ${avgEnabled.toFixed(1)}% vs ${avgDisabled.toFixed(1)}% viability`,
+                color: avgEnabled > avgDisabled ? 'var(--success)' : 'var(--error)'
+            });
+        }
+
+        // Pressure balance
+        const pressureDiffs = selected.map(s => {
+            const e1 = s.print.print_info.pressure.extruder1;
+            const e2 = s.print.print_info.pressure.extruder2;
+            return Math.abs(e1 - e2);
+        });
+        const avgPressureDiff = pressureDiffs.reduce((a, b) => a + b, 0) / pressureDiffs.length;
+        insights.push({
+            title: 'Avg Pressure Imbalance',
+            value: avgPressureDiff.toFixed(1),
+            detail: avgPressureDiff < 20 ? 'Extruders are well balanced' : avgPressureDiff < 50 ? 'Moderate pressure difference between extruders' : 'Significant extruder pressure asymmetry',
+            color: 'var(--warning)'
+        });
+
+        grid.innerHTML = insights.map(ins =>
+            `<div class="insight-card">
+                <h3>${ins.title}</h3>
+                <div class="value" style="color:${ins.color};">${ins.value}</div>
+                <div class="detail">${ins.detail}</div>
+            </div>`
+        ).join('');
+    }
+
+    // ── Helpers ────────────────────────────────────────────
+    function formatNum(n) {
+        if (Math.abs(n) >= 1000) return n.toLocaleString(undefined, { maximumFractionDigits: 1 });
+        if (Number.isInteger(n)) return n.toString();
+        return n.toFixed(2);
+    }
+    </script>
+</body>
+</html>
