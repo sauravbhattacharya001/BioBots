@@ -22,6 +22,23 @@ namespace BioBots.Controllers
         public double Average;
     }
 
+    /// <summary>
+    /// Describes a single queryable metric: its selector function and whether
+    /// it should be treated as an integer (truncating aggregation results) or
+    /// a double (using epsilon-based equality comparison).
+    /// </summary>
+    internal sealed class MetricDescriptor
+    {
+        public Func<Print, double> Selector { get; }
+        public bool IsInteger { get; }
+
+        public MetricDescriptor(Func<Print, double> selector, bool isInteger)
+        {
+            Selector = selector;
+            IsInteger = isInteger;
+        }
+    }
+
     public class PrintsController : ApiController
     {
         // Lock object to synchronize cache invalidation checks.
@@ -39,6 +56,27 @@ namespace BioBots.Controllers
         // Pre-computed aggregation stats for each metric, built at cache load time.
         // Key = metric name (matches route parameter), Value = pre-computed min/max/avg.
         private static Dictionary<string, MetricStats> _cachedStats;
+
+        /// <summary>
+        /// Registry of all queryable metrics. Maps the metric name (used in the
+        /// URL route) to its selector and type. Adding a new metric is a one-line
+        /// change here — no new endpoint method needed.
+        /// </summary>
+        private static readonly Dictionary<string, MetricDescriptor> MetricRegistry =
+            new Dictionary<string, MetricDescriptor>
+        {
+            { "serial",       new MetricDescriptor(p => p.user_info.serial,                    isInteger: true)  },
+            { "livePercent",  new MetricDescriptor(p => p.print_data.livePercent,              isInteger: false) },
+            { "deadPercent",  new MetricDescriptor(p => p.print_data.deadPercent,              isInteger: false) },
+            { "elasticity",   new MetricDescriptor(p => p.print_data.elasticity,               isInteger: false) },
+            { "cl_duration",  new MetricDescriptor(p => p.print_info.crosslinking.cl_duration, isInteger: true)  },
+            { "cl_intensity", new MetricDescriptor(p => p.print_info.crosslinking.cl_intensity,isInteger: true)  },
+            { "extruder1",    new MetricDescriptor(p => p.print_info.pressure.extruder1,       isInteger: false) },
+            { "extruder2",    new MetricDescriptor(p => p.print_info.pressure.extruder2,       isInteger: false) },
+            { "layerHeight",  new MetricDescriptor(p => p.print_info.resolution.layerHeight,   isInteger: false) },
+            { "layerNum",     new MetricDescriptor(p => p.print_info.resolution.layerNum,      isInteger: true)  },
+            { "wellplate",    new MetricDescriptor(p => p.print_info.wellplate,                 isInteger: true)  },
+        };
 
         Print[] prints;
         Dictionary<string, MetricStats> stats;
@@ -165,49 +203,34 @@ namespace BioBots.Controllers
         }
 
         /// <summary>
-        /// Pre-compute min/max/average for all 11 queryable metrics in a single
-        /// pass over the data. This runs once at cache load time, making all
-        /// subsequent aggregation queries O(1) instead of O(n).
+        /// Pre-compute min/max/average for all queryable metrics in a single
+        /// pass over the data. Uses the MetricRegistry as the single source of
+        /// truth for selectors — no duplicate definitions needed.
+        /// Runs once at cache load time, making all aggregation queries O(1).
         /// </summary>
         private static Dictionary<string, MetricStats> PrecomputeStats(Print[] prints)
         {
             if (prints.Length == 0)
                 return new Dictionary<string, MetricStats>();
 
-            // Define all metric selectors in one place for the single-pass computation.
-            var selectors = new Dictionary<string, Func<Print, double>>
-            {
-                { "serial",       p => p.user_info.serial },
-                { "livePercent",  p => p.print_data.livePercent },
-                { "deadPercent",  p => p.print_data.deadPercent },
-                { "elasticity",   p => p.print_data.elasticity },
-                { "cl_duration",  p => p.print_info.crosslinking.cl_duration },
-                { "cl_intensity", p => p.print_info.crosslinking.cl_intensity },
-                { "extruder1",    p => p.print_info.pressure.extruder1 },
-                { "extruder2",    p => p.print_info.pressure.extruder2 },
-                { "layerHeight",  p => p.print_info.resolution.layerHeight },
-                { "layerNum",     p => p.print_info.resolution.layerNum },
-                { "wellplate",    p => p.print_info.wellplate }
-            };
-
-            // Initialize accumulators
+            // Initialize accumulators from the metric registry
             var mins = new Dictionary<string, double>();
             var maxs = new Dictionary<string, double>();
             var sums = new Dictionary<string, double>();
-            foreach (var key in selectors.Keys)
+            foreach (var key in MetricRegistry.Keys)
             {
                 mins[key] = double.MaxValue;
                 maxs[key] = double.MinValue;
                 sums[key] = 0;
             }
 
-            // Single pass over all records — compute all 11 metrics at once
+            // Single pass over all records — compute all metrics at once
             for (int i = 0; i < prints.Length; i++)
             {
                 var p = prints[i];
-                foreach (var kvp in selectors)
+                foreach (var kvp in MetricRegistry)
                 {
-                    double val = kvp.Value(p);
+                    double val = kvp.Value.Selector(p);
                     if (val < mins[kvp.Key]) mins[kvp.Key] = val;
                     if (val > maxs[kvp.Key]) maxs[kvp.Key] = val;
                     sums[kvp.Key] += val;
@@ -215,7 +238,7 @@ namespace BioBots.Controllers
             }
 
             var result = new Dictionary<string, MetricStats>();
-            foreach (var key in selectors.Keys)
+            foreach (var key in MetricRegistry.Keys)
             {
                 result[key] = new MetricStats
                 {
@@ -229,57 +252,26 @@ namespace BioBots.Controllers
         }
 
         /// <summary>
-        /// Generic query method for integer metrics.
-        /// Aggregation queries (Maximum/Minimum/Average) use pre-computed stats — O(1).
-        /// Comparison queries (greater/lesser/equal) still scan the array — O(n).
+        /// Unified query method that handles both integer and double metrics via
+        /// the MetricRegistry. Aggregation queries use pre-computed stats (O(1)).
+        /// Comparison queries scan the array (O(n)). Integer metrics truncate
+        /// aggregation results; double metrics use epsilon-based equality.
         /// Returns 404 if no valid records remain after null filtering.
+        /// Returns 400 for unknown metrics or invalid operators/parameters.
         /// </summary>
         private static readonly HashSet<string> ValidArithmetic = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
         {
             "greater", "lesser", "equal"
         };
 
-        private IHttpActionResult QueryIntMetric(string metricKey, string arithmetic, string param, Func<Print, int> selector)
-        {
-            if (prints.Length == 0)
-                return NotFound();
-
-            // O(1) aggregation from pre-computed stats
-            MetricStats ms;
-            if (stats.TryGetValue(metricKey, out ms))
-            {
-                if (param == "Maximum") return Ok((int)ms.Max);
-                if (param == "Minimum") return Ok((int)ms.Min);
-                if (param == "Average") return Ok(ms.Average);
-            }
-
-            // Validate arithmetic operator before attempting numeric parse
-            if (!ValidArithmetic.Contains(arithmetic))
-                return BadRequest($"Invalid comparison operator: '{arithmetic}'. Expected 'greater', 'lesser', or 'equal'.");
-
-            int value;
-            if (!int.TryParse(param, out value))
-                return BadRequest($"Invalid numeric parameter: '{param}'. Expected an integer.");
-
-            if (arithmetic == "greater") return Ok(prints.Count(p => selector(p) > value));
-            if (arithmetic == "lesser")  return Ok(prints.Count(p => selector(p) < value));
-            if (arithmetic == "equal")   return Ok(prints.Count(p => selector(p) == value));
-
-            return NotFound();
-        }
-
-        /// <summary>
-        /// Generic query method for double metrics.
-        /// Aggregation queries (Maximum/Minimum/Average) use pre-computed stats — O(1).
-        /// Comparison queries (greater/lesser/equal) still scan the array — O(n).
-        /// Uses epsilon-based tolerance for equality to avoid IEEE 754 floating-point
-        /// precision issues (e.g. 50.1 stored as 50.09999999999999). Fixes #7.
-        /// Returns 404 if no valid records remain after null filtering.
-        /// </summary>
         private const double Epsilon = 1e-9;
 
-        private IHttpActionResult QueryDoubleMetric(string metricKey, string arithmetic, string param, Func<Print, double> selector)
+        private IHttpActionResult QueryMetric(string metricKey, string arithmetic, string param)
         {
+            MetricDescriptor descriptor;
+            if (!MetricRegistry.TryGetValue(metricKey, out descriptor))
+                return BadRequest($"Unknown metric: '{metricKey}'. Valid metrics: {string.Join(", ", MetricRegistry.Keys)}.");
+
             if (prints.Length == 0)
                 return NotFound();
 
@@ -287,8 +279,8 @@ namespace BioBots.Controllers
             MetricStats ms;
             if (stats.TryGetValue(metricKey, out ms))
             {
-                if (param == "Maximum") return Ok(ms.Max);
-                if (param == "Minimum") return Ok(ms.Min);
+                if (param == "Maximum") return Ok(descriptor.IsInteger ? (object)(int)ms.Max : ms.Max);
+                if (param == "Minimum") return Ok(descriptor.IsInteger ? (object)(int)ms.Min : ms.Min);
                 if (param == "Average") return Ok(ms.Average);
             }
 
@@ -300,66 +292,36 @@ namespace BioBots.Controllers
             if (!double.TryParse(param, out value))
                 return BadRequest($"Invalid numeric parameter: '{param}'. Expected a number.");
 
+            var selector = descriptor.Selector;
+
             if (arithmetic == "greater") return Ok(prints.Count(p => selector(p) > value));
             if (arithmetic == "lesser")  return Ok(prints.Count(p => selector(p) < value));
-            if (arithmetic == "equal")   return Ok(prints.Count(p => Math.Abs(selector(p) - value) < Epsilon));
+
+            // Equality: integers use exact match, doubles use epsilon tolerance (fixes #7)
+            if (arithmetic == "equal")
+            {
+                if (descriptor.IsInteger)
+                    return Ok(prints.Count(p => (int)selector(p) == (int)value));
+                else
+                    return Ok(prints.Count(p => Math.Abs(selector(p) - value) < Epsilon));
+            }
 
             return NotFound();
         }
 
-        [Route("api/prints/serial/{arithmetic}/{param}")]
+        /// <summary>
+        /// Single unified endpoint for all metric queries. The metric name is
+        /// part of the route, validated against the MetricRegistry. This replaces
+        /// 11 separate endpoint methods with identical signatures.
+        /// 
+        /// Examples:
+        ///   GET api/prints/serial/greater/100
+        ///   GET api/prints/livePercent/equal/Maximum
+        ///   GET api/prints/elasticity/lesser/50.5
+        /// </summary>
+        [Route("api/prints/{metric}/{arithmetic}/{param}")]
         [HttpGet]
-        public IHttpActionResult GetPrintFromSerial(string arithmetic, string param)
-            => QueryIntMetric("serial", arithmetic, param, p => p.user_info.serial);
-
-        [Route("api/prints/deadPercent/{arithmetic}/{param}")]
-        [HttpGet]
-        public IHttpActionResult GetPrintFromDeadPercent(string arithmetic, string param)
-            => QueryDoubleMetric("deadPercent", arithmetic, param, p => p.print_data.deadPercent);
-
-        [Route("api/prints/livePercent/{arithmetic}/{param}")]
-        [HttpGet]
-        public IHttpActionResult GetPrintFromLivePercent(string arithmetic, string param)
-            => QueryDoubleMetric("livePercent", arithmetic, param, p => p.print_data.livePercent);
-
-        [Route("api/prints/elasticity/{arithmetic}/{param}")]
-        [HttpGet]
-        public IHttpActionResult GetPrintFromElasticity(string arithmetic, string param)
-            => QueryDoubleMetric("elasticity", arithmetic, param, p => p.print_data.elasticity);
-
-        [Route("api/prints/cl_duration/{arithmetic}/{param}")]
-        [HttpGet]
-        public IHttpActionResult GetPrintFromCrosslinkingDuration(string arithmetic, string param)
-            => QueryIntMetric("cl_duration", arithmetic, param, p => p.print_info.crosslinking.cl_duration);
-
-        [Route("api/prints/cl_intensity/{arithmetic}/{param}")]
-        [HttpGet]
-        public IHttpActionResult GetPrintFromCrosslinkingIntensity(string arithmetic, string param)
-            => QueryIntMetric("cl_intensity", arithmetic, param, p => p.print_info.crosslinking.cl_intensity);
-
-        [Route("api/prints/extruder1/{arithmetic}/{param}")]
-        [HttpGet]
-        public IHttpActionResult GetPrintFromCrosslinkingExtruderOne(string arithmetic, string param)
-            => QueryDoubleMetric("extruder1", arithmetic, param, p => p.print_info.pressure.extruder1);
-
-        [Route("api/prints/extruder2/{arithmetic}/{param}")]
-        [HttpGet]
-        public IHttpActionResult GetPrintFromPressureExtruderTwo(string arithmetic, string param)
-            => QueryDoubleMetric("extruder2", arithmetic, param, p => p.print_info.pressure.extruder2);
-
-        [Route("api/prints/layerHeight/{arithmetic}/{param}")]
-        [HttpGet]
-        public IHttpActionResult GetPrintFromResolutionLayerHeight(string arithmetic, string param)
-            => QueryDoubleMetric("layerHeight", arithmetic, param, p => p.print_info.resolution.layerHeight);
-
-        [Route("api/prints/layerNum/{arithmetic}/{param}")]
-        [HttpGet]
-        public IHttpActionResult GetPrintFromResolutionLayerNum(string arithmetic, string param)
-            => QueryIntMetric("layerNum", arithmetic, param, p => p.print_info.resolution.layerNum);
-
-        [Route("api/prints/wellplate/{arithmetic}/{param}")]
-        [HttpGet]
-        public IHttpActionResult GetPrintFromWellplate(string arithmetic, string param)
-            => QueryIntMetric("wellplate", arithmetic, param, p => p.print_info.wellplate);
+        public IHttpActionResult GetPrintMetric(string metric, string arithmetic, string param)
+            => QueryMetric(metric, arithmetic, param);
     }
 }
