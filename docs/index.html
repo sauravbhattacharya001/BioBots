@@ -296,6 +296,14 @@
     <script>
     'use strict';
 
+    // HTML escaping to prevent XSS from error messages or data values
+    const _escapeEl = document.createElement('div');
+    function escapeHtml(str) {
+        if (str == null) return '';
+        _escapeEl.textContent = String(str);
+        return _escapeEl.innerHTML;
+    }
+
     let printData = [];
 
     // Metric extraction: maps metric name to the path within a print record
@@ -391,7 +399,7 @@
             }
         })
         .catch(err => {
-            showResult('Failed to load data: ' + err.message, 'error');
+            showResult('Failed to load data: ' + escapeHtml(err.message), 'error');
         });
     </script>
 </body>

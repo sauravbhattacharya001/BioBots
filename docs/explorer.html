@@ -362,6 +362,15 @@
     <script>
     'use strict';
 
+    // ── HTML Escaping ───────────────────────────────────
+    // Prevent XSS when rendering error messages or data values
+    const _escapeEl = document.createElement('div');
+    function escapeHtml(str) {
+        if (str == null) return '';
+        _escapeEl.textContent = String(str);
+        return _escapeEl.innerHTML;
+    }
+
     // ── Data ───────────────────────────────────────────────
     let printData = [];
 
@@ -788,7 +797,7 @@
         })
         .catch(err => {
             document.getElementById('histStats').innerHTML =
-                '<div class="mini-stat"><div class="val" style="color:var(--error)">Failed to load data</div></div>';
+                '<div class="mini-stat"><div class="val" style="color:var(--error)">Failed to load data: ' + escapeHtml(err.message) + '</div></div>';
         });
     </script>
 </body>

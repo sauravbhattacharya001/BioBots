@@ -445,6 +445,17 @@
     <script>
     'use strict';
 
+    // ─── HTML Escaping ────────────────────────────────────
+    // Prevent XSS: all user-controlled data must be escaped before
+    // insertion into innerHTML to prevent script injection via
+    // crafted email addresses, filenames, or other JSON fields.
+    const _escapeEl = document.createElement('div');
+    function escapeHtml(str) {
+        if (str == null) return '';
+        _escapeEl.textContent = String(str);
+        return _escapeEl.innerHTML;
+    }
+
     // ─── State ──────────────────────────────────────────
     let allData = [];
     let filteredData = [];
@@ -481,13 +492,13 @@
     // ─── Formatting ─────────────────────────────────────
     function fmt(val, col) {
         if (val == null) return '—';
-        if (col === 'email') return val;
+        if (col === 'email') return escapeHtml(val);
         if (col === 'cl_enabled') return val ? 'Yes' : 'No';
         if (typeof val === 'number') {
             if (Number.isInteger(val)) return val.toLocaleString();
             return val.toFixed(2);
         }
-        return String(val);
+        return escapeHtml(val);
     }
 
     function cellClass(col) {
@@ -618,8 +629,9 @@
         const live = getVal(record, 'livePercent') || 0;
         const dead = getVal(record, 'deadPercent') || 0;
         const clEnabled = getVal(record, 'cl_enabled');
-        const inputFile = getVal(record, 'inputFile');
-        const outputFile = getVal(record, 'outputFile');
+        const inputFile = escapeHtml(getVal(record, 'inputFile'));
+        const outputFile = escapeHtml(getVal(record, 'outputFile'));
+        const email = escapeHtml(getVal(record, 'email'));
 
         return `<tr class="detail-row"><td colspan="13">
             <div class="detail-content">
@@ -646,7 +658,7 @@
                 <div class="detail-card">
                     <h4>Metadata</h4>
                     <div class="detail-item"><span class="detail-label">Serial</span><span class="detail-val">#${getVal(record, 'serial')}</span></div>
-                    <div class="detail-item"><span class="detail-label">Email</span><span class="detail-val">${getVal(record, 'email')}</span></div>
+                    <div class="detail-item"><span class="detail-label">Email</span><span class="detail-val">${email}</span></div>
                     <div class="detail-item"><span class="detail-label">Wellplate</span><span class="detail-val">${fmt(getVal(record, 'wellplate'), 'wellplate')}</span></div>
                     <div class="detail-item"><span class="detail-label">Input</span><span class="detail-val" style="font-size:0.75rem">${inputFile}</span></div>
                     <div class="detail-item"><span class="detail-label">Output</span><span class="detail-val" style="font-size:0.75rem">${outputFile}</span></div>
@@ -817,7 +829,7 @@
         })
         .catch(err => {
             document.getElementById('tableBody').innerHTML =
-                `<tr><td colspan="13" class="no-data">Failed to load data: ${err.message}</td></tr>`;
+                `<tr><td colspan="13" class="no-data">Failed to load data: ${escapeHtml(err.message)}</td></tr>`;
         });
     </script>
 </body>

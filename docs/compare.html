@@ -442,6 +442,16 @@
     <script>
     'use strict';
 
+    // ── HTML Escaping ──────────────────────────────────────
+    // Prevent XSS: all user-controlled data from the JSON file must
+    // be escaped before insertion into innerHTML.
+    const _escapeEl = document.createElement('div');
+    function escapeHtml(str) {
+        if (str == null) return '';
+        _escapeEl.textContent = String(str);
+        return _escapeEl.innerHTML;
+    }
+
     // ── Constants ──────────────────────────────────────────
     const COLORS = ['#38bdf8', '#4ade80', '#fbbf24', '#a78bfa'];
     const MAX_SELECTIONS = 4;
@@ -474,7 +484,7 @@
         })
         .catch(err => {
             document.getElementById('emptyState').innerHTML =
-                '<div class="icon">⚠️</div><p>Failed to load data: ' + err.message + '</p>';
+                '<div class="icon">⚠️</div><p>Failed to load data: ' + escapeHtml(err.message) + '</p>';
         });
 
     // ── Search ────────────────────────────────────────────
@@ -508,8 +518,8 @@
             searchResults.innerHTML = results.map(i => {
                 const p = printData[i];
                 return `<div class="search-result-item" onclick="addPrint(${i})">
-                    <strong>#${i}</strong> — Serial ${p.user_info.serial}
-                    <div class="sub">${p.user_info.email} · Live: ${p.print_data.livePercent}% · Elasticity: ${p.print_data.elasticity} kPa</div>
+                    <strong>#${i}</strong> — Serial ${escapeHtml(p.user_info.serial)}
+                    <div class="sub">${escapeHtml(p.user_info.email)} · Live: ${escapeHtml(p.print_data.livePercent)}% · Elasticity: ${escapeHtml(p.print_data.elasticity)} kPa</div>
                 </div>`;
             }).join('');
         }
@@ -913,7 +923,7 @@
 
     // ── Helpers ────────────────────────────────────────────
     function formatNum(n) {
-        if (Math.abs(n) >= 1000) return n.toLocaleString(undefined, { maximumFractionDigits: 1 });
+        if (Math.abs(n) >= 1000) return escapeHtml(n.toLocaleString(undefined, { maximumFractionDigits: 1 }));
         if (Number.isInteger(n)) return n.toString();
         return n.toFixed(2);
     }
