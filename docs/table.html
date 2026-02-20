@@ -759,6 +759,18 @@
     }
 
     // ─── CSV Export ─────────────────────────────────────
+    // Sanitize values to prevent CSV formula injection (CWE-1236).
+    // Spreadsheet apps treat cells starting with =, +, -, @, tab, or CR
+    // as formulas. Prefixing with a single-quote neutralises this.
+    function sanitizeCSVValue(val) {
+        if (val == null) return '';
+        if (typeof val === 'number' || typeof val === 'boolean') return String(val);
+        const str = String(val);
+        const escaped = str.replace(/"/g, '""');
+        const dangerousPrefix = /^[=+\-@\t\r]/;
+        return '"' + (dangerousPrefix.test(escaped) ? "'" : '') + escaped + '"';
+    }
+
     function exportCSV() {
         const headers = ['serial', 'email', 'livePercent', 'deadPercent', 'elasticity',
                          'cl_enabled', 'cl_duration', 'cl_intensity',
@@ -769,9 +781,7 @@
         filteredData.forEach(record => {
             const row = headers.map(col => {
                 const val = getVal(record, col);
-                if (val == null) return '';
-                if (typeof val === 'string') return '"' + val.replace(/"/g, '""') + '"';
-                return val;
+                return sanitizeCSVValue(val);
             });
             csv += row.join(',') + '\n';
         });
