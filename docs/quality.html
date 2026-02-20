@@ -1,0 +1,1235 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>BioBots 1 — Quality Control Dashboard</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧬</text></svg>">
+    <style>
+        :root {
+            --bg: #0f172a;
+            --surface: #1e293b;
+            --border: #334155;
+            --text: #e2e8f0;
+            --muted: #94a3b8;
+            --accent: #38bdf8;
+            --accent-hover: #7dd3fc;
+            --success: #4ade80;
+            --error: #f87171;
+            --warning: #fbbf24;
+            --purple: #a78bfa;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            padding: 2rem 1rem;
+        }
+
+        .container { max-width: 1200px; margin: 0 auto; }
+
+        header { text-align: center; margin-bottom: 2rem; }
+
+        header h1 {
+            font-size: 2rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, var(--accent), var(--success));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        header p { color: var(--muted); margin-top: 0.5rem; }
+
+        .nav {
+            display: flex;
+            justify-content: center;
+            gap: 0.5rem;
+            margin-bottom: 2rem;
+            flex-wrap: wrap;
+        }
+
+        .nav a {
+            color: var(--muted);
+            text-decoration: none;
+            padding: 0.5rem 1rem;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            transition: all 0.2s;
+        }
+
+        .nav a:hover { color: var(--text); background: var(--surface); }
+        .nav a.active { color: var(--accent); background: var(--surface); border: 1px solid var(--border); }
+
+        .card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .card h2 {
+            font-size: 1.1rem;
+            margin-bottom: 1rem;
+            color: var(--muted);
+            font-weight: 500;
+        }
+
+        .card h2 .emoji { margin-right: 0.5rem; }
+
+        /* Grid layouts */
+        .grid-2 {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1.5rem;
+        }
+
+        .grid-3 {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 1rem;
+        }
+
+        @media (max-width: 900px) {
+            .grid-2, .grid-3 { grid-template-columns: 1fr; }
+        }
+
+        /* Stats bar */
+        .stats-bar {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 2rem;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .stat-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 1rem 1.5rem;
+            text-align: center;
+            min-width: 140px;
+        }
+
+        .stat-card .value {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--accent);
+        }
+
+        .stat-card .label {
+            font-size: 0.75rem;
+            color: var(--muted);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-top: 0.25rem;
+        }
+
+        .stat-card.good .value { color: var(--success); }
+        .stat-card.warn .value { color: var(--warning); }
+        .stat-card.bad .value { color: var(--error); }
+
+        /* Grade badge */
+        .grade-badge {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            font-size: 1.5rem;
+            font-weight: 800;
+            margin-bottom: 0.25rem;
+        }
+
+        .grade-A { background: rgba(74, 222, 128, 0.2); color: var(--success); border: 2px solid var(--success); }
+        .grade-B { background: rgba(56, 189, 248, 0.2); color: var(--accent); border: 2px solid var(--accent); }
+        .grade-C { background: rgba(251, 191, 36, 0.2); color: var(--warning); border: 2px solid var(--warning); }
+        .grade-D { background: rgba(248, 113, 113, 0.15); color: var(--error); border: 2px solid var(--error); }
+        .grade-F { background: rgba(248, 113, 113, 0.3); color: var(--error); border: 2px solid var(--error); }
+
+        /* Canvas */
+        canvas {
+            width: 100%;
+            height: auto;
+            display: block;
+        }
+
+        /* Controls */
+        select, input[type="number"], input[type="range"] {
+            background: var(--bg);
+            border: 1px solid var(--border);
+            color: var(--text);
+            padding: 0.5rem 0.7rem;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        select:focus, input[type="number"]:focus {
+            border-color: var(--accent);
+        }
+
+        label {
+            font-size: 0.8rem;
+            color: var(--muted);
+            font-weight: 500;
+        }
+
+        button {
+            background: var(--accent);
+            color: var(--bg);
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        button:hover {
+            background: var(--accent-hover);
+            transform: translateY(-1px);
+        }
+
+        button.secondary {
+            background: transparent;
+            color: var(--accent);
+            border: 1px solid var(--accent);
+        }
+
+        button.secondary:hover {
+            background: rgba(56, 189, 248, 0.1);
+        }
+
+        /* Heatmap legend */
+        .heatmap-legend {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin-top: 0.75rem;
+            font-size: 0.8rem;
+            color: var(--muted);
+            justify-content: center;
+        }
+
+        .legend-gradient {
+            width: 120px;
+            height: 12px;
+            border-radius: 4px;
+            background: linear-gradient(90deg, #ef4444, #fbbf24, #4ade80);
+        }
+
+        /* Performer table */
+        .performer-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.85rem;
+        }
+
+        .performer-table th {
+            text-align: left;
+            padding: 0.6rem 0.75rem;
+            color: var(--muted);
+            font-weight: 500;
+            border-bottom: 1px solid var(--border);
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .performer-table td {
+            padding: 0.5rem 0.75rem;
+            border-bottom: 1px solid rgba(51, 65, 85, 0.5);
+        }
+
+        .performer-table tr:hover { background: rgba(56, 189, 248, 0.05); }
+
+        .rank-badge {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            font-size: 0.7rem;
+            font-weight: 700;
+        }
+
+        .rank-1 { background: #fbbf24; color: #0f172a; }
+        .rank-2 { background: #94a3b8; color: #0f172a; }
+        .rank-3 { background: #cd7f32; color: #0f172a; }
+        .rank-other { background: var(--border); color: var(--muted); }
+
+        /* Score bar */
+        .score-bar {
+            height: 6px;
+            border-radius: 3px;
+            background: var(--border);
+            overflow: hidden;
+            min-width: 60px;
+        }
+
+        .score-bar .fill {
+            height: 100%;
+            border-radius: 3px;
+            transition: width 0.3s;
+        }
+
+        /* Optimal ranges */
+        .range-row {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            padding: 0.6rem 0;
+            border-bottom: 1px solid rgba(51, 65, 85, 0.5);
+        }
+
+        .range-row:last-child { border-bottom: none; }
+
+        .range-label {
+            font-size: 0.85rem;
+            min-width: 110px;
+            color: var(--text);
+        }
+
+        .range-bar-container {
+            flex: 1;
+            height: 20px;
+            background: var(--border);
+            border-radius: 4px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .range-bar-fill {
+            position: absolute;
+            height: 100%;
+            border-radius: 4px;
+            opacity: 0.7;
+        }
+
+        .range-values {
+            font-size: 0.8rem;
+            color: var(--muted);
+            min-width: 100px;
+            text-align: right;
+        }
+
+        /* Impact bars */
+        .impact-bar-container {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .impact-bar {
+            height: 8px;
+            border-radius: 4px;
+            transition: width 0.3s;
+        }
+
+        .impact-value {
+            font-size: 0.8rem;
+            min-width: 50px;
+            font-weight: 600;
+        }
+
+        /* Slider group */
+        .slider-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.3rem;
+            margin-bottom: 0.75rem;
+        }
+
+        .slider-row {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .slider-row input[type="range"] {
+            flex: 1;
+            -webkit-appearance: none;
+            height: 4px;
+            background: var(--border);
+            border-radius: 2px;
+            border: none;
+            padding: 0;
+        }
+
+        .slider-row input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: var(--accent);
+            cursor: pointer;
+        }
+
+        .slider-value {
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: var(--accent);
+            min-width: 40px;
+            text-align: right;
+        }
+
+        /* Tooltip */
+        .tooltip {
+            position: absolute;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 0.5rem 0.75rem;
+            font-size: 0.8rem;
+            pointer-events: none;
+            z-index: 100;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+            white-space: nowrap;
+        }
+
+        footer {
+            margin-top: 3rem;
+            text-align: center;
+            color: var(--muted);
+            font-size: 0.8rem;
+        }
+
+        footer a { color: var(--accent); text-decoration: none; }
+        footer a:hover { text-decoration: underline; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🧬 Quality Control Dashboard</h1>
+            <p>Identify optimal bioprinting parameters and track print quality</p>
+        </header>
+
+        <nav class="nav">
+            <a href="index.html">Query Tool</a>
+            <a href="explorer.html">Data Explorer</a>
+            <a href="table.html">Data Table</a>
+            <a href="compare.html">Compare</a>
+            <a href="quality.html" class="active">🎯 Quality</a>
+            <a href="api.html">📡 API</a>
+            <a href="architecture.html">🏗️ Architecture</a>
+            <a href="guide.html">🛠️ Guide</a>
+        </nav>
+
+        <!-- Overview Stats -->
+        <div class="stats-bar" id="statsBar">
+            <div class="stat-card" id="overallGradeCard">
+                <div class="grade-badge grade-B" id="overallGrade">—</div>
+                <div class="label">Overall Grade</div>
+            </div>
+            <div class="stat-card">
+                <div class="value" id="avgScore">—</div>
+                <div class="label">Avg Quality Score</div>
+            </div>
+            <div class="stat-card good">
+                <div class="value" id="highQualityCount">—</div>
+                <div class="label">High Quality (≥70)</div>
+            </div>
+            <div class="stat-card warn">
+                <div class="value" id="medQualityCount">—</div>
+                <div class="label">Medium (40–69)</div>
+            </div>
+            <div class="stat-card bad">
+                <div class="value" id="lowQualityCount">—</div>
+                <div class="label">Low Quality (&lt;40)</div>
+            </div>
+        </div>
+
+        <!-- Row 1: Heatmap + Score Distribution -->
+        <div class="grid-2">
+            <!-- Correlation Heatmap -->
+            <div class="card">
+                <h2><span class="emoji">🔥</span>Parameter Correlation Heatmap</h2>
+                <canvas id="heatmapCanvas" width="500" height="500"></canvas>
+                <div class="heatmap-legend">
+                    <span>−1.0</span>
+                    <div class="legend-gradient"></div>
+                    <span>+1.0</span>
+                    <span style="margin-left: 0.5rem; font-style: italic;">Pearson r</span>
+                </div>
+            </div>
+
+            <!-- Quality Score Distribution -->
+            <div class="card">
+                <h2><span class="emoji">📊</span>Quality Score Distribution</h2>
+                <canvas id="distributionCanvas" width="500" height="400"></canvas>
+                <div style="display: flex; gap: 0.75rem; margin-top: 0.75rem; justify-content: center; font-size: 0.8rem;">
+                    <div style="display: flex; align-items: center; gap: 0.3rem;">
+                        <div style="width: 12px; height: 12px; border-radius: 2px; background: var(--success);"></div>
+                        <span style="color: var(--muted);">High (≥70)</span>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 0.3rem;">
+                        <div style="width: 12px; height: 12px; border-radius: 2px; background: var(--warning);"></div>
+                        <span style="color: var(--muted);">Medium (40–69)</span>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 0.3rem;">
+                        <div style="width: 12px; height: 12px; border-radius: 2px; background: var(--error);"></div>
+                        <span style="color: var(--muted);">Low (&lt;40)</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Row 2: Parameter Impact Analysis -->
+        <div class="card">
+            <h2><span class="emoji">📈</span>Parameter Impact on Viability</h2>
+            <p style="color: var(--muted); font-size: 0.85rem; margin-bottom: 1rem;">
+                How each parameter correlates with cell viability (livePercent). Positive = higher parameter → higher viability.
+            </p>
+            <div id="impactContainer"></div>
+        </div>
+
+        <!-- Row 3: Top/Bottom Performers -->
+        <div class="grid-2">
+            <div class="card">
+                <h2><span class="emoji">🏆</span>Top 10 Performers</h2>
+                <table class="performer-table" id="topTable">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Print</th>
+                            <th>Score</th>
+                            <th>Live %</th>
+                            <th>Elasticity</th>
+                            <th>Quality</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+
+            <div class="card">
+                <h2><span class="emoji">⚠️</span>Bottom 10 Performers</h2>
+                <table class="performer-table" id="bottomTable">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Print</th>
+                            <th>Score</th>
+                            <th>Live %</th>
+                            <th>Elasticity</th>
+                            <th>Quality</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Row 4: Optimal Parameter Finder -->
+        <div class="card">
+            <h2><span class="emoji">🎯</span>Optimal Parameter Finder</h2>
+            <p style="color: var(--muted); font-size: 0.85rem; margin-bottom: 1rem;">
+                Set a minimum viability threshold. The tool shows the recommended parameter ranges from prints that meet your criteria.
+            </p>
+            <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 1.5rem; flex-wrap: wrap;">
+                <label for="viabilityThreshold" style="font-size: 0.9rem;">Minimum Live Cell %:</label>
+                <div class="slider-row" style="flex: 1; max-width: 400px;">
+                    <input type="range" id="viabilityThreshold" min="0" max="100" value="50" step="5" />
+                    <span class="slider-value" id="thresholdValue">50%</span>
+                </div>
+                <span style="color: var(--muted); font-size: 0.85rem;" id="matchCount">— prints match</span>
+            </div>
+            <div id="optimalRanges"></div>
+            <div id="optimalInsights" style="margin-top: 1rem;"></div>
+        </div>
+
+        <!-- Row 5: Quality Score Weights -->
+        <div class="card">
+            <h2><span class="emoji">⚙️</span>Quality Score Weights</h2>
+            <p style="color: var(--muted); font-size: 0.85rem; margin-bottom: 1rem;">
+                Customize how the quality score is computed. Adjust weights and click "Recalculate" to update all charts.
+            </p>
+            <div class="grid-3" id="weightsContainer"></div>
+            <div style="margin-top: 1rem; display: flex; gap: 0.75rem; align-items: center;">
+                <button id="recalcBtn" onclick="recalculate()">Recalculate</button>
+                <button class="secondary" onclick="resetWeights()">Reset Defaults</button>
+                <span style="color: var(--muted); font-size: 0.8rem;" id="weightSum">Total: 100%</span>
+            </div>
+        </div>
+
+        <footer>
+            <p>Built with 🧬 by <a href="https://github.com/sauravbhattacharya001">Saurav Bhattacharya</a></p>
+            <p><a href="https://github.com/sauravbhattacharya001/BioBots">View Source</a></p>
+        </footer>
+    </div>
+
+    <script>
+    'use strict';
+
+    /* ── Constants ────────────────────────────────────────────── */
+
+    const METRICS = [
+        { key: 'livePercent',  label: 'Live Cell %',  unit: '%',   higherBetter: true,  get: p => p.print_data.livePercent },
+        { key: 'deadPercent',  label: 'Dead Cell %',  unit: '%',   higherBetter: false, get: p => p.print_data.deadPercent },
+        { key: 'elasticity',   label: 'Elasticity',   unit: 'kPa', higherBetter: true,  get: p => p.print_data.elasticity },
+        { key: 'cl_duration',  label: 'CL Duration',  unit: 'ms',  higherBetter: null,  get: p => p.print_info.crosslinking.cl_duration },
+        { key: 'cl_intensity', label: 'CL Intensity', unit: '%',   higherBetter: null,  get: p => p.print_info.crosslinking.cl_intensity },
+        { key: 'extruder1',    label: 'Extruder 1',   unit: '',    higherBetter: null,  get: p => p.print_info.pressure.extruder1 },
+        { key: 'extruder2',    label: 'Extruder 2',   unit: '',    higherBetter: null,  get: p => p.print_info.pressure.extruder2 },
+        { key: 'layerHeight',  label: 'Layer Height', unit: 'mm',  higherBetter: null,  get: p => p.print_info.resolution.layerHeight },
+        { key: 'layerNum',     label: 'Layer Count',  unit: '',    higherBetter: true,  get: p => p.print_info.resolution.layerNum },
+        { key: 'wellplate',    label: 'Wellplate',    unit: '',    higherBetter: null,  get: p => p.print_info.wellplate },
+    ];
+
+    // Default quality score weights (must sum to 1.0)
+    const DEFAULT_WEIGHTS = {
+        livePercent: 0.40,
+        elasticity:  0.25,
+        layerNum:    0.15,
+        deadPercent: 0.20,  // inverse — lower is better
+    };
+
+    let printData = [];
+    let scored = [];     // { index, score, grade, print }
+    let weights = { ...DEFAULT_WEIGHTS };
+
+    /* ── Utilities ────────────────────────────────────────────── */
+
+    function formatNum(v, decimals) {
+        if (v == null || isNaN(v)) return '—';
+        const d = decimals != null ? decimals : 2;
+        return Number(v).toFixed(d);
+    }
+
+    function escapeHtml(str) {
+        const el = document.createElement('div');
+        el.textContent = String(str == null ? '' : str);
+        return el.innerHTML;
+    }
+
+    function pearsonR(xs, ys) {
+        const n = xs.length;
+        if (n < 2) return 0;
+        const mx = xs.reduce((a, b) => a + b, 0) / n;
+        const my = ys.reduce((a, b) => a + b, 0) / n;
+        let num = 0, dx2 = 0, dy2 = 0;
+        for (let i = 0; i < n; i++) {
+            const dx = xs[i] - mx;
+            const dy = ys[i] - my;
+            num += dx * dy;
+            dx2 += dx * dx;
+            dy2 += dy * dy;
+        }
+        const denom = Math.sqrt(dx2 * dy2);
+        return denom === 0 ? 0 : num / denom;
+    }
+
+    function getGrade(score) {
+        if (score >= 80) return 'A';
+        if (score >= 65) return 'B';
+        if (score >= 50) return 'C';
+        if (score >= 35) return 'D';
+        return 'F';
+    }
+
+    function gradeColor(grade) {
+        switch (grade) {
+            case 'A': return '#4ade80';
+            case 'B': return '#38bdf8';
+            case 'C': return '#fbbf24';
+            case 'D': return '#f87171';
+            case 'F': return '#ef4444';
+            default:  return '#94a3b8';
+        }
+    }
+
+    function scoreColor(score) {
+        if (score >= 70) return '#4ade80';
+        if (score >= 40) return '#fbbf24';
+        return '#f87171';
+    }
+
+    /* ── Quality Score Calculation ────────────────────────────── */
+
+    function computeRanges(data) {
+        const ranges = {};
+        METRICS.forEach(m => {
+            const vals = data.map(p => m.get(p)).filter(v => v != null && !isNaN(v));
+            if (vals.length === 0) { ranges[m.key] = { min: 0, max: 1 }; return; }
+            ranges[m.key] = { min: Math.min(...vals), max: Math.max(...vals) };
+        });
+        return ranges;
+    }
+
+    function normalize(value, min, max) {
+        if (max === min) return 0.5;
+        return (value - min) / (max - min);
+    }
+
+    function computeQualityScore(print, ranges, w) {
+        const live = METRICS[0].get(print);
+        const dead = METRICS[1].get(print);
+        const elast = METRICS[2].get(print);
+        const layers = METRICS[8].get(print);
+
+        if (live == null || dead == null || elast == null || layers == null) return null;
+
+        const liveNorm = normalize(live, ranges.livePercent.min, ranges.livePercent.max);
+        const deadNorm = 1 - normalize(dead, ranges.deadPercent.min, ranges.deadPercent.max); // invert
+        const elastNorm = normalize(elast, ranges.elasticity.min, ranges.elasticity.max);
+        const layerNorm = normalize(layers, ranges.layerNum.min, ranges.layerNum.max);
+
+        const score = (
+            (w.livePercent || 0) * liveNorm +
+            (w.deadPercent || 0) * deadNorm +
+            (w.elasticity || 0)  * elastNorm +
+            (w.layerNum || 0)    * layerNorm
+        ) * 100;
+
+        return Math.max(0, Math.min(100, score));
+    }
+
+    function computeAllScores() {
+        const ranges = computeRanges(printData);
+        scored = printData.map((p, i) => {
+            const score = computeQualityScore(p, ranges, weights);
+            return {
+                index: i,
+                score: score != null ? score : 0,
+                grade: score != null ? getGrade(score) : 'F',
+                print: p,
+                valid: score != null,
+            };
+        }).filter(s => s.valid);
+        scored.sort((a, b) => b.score - a.score);
+    }
+
+    /* ── Heatmap ──────────────────────────────────────────────── */
+
+    function drawHeatmap() {
+        const canvas = document.getElementById('heatmapCanvas');
+        const ctx = canvas.getContext('2d');
+        const dpr = window.devicePixelRatio || 1;
+
+        const metricsToShow = METRICS; // all 10
+        const n = metricsToShow.length;
+
+        // Extract metric arrays
+        const arrays = metricsToShow.map(m =>
+            printData.map(p => m.get(p)).filter(v => v != null && !isNaN(v))
+        );
+
+        // Compute correlation matrix
+        const corrMatrix = [];
+        for (let i = 0; i < n; i++) {
+            corrMatrix[i] = [];
+            for (let j = 0; j < n; j++) {
+                if (i === j) { corrMatrix[i][j] = 1; continue; }
+                // align arrays — only use prints that have both metrics
+                const xs = [], ys = [];
+                printData.forEach(p => {
+                    const x = metricsToShow[i].get(p);
+                    const y = metricsToShow[j].get(p);
+                    if (x != null && !isNaN(x) && y != null && !isNaN(y)) {
+                        xs.push(x); ys.push(y);
+                    }
+                });
+                corrMatrix[i][j] = pearsonR(xs, ys);
+            }
+        }
+
+        // Sizing
+        const labelWidth = 90;
+        const cellSize = Math.floor((canvas.clientWidth - labelWidth) / n);
+        const totalSize = labelWidth + cellSize * n;
+
+        canvas.width = totalSize * dpr;
+        canvas.height = totalSize * dpr;
+        canvas.style.width = totalSize + 'px';
+        canvas.style.height = totalSize + 'px';
+        ctx.scale(dpr, dpr);
+
+        ctx.clearRect(0, 0, totalSize, totalSize);
+
+        // Draw cells
+        for (let i = 0; i < n; i++) {
+            for (let j = 0; j < n; j++) {
+                const r = corrMatrix[i][j];
+                const x = labelWidth + j * cellSize;
+                const y = labelWidth + i * cellSize;
+
+                ctx.fillStyle = corrColor(r);
+                ctx.fillRect(x, y, cellSize - 1, cellSize - 1);
+
+                // Value text
+                ctx.fillStyle = Math.abs(r) > 0.6 ? '#0f172a' : '#e2e8f0';
+                ctx.font = `${Math.max(9, cellSize * 0.25)}px -apple-system, sans-serif`;
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(r.toFixed(2), x + cellSize / 2, y + cellSize / 2);
+            }
+        }
+
+        // Row labels (left)
+        ctx.fillStyle = '#94a3b8';
+        ctx.font = `${Math.max(9, cellSize * 0.28)}px -apple-system, sans-serif`;
+        ctx.textAlign = 'right';
+        ctx.textBaseline = 'middle';
+        for (let i = 0; i < n; i++) {
+            ctx.fillText(metricsToShow[i].label, labelWidth - 6, labelWidth + i * cellSize + cellSize / 2);
+        }
+
+        // Column labels (top, rotated)
+        ctx.save();
+        ctx.textAlign = 'left';
+        for (let j = 0; j < n; j++) {
+            const x = labelWidth + j * cellSize + cellSize / 2;
+            const y = labelWidth - 6;
+            ctx.save();
+            ctx.translate(x, y);
+            ctx.rotate(-Math.PI / 4);
+            ctx.fillStyle = '#94a3b8';
+            ctx.fillText(metricsToShow[j].label, 0, 0);
+            ctx.restore();
+        }
+        ctx.restore();
+
+        // Store for tooltip
+        canvas._heatmapData = { corrMatrix, metricsToShow, labelWidth, cellSize, n };
+    }
+
+    function corrColor(r) {
+        // -1 = red, 0 = dark, +1 = green
+        if (r >= 0) {
+            const t = Math.min(r, 1);
+            const red = Math.round(30 + (74 - 30) * t);
+            const green = Math.round(41 + (222 - 41) * t);
+            const blue = Math.round(59 + (128 - 59) * t);
+            return `rgb(${red}, ${green}, ${blue})`;
+        } else {
+            const t = Math.min(-r, 1);
+            const red = Math.round(30 + (239 - 30) * t);
+            const green = Math.round(41 + (68 - 41) * t);
+            const blue = Math.round(59 + (68 - 59) * t);
+            return `rgb(${red}, ${green}, ${blue})`;
+        }
+    }
+
+    /* ── Score Distribution ───────────────────────────────────── */
+
+    function drawDistribution() {
+        const canvas = document.getElementById('distributionCanvas');
+        const ctx = canvas.getContext('2d');
+        const dpr = window.devicePixelRatio || 1;
+
+        const W = canvas.clientWidth;
+        const H = 350;
+        canvas.width = W * dpr;
+        canvas.height = H * dpr;
+        canvas.style.width = W + 'px';
+        canvas.style.height = H + 'px';
+        ctx.scale(dpr, dpr);
+
+        ctx.clearRect(0, 0, W, H);
+
+        // Bins: 0-10, 10-20, ..., 90-100
+        const binCount = 10;
+        const bins = new Array(binCount).fill(0);
+        scored.forEach(s => {
+            const idx = Math.min(Math.floor(s.score / 10), binCount - 1);
+            bins[idx]++;
+        });
+
+        const maxBin = Math.max(...bins, 1);
+        const pad = { top: 30, right: 20, bottom: 50, left: 50 };
+        const plotW = W - pad.left - pad.right;
+        const plotH = H - pad.top - pad.bottom;
+        const barW = plotW / binCount;
+
+        // Grid lines
+        ctx.strokeStyle = '#1e293b';
+        ctx.lineWidth = 1;
+        for (let i = 0; i <= 5; i++) {
+            const y = pad.top + plotH - (plotH * i / 5);
+            ctx.beginPath();
+            ctx.moveTo(pad.left, y);
+            ctx.lineTo(W - pad.right, y);
+            ctx.stroke();
+
+            ctx.fillStyle = '#64748b';
+            ctx.font = '11px -apple-system, sans-serif';
+            ctx.textAlign = 'right';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(Math.round(maxBin * i / 5), pad.left - 8, y);
+        }
+
+        // Bars
+        bins.forEach((count, i) => {
+            const barH = (count / maxBin) * plotH;
+            const x = pad.left + i * barW + 2;
+            const y = pad.top + plotH - barH;
+            const w = barW - 4;
+
+            if (i >= 7) ctx.fillStyle = '#4ade80';
+            else if (i >= 4) ctx.fillStyle = '#fbbf24';
+            else ctx.fillStyle = '#f87171';
+
+            ctx.beginPath();
+            const radius = Math.min(4, w / 2);
+            ctx.moveTo(x + radius, y);
+            ctx.lineTo(x + w - radius, y);
+            ctx.arcTo(x + w, y, x + w, y + radius, radius);
+            ctx.lineTo(x + w, pad.top + plotH);
+            ctx.lineTo(x, pad.top + plotH);
+            ctx.lineTo(x, y + radius);
+            ctx.arcTo(x, y, x + radius, y, radius);
+            ctx.fill();
+
+            // Count above bar
+            if (count > 0) {
+                ctx.fillStyle = '#e2e8f0';
+                ctx.font = 'bold 11px -apple-system, sans-serif';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'bottom';
+                ctx.fillText(count, x + w / 2, y - 4);
+            }
+
+            // X label
+            ctx.fillStyle = '#64748b';
+            ctx.font = '10px -apple-system, sans-serif';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'top';
+            ctx.fillText(`${i * 10}–${(i + 1) * 10}`, pad.left + i * barW + barW / 2, pad.top + plotH + 8);
+        });
+
+        // Axis labels
+        ctx.fillStyle = '#94a3b8';
+        ctx.font = '12px -apple-system, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('Quality Score', W / 2, H - 5);
+
+        ctx.save();
+        ctx.translate(12, pad.top + plotH / 2);
+        ctx.rotate(-Math.PI / 2);
+        ctx.fillText('Count', 0, 0);
+        ctx.restore();
+    }
+
+    /* ── Parameter Impact ─────────────────────────────────────── */
+
+    function renderImpact() {
+        const container = document.getElementById('impactContainer');
+        const liveVals = printData.map(p => METRICS[0].get(p));
+
+        // Parameters to analyze (skip livePercent and deadPercent)
+        const params = METRICS.filter(m => m.key !== 'livePercent' && m.key !== 'deadPercent');
+
+        const impacts = params.map(m => {
+            const xs = [], ys = [];
+            printData.forEach((p, i) => {
+                const x = m.get(p);
+                const y = liveVals[i];
+                if (x != null && !isNaN(x) && y != null && !isNaN(y)) {
+                    xs.push(x); ys.push(y);
+                }
+            });
+            return { metric: m, r: pearsonR(xs, ys) };
+        });
+
+        impacts.sort((a, b) => Math.abs(b.r) - Math.abs(a.r));
+
+        let html = '';
+        impacts.forEach(imp => {
+            const absR = Math.abs(imp.r);
+            const barWidth = Math.max(2, absR * 100);
+            const color = imp.r >= 0 ? '#4ade80' : '#f87171';
+            const direction = imp.r >= 0 ? '↑ positive' : '↓ negative';
+            const strength = absR >= 0.7 ? 'Strong' : absR >= 0.4 ? 'Moderate' : absR >= 0.2 ? 'Weak' : 'Negligible';
+
+            html += `
+                <div class="range-row">
+                    <span class="range-label">${escapeHtml(imp.metric.label)}</span>
+                    <div class="impact-bar-container" style="flex: 1;">
+                        <div style="width: 50%; display: flex; justify-content: flex-end;">
+                            ${imp.r < 0 ? `<div class="impact-bar" style="width: ${barWidth}%; background: ${color};"></div>` : ''}
+                        </div>
+                        <div style="width: 1px; background: var(--border); height: 20px;"></div>
+                        <div style="width: 50%; display: flex; justify-content: flex-start;">
+                            ${imp.r >= 0 ? `<div class="impact-bar" style="width: ${barWidth}%; background: ${color};"></div>` : ''}
+                        </div>
+                    </div>
+                    <span class="impact-value" style="color: ${color};">${imp.r >= 0 ? '+' : ''}${formatNum(imp.r)}</span>
+                    <span style="color: var(--muted); font-size: 0.75rem; min-width: 80px;">${strength}</span>
+                </div>`;
+        });
+
+        container.innerHTML = html;
+    }
+
+    /* ── Performer Tables ─────────────────────────────────────── */
+
+    function renderPerformers() {
+        renderTable('topTable', scored.slice(0, 10), false);
+        renderTable('bottomTable', scored.slice(-10).reverse(), true);
+    }
+
+    function renderTable(tableId, items, isBottom) {
+        const tbody = document.querySelector(`#${tableId} tbody`);
+        let html = '';
+        items.forEach((s, i) => {
+            const rank = isBottom ? scored.length - (scored.length - 10) + i : i + 1;
+            const rankClass = rank <= 3 && !isBottom ? `rank-${rank}` : 'rank-other';
+            const serial = s.print.user_info.serial;
+            const email = s.print.user_info.email;
+            const live = METRICS[0].get(s.print);
+            const elast = METRICS[2].get(s.print);
+
+            html += `<tr>
+                <td><span class="rank-badge ${rankClass}">${isBottom ? scored.length - items.length + i + 1 : rank}</span></td>
+                <td>
+                    <div style="font-weight: 600; font-size: 0.85rem;">#${serial}</div>
+                    <div style="font-size: 0.75rem; color: var(--muted);">${escapeHtml(email)}</div>
+                </td>
+                <td style="font-weight: 700; color: ${gradeColor(s.grade)};">${formatNum(s.score, 1)}</td>
+                <td>${formatNum(live, 1)}%</td>
+                <td>${formatNum(elast, 1)} kPa</td>
+                <td>
+                    <div class="score-bar" style="width: 80px;">
+                        <div class="fill" style="width: ${s.score}%; background: ${scoreColor(s.score)};"></div>
+                    </div>
+                </td>
+            </tr>`;
+        });
+        tbody.innerHTML = html;
+    }
+
+    /* ── Optimal Parameter Finder ─────────────────────────────── */
+
+    function updateOptimalRanges() {
+        const threshold = parseFloat(document.getElementById('viabilityThreshold').value);
+        document.getElementById('thresholdValue').textContent = threshold + '%';
+
+        const matching = printData.filter(p => {
+            const live = METRICS[0].get(p);
+            return live != null && live >= threshold;
+        });
+
+        document.getElementById('matchCount').textContent = `${matching.length} print${matching.length !== 1 ? 's' : ''} match`;
+
+        const container = document.getElementById('optimalRanges');
+        const insightsEl = document.getElementById('optimalInsights');
+
+        if (matching.length === 0) {
+            container.innerHTML = '<p style="color: var(--muted); text-align: center; padding: 1rem;">No prints match this threshold. Try lowering the minimum.</p>';
+            insightsEl.innerHTML = '';
+            return;
+        }
+
+        // Compute ranges for matching prints vs all prints
+        const paramsToShow = METRICS.filter(m => m.key !== 'livePercent' && m.key !== 'deadPercent');
+        const allRanges = computeRanges(printData);
+
+        let html = '';
+        paramsToShow.forEach(m => {
+            const vals = matching.map(p => m.get(p)).filter(v => v != null && !isNaN(v));
+            if (vals.length === 0) return;
+
+            const min = Math.min(...vals);
+            const max = Math.max(...vals);
+            const allMin = allRanges[m.key].min;
+            const allMax = allRanges[m.key].max;
+            const range = allMax - allMin || 1;
+
+            const leftPct = ((min - allMin) / range) * 100;
+            const widthPct = ((max - min) / range) * 100;
+
+            html += `
+                <div class="range-row">
+                    <span class="range-label">${escapeHtml(m.label)}</span>
+                    <div class="range-bar-container">
+                        <div class="range-bar-fill" style="left: ${leftPct}%; width: ${Math.max(widthPct, 1)}%; background: var(--accent);"></div>
+                    </div>
+                    <span class="range-values">${formatNum(min, 1)} – ${formatNum(max, 1)} ${escapeHtml(m.unit)}</span>
+                </div>`;
+        });
+
+        container.innerHTML = html;
+
+        // Insights
+        const avgElast = matching.reduce((s, p) => s + (METRICS[2].get(p) || 0), 0) / matching.length;
+        const avgLive = matching.reduce((s, p) => s + (METRICS[0].get(p) || 0), 0) / matching.length;
+        const clEnabled = matching.filter(p => p.print_info.crosslinking.cl_enabled).length;
+        const clPct = ((clEnabled / matching.length) * 100).toFixed(0);
+
+        insightsEl.innerHTML = `
+            <div style="display: flex; gap: 0.75rem; flex-wrap: wrap;">
+                <div style="background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 0.75rem 1rem; flex: 1; min-width: 180px;">
+                    <div style="font-size: 0.75rem; color: var(--muted); text-transform: uppercase;">Avg Viability</div>
+                    <div style="font-size: 1.2rem; font-weight: 700; color: var(--success);">${formatNum(avgLive, 1)}%</div>
+                </div>
+                <div style="background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 0.75rem 1rem; flex: 1; min-width: 180px;">
+                    <div style="font-size: 0.75rem; color: var(--muted); text-transform: uppercase;">Avg Elasticity</div>
+                    <div style="font-size: 1.2rem; font-weight: 700; color: var(--accent);">${formatNum(avgElast, 1)} kPa</div>
+                </div>
+                <div style="background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 0.75rem 1rem; flex: 1; min-width: 180px;">
+                    <div style="font-size: 0.75rem; color: var(--muted); text-transform: uppercase;">Crosslinking Used</div>
+                    <div style="font-size: 1.2rem; font-weight: 700; color: var(--purple);">${clPct}%</div>
+                </div>
+                <div style="background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 0.75rem 1rem; flex: 1; min-width: 180px;">
+                    <div style="font-size: 0.75rem; color: var(--muted); text-transform: uppercase;">Sample Size</div>
+                    <div style="font-size: 1.2rem; font-weight: 700; color: var(--text);">${matching.length} / ${printData.length}</div>
+                </div>
+            </div>`;
+    }
+
+    /* ── Weight Controls ──────────────────────────────────────── */
+
+    function renderWeights() {
+        const container = document.getElementById('weightsContainer');
+        const weightMeta = [
+            { key: 'livePercent', label: 'Live Cell %', desc: 'Cell viability (higher = better)' },
+            { key: 'deadPercent', label: 'Dead Cell %', desc: 'Cell mortality (inverted: lower = better)' },
+            { key: 'elasticity',  label: 'Elasticity',  desc: 'Structural rigidity (higher = better)' },
+            { key: 'layerNum',    label: 'Layer Count',  desc: 'Print complexity (higher = better)' },
+        ];
+
+        let html = '';
+        weightMeta.forEach(w => {
+            html += `
+                <div class="slider-group">
+                    <label>${escapeHtml(w.label)}</label>
+                    <div class="slider-row">
+                        <input type="range" min="0" max="100" step="5" value="${(weights[w.key] || 0) * 100}"
+                               data-weight-key="${w.key}" oninput="updateWeightDisplay(this)" />
+                        <span class="slider-value" id="weight-${w.key}">${((weights[w.key] || 0) * 100).toFixed(0)}%</span>
+                    </div>
+                    <span style="font-size: 0.75rem; color: var(--muted);">${escapeHtml(w.desc)}</span>
+                </div>`;
+        });
+        container.innerHTML = html;
+        updateWeightSum();
+    }
+
+    function updateWeightDisplay(el) {
+        const key = el.getAttribute('data-weight-key');
+        const val = parseInt(el.value, 10);
+        weights[key] = val / 100;
+        document.getElementById(`weight-${key}`).textContent = val + '%';
+        updateWeightSum();
+    }
+
+    function updateWeightSum() {
+        const sum = Object.values(weights).reduce((a, b) => a + b, 0);
+        const sumEl = document.getElementById('weightSum');
+        sumEl.textContent = `Total: ${(sum * 100).toFixed(0)}%`;
+        sumEl.style.color = Math.abs(sum - 1) < 0.01 ? '#4ade80' : '#f87171';
+    }
+
+    function resetWeights() {
+        weights = { ...DEFAULT_WEIGHTS };
+        renderWeights();
+        recalculate();
+    }
+
+    function recalculate() {
+        computeAllScores();
+        updateOverviewStats();
+        drawDistribution();
+        renderPerformers();
+        renderImpact();
+        updateOptimalRanges();
+    }
+
+    /* ── Overview Stats ───────────────────────────────────────── */
+
+    function updateOverviewStats() {
+        if (scored.length === 0) return;
+
+        const avg = scored.reduce((s, x) => s + x.score, 0) / scored.length;
+        const grade = getGrade(avg);
+        const high = scored.filter(s => s.score >= 70).length;
+        const med = scored.filter(s => s.score >= 40 && s.score < 70).length;
+        const low = scored.filter(s => s.score < 40).length;
+
+        document.getElementById('avgScore').textContent = formatNum(avg, 1);
+        document.getElementById('highQualityCount').textContent = high.toLocaleString();
+        document.getElementById('medQualityCount').textContent = med.toLocaleString();
+        document.getElementById('lowQualityCount').textContent = low.toLocaleString();
+
+        const gradeEl = document.getElementById('overallGrade');
+        gradeEl.textContent = grade;
+        gradeEl.className = `grade-badge grade-${grade}`;
+    }
+
+    /* ── Heatmap Tooltip ──────────────────────────────────────── */
+
+    function setupHeatmapTooltip() {
+        const canvas = document.getElementById('heatmapCanvas');
+        let tooltip = document.createElement('div');
+        tooltip.className = 'tooltip';
+        tooltip.style.display = 'none';
+        canvas.parentElement.style.position = 'relative';
+        canvas.parentElement.appendChild(tooltip);
+
+        canvas.addEventListener('mousemove', e => {
+            const data = canvas._heatmapData;
+            if (!data) return;
+
+            const rect = canvas.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+
+            const col = Math.floor((x - data.labelWidth) / data.cellSize);
+            const row = Math.floor((y - data.labelWidth) / data.cellSize);
+
+            if (col >= 0 && col < data.n && row >= 0 && row < data.n) {
+                const r = data.corrMatrix[row][col];
+                const m1 = data.metricsToShow[row].label;
+                const m2 = data.metricsToShow[col].label;
+                tooltip.innerHTML = `<strong>${escapeHtml(m1)}</strong> vs <strong>${escapeHtml(m2)}</strong><br>r = ${r.toFixed(3)}`;
+                tooltip.style.display = 'block';
+                tooltip.style.left = (e.clientX - rect.left + 10) + 'px';
+                tooltip.style.top = (e.clientY - rect.top - 40) + 'px';
+            } else {
+                tooltip.style.display = 'none';
+            }
+        });
+
+        canvas.addEventListener('mouseleave', () => {
+            tooltip.style.display = 'none';
+        });
+    }
+
+    /* ── Initialization ───────────────────────────────────────── */
+
+    fetch('bioprint-data.json')
+        .then(r => r.json())
+        .then(data => {
+            printData = data;
+
+            computeAllScores();
+            updateOverviewStats();
+            drawHeatmap();
+            setupHeatmapTooltip();
+            drawDistribution();
+            renderImpact();
+            renderPerformers();
+            renderWeights();
+            updateOptimalRanges();
+
+            // Slider event
+            document.getElementById('viabilityThreshold').addEventListener('input', updateOptimalRanges);
+        })
+        .catch(err => {
+            console.error('Failed to load data:', err);
+        });
+    </script>
+</body>
+</html>

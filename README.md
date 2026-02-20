@@ -181,6 +181,19 @@ The [Print Comparison](https://sauravbhattacharya001.github.io/BioBots/compare.h
 - **Smart Insights** — Auto-generated cards: highest viability, best elasticity, most layers, viability spread, crosslinking effect analysis, pressure balance assessment
 - All charts render client-side using Canvas API (zero dependencies)
 
+## 🎯 Quality Control Dashboard
+
+The [Quality Control Dashboard](https://sauravbhattacharya001.github.io/BioBots/quality.html) helps identify optimal bioprinting parameters and track print quality:
+
+- **Overall Grade** — Aggregate quality grade (A–F) and score distribution across all prints
+- **Correlation Heatmap** — 10×10 Pearson correlation matrix showing how all parameters relate, with hover tooltips and color-coded cells (red = negative, green = positive)
+- **Score Distribution** — Histogram of quality scores color-coded by quality tier (High ≥70, Medium 40–69, Low <40)
+- **Parameter Impact Analysis** — Visualizes how each parameter correlates with cell viability, sorted by impact strength
+- **Top/Bottom 10 Performers** — Ranked tables of best and worst prints with quality score bars
+- **Optimal Parameter Finder** — Adjustable viability threshold slider that shows recommended parameter ranges from qualifying prints, with crosslinking usage stats and sample size
+- **Customizable Weights** — Adjust the quality score formula (Live Cell %, Dead Cell %, Elasticity, Layer Count) with real-time recalculation
+- All charts render client-side using Canvas API (zero dependencies)
+
 ## 📋 Data Table
 
 The [Data Table](https://sauravbhattacharya001.github.io/BioBots/table.html) lets you browse individual print records:
