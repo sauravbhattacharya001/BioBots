@@ -1,0 +1,99 @@
+---
+name: 🐛 Bug Report
+description: Report a bug in BioBots — API errors, incorrect query results, UI issues, or data loading failures
+title: "[Bug]: "
+labels: ["bug"]
+assignees: []
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report a bug! Please fill out the sections below so we can reproduce and fix it.
+
+  - type: dropdown
+    id: component
+    attributes:
+      label: Component
+      description: Which part of BioBots is affected?
+      options:
+        - API / PrintsController (C# backend)
+        - Web UI (index.html / runMethod.js)
+        - Data loading / bioprint-data.json
+        - Documentation site (GitHub Pages)
+        - CI/CD / GitHub Actions
+        - Docker / Dockerfile
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Bug Description
+      description: A clear and concise description of the bug.
+      placeholder: "When I query livePercent > 90, the API returns 0 instead of the expected count."
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps to Reproduce
+      description: How can we reproduce this bug?
+      placeholder: |
+        1. Open the web UI at index.html
+        2. Select metric "livePercent", comparison "greater", enter "90"
+        3. Click "Count"
+        4. See incorrect result
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected Behavior
+      description: What did you expect to happen?
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual Behavior
+      description: What actually happened? Include error messages, HTTP status codes, or console output if applicable.
+    validations:
+      required: true
+
+  - type: dropdown
+    id: environment
+    attributes:
+      label: Environment
+      description: How are you running BioBots?
+      options:
+        - IIS / Visual Studio (local)
+        - Docker container
+        - GitHub Pages (docs site only)
+        - Jest tests
+        - Other
+    validations:
+      required: true
+
+  - type: input
+    id: dotnet-version
+    attributes:
+      label: .NET Version
+      description: If applicable (e.g., .NET Framework 4.8, .NET 8)
+      placeholder: ".NET Framework 4.8"
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant Logs / Stack Trace
+      description: Paste any error output, stack traces, or browser console logs.
+      render: shell
+
+  - type: textarea
+    id: additional
+    attributes:
+      label: Additional Context
+      description: Any other context — screenshots, related issues, workarounds you've tried.

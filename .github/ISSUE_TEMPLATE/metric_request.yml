@@ -1,0 +1,60 @@
+---
+name: 📊 New Metric Request
+description: Request support for a new queryable metric in the BioBots API
+title: "[Metric]: "
+labels: ["enhancement", "api"]
+assignees: []
+body:
+  - type: markdown
+    attributes:
+      value: |
+        BioBots uses a MetricRegistry pattern — adding a new metric is a one-line change in `PrintsController.cs`. Use this template to request a new queryable metric.
+
+  - type: input
+    id: metric-name
+    attributes:
+      label: Metric Name
+      description: The name for the metric as it would appear in the API route (e.g., `printSpeed`).
+      placeholder: "printSpeed"
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: What does this metric represent? What units does it use?
+      placeholder: "Print speed in mm/s — the nozzle travel speed during extrusion."
+    validations:
+      required: true
+
+  - type: dropdown
+    id: data-type
+    attributes:
+      label: Data Type
+      description: Is this metric an integer or a floating-point value?
+      options:
+        - Integer (exact comparison, truncated aggregation)
+        - Double / Float (epsilon-based comparison)
+    validations:
+      required: true
+
+  - type: textarea
+    id: data-source
+    attributes:
+      label: Data Source
+      description: Where does this data come from in the bioprint-data.json structure? What JSON path?
+      placeholder: "print_info.speed — needs to be added to the Print model"
+    validations:
+      required: true
+
+  - type: textarea
+    id: use-case
+    attributes:
+      label: Use Case
+      description: Why is this metric useful? What queries would you run with it?
+      placeholder: |
+        - Find prints with speed > 10 mm/s to analyze quality vs speed tradeoffs
+        - Get average print speed across all runs
+    validations:
+      required: true

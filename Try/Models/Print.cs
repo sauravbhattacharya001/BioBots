@@ -90,12 +90,6 @@
         public double layerHeight { get; set; }
     }
 
-    public class LivePercent
-    {
-        public string type { get; set; }
-        public string description { get; set; }
-    }
-
     public class PrintData
     {
         /// <summary>
