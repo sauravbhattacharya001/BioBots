@@ -238,13 +238,18 @@ npx jest __tests__/compare.test.js --verbose</pre>
                 <tbody>
                     <tr>
                         <td><code>runMethod.test.js</code></td>
-                        <td>87</td>
+                        <td>~87</td>
                         <td>isNumeric(), setButtonsEnabled(), runMethod() — URL construction, validation, button states, response handling, integration</td>
                     </tr>
                     <tr>
                         <td><code>compare.test.js</code></td>
-                        <td>40+</td>
-                        <td>METRICS, formatNum(), selection manager, search, radar normalization, insights (viability, elasticity, pressure, crosslinking)</td>
+                        <td>~40+</td>
+                        <td>METRICS, formatNum(), selection manager, search, radar normalization, table highlighting, insights (viability, elasticity, pressure, crosslinking)</td>
+                    </tr>
+                    <tr>
+                        <td><code>quality.test.js</code></td>
+                        <td>~100+</td>
+                        <td>computeQualityScore(), getGrade(), pearsonR(), corrColor(), optimal ranges, weight customization, performer ranking, escapeHtml(), edge cases (empty data, single record, uniform values)</td>
                     </tr>
                 </tbody>
             </table>
@@ -300,6 +305,7 @@ npx jest __tests__/compare.test.js --verbose</pre>
 ├── explorer.html     # Distribution + correlation charts
 ├── table.html        # Sortable/filterable data table
 ├── compare.html      # Multi-print comparison with radar chart
+├── quality.html      # Quality control scoring dashboard
 ├── api.html          # API reference documentation
 ├── architecture.html # Architecture documentation
 ├── guide.html        # This developer guide
