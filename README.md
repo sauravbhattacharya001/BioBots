@@ -12,7 +12,7 @@ Analyze 3D bioprinting run data — cell viability, print resolution, crosslinki
 [![codecov](https://codecov.io/gh/sauravbhattacharya001/BioBots/graph/badge.svg)](https://codecov.io/gh/sauravbhattacharya001/BioBots)
 [![Docker Build](https://github.com/sauravbhattacharya001/BioBots/actions/workflows/docker.yml/badge.svg)](https://github.com/sauravbhattacharya001/BioBots/actions/workflows/docker.yml)
 [![GitHub Pages](https://github.com/sauravbhattacharya001/BioBots/actions/workflows/pages.yml/badge.svg)](https://sauravbhattacharya001.github.io/BioBots/)
-![Tests](https://img.shields.io/badge/tests-87%20passed-brightgreen)
+![Tests](https://img.shields.io/badge/tests-216%20passed-brightgreen)
 ![C#](https://img.shields.io/badge/C%23-ASP.NET%20Web%20API-purple)
 ![.NET Framework](https://img.shields.io/badge/.NET%20Framework-4.x-blue)
 [![Visual Studio](https://img.shields.io/badge/IDE-Visual%20Studio%202015+-blueviolet)](https://visualstudio.microsoft.com/)
@@ -192,6 +192,21 @@ The [Quality Control Dashboard](https://sauravbhattacharya001.github.io/BioBots/
 - **Top/Bottom 10 Performers** — Ranked tables of best and worst prints with quality score bars
 - **Optimal Parameter Finder** — Adjustable viability threshold slider that shows recommended parameter ranges from qualifying prints, with crosslinking usage stats and sample size
 - **Customizable Weights** — Adjust the quality score formula (Live Cell %, Dead Cell %, Elasticity, Layer Count) with real-time recalculation
+- All charts render client-side using Canvas API (zero dependencies)
+
+## 🔍 Anomaly Detector
+
+The [Anomaly Detector](https://sauravbhattacharya001.github.io/BioBots/anomaly.html) identifies statistical outliers in bioprint data:
+
+- **Dual Detection Methods** — Z-Score (parametric) and IQR/Interquartile Range (non-parametric) anomaly detection, plus a union mode that combines both
+- **Adjustable Sensitivity** — Slider controls for Z-score threshold (1.5–4.0) and IQR multiplier (1.0–3.0) with real-time recalculation
+- **Metric Filtering** — Analyze all 9 metrics at once or focus on a single parameter
+- **Anomaly Distribution Chart** — Stacked bar chart showing anomaly counts per metric, split by direction (above/below normal)
+- **Scatter Overview** — Viability vs Elasticity scatter plot with normal prints in blue and anomalies highlighted by severity (color + size coding)
+- **Severity Classification** — Three-tier system (Extreme, High, Moderate) based on Z-score magnitude and number of anomalous metrics
+- **Direction Analysis** — Pie chart showing the split between above-normal and below-normal anomalies
+- **Detailed Table** — Sortable, paginated list of anomalous prints with expandable detail rows showing all metrics, Z-scores, and means
+- **Export** — Download anomaly reports as CSV or JSON for external analysis
 - All charts render client-side using Canvas API (zero dependencies)
 
 ## 📋 Data Table

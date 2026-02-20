@@ -1,0 +1,1498 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>BioBots 1 — Anomaly Detector</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧬</text></svg>">
+    <style>
+        :root {
+            --bg: #0f172a;
+            --surface: #1e293b;
+            --border: #334155;
+            --text: #e2e8f0;
+            --muted: #94a3b8;
+            --accent: #38bdf8;
+            --accent-hover: #7dd3fc;
+            --success: #4ade80;
+            --error: #f87171;
+            --warning: #fbbf24;
+            --purple: #a78bfa;
+            --orange: #fb923c;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            padding: 2rem 1rem;
+        }
+
+        .container { max-width: 1200px; margin: 0 auto; }
+
+        header { text-align: center; margin-bottom: 2rem; }
+
+        header h1 {
+            font-size: 2rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, var(--orange), var(--error));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        header p { color: var(--muted); margin-top: 0.5rem; }
+
+        .nav {
+            display: flex;
+            justify-content: center;
+            gap: 0.5rem;
+            margin-bottom: 2rem;
+            flex-wrap: wrap;
+        }
+
+        .nav a {
+            color: var(--muted);
+            text-decoration: none;
+            padding: 0.5rem 1rem;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            transition: all 0.2s;
+        }
+
+        .nav a:hover { color: var(--text); background: var(--surface); }
+        .nav a.active { color: var(--accent); background: var(--surface); border: 1px solid var(--border); }
+
+        .card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .card h2 {
+            font-size: 1.1rem;
+            margin-bottom: 1rem;
+            color: var(--muted);
+            font-weight: 500;
+        }
+
+        .stats-bar {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .stat-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 1rem;
+            text-align: center;
+        }
+
+        .stat-card .value {
+            font-size: 1.8rem;
+            font-weight: 700;
+            color: var(--accent);
+        }
+
+        .stat-card .label {
+            font-size: 0.75rem;
+            color: var(--muted);
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            margin-top: 0.3rem;
+        }
+
+        .stat-card.danger .value { color: var(--error); }
+        .stat-card.warn .value { color: var(--warning); }
+        .stat-card.good .value { color: var(--success); }
+
+        .controls {
+            display: flex;
+            gap: 1rem;
+            flex-wrap: wrap;
+            align-items: end;
+            margin-bottom: 1rem;
+        }
+
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.3rem;
+        }
+
+        .control-group label {
+            font-size: 0.8rem;
+            color: var(--muted);
+            font-weight: 500;
+        }
+
+        select, input[type="number"], input[type="range"] {
+            background: var(--bg);
+            border: 1px solid var(--border);
+            color: var(--text);
+            padding: 0.5rem 0.7rem;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            outline: none;
+            transition: border-color 0.2s;
+            min-width: 140px;
+        }
+
+        select:focus, input:focus { border-color: var(--accent); }
+
+        input[type="range"] {
+            -webkit-appearance: none;
+            appearance: none;
+            height: 6px;
+            border-radius: 3px;
+            background: var(--border);
+            border: none;
+            padding: 0;
+            cursor: pointer;
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: var(--accent);
+            cursor: pointer;
+        }
+
+        .btn {
+            background: rgba(56, 189, 248, 0.15);
+            color: var(--accent);
+            border: 1px solid var(--accent);
+            padding: 0.5rem 1.2rem;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-weight: 500;
+        }
+
+        .btn:hover { background: rgba(56, 189, 248, 0.25); }
+
+        .btn-danger {
+            background: rgba(248, 113, 113, 0.15);
+            color: var(--error);
+            border-color: var(--error);
+        }
+
+        .btn-danger:hover { background: rgba(248, 113, 113, 0.25); }
+
+        .chart-container {
+            position: relative;
+            width: 100%;
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            overflow: hidden;
+        }
+
+        canvas {
+            display: block;
+            width: 100%;
+            height: auto;
+        }
+
+        .tooltip-box {
+            position: absolute;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 0.5rem 0.8rem;
+            font-size: 0.8rem;
+            color: var(--text);
+            pointer-events: none;
+            z-index: 10;
+            display: none;
+            white-space: nowrap;
+            max-width: 300px;
+        }
+
+        .anomaly-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.85rem;
+        }
+
+        .anomaly-table th {
+            text-align: left;
+            padding: 0.7rem 0.8rem;
+            border-bottom: 2px solid var(--border);
+            color: var(--muted);
+            font-weight: 600;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            cursor: pointer;
+            user-select: none;
+            white-space: nowrap;
+        }
+
+        .anomaly-table th:hover { color: var(--text); }
+
+        .anomaly-table td {
+            padding: 0.6rem 0.8rem;
+            border-bottom: 1px solid var(--border);
+            vertical-align: top;
+        }
+
+        .anomaly-table tr:hover td { background: rgba(56, 189, 248, 0.05); }
+
+        .severity-badge {
+            display: inline-block;
+            padding: 0.15rem 0.5rem;
+            border-radius: 999px;
+            font-size: 0.7rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+
+        .severity-extreme { background: rgba(248, 113, 113, 0.2); color: var(--error); }
+        .severity-high { background: rgba(251, 191, 36, 0.2); color: var(--warning); }
+        .severity-moderate { background: rgba(56, 189, 248, 0.2); color: var(--accent); }
+
+        .reason-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        .reason-list li {
+            padding: 0.15rem 0;
+            font-size: 0.8rem;
+            color: var(--text);
+        }
+
+        .reason-list li::before {
+            content: '⚠️ ';
+            font-size: 0.7rem;
+        }
+
+        .metric-tag {
+            display: inline-block;
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 0.1rem 0.4rem;
+            font-size: 0.7rem;
+            color: var(--muted);
+            margin-right: 0.3rem;
+            margin-bottom: 0.2rem;
+        }
+
+        .direction-up { color: var(--error); }
+        .direction-down { color: var(--accent); }
+
+        .method-pills {
+            display: flex;
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .method-pill {
+            background: var(--bg);
+            color: var(--muted);
+            border: 1px solid var(--border);
+            padding: 0.4rem 1rem;
+            border-radius: 999px;
+            font-size: 0.8rem;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .method-pill:hover { color: var(--text); border-color: var(--accent); }
+        .method-pill.active { color: var(--accent); border-color: var(--accent); background: rgba(56, 189, 248, 0.1); }
+
+        .anomaly-detail {
+            display: none;
+            padding: 0.8rem;
+            background: var(--bg);
+            border-radius: 8px;
+            margin-top: 0.5rem;
+        }
+
+        .anomaly-detail.open { display: block; }
+
+        .detail-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+            gap: 0.5rem;
+        }
+
+        .detail-item {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.8rem;
+            padding: 0.3rem 0.5rem;
+            border-radius: 4px;
+        }
+
+        .detail-item.anomalous { background: rgba(248, 113, 113, 0.1); }
+
+        .detail-item .dlabel { color: var(--muted); }
+        .detail-item .dvalue { font-weight: 600; }
+
+        .mini-chart-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 1rem;
+            margin-top: 1rem;
+        }
+
+        .mini-chart-card {
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 1rem;
+        }
+
+        .mini-chart-card h3 {
+            font-size: 0.85rem;
+            color: var(--muted);
+            margin-bottom: 0.5rem;
+            font-weight: 500;
+        }
+
+        .export-row {
+            display: flex;
+            gap: 0.5rem;
+            justify-content: flex-end;
+            margin-top: 1rem;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 3rem 1rem;
+            color: var(--muted);
+        }
+
+        .empty-state .icon { font-size: 3rem; margin-bottom: 1rem; }
+        .empty-state p { font-size: 0.9rem; }
+
+        .scroll-wrap {
+            overflow-x: auto;
+        }
+
+        .pagination {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 1rem;
+            font-size: 0.85rem;
+            color: var(--muted);
+        }
+
+        .pagination button {
+            background: var(--bg);
+            color: var(--muted);
+            border: 1px solid var(--border);
+            padding: 0.3rem 0.8rem;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.8rem;
+            transition: all 0.2s;
+        }
+
+        .pagination button:hover:not(:disabled) { color: var(--text); border-color: var(--accent); }
+        .pagination button:disabled { opacity: 0.4; cursor: default; }
+
+        footer {
+            margin-top: 2rem;
+            color: var(--muted);
+            font-size: 0.8rem;
+            text-align: center;
+        }
+
+        footer a { color: var(--accent); text-decoration: none; }
+        footer a:hover { text-decoration: underline; }
+
+        @media (max-width: 600px) {
+            .controls { flex-direction: column; }
+            .stats-bar { grid-template-columns: repeat(2, 1fr); }
+            .method-pills { flex-wrap: wrap; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🔍 Anomaly Detector</h1>
+            <p>Identify statistical outliers in bioprint data using Z-score and IQR methods</p>
+        </header>
+
+        <nav class="nav">
+            <a href="index.html">Query Tool</a>
+            <a href="explorer.html">Data Explorer</a>
+            <a href="table.html">Data Table</a>
+            <a href="compare.html">Compare</a>
+            <a href="quality.html">🎯 Quality</a>
+            <a href="anomaly.html" class="active">🔍 Anomaly</a>
+            <a href="api.html">📡 API</a>
+            <a href="architecture.html">🏗️ Architecture</a>
+            <a href="guide.html">🛠️ Guide</a>
+        </nav>
+
+        <!-- Overview Stats -->
+        <div class="stats-bar" id="statsBar">
+            <div class="stat-card">
+                <div class="value" id="totalPrints">-</div>
+                <div class="label">Total Prints</div>
+            </div>
+            <div class="stat-card danger">
+                <div class="value" id="anomalyCount">-</div>
+                <div class="label">Anomalies Found</div>
+            </div>
+            <div class="stat-card warn">
+                <div class="value" id="anomalyRate">-</div>
+                <div class="label">Anomaly Rate</div>
+            </div>
+            <div class="stat-card">
+                <div class="value" id="metricsChecked">-</div>
+                <div class="label">Metrics Checked</div>
+            </div>
+            <div class="stat-card good">
+                <div class="value" id="cleanCount">-</div>
+                <div class="label">Clean Prints</div>
+            </div>
+        </div>
+
+        <!-- Configuration -->
+        <div class="card">
+            <h2>⚙️ Detection Settings</h2>
+            <div class="method-pills" id="methodPills">
+                <button class="method-pill active" data-method="zscore" onclick="setMethod('zscore')">Z-Score</button>
+                <button class="method-pill" data-method="iqr" onclick="setMethod('iqr')">IQR (Interquartile Range)</button>
+                <button class="method-pill" data-method="both" onclick="setMethod('both')">Both (Union)</button>
+            </div>
+            <div class="controls">
+                <div class="control-group" id="zscoreControl">
+                    <label for="zThreshold">Z-Score Threshold: <span id="zThresholdVal">2.5</span></label>
+                    <input type="range" id="zThreshold" min="1.5" max="4.0" step="0.1" value="2.5" oninput="updateThresholdLabel(); runDetection()" />
+                    <span style="font-size:0.7rem;color:var(--muted)">Lower = more sensitive (more anomalies)</span>
+                </div>
+                <div class="control-group" id="iqrControl">
+                    <label for="iqrMultiplier">IQR Multiplier: <span id="iqrMultiplierVal">1.5</span></label>
+                    <input type="range" id="iqrMultiplier" min="1.0" max="3.0" step="0.1" value="1.5" oninput="updateThresholdLabel(); runDetection()" />
+                    <span style="font-size:0.7rem;color:var(--muted)">Standard: 1.5, Strict: 3.0</span>
+                </div>
+                <div class="control-group">
+                    <label for="metricFilter">Filter by Metric</label>
+                    <select id="metricFilter" onchange="runDetection()">
+                        <option value="all">All Metrics</option>
+                        <optgroup label="Print Data">
+                            <option value="livePercent">Live Cell %</option>
+                            <option value="deadPercent">Dead Cell %</option>
+                            <option value="elasticity">Elasticity (kPa)</option>
+                        </optgroup>
+                        <optgroup label="Crosslinking">
+                            <option value="cl_duration">CL Duration (ms)</option>
+                            <option value="cl_intensity">CL Intensity (%)</option>
+                        </optgroup>
+                        <optgroup label="Pressure">
+                            <option value="extruder1">Extruder 1</option>
+                            <option value="extruder2">Extruder 2</option>
+                        </optgroup>
+                        <optgroup label="Resolution">
+                            <option value="layerHeight">Layer Height (mm)</option>
+                            <option value="layerNum">Layer Count</option>
+                        </optgroup>
+                    </select>
+                </div>
+                <div class="control-group">
+                    <label for="sortBy">Sort By</label>
+                    <select id="sortBy" onchange="renderResults()">
+                        <option value="severity">Severity (most anomalous)</option>
+                        <option value="metrics">Number of Anomalous Metrics</option>
+                        <option value="serial">Serial Number</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <!-- Anomaly Distribution Chart -->
+        <div class="card">
+            <h2>📊 Anomaly Distribution by Metric</h2>
+            <div class="chart-container">
+                <canvas id="distChart" width="1160" height="350"></canvas>
+                <div class="tooltip-box" id="distTooltip"></div>
+            </div>
+        </div>
+
+        <!-- Scatter Overview -->
+        <div class="card">
+            <h2>🔬 Anomaly Scatter — Viability vs Elasticity</h2>
+            <p style="font-size:0.8rem;color:var(--muted);margin-bottom:1rem;">Normal prints shown in blue, anomalous prints highlighted in red. Point size indicates severity.</p>
+            <div class="chart-container">
+                <canvas id="scatterChart" width="1160" height="450"></canvas>
+                <div class="tooltip-box" id="scatterTooltip"></div>
+            </div>
+        </div>
+
+        <!-- Anomaly Severity Breakdown -->
+        <div class="mini-chart-row">
+            <div class="mini-chart-card">
+                <h3>Severity Breakdown</h3>
+                <canvas id="severityChart" width="280" height="200"></canvas>
+            </div>
+            <div class="mini-chart-card">
+                <h3>Most Common Anomalous Metrics</h3>
+                <canvas id="metricFreqChart" width="280" height="200"></canvas>
+            </div>
+            <div class="mini-chart-card">
+                <h3>Anomaly Direction</h3>
+                <canvas id="directionChart" width="280" height="200"></canvas>
+            </div>
+        </div>
+
+        <!-- Anomaly Table -->
+        <div class="card" style="margin-top:1.5rem;">
+            <h2>📋 Anomalous Prints <span id="anomalyTableCount" style="font-size:0.85rem;color:var(--accent)"></span></h2>
+            <div id="anomalyTableWrap">
+                <div class="empty-state" id="emptyState" style="display:none;">
+                    <div class="icon">✅</div>
+                    <p>No anomalies detected at the current sensitivity level.</p>
+                    <p style="margin-top:0.5rem;font-size:0.8rem;">Try lowering the threshold to increase sensitivity.</p>
+                </div>
+                <div class="scroll-wrap" id="tableScrollWrap">
+                    <table class="anomaly-table" id="anomalyTable">
+                        <thead>
+                            <tr>
+                                <th onclick="sortTable('index')"># ↕</th>
+                                <th onclick="sortTable('serial')">Serial ↕</th>
+                                <th onclick="sortTable('email')">Email ↕</th>
+                                <th onclick="sortTable('severity')">Severity ↕</th>
+                                <th onclick="sortTable('anomalyScore')">Score ↕</th>
+                                <th onclick="sortTable('metricCount')">Metrics ↕</th>
+                                <th>Anomalous Parameters</th>
+                            </tr>
+                        </thead>
+                        <tbody id="anomalyBody"></tbody>
+                    </table>
+                </div>
+                <div class="pagination" id="pagination"></div>
+            </div>
+            <div class="export-row">
+                <button class="btn" onclick="exportCSV()">📥 Export CSV</button>
+                <button class="btn" onclick="exportJSON()">📥 Export JSON</button>
+            </div>
+        </div>
+
+        <footer>
+            <p>Built with 🧬 by <a href="https://github.com/sauravbhattacharya001">Saurav Bhattacharya</a></p>
+            <p><a href="https://github.com/sauravbhattacharya001/BioBots">View Source</a> · <a href="index.html">Query Tool</a></p>
+        </footer>
+    </div>
+
+    <script>
+    'use strict';
+
+    // ── Globals ─────────────────────────────────────────
+    let printData = [];
+    let anomalyResults = []; // { index, serial, email, severity, anomalyScore, reasons: [{metric, value, mean, zscore, direction, method}] }
+    let currentMethod = 'zscore';
+    let currentPage = 0;
+    const pageSize = 20;
+    let tableSortKey = 'anomalyScore';
+    let tableSortAsc = false;
+
+    const METRICS = ['livePercent', 'deadPercent', 'elasticity', 'cl_duration', 'cl_intensity', 'extruder1', 'extruder2', 'layerHeight', 'layerNum'];
+
+    const metricLabels = {
+        deadPercent: 'Dead Cell %',
+        livePercent: 'Live Cell %',
+        elasticity: 'Elasticity (kPa)',
+        cl_duration: 'CL Duration (ms)',
+        cl_intensity: 'CL Intensity (%)',
+        extruder1: 'Extruder 1 Pressure',
+        extruder2: 'Extruder 2 Pressure',
+        layerHeight: 'Layer Height (mm)',
+        layerNum: 'Layer Count'
+    };
+
+    const _escapeEl = document.createElement('div');
+    function escapeHtml(str) {
+        if (str == null) return '';
+        _escapeEl.textContent = String(str);
+        return _escapeEl.innerHTML;
+    }
+
+    function getMetricValue(print, metric) {
+        const paths = {
+            deadPercent: p => p.print_data.deadPercent,
+            livePercent: p => p.print_data.livePercent,
+            elasticity: p => p.print_data.elasticity,
+            cl_duration: p => p.print_info.crosslinking.cl_duration,
+            cl_intensity: p => p.print_info.crosslinking.cl_intensity,
+            extruder1: p => p.print_info.pressure.extruder1,
+            extruder2: p => p.print_info.pressure.extruder2,
+            layerHeight: p => p.print_info.resolution.layerHeight,
+            layerNum: p => p.print_info.resolution.layerNum,
+        };
+        try { return paths[metric] ? paths[metric](print) : null; }
+        catch { return null; }
+    }
+
+    function formatNum(n) {
+        if (n == null) return '-';
+        if (Math.abs(n) >= 1000) return n.toLocaleString(undefined, { maximumFractionDigits: 1 });
+        if (Number.isInteger(n)) return n.toString();
+        return n.toFixed(2);
+    }
+
+    // ── Canvas helpers ──────────────────────────────────
+    function setupCanvas(canvas, width, height) {
+        const dpr = window.devicePixelRatio || 1;
+        canvas.width = width * dpr;
+        canvas.height = height * dpr;
+        canvas.style.width = width + 'px';
+        canvas.style.height = height + 'px';
+        const ctx = canvas.getContext('2d');
+        ctx.scale(dpr, dpr);
+        return ctx;
+    }
+
+    // ── Statistics ───────────────────────────────────────
+    function computeStats(values) {
+        const n = values.length;
+        if (n === 0) return { mean: 0, std: 0, q1: 0, q3: 0, iqr: 0, median: 0 };
+        const sorted = [...values].sort((a, b) => a - b);
+        const mean = values.reduce((s, v) => s + v, 0) / n;
+        const std = Math.sqrt(values.reduce((s, v) => s + (v - mean) ** 2, 0) / n);
+        const q1 = sorted[Math.floor(n * 0.25)];
+        const q3 = sorted[Math.floor(n * 0.75)];
+        const median = n % 2 === 0 ? (sorted[n / 2 - 1] + sorted[n / 2]) / 2 : sorted[Math.floor(n / 2)];
+        return { mean, std, q1, q3, iqr: q3 - q1, median };
+    }
+
+    // ── Detection Methods ───────────────────────────────
+    function detectAnomalies() {
+        const zThreshold = parseFloat(document.getElementById('zThreshold').value);
+        const iqrMultiplier = parseFloat(document.getElementById('iqrMultiplier').value);
+        const metricFilter = document.getElementById('metricFilter').value;
+        const metricsToCheck = metricFilter === 'all' ? METRICS : [metricFilter];
+
+        // Precompute stats for all metrics
+        const stats = {};
+        for (const m of metricsToCheck) {
+            const values = printData
+                .map(p => getMetricValue(p, m))
+                .filter(v => v !== null && !isNaN(v) && isFinite(v));
+            stats[m] = computeStats(values);
+        }
+
+        anomalyResults = [];
+
+        for (let i = 0; i < printData.length; i++) {
+            const p = printData[i];
+            const reasons = [];
+
+            for (const m of metricsToCheck) {
+                const v = getMetricValue(p, m);
+                if (v === null || isNaN(v) || !isFinite(v)) continue;
+
+                const s = stats[m];
+                let isAnomaly = false;
+                let method = '';
+
+                // Z-Score
+                const zscore = s.std > 0 ? (v - s.mean) / s.std : 0;
+                const zAnomaly = Math.abs(zscore) > zThreshold;
+
+                // IQR
+                const lowerFence = s.q1 - iqrMultiplier * s.iqr;
+                const upperFence = s.q3 + iqrMultiplier * s.iqr;
+                const iqrAnomaly = v < lowerFence || v > upperFence;
+
+                if (currentMethod === 'zscore') {
+                    isAnomaly = zAnomaly;
+                    method = 'Z-Score';
+                } else if (currentMethod === 'iqr') {
+                    isAnomaly = iqrAnomaly;
+                    method = 'IQR';
+                } else { // both
+                    isAnomaly = zAnomaly || iqrAnomaly;
+                    method = zAnomaly && iqrAnomaly ? 'Both' : (zAnomaly ? 'Z-Score' : 'IQR');
+                }
+
+                if (isAnomaly) {
+                    reasons.push({
+                        metric: m,
+                        value: v,
+                        mean: s.mean,
+                        std: s.std,
+                        zscore,
+                        q1: s.q1,
+                        q3: s.q3,
+                        lowerFence,
+                        upperFence,
+                        direction: v > s.mean ? 'high' : 'low',
+                        method
+                    });
+                }
+            }
+
+            if (reasons.length > 0) {
+                const maxZscore = Math.max(...reasons.map(r => Math.abs(r.zscore)));
+                let severity;
+                if (maxZscore > 3.5 || reasons.length >= 4) severity = 'extreme';
+                else if (maxZscore > 2.5 || reasons.length >= 2) severity = 'high';
+                else severity = 'moderate';
+
+                anomalyResults.push({
+                    index: i,
+                    serial: p.user_info.serial,
+                    email: p.user_info.email,
+                    severity,
+                    anomalyScore: maxZscore,
+                    metricCount: reasons.length,
+                    reasons,
+                    print: p
+                });
+            }
+        }
+    }
+
+    // ── Method switching ────────────────────────────────
+    function setMethod(m) {
+        currentMethod = m;
+        document.querySelectorAll('.method-pill').forEach(p => {
+            p.classList.toggle('active', p.dataset.method === m);
+        });
+        // Show/hide threshold controls
+        document.getElementById('zscoreControl').style.display = (m === 'iqr') ? 'none' : '';
+        document.getElementById('iqrControl').style.display = (m === 'zscore') ? 'none' : '';
+        runDetection();
+    }
+
+    function updateThresholdLabel() {
+        document.getElementById('zThresholdVal').textContent = parseFloat(document.getElementById('zThreshold').value).toFixed(1);
+        document.getElementById('iqrMultiplierVal').textContent = parseFloat(document.getElementById('iqrMultiplier').value).toFixed(1);
+    }
+
+    // ── Run detection & render ──────────────────────────
+    function runDetection() {
+        detectAnomalies();
+        updateStats();
+        drawDistributionChart();
+        drawScatterChart();
+        drawSeverityChart();
+        drawMetricFreqChart();
+        drawDirectionChart();
+        currentPage = 0;
+        renderResults();
+    }
+
+    function updateStats() {
+        const total = printData.length;
+        const anomalies = anomalyResults.length;
+        document.getElementById('totalPrints').textContent = total.toLocaleString();
+        document.getElementById('anomalyCount').textContent = anomalies.toLocaleString();
+        document.getElementById('anomalyRate').textContent = total > 0 ? (anomalies / total * 100).toFixed(1) + '%' : '0%';
+        document.getElementById('metricsChecked').textContent = document.getElementById('metricFilter').value === 'all' ? METRICS.length : 1;
+        document.getElementById('cleanCount').textContent = (total - anomalies).toLocaleString();
+    }
+
+    // ── Distribution Bar Chart ──────────────────────────
+    let distBars = [];
+    function drawDistributionChart() {
+        const canvas = document.getElementById('distChart');
+        const W = 1160, H = 350;
+        const ctx = setupCanvas(canvas, W, H);
+        const pad = { top: 30, right: 30, bottom: 80, left: 60 };
+        const chartW = W - pad.left - pad.right;
+        const chartH = H - pad.top - pad.bottom;
+
+        // Count anomalies per metric
+        const counts = {};
+        for (const m of METRICS) counts[m] = { high: 0, low: 0, total: 0 };
+        for (const a of anomalyResults) {
+            for (const r of a.reasons) {
+                counts[r.metric].total++;
+                if (r.direction === 'high') counts[r.metric].high++;
+                else counts[r.metric].low++;
+            }
+        }
+
+        const maxCount = Math.max(1, ...METRICS.map(m => counts[m].total));
+        const barW = chartW / METRICS.length;
+
+        distBars = [];
+
+        ctx.fillStyle = '#0f172a';
+        ctx.fillRect(0, 0, W, H);
+
+        // Grid lines
+        ctx.strokeStyle = '#1e293b';
+        ctx.lineWidth = 1;
+        for (let i = 0; i <= 5; i++) {
+            const y = pad.top + (chartH / 5) * i;
+            ctx.beginPath();
+            ctx.moveTo(pad.left, y);
+            ctx.lineTo(W - pad.right, y);
+            ctx.stroke();
+        }
+
+        // Bars — stacked (high = red top, low = blue bottom)
+        for (let i = 0; i < METRICS.length; i++) {
+            const m = METRICS[i];
+            const c = counts[m];
+            const x = pad.left + i * barW + barW * 0.15;
+            const w = barW * 0.7;
+
+            // Low portion (blue)
+            const lowH = (c.low / maxCount) * chartH;
+            const highH = (c.high / maxCount) * chartH;
+            const totalH = lowH + highH;
+
+            // Low bar
+            if (c.low > 0) {
+                ctx.fillStyle = 'rgba(56, 189, 248, 0.7)';
+                ctx.beginPath();
+                ctx.roundRect(x, pad.top + chartH - lowH, w, lowH, [0, 0, 3, 3]);
+                ctx.fill();
+            }
+
+            // High bar (stacked on top)
+            if (c.high > 0) {
+                ctx.fillStyle = 'rgba(248, 113, 113, 0.7)';
+                ctx.beginPath();
+                ctx.roundRect(x, pad.top + chartH - totalH, w, highH, [3, 3, 0, 0]);
+                ctx.fill();
+            }
+
+            // Total count label
+            if (c.total > 0) {
+                ctx.fillStyle = var_text();
+                ctx.font = '11px -apple-system, sans-serif';
+                ctx.textAlign = 'center';
+                ctx.fillText(c.total, x + w / 2, pad.top + chartH - totalH - 6);
+            }
+
+            // X-axis label
+            ctx.fillStyle = '#94a3b8';
+            ctx.font = '10px -apple-system, sans-serif';
+            ctx.textAlign = 'center';
+            ctx.save();
+            ctx.translate(x + w / 2, pad.top + chartH + 10);
+            ctx.rotate(Math.PI / 6);
+            ctx.textAlign = 'left';
+            ctx.fillText(metricLabels[m] || m, 0, 0);
+            ctx.restore();
+
+            distBars.push({ x, w, metric: m, count: c });
+        }
+
+        // Y-axis labels
+        ctx.fillStyle = '#94a3b8';
+        ctx.font = '11px -apple-system, sans-serif';
+        ctx.textAlign = 'right';
+        ctx.textBaseline = 'middle';
+        for (let i = 0; i <= 5; i++) {
+            const val = Math.round(maxCount * (1 - i / 5));
+            const y = pad.top + (chartH / 5) * i;
+            ctx.fillText(val, pad.left - 8, y);
+        }
+
+        // Legend
+        ctx.fillStyle = 'rgba(248, 113, 113, 0.7)';
+        ctx.fillRect(W - pad.right - 180, pad.top + 5, 12, 12);
+        ctx.fillStyle = '#94a3b8';
+        ctx.font = '11px -apple-system, sans-serif';
+        ctx.textAlign = 'left';
+        ctx.fillText('Above normal', W - pad.right - 162, pad.top + 14);
+
+        ctx.fillStyle = 'rgba(56, 189, 248, 0.7)';
+        ctx.fillRect(W - pad.right - 180, pad.top + 25, 12, 12);
+        ctx.fillStyle = '#94a3b8';
+        ctx.fillText('Below normal', W - pad.right - 162, pad.top + 34);
+    }
+
+    function var_text() { return '#e2e8f0'; }
+
+    // Distribution chart tooltip
+    document.getElementById('distChart').addEventListener('mousemove', function(e) {
+        if (!distBars.length) return;
+        const rect = this.getBoundingClientRect();
+        const sx = (e.clientX - rect.left) * (1160 / rect.width);
+        const tip = document.getElementById('distTooltip');
+        let found = false;
+        for (const bar of distBars) {
+            if (sx >= bar.x && sx <= bar.x + bar.w) {
+                const label = metricLabels[bar.metric] || bar.metric;
+                tip.innerHTML = `<strong>${escapeHtml(label)}</strong><br>` +
+                    `Total: ${bar.count.total}<br>` +
+                    `↑ High: ${bar.count.high}<br>` +
+                    `↓ Low: ${bar.count.low}`;
+                tip.style.display = 'block';
+                tip.style.left = (e.clientX - rect.left + 12) + 'px';
+                tip.style.top = (e.clientY - rect.top - 40) + 'px';
+                found = true;
+                break;
+            }
+        }
+        if (!found) tip.style.display = 'none';
+    });
+
+    document.getElementById('distChart').addEventListener('mouseleave', function() {
+        document.getElementById('distTooltip').style.display = 'none';
+    });
+
+    // ── Scatter Chart ───────────────────────────────────
+    let scatterPts = [];
+    let scatterMeta = {};
+
+    function drawScatterChart() {
+        const canvas = document.getElementById('scatterChart');
+        const W = 1160, H = 450;
+        const ctx = setupCanvas(canvas, W, H);
+        const pad = { top: 30, right: 30, bottom: 60, left: 70 };
+        const chartW = W - pad.left - pad.right;
+        const chartH = H - pad.top - pad.bottom;
+
+        const anomalySet = new Set(anomalyResults.map(a => a.index));
+        const anomalyMap = {};
+        for (const a of anomalyResults) anomalyMap[a.index] = a;
+
+        // Collect points
+        scatterPts = [];
+        for (let i = 0; i < printData.length; i++) {
+            const p = printData[i];
+            const xv = getMetricValue(p, 'livePercent');
+            const yv = getMetricValue(p, 'elasticity');
+            if (xv == null || yv == null || !isFinite(xv) || !isFinite(yv)) continue;
+            scatterPts.push({
+                x: xv, y: yv,
+                isAnomaly: anomalySet.has(i),
+                anomaly: anomalyMap[i] || null,
+                index: i,
+                serial: p.user_info.serial
+            });
+        }
+
+        if (scatterPts.length === 0) return;
+
+        const xMin = Math.min(...scatterPts.map(p => p.x));
+        const xMax = Math.max(...scatterPts.map(p => p.x));
+        const yMin = Math.min(...scatterPts.map(p => p.y));
+        const yMax = Math.max(...scatterPts.map(p => p.y));
+        const xPad2 = (xMax - xMin) * 0.05 || 1;
+        const yPad2 = (yMax - yMin) * 0.05 || 1;
+        const xLo = xMin - xPad2, xHi = xMax + xPad2;
+        const yLo = yMin - yPad2, yHi = yMax + yPad2;
+
+        scatterMeta = { pad, chartW, chartH, xLo, xHi, yLo, yHi };
+
+        function toSX(v) { return pad.left + ((v - xLo) / (xHi - xLo)) * chartW; }
+        function toSY(v) { return pad.top + chartH - ((v - yLo) / (yHi - yLo)) * chartH; }
+
+        ctx.fillStyle = '#0f172a';
+        ctx.fillRect(0, 0, W, H);
+
+        // Grid
+        ctx.strokeStyle = '#1e293b';
+        ctx.lineWidth = 1;
+        for (let i = 0; i <= 6; i++) {
+            const y = pad.top + (chartH / 6) * i;
+            ctx.beginPath(); ctx.moveTo(pad.left, y); ctx.lineTo(W - pad.right, y); ctx.stroke();
+            const x = pad.left + (chartW / 6) * i;
+            ctx.beginPath(); ctx.moveTo(x, pad.top); ctx.lineTo(x, pad.top + chartH); ctx.stroke();
+        }
+
+        // Draw normal points first
+        ctx.globalAlpha = 0.35;
+        for (const pt of scatterPts) {
+            if (pt.isAnomaly) continue;
+            ctx.fillStyle = '#38bdf8';
+            ctx.beginPath();
+            ctx.arc(toSX(pt.x), toSY(pt.y), 3, 0, Math.PI * 2);
+            ctx.fill();
+        }
+        ctx.globalAlpha = 1;
+
+        // Draw anomaly points
+        for (const pt of scatterPts) {
+            if (!pt.isAnomaly) continue;
+            const a = pt.anomaly;
+            const r = a.severity === 'extreme' ? 7 : a.severity === 'high' ? 5 : 4;
+            // Glow
+            ctx.shadowColor = '#f87171';
+            ctx.shadowBlur = 8;
+            ctx.fillStyle = a.severity === 'extreme' ? '#f87171' : a.severity === 'high' ? '#fbbf24' : '#fb923c';
+            ctx.beginPath();
+            ctx.arc(toSX(pt.x), toSY(pt.y), r, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.shadowBlur = 0;
+        }
+
+        // Axis labels
+        ctx.fillStyle = '#94a3b8';
+        ctx.font = '11px -apple-system, sans-serif';
+        ctx.textAlign = 'right';
+        ctx.textBaseline = 'middle';
+        for (let i = 0; i <= 6; i++) {
+            const val = yLo + (yHi - yLo) * (1 - i / 6);
+            ctx.fillText(formatNum(val), pad.left - 8, pad.top + (chartH / 6) * i);
+        }
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'top';
+        for (let i = 0; i <= 6; i++) {
+            const val = xLo + (xHi - xLo) * (i / 6);
+            ctx.fillText(formatNum(val), pad.left + (chartW / 6) * i, pad.top + chartH + 8);
+        }
+
+        // Axis titles
+        ctx.font = '12px -apple-system, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('Live Cell %', pad.left + chartW / 2, H - 10);
+        ctx.save();
+        ctx.translate(15, pad.top + chartH / 2);
+        ctx.rotate(-Math.PI / 2);
+        ctx.fillText('Elasticity (kPa)', 0, 0);
+        ctx.restore();
+
+        // Legend
+        const lx = W - pad.right - 160;
+        ctx.fillStyle = '#f87171'; ctx.beginPath(); ctx.arc(lx, pad.top + 12, 5, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = '#94a3b8'; ctx.font = '11px -apple-system, sans-serif'; ctx.textAlign = 'left';
+        ctx.fillText('Extreme', lx + 10, pad.top + 16);
+
+        ctx.fillStyle = '#fbbf24'; ctx.beginPath(); ctx.arc(lx, pad.top + 30, 4, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = '#94a3b8'; ctx.fillText('High', lx + 10, pad.top + 34);
+
+        ctx.fillStyle = '#fb923c'; ctx.beginPath(); ctx.arc(lx, pad.top + 48, 3, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = '#94a3b8'; ctx.fillText('Moderate', lx + 10, pad.top + 52);
+
+        ctx.globalAlpha = 0.5;
+        ctx.fillStyle = '#38bdf8'; ctx.beginPath(); ctx.arc(lx, pad.top + 66, 3, 0, Math.PI * 2); ctx.fill();
+        ctx.globalAlpha = 1;
+        ctx.fillStyle = '#94a3b8'; ctx.fillText('Normal', lx + 10, pad.top + 70);
+    }
+
+    // Scatter tooltip
+    document.getElementById('scatterChart').addEventListener('mousemove', function(e) {
+        if (!scatterPts.length) return;
+        const rect = this.getBoundingClientRect();
+        const mx = (e.clientX - rect.left) * (1160 / rect.width);
+        const my = (e.clientY - rect.top) * (450 / rect.height);
+        const { pad: p, chartW, chartH, xLo, xHi, yLo, yHi } = scatterMeta;
+
+        let nearest = null, minDist = 20;
+        for (const pt of scatterPts) {
+            const sx = p.left + ((pt.x - xLo) / (xHi - xLo)) * chartW;
+            const sy = p.top + chartH - ((pt.y - yLo) / (yHi - yLo)) * chartH;
+            const d = Math.sqrt((mx - sx) ** 2 + (my - sy) ** 2);
+            if (d < minDist) { minDist = d; nearest = pt; }
+        }
+
+        const tip = document.getElementById('scatterTooltip');
+        if (nearest) {
+            let html = `Serial: ${nearest.serial} | Live: ${formatNum(nearest.x)}% | Elasticity: ${formatNum(nearest.y)} kPa`;
+            if (nearest.isAnomaly) {
+                html += `<br><span style="color:var(--error)">⚠️ ${nearest.anomaly.severity.toUpperCase()} anomaly (${nearest.anomaly.metricCount} metric${nearest.anomaly.metricCount > 1 ? 's' : ''})</span>`;
+            }
+            tip.innerHTML = html;
+            tip.style.display = 'block';
+            tip.style.left = (e.clientX - rect.left + 12) + 'px';
+            tip.style.top = (e.clientY - rect.top - 40) + 'px';
+        } else {
+            tip.style.display = 'none';
+        }
+    });
+
+    document.getElementById('scatterChart').addEventListener('mouseleave', function() {
+        document.getElementById('scatterTooltip').style.display = 'none';
+    });
+
+    // ── Severity Donut Chart ────────────────────────────
+    function drawSeverityChart() {
+        const canvas = document.getElementById('severityChart');
+        const W = 280, H = 200;
+        const ctx = setupCanvas(canvas, W, H);
+        ctx.fillStyle = '#0f172a';
+        ctx.fillRect(0, 0, W, H);
+
+        const counts = { extreme: 0, high: 0, moderate: 0 };
+        for (const a of anomalyResults) counts[a.severity]++;
+        const total = anomalyResults.length;
+        if (total === 0) {
+            ctx.fillStyle = '#94a3b8'; ctx.font = '12px -apple-system, sans-serif';
+            ctx.textAlign = 'center'; ctx.fillText('No anomalies', W / 2, H / 2);
+            return;
+        }
+
+        const colors = { extreme: '#f87171', high: '#fbbf24', moderate: '#fb923c' };
+        const labels = { extreme: 'Extreme', high: 'High', moderate: 'Moderate' };
+        const cx = W / 2 - 30, cy = H / 2, R = 70, r = 40;
+
+        let angle = -Math.PI / 2;
+        for (const [key, count] of Object.entries(counts)) {
+            if (count === 0) continue;
+            const sweep = (count / total) * Math.PI * 2;
+            ctx.fillStyle = colors[key];
+            ctx.beginPath();
+            ctx.arc(cx, cy, R, angle, angle + sweep);
+            ctx.arc(cx, cy, r, angle + sweep, angle, true);
+            ctx.closePath();
+            ctx.fill();
+            angle += sweep;
+        }
+
+        // Center text
+        ctx.fillStyle = var_text();
+        ctx.font = 'bold 18px -apple-system, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(total, cx, cy - 6);
+        ctx.fillStyle = '#94a3b8';
+        ctx.font = '9px -apple-system, sans-serif';
+        ctx.fillText('TOTAL', cx, cy + 10);
+
+        // Legend
+        let ly = 40;
+        for (const [key, count] of Object.entries(counts)) {
+            if (count === 0) continue;
+            ctx.fillStyle = colors[key];
+            ctx.fillRect(W - 90, ly, 10, 10);
+            ctx.fillStyle = '#94a3b8';
+            ctx.font = '10px -apple-system, sans-serif';
+            ctx.textAlign = 'left';
+            ctx.fillText(`${labels[key]}: ${count}`, W - 75, ly + 9);
+            ly += 18;
+        }
+    }
+
+    // ── Metric Frequency Bar Chart ──────────────────────
+    function drawMetricFreqChart() {
+        const canvas = document.getElementById('metricFreqChart');
+        const W = 280, H = 200;
+        const ctx = setupCanvas(canvas, W, H);
+        ctx.fillStyle = '#0f172a';
+        ctx.fillRect(0, 0, W, H);
+
+        const freq = {};
+        for (const a of anomalyResults) {
+            for (const r of a.reasons) {
+                freq[r.metric] = (freq[r.metric] || 0) + 1;
+            }
+        }
+
+        const sorted = Object.entries(freq).sort((a, b) => b[1] - a[1]).slice(0, 6);
+        if (sorted.length === 0) {
+            ctx.fillStyle = '#94a3b8'; ctx.font = '12px -apple-system, sans-serif';
+            ctx.textAlign = 'center'; ctx.fillText('No data', W / 2, H / 2);
+            return;
+        }
+
+        const maxFreq = sorted[0][1];
+        const barH = 20;
+        const gap = 6;
+        const startY = 15;
+        const barMaxW = W - 120;
+
+        for (let i = 0; i < sorted.length; i++) {
+            const [metric, count] = sorted[i];
+            const y = startY + i * (barH + gap);
+            const w = (count / maxFreq) * barMaxW;
+
+            const grad = ctx.createLinearGradient(10, 0, 10 + w, 0);
+            grad.addColorStop(0, '#38bdf8');
+            grad.addColorStop(1, '#a78bfa');
+            ctx.fillStyle = grad;
+            ctx.beginPath();
+            ctx.roundRect(10, y, w, barH, 4);
+            ctx.fill();
+
+            // Label
+            ctx.fillStyle = '#94a3b8';
+            ctx.font = '9px -apple-system, sans-serif';
+            ctx.textAlign = 'left';
+            const label = (metricLabels[metric] || metric).replace(/\s*\(.*\)/, '');
+            ctx.fillText(label, w + 16, y + 10);
+
+            // Count
+            ctx.fillStyle = var_text();
+            ctx.font = 'bold 10px -apple-system, sans-serif';
+            ctx.fillText(count, w + 16, y + barH - 2);
+        }
+    }
+
+    // ── Direction Chart ─────────────────────────────────
+    function drawDirectionChart() {
+        const canvas = document.getElementById('directionChart');
+        const W = 280, H = 200;
+        const ctx = setupCanvas(canvas, W, H);
+        ctx.fillStyle = '#0f172a';
+        ctx.fillRect(0, 0, W, H);
+
+        let highCount = 0, lowCount = 0;
+        for (const a of anomalyResults) {
+            for (const r of a.reasons) {
+                if (r.direction === 'high') highCount++;
+                else lowCount++;
+            }
+        }
+
+        const total = highCount + lowCount;
+        if (total === 0) {
+            ctx.fillStyle = '#94a3b8'; ctx.font = '12px -apple-system, sans-serif';
+            ctx.textAlign = 'center'; ctx.fillText('No data', W / 2, H / 2);
+            return;
+        }
+
+        const cx = W / 2, cy = H / 2 + 10;
+        const R = 65;
+
+        // High portion (red)
+        const highAngle = (highCount / total) * Math.PI * 2;
+        ctx.fillStyle = 'rgba(248, 113, 113, 0.7)';
+        ctx.beginPath();
+        ctx.moveTo(cx, cy);
+        ctx.arc(cx, cy, R, -Math.PI / 2, -Math.PI / 2 + highAngle);
+        ctx.closePath();
+        ctx.fill();
+
+        // Low portion (blue)
+        ctx.fillStyle = 'rgba(56, 189, 248, 0.7)';
+        ctx.beginPath();
+        ctx.moveTo(cx, cy);
+        ctx.arc(cx, cy, R, -Math.PI / 2 + highAngle, -Math.PI / 2 + Math.PI * 2);
+        ctx.closePath();
+        ctx.fill();
+
+        // Labels
+        ctx.fillStyle = var_text();
+        ctx.font = 'bold 14px -apple-system, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+
+        const highPct = (highCount / total * 100).toFixed(0);
+        const lowPct = (lowCount / total * 100).toFixed(0);
+
+        // Position labels in pie segments
+        const highMidAngle = -Math.PI / 2 + highAngle / 2;
+        const lowMidAngle = -Math.PI / 2 + highAngle + (Math.PI * 2 - highAngle) / 2;
+        const lr = R * 0.55;
+
+        if (highCount > 0) {
+            ctx.fillStyle = '#fff';
+            ctx.fillText(highPct + '%', cx + Math.cos(highMidAngle) * lr, cy + Math.sin(highMidAngle) * lr);
+        }
+        if (lowCount > 0) {
+            ctx.fillStyle = '#fff';
+            ctx.fillText(lowPct + '%', cx + Math.cos(lowMidAngle) * lr, cy + Math.sin(lowMidAngle) * lr);
+        }
+
+        // Legend
+        ctx.fillStyle = 'rgba(248, 113, 113, 0.7)';
+        ctx.fillRect(30, 10, 10, 10);
+        ctx.fillStyle = '#94a3b8'; ctx.font = '10px -apple-system, sans-serif';
+        ctx.textAlign = 'left';
+        ctx.fillText(`↑ Above: ${highCount}`, 45, 19);
+
+        ctx.fillStyle = 'rgba(56, 189, 248, 0.7)';
+        ctx.fillRect(155, 10, 10, 10);
+        ctx.fillStyle = '#94a3b8';
+        ctx.fillText(`↓ Below: ${lowCount}`, 170, 19);
+    }
+
+    // ── Anomaly Table ───────────────────────────────────
+    function sortTable(key) {
+        if (tableSortKey === key) tableSortAsc = !tableSortAsc;
+        else { tableSortKey = key; tableSortAsc = key === 'serial' || key === 'index'; }
+        renderResults();
+    }
+
+    function renderResults() {
+        const sortBy = document.getElementById('sortBy').value;
+        let sorted = [...anomalyResults];
+
+        // Apply sort
+        const key = tableSortKey;
+        sorted.sort((a, b) => {
+            let va, vb;
+            if (key === 'severity') {
+                const order = { extreme: 3, high: 2, moderate: 1 };
+                va = order[a.severity]; vb = order[b.severity];
+            } else if (key === 'anomalyScore') {
+                va = a.anomalyScore; vb = b.anomalyScore;
+            } else if (key === 'metricCount') {
+                va = a.metricCount; vb = b.metricCount;
+            } else if (key === 'serial') {
+                va = a.serial; vb = b.serial;
+            } else if (key === 'email') {
+                va = a.email; vb = b.email;
+            } else {
+                va = a.index; vb = b.index;
+            }
+            if (va < vb) return tableSortAsc ? -1 : 1;
+            if (va > vb) return tableSortAsc ? 1 : -1;
+            return 0;
+        });
+
+        const total = sorted.length;
+        const pages = Math.ceil(total / pageSize);
+        if (currentPage >= pages) currentPage = Math.max(0, pages - 1);
+        const start = currentPage * pageSize;
+        const pageItems = sorted.slice(start, start + pageSize);
+
+        document.getElementById('anomalyTableCount').textContent = total > 0 ? `(${total} anomalies)` : '';
+        document.getElementById('emptyState').style.display = total === 0 ? 'block' : 'none';
+        document.getElementById('tableScrollWrap').style.display = total === 0 ? 'none' : '';
+
+        const tbody = document.getElementById('anomalyBody');
+        tbody.innerHTML = '';
+
+        for (const a of pageItems) {
+            const tr = document.createElement('tr');
+            tr.style.cursor = 'pointer';
+            tr.onclick = function() {
+                const detail = this.nextElementSibling;
+                if (detail) detail.querySelector('.anomaly-detail').classList.toggle('open');
+            };
+
+            const severityClass = `severity-${a.severity}`;
+            const severityLabel = a.severity.charAt(0).toUpperCase() + a.severity.slice(1);
+
+            const metricTags = a.reasons.map(r => {
+                const dirClass = r.direction === 'high' ? 'direction-up' : 'direction-down';
+                const arrow = r.direction === 'high' ? '↑' : '↓';
+                return `<span class="metric-tag ${dirClass}">${arrow} ${escapeHtml(metricLabels[r.metric] || r.metric)}</span>`;
+            }).join('');
+
+            tr.innerHTML = `
+                <td>${a.index}</td>
+                <td>${a.serial}</td>
+                <td>${escapeHtml(a.email)}</td>
+                <td><span class="severity-badge ${severityClass}">${severityLabel}</span></td>
+                <td>${a.anomalyScore.toFixed(2)}</td>
+                <td>${a.metricCount}</td>
+                <td>${metricTags}</td>
+            `;
+            tbody.appendChild(tr);
+
+            // Detail row
+            const detailTr = document.createElement('tr');
+            const detailTd = document.createElement('td');
+            detailTd.colSpan = 7;
+            detailTd.style.padding = '0 0.5rem';
+
+            let detailHtml = '<div class="anomaly-detail"><div class="detail-grid">';
+            for (const m of METRICS) {
+                const v = getMetricValue(a.print, m);
+                const isAnom = a.reasons.some(r => r.metric === m);
+                const reason = a.reasons.find(r => r.metric === m);
+                let extra = '';
+                if (reason) {
+                    extra = ` <span style="font-size:0.7rem;color:var(--muted)">(z=${reason.zscore.toFixed(2)}, μ=${formatNum(reason.mean)})</span>`;
+                }
+                detailHtml += `<div class="detail-item ${isAnom ? 'anomalous' : ''}">
+                    <span class="dlabel">${escapeHtml(metricLabels[m])}</span>
+                    <span class="dvalue">${formatNum(v)}${extra}</span>
+                </div>`;
+            }
+            detailHtml += '</div></div>';
+            detailTd.innerHTML = detailHtml;
+            detailTr.appendChild(detailTd);
+            tbody.appendChild(detailTr);
+        }
+
+        // Pagination
+        const pagDiv = document.getElementById('pagination');
+        if (pages <= 1) {
+            pagDiv.innerHTML = total > 0 ? `<span>Showing all ${total} anomalies</span><span></span>` : '';
+        } else {
+            pagDiv.innerHTML = `
+                <span>Page ${currentPage + 1} of ${pages} (${total} anomalies)</span>
+                <span>
+                    <button onclick="currentPage=0;renderResults()" ${currentPage === 0 ? 'disabled' : ''}>⏮</button>
+                    <button onclick="currentPage--;renderResults()" ${currentPage === 0 ? 'disabled' : ''}>◀ Prev</button>
+                    <button onclick="currentPage++;renderResults()" ${currentPage >= pages - 1 ? 'disabled' : ''}>Next ▶</button>
+                    <button onclick="currentPage=${pages - 1};renderResults()" ${currentPage >= pages - 1 ? 'disabled' : ''}>⏭</button>
+                </span>
+            `;
+        }
+    }
+
+    // ── Export Functions ─────────────────────────────────
+    function exportCSV() {
+        if (anomalyResults.length === 0) return;
+        const headers = ['Index', 'Serial', 'Email', 'Severity', 'Anomaly Score', 'Anomalous Metrics', 'Details'];
+        const rows = anomalyResults.map(a => [
+            a.index,
+            a.serial,
+            '"' + a.email.replace(/"/g, '""') + '"',
+            a.severity,
+            a.anomalyScore.toFixed(4),
+            a.metricCount,
+            '"' + a.reasons.map(r => `${r.metric}: ${formatNum(r.value)} (z=${r.zscore.toFixed(2)}, ${r.direction})`).join('; ').replace(/"/g, '""') + '"'
+        ]);
+        const csv = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+        downloadFile(csv, 'biobots-anomalies.csv', 'text/csv');
+    }
+
+    function exportJSON() {
+        if (anomalyResults.length === 0) return;
+        const data = anomalyResults.map(a => ({
+            index: a.index,
+            serial: a.serial,
+            email: a.email,
+            severity: a.severity,
+            anomalyScore: a.anomalyScore,
+            metricCount: a.metricCount,
+            reasons: a.reasons.map(r => ({
+                metric: r.metric,
+                value: r.value,
+                mean: r.mean,
+                zscore: r.zscore,
+                direction: r.direction,
+                method: r.method
+            }))
+        }));
+        downloadFile(JSON.stringify(data, null, 2), 'biobots-anomalies.json', 'application/json');
+    }
+
+    function downloadFile(content, filename, mimeType) {
+        const blob = new Blob([content], { type: mimeType });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+    }
+
+    // ── Init ────────────────────────────────────────────
+    // Hide IQR control by default (Z-score is default method)
+    document.getElementById('iqrControl').style.display = 'none';
+
+    fetch('bioprint-data.json')
+        .then(r => r.json())
+        .then(data => {
+            printData = data.filter(p =>
+                p.print_data && p.print_info && p.user_info &&
+                p.print_info.crosslinking && p.print_info.pressure && p.print_info.resolution
+            );
+            runDetection();
+        })
+        .catch(err => {
+            document.getElementById('anomalyCount').textContent = 'ERR';
+            console.error('Failed to load data:', err);
+        });
+    </script>
+</body>
+</html>

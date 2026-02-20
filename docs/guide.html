@@ -87,6 +87,7 @@
                 <a href="table.html" class="nav-link">Data Table</a>
                 <a href="compare.html" class="nav-link">Compare</a>
                 <a href="quality.html" class="nav-link">🎯 Quality</a>
+                <a href="anomaly.html" class="nav-link">🔍 Anomaly</a>
             </div>
             <div class="nav-section">
                 <h3>Reference</h3>
@@ -251,6 +252,11 @@ npx jest __tests__/compare.test.js --verbose</pre>
                         <td>~100+</td>
                         <td>computeQualityScore(), getGrade(), pearsonR(), corrColor(), optimal ranges, weight customization, performer ranking, escapeHtml(), edge cases (empty data, single record, uniform values)</td>
                     </tr>
+                    <tr>
+                        <td><code>anomaly.test.js</code></td>
+                        <td>61</td>
+                        <td>computeStats(), getMetricValue(), Z-score detection, IQR detection, union (both) detection, severity classification, direction detection, single-metric filtering, threshold sensitivity, CSV/JSON export, formatNum, escapeHtml, edge cases (empty data, uniform values, broken objects)</td>
+                    </tr>
                 </tbody>
             </table>
 
@@ -306,6 +312,7 @@ npx jest __tests__/compare.test.js --verbose</pre>
 ├── table.html        # Sortable/filterable data table
 ├── compare.html      # Multi-print comparison with radar chart
 ├── quality.html      # Quality control scoring dashboard
+├── anomaly.html      # Statistical anomaly detector
 ├── api.html          # API reference documentation
 ├── architecture.html # Architecture documentation
 ├── guide.html        # This developer guide
