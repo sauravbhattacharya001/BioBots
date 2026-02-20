@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>BioBots 1 — Developer Guide</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧬</text></svg>">
+    <style>
+        :root {
+            --bg: #0f172a;
+            --surface: #1e293b;
+            --surface2: #273548;
+            --border: #334155;
+            --text: #e2e8f0;
+            --muted: #94a3b8;
+            --accent: #38bdf8;
+            --accent-hover: #7dd3fc;
+            --success: #4ade80;
+            --error: #f87171;
+            --warning: #fbbf24;
+            --purple: #a78bfa;
+            --code-bg: #0d1117;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            line-height: 1.6;
+        }
+        .layout { display: grid; grid-template-columns: 260px 1fr; min-height: 100vh; }
+        .sidebar {
+            background: var(--surface);
+            border-right: 1px solid var(--border);
+            padding: 1.5rem 0;
+            position: sticky;
+            top: 0;
+            height: 100vh;
+            overflow-y: auto;
+        }
+        .sidebar-header { padding: 0 1.5rem 1.5rem; border-bottom: 1px solid var(--border); margin-bottom: 1rem; }
+        .sidebar-header h1 { font-size: 1.2rem; background: linear-gradient(135deg, var(--accent), var(--success)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+        .sidebar-header .subtitle { font-size: 0.75rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; margin-top: 0.25rem; }
+        .nav-section { padding: 0.5rem 1.5rem; }
+        .nav-section h3 { font-size: 0.7rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 0.5rem; }
+        .nav-link { display: block; color: var(--text); text-decoration: none; padding: 0.35rem 0.75rem; border-radius: 6px; font-size: 0.85rem; margin-bottom: 0.15rem; transition: all 0.2s; }
+        .nav-link:hover { background: var(--surface2); color: var(--accent); }
+        .nav-link.active { background: rgba(56, 189, 248, 0.1); color: var(--accent); font-weight: 600; }
+        .content { padding: 3rem 4rem; max-width: 900px; }
+        .content h1 { font-size: 2rem; margin-bottom: 0.5rem; }
+        .content h2 { font-size: 1.4rem; margin-top: 2.5rem; margin-bottom: 1rem; padding-bottom: 0.5rem; border-bottom: 1px solid var(--border); }
+        .content h3 { font-size: 1.1rem; margin-top: 1.5rem; margin-bottom: 0.75rem; color: var(--accent); }
+        .content p { margin-bottom: 1rem; }
+        .content .lead { font-size: 1.1rem; color: var(--muted); margin-bottom: 2rem; }
+        .content ul, .content ol { margin-bottom: 1rem; padding-left: 1.5rem; }
+        .content li { margin-bottom: 0.4rem; }
+        pre { background: var(--code-bg); border: 1px solid var(--border); border-radius: 8px; padding: 1rem; overflow-x: auto; margin-bottom: 1rem; font-family: 'SF Mono', Consolas, monospace; font-size: 0.85rem; line-height: 1.5; }
+        code { font-family: 'SF Mono', Consolas, monospace; font-size: 0.85rem; }
+        .inline-code { background: var(--code-bg); padding: 0.15rem 0.4rem; border-radius: 4px; font-size: 0.85rem; border: 1px solid var(--border); }
+        .note { background: rgba(56, 189, 248, 0.08); border-left: 3px solid var(--accent); padding: 0.75rem 1rem; border-radius: 0 8px 8px 0; margin-bottom: 1rem; font-size: 0.9rem; }
+        .note.warning { background: rgba(251, 191, 36, 0.08); border-left-color: var(--warning); }
+        .note.success { background: rgba(74, 222, 128, 0.08); border-left-color: var(--success); }
+        .step { display: flex; gap: 1rem; margin-bottom: 1.5rem; }
+        .step-num { background: var(--accent); color: var(--bg); width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 0.85rem; flex-shrink: 0; margin-top: 0.1rem; }
+        .step-content { flex: 1; }
+        .step-content h4 { margin-bottom: 0.3rem; }
+        .step-content p { color: var(--muted); font-size: 0.9rem; }
+        table { width: 100%; border-collapse: collapse; margin-bottom: 1.5rem; }
+        th, td { text-align: left; padding: 0.6rem 1rem; border-bottom: 1px solid var(--border); }
+        th { color: var(--muted); font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; background: var(--surface); }
+        td code { color: var(--accent); }
+        @media (max-width: 768px) { .layout { grid-template-columns: 1fr; } .sidebar { display: none; } .content { padding: 1.5rem; } }
+    </style>
+</head>
+<body>
+    <div class="layout">
+        <nav class="sidebar">
+            <div class="sidebar-header">
+                <h1>🧬 BioBots</h1>
+                <div class="subtitle">Developer Guide</div>
+            </div>
+            <div class="nav-section">
+                <h3>Documentation</h3>
+                <a href="index.html" class="nav-link">Query Tool</a>
+                <a href="explorer.html" class="nav-link">Data Explorer</a>
+                <a href="table.html" class="nav-link">Data Table</a>
+                <a href="compare.html" class="nav-link">Compare</a>
+            </div>
+            <div class="nav-section">
+                <h3>Reference</h3>
+                <a href="api.html" class="nav-link">API Reference</a>
+                <a href="architecture.html" class="nav-link">Architecture</a>
+                <a href="guide.html" class="nav-link active">Developer Guide</a>
+            </div>
+            <div class="nav-section">
+                <h3>On This Page</h3>
+                <a href="#prerequisites" class="nav-link">Prerequisites</a>
+                <a href="#setup" class="nav-link">Setup</a>
+                <a href="#running" class="nav-link">Running Locally</a>
+                <a href="#testing" class="nav-link">Testing</a>
+                <a href="#adding-metrics" class="nav-link">Adding Metrics</a>
+                <a href="#frontend-dev" class="nav-link">Frontend Dev</a>
+                <a href="#docker" class="nav-link">Docker</a>
+                <a href="#contributing" class="nav-link">Contributing</a>
+                <a href="#troubleshooting" class="nav-link">Troubleshooting</a>
+            </div>
+        </nav>
+
+        <main class="content">
+            <h1>🛠️ Developer Guide</h1>
+            <p class="lead">
+                Everything you need to set up, develop, test, and contribute to BioBots Tool.
+            </p>
+
+            <h2 id="prerequisites">Prerequisites</h2>
+
+            <table>
+                <thead>
+                    <tr><th>Tool</th><th>Version</th><th>Purpose</th></tr>
+                </thead>
+                <tbody>
+                    <tr><td>Visual Studio</td><td>2015+</td><td>C# backend development</td></tr>
+                    <tr><td>.NET Framework</td><td>4.x</td><td>Runtime</td></tr>
+                    <tr><td>Node.js</td><td>18+</td><td>Running JavaScript tests</td></tr>
+                    <tr><td>npm</td><td>9+</td><td>Package management</td></tr>
+                    <tr><td>Git</td><td>2.x</td><td>Source control</td></tr>
+                    <tr><td>Docker</td><td>(optional)</td><td>Container builds</td></tr>
+                </tbody>
+            </table>
+
+            <h2 id="setup">Setup</h2>
+
+            <div class="step">
+                <div class="step-num">1</div>
+                <div class="step-content">
+                    <h4>Clone the repository</h4>
+                    <pre>git clone https://github.com/sauravbhattacharya001/BioBots.git
+cd BioBots</pre>
+                </div>
+            </div>
+
+            <div class="step">
+                <div class="step-num">2</div>
+                <div class="step-content">
+                    <h4>Install JavaScript dependencies</h4>
+                    <pre>npm install</pre>
+                    <p>This installs Jest and jsdom for running the frontend test suite.</p>
+                </div>
+            </div>
+
+            <div class="step">
+                <div class="step-num">3</div>
+                <div class="step-content">
+                    <h4>Open the solution in Visual Studio</h4>
+                    <pre>start BioBotsTool.sln</pre>
+                    <p>Visual Studio will restore NuGet packages automatically.</p>
+                </div>
+            </div>
+
+            <div class="step">
+                <div class="step-num">4</div>
+                <div class="step-content">
+                    <h4>Run the backend</h4>
+                    <p>Press <strong>F5</strong> (debug) or <strong>Ctrl+F5</strong> (without debugger) to launch the development server.</p>
+                </div>
+            </div>
+
+            <h2 id="running">Running Locally</h2>
+
+            <h3>Backend (ASP.NET Web API)</h3>
+            <p>
+                The backend runs on IIS Express via Visual Studio. After launching, navigate
+                to the URL shown in the browser (typically <code>http://localhost:{port}/index.html</code>).
+            </p>
+
+            <h3>Frontend (GitHub Pages Preview)</h3>
+            <p>
+                To preview the docs site locally without the backend, serve the <code>docs/</code>
+                directory with any static file server:
+            </p>
+            <pre><span style="color: var(--muted)"># Using Python</span>
+cd docs
+python -m http.server 8080
+
+<span style="color: var(--muted)"># Using Node.js (npx)</span>
+npx serve docs
+
+<span style="color: var(--muted)"># Using PHP</span>
+php -S localhost:8080 -t docs</pre>
+
+            <h3>Custom Data File</h3>
+            <p>
+                The backend reads <code>bioprint-data.json</code> from the application root by
+                default. To use a custom path, set <code>DataFilePath</code> in <code>Web.config</code>:
+            </p>
+            <pre>&lt;appSettings&gt;
+  &lt;add key="DataFilePath" value="C:\data\my-prints.json" /&gt;
+&lt;/appSettings&gt;</pre>
+
+            <div class="note">
+                <strong>💡 Hot reload:</strong> The data file is watched for changes. Edit it
+                while the server is running and the next request will use the updated data
+                automatically — no restart needed.
+            </div>
+
+            <h2 id="testing">Testing</h2>
+
+            <h3>Run All Tests</h3>
+            <pre>npm test</pre>
+            <p>Runs Jest with verbose output and coverage reporting.</p>
+
+            <h3>Run with Coverage Report</h3>
+            <pre>npm run coverage</pre>
+            <p>Generates HTML, LCOV, and JSON coverage reports in the <code>coverage/</code> directory. Open <code>coverage/index.html</code> in a browser for an interactive report.</p>
+
+            <h3>Check Coverage Thresholds</h3>
+            <pre>npm run coverage:check</pre>
+            <p>Fails if coverage drops below the configured thresholds (70% lines, 60% branches).</p>
+
+            <h3>Run Specific Test File</h3>
+            <pre><span style="color: var(--muted)"># Run only the runMethod tests</span>
+npx jest __tests__/runMethod.test.js --verbose
+
+<span style="color: var(--muted)"># Run only the comparison tool tests</span>
+npx jest __tests__/compare.test.js --verbose</pre>
+
+            <h3>Watch Mode</h3>
+            <pre>npx jest --watch</pre>
+            <p>Re-runs tests automatically when source files change.</p>
+
+            <h3>Test Structure</h3>
+            <table>
+                <thead>
+                    <tr><th>File</th><th>Tests</th><th>What It Covers</th></tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><code>runMethod.test.js</code></td>
+                        <td>87</td>
+                        <td>isNumeric(), setButtonsEnabled(), runMethod() — URL construction, validation, button states, response handling, integration</td>
+                    </tr>
+                    <tr>
+                        <td><code>compare.test.js</code></td>
+                        <td>40+</td>
+                        <td>METRICS, formatNum(), selection manager, search, radar normalization, insights (viability, elasticity, pressure, crosslinking)</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <h2 id="adding-metrics">Adding a New Metric</h2>
+            <p>
+                The backend is designed for easy metric extension. To add a new queryable metric:
+            </p>
+
+            <div class="step">
+                <div class="step-num">1</div>
+                <div class="step-content">
+                    <h4>Add the model property</h4>
+                    <p>If the data field doesn't exist in the model classes, add it to the appropriate class in <code>Try/Models/Print.cs</code>:</p>
+                    <pre>public class PrintData
+{
+    // ... existing properties ...
+    
+    /// &lt;summary&gt;
+    /// Your new metric description.
+    /// &lt;/summary&gt;
+    public double newMetric { get; set; }
+}</pre>
+                </div>
+            </div>
+
+            <div class="step">
+                <div class="step-num">2</div>
+                <div class="step-content">
+                    <h4>Register the metric</h4>
+                    <p>Add one line to the <code>MetricRegistry</code> dictionary in <code>PrintsController.cs</code>:</p>
+                    <pre>{ "newMetric", new MetricDescriptor(p => p.print_data.newMetric, isInteger: false) }</pre>
+                    <p>That's it! The metric is now queryable at <code>/api/prints/newMetric/{op}/{value}</code>
+                    and automatically included in pre-computed statistics.</p>
+                </div>
+            </div>
+
+            <div class="step">
+                <div class="step-num">3</div>
+                <div class="step-content">
+                    <h4>Update the frontend (optional)</h4>
+                    <p>Add the metric to the dropdown in <code>docs/index.html</code> and the
+                    <code>getMetricValue()</code> function. Add it to the METRICS array in
+                    <code>docs/compare.html</code> if you want it in comparisons.</p>
+                </div>
+            </div>
+
+            <h2 id="frontend-dev">Frontend Development</h2>
+
+            <h3>Project Structure</h3>
+            <pre>docs/
+├── index.html        # Query tool (main page)
+├── explorer.html     # Distribution + correlation charts
+├── table.html        # Sortable/filterable data table
+├── compare.html      # Multi-print comparison with radar chart
+├── api.html          # API reference documentation
+├── architecture.html # Architecture documentation
+├── guide.html        # This developer guide
+└── bioprint-data.json</pre>
+
+            <h3>Conventions</h3>
+            <ul>
+                <li><strong>Self-contained pages:</strong> Each HTML file includes all CSS and JS inline — no build step required</li>
+                <li><strong>CSS custom properties:</strong> All colors use the <code>:root</code> variables defined at the top</li>
+                <li><strong>Canvas rendering:</strong> Charts use <code>&lt;canvas&gt;</code> with direct 2D context calls — no charting libraries</li>
+                <li><strong>Data loading:</strong> Each page loads <code>bioprint-data.json</code> via <code>fetch()</code> on page load</li>
+                <li><strong>No build step:</strong> Edit HTML files directly and refresh the browser</li>
+            </ul>
+
+            <h3>Adding a New Page</h3>
+            <ol>
+                <li>Copy an existing page as a template</li>
+                <li>Add the page to the navigation bar in all existing pages</li>
+                <li>Add a nav link in the docs pages sidebar</li>
+                <li>The page will be automatically deployed via the Pages workflow</li>
+            </ol>
+
+            <h2 id="docker">Docker</h2>
+
+            <h3>Build Locally</h3>
+            <pre>docker build -t biobots-tool .
+docker run -p 8080:80 biobots-tool</pre>
+
+            <h3>Pull from Registry</h3>
+            <pre>docker pull ghcr.io/sauravbhattacharya001/biobots-tool:latest
+docker run -p 8080:80 ghcr.io/sauravbhattacharya001/biobots-tool:latest</pre>
+
+            <h3>Custom Data Volume</h3>
+            <pre>docker run -p 8080:80 \
+  -v /path/to/my-data.json:/app/bioprint-data.json:ro \
+  biobots-tool</pre>
+
+            <h2 id="contributing">Contributing</h2>
+
+            <h3>Workflow</h3>
+            <ol>
+                <li>Fork the repository</li>
+                <li>Create a feature branch: <code>git checkout -b feature/my-feature</code></li>
+                <li>Make your changes</li>
+                <li>Run tests: <code>npm test</code></li>
+                <li>Commit with a descriptive message</li>
+                <li>Push and open a Pull Request</li>
+            </ol>
+
+            <h3>Code Style</h3>
+            <ul>
+                <li><strong>C#:</strong> Follow standard .NET naming conventions. XML doc comments on public members.</li>
+                <li><strong>JavaScript:</strong> <code>'use strict'</code> mode. <code>const</code>/<code>let</code> over <code>var</code>. Descriptive function names.</li>
+                <li><strong>HTML/CSS:</strong> Semantic elements. CSS custom properties for colors. Mobile-responsive.</li>
+            </ul>
+
+            <h3>Commit Messages</h3>
+            <p>
+                Use <a href="https://www.conventionalcommits.org/" style="color: var(--accent)">Conventional Commits</a>
+                format:
+            </p>
+            <pre>feat: add new metric for print speed
+fix: handle null crosslinking data
+docs: update API reference with examples
+test: add coverage for edge cases
+chore: update dependencies</pre>
+
+            <h2 id="troubleshooting">Troubleshooting</h2>
+
+            <h3>Common Issues</h3>
+
+            <div class="note warning">
+                <strong>⚠️ NuGet restore fails</strong><br>
+                Make sure NuGet package sources are configured. Run <code>nuget restore BioBotsTool.sln</code>
+                manually, or check that the nuget.org source is listed in your NuGet config.
+            </div>
+
+            <div class="note warning">
+                <strong>⚠️ Tests fail with "Cannot find module"</strong><br>
+                Run <code>npm install</code> to install dependencies. The test suite requires
+                <code>jest</code> and <code>jest-environment-jsdom</code>.
+            </div>
+
+            <div class="note warning">
+                <strong>⚠️ Data file not found</strong><br>
+                Ensure <code>bioprint-data.json</code> is in the application root directory, or set
+                the <code>DataFilePath</code> in <code>Web.config</code>. The file path is logged
+                via <code>Trace</code> on startup.
+            </div>
+
+            <div class="note warning">
+                <strong>⚠️ Port conflict on launch</strong><br>
+                IIS Express may fail if the assigned port is in use. Right-click the project →
+                Properties → Web → change the port number.
+            </div>
+
+            <div class="note">
+                <strong>💡 Debug logging:</strong> The backend uses <code>System.Diagnostics.Trace</code>
+                for logging. Enable trace listeners in <code>Web.config</code> to see cache reload
+                messages, record counts, and timing info.
+            </div>
+        </main>
+    </div>
+</body>
+</html>

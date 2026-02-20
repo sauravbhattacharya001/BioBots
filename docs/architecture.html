@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>BioBots 1 — Architecture</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧬</text></svg>">
+    <style>
+        :root {
+            --bg: #0f172a;
+            --surface: #1e293b;
+            --surface2: #273548;
+            --border: #334155;
+            --text: #e2e8f0;
+            --muted: #94a3b8;
+            --accent: #38bdf8;
+            --accent-hover: #7dd3fc;
+            --success: #4ade80;
+            --error: #f87171;
+            --warning: #fbbf24;
+            --purple: #a78bfa;
+            --code-bg: #0d1117;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            line-height: 1.6;
+        }
+        .layout { display: grid; grid-template-columns: 260px 1fr; min-height: 100vh; }
+        .sidebar {
+            background: var(--surface);
+            border-right: 1px solid var(--border);
+            padding: 1.5rem 0;
+            position: sticky;
+            top: 0;
+            height: 100vh;
+            overflow-y: auto;
+        }
+        .sidebar-header { padding: 0 1.5rem 1.5rem; border-bottom: 1px solid var(--border); margin-bottom: 1rem; }
+        .sidebar-header h1 { font-size: 1.2rem; background: linear-gradient(135deg, var(--accent), var(--success)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+        .sidebar-header .subtitle { font-size: 0.75rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; margin-top: 0.25rem; }
+        .nav-section { padding: 0.5rem 1.5rem; }
+        .nav-section h3 { font-size: 0.7rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 0.5rem; }
+        .nav-link { display: block; color: var(--text); text-decoration: none; padding: 0.35rem 0.75rem; border-radius: 6px; font-size: 0.85rem; margin-bottom: 0.15rem; transition: all 0.2s; }
+        .nav-link:hover { background: var(--surface2); color: var(--accent); }
+        .nav-link.active { background: rgba(56, 189, 248, 0.1); color: var(--accent); font-weight: 600; }
+        .content { padding: 3rem 4rem; max-width: 900px; }
+        .content h1 { font-size: 2rem; margin-bottom: 0.5rem; }
+        .content h2 { font-size: 1.4rem; margin-top: 2.5rem; margin-bottom: 1rem; padding-bottom: 0.5rem; border-bottom: 1px solid var(--border); }
+        .content h3 { font-size: 1.1rem; margin-top: 1.5rem; margin-bottom: 0.75rem; color: var(--accent); }
+        .content p { margin-bottom: 1rem; }
+        .content .lead { font-size: 1.1rem; color: var(--muted); margin-bottom: 2rem; }
+        .content ul, .content ol { margin-bottom: 1rem; padding-left: 1.5rem; }
+        .content li { margin-bottom: 0.4rem; }
+        pre { background: var(--code-bg); border: 1px solid var(--border); border-radius: 8px; padding: 1rem; overflow-x: auto; margin-bottom: 1rem; font-family: 'SF Mono', Consolas, monospace; font-size: 0.85rem; line-height: 1.5; }
+        code { font-family: 'SF Mono', Consolas, monospace; font-size: 0.85rem; }
+        .inline-code { background: var(--code-bg); padding: 0.15rem 0.4rem; border-radius: 4px; font-size: 0.85rem; border: 1px solid var(--border); }
+        .note { background: rgba(56, 189, 248, 0.08); border-left: 3px solid var(--accent); padding: 0.75rem 1rem; border-radius: 0 8px 8px 0; margin-bottom: 1rem; font-size: 0.9rem; }
+        .note.warning { background: rgba(251, 191, 36, 0.08); border-left-color: var(--warning); }
+        .note.success { background: rgba(74, 222, 128, 0.08); border-left-color: var(--success); }
+        .diagram { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 1.5rem; margin-bottom: 1.5rem; font-family: 'SF Mono', Consolas, monospace; font-size: 0.85rem; line-height: 1.8; white-space: pre; overflow-x: auto; }
+        .card-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1rem; margin-bottom: 1.5rem; }
+        .info-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 1.25rem; }
+        .info-card h4 { color: var(--accent); margin-bottom: 0.5rem; font-size: 0.95rem; }
+        .info-card p { color: var(--muted); font-size: 0.85rem; margin-bottom: 0; }
+        table { width: 100%; border-collapse: collapse; margin-bottom: 1.5rem; }
+        th, td { text-align: left; padding: 0.6rem 1rem; border-bottom: 1px solid var(--border); }
+        th { color: var(--muted); font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; background: var(--surface); }
+        td code { color: var(--accent); }
+        @media (max-width: 768px) { .layout { grid-template-columns: 1fr; } .sidebar { display: none; } .content { padding: 1.5rem; } }
+    </style>
+</head>
+<body>
+    <div class="layout">
+        <nav class="sidebar">
+            <div class="sidebar-header">
+                <h1>🧬 BioBots</h1>
+                <div class="subtitle">Architecture</div>
+            </div>
+            <div class="nav-section">
+                <h3>Documentation</h3>
+                <a href="index.html" class="nav-link">Query Tool</a>
+                <a href="explorer.html" class="nav-link">Data Explorer</a>
+                <a href="table.html" class="nav-link">Data Table</a>
+                <a href="compare.html" class="nav-link">Compare</a>
+            </div>
+            <div class="nav-section">
+                <h3>Reference</h3>
+                <a href="api.html" class="nav-link">API Reference</a>
+                <a href="architecture.html" class="nav-link active">Architecture</a>
+                <a href="guide.html" class="nav-link">Developer Guide</a>
+            </div>
+            <div class="nav-section">
+                <h3>On This Page</h3>
+                <a href="#overview" class="nav-link">System Overview</a>
+                <a href="#data-flow" class="nav-link">Data Flow</a>
+                <a href="#caching" class="nav-link">Caching Strategy</a>
+                <a href="#data-model" class="nav-link">Data Model</a>
+                <a href="#frontend" class="nav-link">Frontend Architecture</a>
+                <a href="#testing" class="nav-link">Testing Strategy</a>
+                <a href="#cicd" class="nav-link">CI/CD Pipeline</a>
+            </div>
+        </nav>
+
+        <main class="content">
+            <h1>🏗️ Architecture</h1>
+            <p class="lead">
+                System design, data flow, caching strategy, and technical decisions behind the BioBots analytics platform.
+            </p>
+
+            <h2 id="overview">System Overview</h2>
+            <p>
+                BioBots Tool is a dual-layer application: a C# ASP.NET Web API backend that serves
+                RESTful queries over bioprinting data, and a zero-dependency JavaScript frontend
+                that provides interactive analytics tools.
+            </p>
+
+            <div class="diagram">┌─────────────────────────────────────────────────────────┐
+│                    GitHub Pages                         │
+│  ┌──────────┐ ┌──────────┐ ┌─────────┐ ┌──────────┐    │
+│  │  Query   │ │ Explorer │ │  Table  │ │ Compare  │    │
+│  │  Tool    │ │ (Charts) │ │  View   │ │  (Radar) │    │
+│  └────┬─────┘ └────┬─────┘ └────┬────┘ └────┬─────┘    │
+│       └─────────────┴────────────┴───────────┘          │
+│                       │ fetch()                         │
+│                       ▼                                 │
+│              bioprint-data.json                         │
+└─────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────┐
+│                  ASP.NET Web API                        │
+│  ┌──────────────────────────────────────────────────┐   │
+│  │              PrintsController                     │   │
+│  │  ┌──────────────┐  ┌─────────────────────────┐   │   │
+│  │  │ MetricRegistry│  │   Pre-computed Stats    │   │   │
+│  │  │ (11 metrics) │  │  (min/max/avg per metric)│   │   │
+│  │  └──────────────┘  └─────────────────────────┘   │   │
+│  │                         ▲                         │   │
+│  │  ┌──────────────────────┴────────────────────┐   │   │
+│  │  │         File-Watch Cache Layer            │   │   │
+│  │  │  (double-checked locking, LastWriteUtc)   │   │   │
+│  │  └──────────────────────┬────────────────────┘   │   │
+│  └─────────────────────────┼────────────────────────┘   │
+│                            ▼                            │
+│                   bioprint-data.json                     │
+└─────────────────────────────────────────────────────────┘</div>
+
+            <div class="card-grid">
+                <div class="info-card">
+                    <h4>🖥️ Backend</h4>
+                    <p>C# / ASP.NET Web API 2 on .NET Framework 4.x. Single controller with registry-based metric routing.</p>
+                </div>
+                <div class="info-card">
+                    <h4>🌐 Frontend</h4>
+                    <p>Pure HTML/CSS/JS with zero dependencies (except jQuery for the legacy query tool). Canvas-based charting.</p>
+                </div>
+                <div class="info-card">
+                    <h4>📊 Data</h4>
+                    <p>JSON flat file with ~400+ bioprinting records. Loaded once, cached in memory, auto-reloaded on change.</p>
+                </div>
+                <div class="info-card">
+                    <h4>🚀 Deploy</h4>
+                    <p>Frontend on GitHub Pages. Backend via IIS or Docker container (GHCR).</p>
+                </div>
+            </div>
+
+            <h2 id="data-flow">Data Flow</h2>
+
+            <h3>Backend Request Pipeline</h3>
+            <ol>
+                <li><strong>Request arrives</strong> at <code>/api/prints/{metric}/{comparison}/{value}</code></li>
+                <li><strong>PrintsController constructor</strong> calls <code>EnsureCache()</code></li>
+                <li><strong>Cache check:</strong> Compare file's <code>LastWriteTimeUtc</code> with cached timestamp</li>
+                <li>If changed: <strong>reload + re-parse</strong> JSON, filter nulls, pre-compute stats (under lock)</li>
+                <li>If unchanged: <strong>fast path</strong> — use existing cached array</li>
+                <li><strong>Route to QueryMetric():</strong> Look up metric in <code>MetricRegistry</code></li>
+                <li><strong>Aggregation?</strong> Return pre-computed stat in O(1)</li>
+                <li><strong>Comparison?</strong> Scan array with selector + operator in O(n)</li>
+                <li><strong>Return</strong> integer count or double value</li>
+            </ol>
+
+            <h3>Frontend Data Flow</h3>
+            <ol>
+                <li>Page loads → <code>fetch('bioprint-data.json')</code></li>
+                <li>Parse JSON array into memory</li>
+                <li>Compute summary statistics and populate dashboard</li>
+                <li>User interaction triggers client-side filtering/aggregation</li>
+                <li>Canvas API renders charts (histograms, scatter plots, radar)</li>
+            </ol>
+
+            <h2 id="caching">Caching Strategy</h2>
+            <p>
+                The backend uses a <strong>file-watch cache with double-checked locking</strong>
+                to balance performance with data freshness:
+            </p>
+
+            <div class="diagram">Request → EnsureCache()
+    │
+    ├─ File exists? ──No──→ throw FileNotFoundException
+    │
+    ├─ Get LastWriteTimeUtc
+    │
+    ├─ Same as cached? ──Yes──→ Return (fast path)
+    │
+    └─ Enter lock
+         ├─ Re-check timestamp (double-check)
+         │   └─ Same? → Return
+         │
+         └─ Different → LoadAndFilterPrints()
+              ├─ Stream-deserialize JSON (Newtonsoft)
+              ├─ Filter null/incomplete records
+              ├─ PrecomputeStats() for all metrics
+              └─ Update cache + timestamp</div>
+
+            <div class="note success">
+                <strong>Why double-checked locking?</strong> The fast path (timestamp check) runs
+                lock-free for maximum throughput under concurrent requests. The lock only activates
+                when the file actually changes — which is rare in production.
+            </p>
+
+            <h3>Pre-computed Statistics</h3>
+            <p>
+                When the cache is built, a single O(n) pass computes min/max/average for all 11
+                metrics. This means aggregation queries (<code>Maximum</code>, <code>Minimum</code>,
+                <code>Average</code>) return in <strong>O(1)</strong> — just a dictionary lookup.
+            </p>
+
+            <h3>Memory Efficiency</h3>
+            <p>
+                JSON is deserialized using <strong>Newtonsoft.Json streaming</strong>
+                (<code>JsonTextReader</code>) rather than loading the entire file into a string.
+                This reduces peak memory usage by ~50% for the 8MB+ data file compared to the
+                legacy <code>JavaScriptSerializer</code> approach.
+            </p>
+
+            <h2 id="data-model">Data Model</h2>
+            <p>Each print record contains three nested objects:</p>
+
+            <pre><span style="color: var(--accent)">{</span>
+  <span style="color: var(--warning)">"user_info"</span>: <span style="color: var(--accent)">{</span>
+    <span style="color: var(--warning)">"serial"</span>: <span style="color: var(--success)">42</span>,
+    <span style="color: var(--warning)">"email"</span>: <span style="color: var(--success)">"researcher@lab.edu"</span>
+  <span style="color: var(--accent)">}</span>,
+  <span style="color: var(--warning)">"print_info"</span>: <span style="color: var(--accent)">{</span>
+    <span style="color: var(--warning)">"files"</span>: <span style="color: var(--accent)">{</span> <span style="color: var(--warning)">"input"</span>: <span style="color: var(--success)">"sample.gcode"</span>, <span style="color: var(--warning)">"output"</span>: <span style="color: var(--success)">"sample_out.gcode"</span> <span style="color: var(--accent)">}</span>,
+    <span style="color: var(--warning)">"pressure"</span>: <span style="color: var(--accent)">{</span> <span style="color: var(--warning)">"extruder1"</span>: <span style="color: var(--success)">45.0</span>, <span style="color: var(--warning)">"extruder2"</span>: <span style="color: var(--success)">60.0</span> <span style="color: var(--accent)">}</span>,
+    <span style="color: var(--warning)">"crosslinking"</span>: <span style="color: var(--accent)">{</span> <span style="color: var(--warning)">"cl_enabled"</span>: <span style="color: var(--success)">true</span>, <span style="color: var(--warning)">"cl_duration"</span>: <span style="color: var(--success)">15000</span>, <span style="color: var(--warning)">"cl_intensity"</span>: <span style="color: var(--success)">50</span> <span style="color: var(--accent)">}</span>,
+    <span style="color: var(--warning)">"resolution"</span>: <span style="color: var(--accent)">{</span> <span style="color: var(--warning)">"layerHeight"</span>: <span style="color: var(--success)">0.5</span>, <span style="color: var(--warning)">"layerNum"</span>: <span style="color: var(--success)">48</span> <span style="color: var(--accent)">}</span>,
+    <span style="color: var(--warning)">"wellplate"</span>: <span style="color: var(--success)">6</span>
+  <span style="color: var(--accent)">}</span>,
+  <span style="color: var(--warning)">"print_data"</span>: <span style="color: var(--accent)">{</span>
+    <span style="color: var(--warning)">"livePercent"</span>: <span style="color: var(--success)">72.3</span>,
+    <span style="color: var(--warning)">"deadPercent"</span>: <span style="color: var(--success)">20.0</span>,
+    <span style="color: var(--warning)">"elasticity"</span>: <span style="color: var(--success)">80.5</span>
+  <span style="color: var(--accent)">}</span>
+<span style="color: var(--accent)">}</span></pre>
+
+            <h3>C# Model Classes</h3>
+            <table>
+                <thead>
+                    <tr><th>Class</th><th>Properties</th><th>Description</th></tr>
+                </thead>
+                <tbody>
+                    <tr><td><code>Print</code></td><td>user_info, print_info, print_data</td><td>Root record</td></tr>
+                    <tr><td><code>UserInfo</code></td><td>serial (int), email (string)</td><td>Printer owner</td></tr>
+                    <tr><td><code>PrintInfo</code></td><td>files, pressure, crosslinking, resolution, wellplate</td><td>Print parameters</td></tr>
+                    <tr><td><code>PrintData</code></td><td>livePercent, deadPercent, elasticity</td><td>Print results</td></tr>
+                    <tr><td><code>Pressure</code></td><td>extruder1, extruder2</td><td>Extruder pressures</td></tr>
+                    <tr><td><code>Crosslinking</code></td><td>cl_enabled, cl_duration, cl_intensity</td><td>Photocrosslinking params</td></tr>
+                    <tr><td><code>Resolution</code></td><td>layerNum, layerHeight</td><td>Print resolution</td></tr>
+                    <tr><td><code>Files</code></td><td>input, output</td><td>GCODE filenames</td></tr>
+                </tbody>
+            </table>
+
+            <h3>Metric Registry</h3>
+            <p>
+                The <code>MetricRegistry</code> is a static dictionary that maps URL parameter
+                names to selector functions and type info. Adding a new queryable metric is a
+                one-line change — no new endpoint method needed:
+            </p>
+            <pre><span style="color: var(--muted)">// In MetricRegistry initialization</span>
+{ "myNewMetric", new MetricDescriptor(p => p.some_field, isInteger: false) }</pre>
+
+            <h2 id="frontend">Frontend Architecture</h2>
+
+            <h3>Pages</h3>
+            <table>
+                <thead>
+                    <tr><th>Page</th><th>Purpose</th><th>Key Feature</th></tr>
+                </thead>
+                <tbody>
+                    <tr><td><code>index.html</code></td><td>Query Tool</td><td>Interactive query builder with result display</td></tr>
+                    <tr><td><code>explorer.html</code></td><td>Data Explorer</td><td>Histograms + scatter plots with regression</td></tr>
+                    <tr><td><code>table.html</code></td><td>Data Table</td><td>Sortable, searchable, filterable table with export</td></tr>
+                    <tr><td><code>compare.html</code></td><td>Print Comparison</td><td>Radar charts + side-by-side metric breakdown</td></tr>
+                </tbody>
+            </table>
+
+            <h3>Design Decisions</h3>
+            <ul>
+                <li><strong>Zero dependencies:</strong> All charts use the Canvas API directly — no Chart.js, D3, or other libraries. This keeps the pages fast and self-contained.</li>
+                <li><strong>Client-side computation:</strong> The frontend loads the full JSON dataset and performs all filtering, aggregation, and visualization locally. This eliminates API round-trips for the interactive tools.</li>
+                <li><strong>Dark theme:</strong> CSS custom properties with a slate-based dark palette, consistent across all pages.</li>
+                <li><strong>Responsive:</strong> Grid layout adapts to mobile with single-column fallback.</li>
+            </ul>
+
+            <h2 id="testing">Testing Strategy</h2>
+
+            <h3>Test Stack</h3>
+            <table>
+                <thead>
+                    <tr><th>Tool</th><th>Purpose</th></tr>
+                </thead>
+                <tbody>
+                    <tr><td>Jest</td><td>Test runner + assertion library</td></tr>
+                    <tr><td>jest-environment-jsdom</td><td>DOM simulation for browser-targeting code</td></tr>
+                    <tr><td>Codecov</td><td>Coverage reporting and tracking</td></tr>
+                </tbody>
+            </table>
+
+            <h3>Test Suites</h3>
+            <ul>
+                <li><strong>runMethod.test.js</strong> (87 tests) — Tests the jQuery-based API client: input validation, URL construction, button state management, response handling, integration scenarios</li>
+                <li><strong>compare.test.js</strong> (40+ tests) — Tests the comparison tool logic: metrics, formatting, selection management, search, radar normalization, insight generation</li>
+            </ul>
+
+            <h3>Coverage Thresholds</h3>
+            <table>
+                <thead>
+                    <tr><th>Metric</th><th>Threshold</th></tr>
+                </thead>
+                <tbody>
+                    <tr><td>Lines</td><td>70%</td></tr>
+                    <tr><td>Functions</td><td>70%</td></tr>
+                    <tr><td>Statements</td><td>70%</td></tr>
+                    <tr><td>Branches</td><td>60%</td></tr>
+                </tbody>
+            </table>
+
+            <h2 id="cicd">CI/CD Pipeline</h2>
+
+            <div class="diagram">Push to master
+    │
+    ├─→ CI Workflow
+    │     ├─ Build (.NET/MSBuild on Windows)
+    │     ├─ Test (Jest on Ubuntu)
+    │     └─ Lint (JSON/YAML validation)
+    │
+    ├─→ Coverage Workflow
+    │     ├─ Run tests with --coverage
+    │     ├─ Upload to Codecov
+    │     └─ Generate job summary
+    │
+    ├─→ CodeQL Workflow
+    │     └─ Security scanning
+    │
+    ├─→ Docker Workflow
+    │     ├─ Build multi-stage image
+    │     └─ Push to ghcr.io
+    │
+    └─→ Pages Workflow
+          └─ Deploy docs/ to GitHub Pages
+
+Release tag (v*)
+    │
+    ├─→ NuGet Publish
+    │     └─ Pack + push BioBots.Models to GitHub Packages
+    │
+    └─→ GitHub Release
+          └─ Changelog + assets</div>
+
+            <h3>Workflows</h3>
+            <table>
+                <thead>
+                    <tr><th>Workflow</th><th>Trigger</th><th>Purpose</th></tr>
+                </thead>
+                <tbody>
+                    <tr><td><code>ci.yml</code></td><td>push, PR</td><td>Build + Test + Lint</td></tr>
+                    <tr><td><code>coverage.yml</code></td><td>push, PR</td><td>Code coverage + Codecov upload</td></tr>
+                    <tr><td><code>codeql.yml</code></td><td>push, PR, schedule</td><td>Security vulnerability scanning</td></tr>
+                    <tr><td><code>docker.yml</code></td><td>push, PR</td><td>Docker image build + GHCR push</td></tr>
+                    <tr><td><code>pages.yml</code></td><td>push</td><td>Deploy docs to GitHub Pages</td></tr>
+                    <tr><td><code>nuget-publish.yml</code></td><td>release</td><td>NuGet package to GitHub Packages</td></tr>
+                    <tr><td><code>auto-labeler.yml</code></td><td>PR</td><td>Automatic PR labeling</td></tr>
+                </tbody>
+            </table>
+        </main>
+    </div>
+</body>
+</html>
