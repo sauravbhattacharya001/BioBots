@@ -4,15 +4,27 @@
   "description": "REST API and web interface for querying BioBot 1 bioprinter statistics",
   "private": true,
   "scripts": {
-    "test": "jest --verbose --coverage"
+    "test": "jest --verbose --coverage",
+    "test:ci": "jest --verbose --coverage --coverageReporters=text --coverageReporters=lcov --coverageReporters=json-summary",
+    "coverage": "jest --coverage --coverageReporters=text --coverageReporters=lcov --coverageReporters=json-summary --coverageReporters=html",
+    "coverage:check": "jest --coverage --coverageReporters=text-summary"
   },
   "jest": {
     "testEnvironment": "jsdom",
     "collectCoverageFrom": [
-      "Try/scripts/**/*.js"
+      "Try/scripts/**/*.js",
+      "!Try/scripts/ai.*.js"
     ],
     "coverageDirectory": "coverage",
-    "coverageReporters": ["text", "lcov"]
+    "coverageReporters": ["text", "lcov", "json-summary"],
+    "coverageThresholds": {
+      "global": {
+        "branches": 60,
+        "functions": 70,
+        "lines": 70,
+        "statements": 70
+      }
+    }
   },
   "repository": {
     "type": "git",

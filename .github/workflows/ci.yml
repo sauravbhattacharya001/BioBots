@@ -43,7 +43,23 @@ jobs:
         run: npm ci
 
       - name: Run tests with coverage
-        run: npx jest --verbose --coverage
+        run: npx jest --verbose --coverage --coverageReporters=text --coverageReporters=lcov --coverageReporters=json-summary
+
+      - name: Coverage summary
+        if: always()
+        run: |
+          if [ -f coverage/coverage-summary.json ]; then
+            echo "## 📊 Test Coverage" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            node -e "
+              const s = require('./coverage/coverage-summary.json').total;
+              console.log('| Metric | Coverage |');
+              console.log('|--------|----------|');
+              console.log('| Lines | ' + s.lines.pct + '% |');
+              console.log('| Branches | ' + s.branches.pct + '% |');
+              console.log('| Functions | ' + s.functions.pct + '% |');
+            " >> $GITHUB_STEP_SUMMARY
+          fi
 
   lint:
     runs-on: ubuntu-latest

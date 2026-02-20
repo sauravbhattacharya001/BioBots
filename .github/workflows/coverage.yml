@@ -1,0 +1,87 @@
+name: Code Coverage
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+
+permissions:
+  contents: read
+
+jobs:
+  coverage:
+    name: Test Coverage
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run tests with coverage
+        run: npx jest --verbose --coverage --coverageReporters=text --coverageReporters=lcov --coverageReporters=json-summary
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v5
+        with:
+          files: ./coverage/lcov.info
+          flags: unittests
+          fail_ci_if_error: false
+          verbose: true
+
+      - name: Generate coverage badge
+        run: |
+          # Extract coverage percentage from json-summary
+          COVERAGE=$(node -e "
+            const summary = require('./coverage/coverage-summary.json');
+            const pct = summary.total.lines.pct;
+            console.log(pct);
+          ")
+          echo "Coverage: ${COVERAGE}%"
+
+          # Determine badge color based on coverage
+          COLOR="red"
+          if (( $(echo "$COVERAGE >= 90" | bc -l) )); then
+            COLOR="brightgreen"
+          elif (( $(echo "$COVERAGE >= 80" | bc -l) )); then
+            COLOR="green"
+          elif (( $(echo "$COVERAGE >= 70" | bc -l) )); then
+            COLOR="yellowgreen"
+          elif (( $(echo "$COVERAGE >= 60" | bc -l) )); then
+            COLOR="yellow"
+          elif (( $(echo "$COVERAGE >= 50" | bc -l) )); then
+            COLOR="orange"
+          fi
+
+          echo "COVERAGE_PCT=${COVERAGE}" >> $GITHUB_ENV
+          echo "BADGE_COLOR=${COLOR}" >> $GITHUB_ENV
+
+      - name: Upload coverage artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: coverage/
+          retention-days: 30
+
+      - name: Coverage summary
+        run: |
+          echo "## 📊 Code Coverage Report" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Metric | Coverage |" >> $GITHUB_STEP_SUMMARY
+          echo "|--------|----------|" >> $GITHUB_STEP_SUMMARY
+          node -e "
+            const s = require('./coverage/coverage-summary.json').total;
+            console.log('| Statements | ' + s.statements.pct + '% (' + s.statements.covered + '/' + s.statements.total + ') |');
+            console.log('| Branches | ' + s.branches.pct + '% (' + s.branches.covered + '/' + s.branches.total + ') |');
+            console.log('| Functions | ' + s.functions.pct + '% (' + s.functions.covered + '/' + s.functions.total + ') |');
+            console.log('| Lines | ' + s.lines.pct + '% (' + s.lines.covered + '/' + s.lines.total + ') |');
+          " >> $GITHUB_STEP_SUMMARY

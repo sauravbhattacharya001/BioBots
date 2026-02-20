@@ -8,6 +8,8 @@ Analyze 3D bioprinting run data — cell viability, print resolution, crosslinki
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![CI](https://github.com/sauravbhattacharya001/BioBots/actions/workflows/ci.yml/badge.svg)](https://github.com/sauravbhattacharya001/BioBots/actions/workflows/ci.yml)
+[![Code Coverage](https://github.com/sauravbhattacharya001/BioBots/actions/workflows/coverage.yml/badge.svg)](https://github.com/sauravbhattacharya001/BioBots/actions/workflows/coverage.yml)
+[![codecov](https://codecov.io/gh/sauravbhattacharya001/BioBots/graph/badge.svg)](https://codecov.io/gh/sauravbhattacharya001/BioBots)
 [![Docker Build](https://github.com/sauravbhattacharya001/BioBots/actions/workflows/docker.yml/badge.svg)](https://github.com/sauravbhattacharya001/BioBots/actions/workflows/docker.yml)
 [![GitHub Pages](https://github.com/sauravbhattacharya001/BioBots/actions/workflows/pages.yml/badge.svg)](https://sauravbhattacharya001.github.io/BioBots/)
 ![Tests](https://img.shields.io/badge/tests-87%20passed-brightgreen)
