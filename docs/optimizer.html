@@ -1,0 +1,640 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>BioBots 1 — Parameter Optimizer</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧬</text></svg>">
+    <style>
+        :root {
+            --bg: #0f172a;
+            --surface: #1e293b;
+            --border: #334155;
+            --text: #e2e8f0;
+            --muted: #94a3b8;
+            --accent: #38bdf8;
+            --accent-hover: #7dd3fc;
+            --success: #4ade80;
+            --error: #f87171;
+            --warning: #fbbf24;
+            --purple: #a78bfa;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            padding: 2rem 1rem;
+        }
+        .container { max-width: 1200px; margin: 0 auto; }
+        header { text-align: center; margin-bottom: 2rem; }
+        header h1 {
+            font-size: 2rem; font-weight: 700;
+            background: linear-gradient(135deg, var(--accent), var(--success));
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+        }
+        header p { color: var(--muted); margin-top: 0.5rem; }
+
+        /* Nav */
+        .nav { display: flex; justify-content: center; gap: 0.5rem; margin-bottom: 2rem; flex-wrap: wrap; }
+        .nav a {
+            color: var(--muted); padding: 0.5rem 1rem; border-radius: 8px;
+            text-decoration: none; font-size: 0.9rem; transition: all 0.2s;
+        }
+        .nav a:hover { color: var(--accent); }
+        .nav a.active {
+            color: var(--accent); background: var(--surface);
+            border: 1px solid var(--border);
+        }
+
+        /* Controls */
+        .controls {
+            background: var(--surface); border: 1px solid var(--border);
+            border-radius: 12px; padding: 1.25rem; margin-bottom: 1.5rem;
+        }
+        .controls h2 { font-size: 1rem; margin-bottom: 0.75rem; }
+        .control-row {
+            display: flex; gap: 1rem; align-items: center; flex-wrap: wrap;
+        }
+        .control-group { display: flex; flex-direction: column; gap: 0.3rem; }
+        .control-group label {
+            font-size: 0.8rem; color: var(--muted); font-weight: 500;
+        }
+        .control-group input, .control-group select {
+            background: var(--bg); border: 1px solid var(--border);
+            color: var(--text); padding: 0.4rem 0.7rem; border-radius: 6px;
+            font-size: 0.85rem; font-family: inherit; width: 140px;
+        }
+        .control-group input:focus, .control-group select:focus {
+            outline: none; border-color: var(--accent);
+        }
+        .btn {
+            padding: 0.5rem 1.2rem; border-radius: 8px; border: none;
+            font-family: inherit; font-size: 0.85rem; font-weight: 600;
+            cursor: pointer; transition: all 0.2s;
+        }
+        .btn-primary { background: var(--accent); color: #0f172a; }
+        .btn-primary:hover { background: var(--accent-hover); }
+        .btn-outline { background: none; border: 1px solid var(--border); color: var(--muted); }
+        .btn-outline:hover { border-color: var(--accent); color: var(--accent); }
+
+        /* Overview cards */
+        .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 1rem; margin-bottom: 1.5rem; }
+        .card {
+            background: var(--surface); border: 1px solid var(--border);
+            border-radius: 12px; padding: 1rem; text-align: center;
+        }
+        .card-value { font-size: 1.6rem; font-weight: 800; line-height: 1.2; }
+        .card-label { font-size: 0.75rem; color: var(--muted); margin-top: 0.25rem; }
+
+        /* Charts */
+        .chart-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.25rem; margin-bottom: 1.5rem; }
+        .chart-panel {
+            background: var(--surface); border: 1px solid var(--border);
+            border-radius: 12px; padding: 1.25rem;
+        }
+        .chart-panel h3 { font-size: 0.95rem; margin-bottom: 0.75rem; }
+
+        /* Param table */
+        .param-table {
+            width: 100%; border-collapse: collapse;
+            font-size: 0.85rem; margin-top: 0.75rem;
+        }
+        .param-table th, .param-table td {
+            padding: 0.6rem 0.75rem; text-align: left; border: 1px solid var(--border);
+        }
+        .param-table th { background: var(--surface); font-weight: 600; }
+        .param-table td { color: var(--muted); }
+        .param-table tr:nth-child(even) td { background: rgba(15, 23, 42, 0.5); }
+
+        /* Range bars */
+        .range-bar {
+            position: relative; height: 14px;
+            background: var(--border); border-radius: 7px; overflow: hidden;
+        }
+        .range-fill {
+            position: absolute; top: 0; height: 100%;
+            border-radius: 7px; opacity: 0.7;
+        }
+        .range-optimal {
+            position: absolute; top: 0; height: 100%;
+            border-radius: 7px; border: 2px solid var(--success);
+            background: rgba(74, 222, 128, 0.15);
+        }
+
+        /* Recommendations */
+        .rec-grid {
+            display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 1rem; margin-top: 1rem;
+        }
+        .rec-card {
+            background: var(--surface); border: 1px solid var(--border);
+            border-radius: 10px; padding: 1.25rem;
+        }
+        .rec-card h4 { font-size: 0.95rem; margin-bottom: 0.4rem; }
+        .rec-card p { font-size: 0.82rem; color: var(--muted); line-height: 1.5; }
+        .impact-badge {
+            display: inline-block; padding: 0.15rem 0.4rem;
+            border-radius: 4px; font-size: 0.7rem; font-weight: 600;
+            margin-top: 0.5rem;
+        }
+        .impact-high { background: rgba(74, 222, 128, 0.15); color: var(--success); }
+        .impact-medium { background: rgba(251, 191, 36, 0.15); color: var(--warning); }
+
+        /* Status loading */
+        .loading { text-align: center; padding: 3rem; color: var(--muted); }
+
+        /* Footer */
+        .footer {
+            text-align: center; margin-top: 2rem; padding-top: 1.5rem;
+            border-top: 1px solid var(--border); color: var(--muted);
+            font-size: 0.85rem;
+        }
+        .footer a { color: var(--accent); text-decoration: none; }
+
+        @media (max-width: 768px) {
+            .chart-grid { grid-template-columns: 1fr; }
+            .control-row { flex-direction: column; align-items: stretch; }
+            .control-group input, .control-group select { width: 100%; }
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <header>
+        <h1>🎯 Parameter Optimizer</h1>
+        <p>Find optimal bioprinting parameter ranges for target viability goals</p>
+    </header>
+
+    <div class="nav" role="navigation" aria-label="Page navigation">
+        <a href="index.html">Query Tool</a>
+        <a href="explorer.html">Data Explorer</a>
+        <a href="table.html">Data Table</a>
+        <a href="compare.html">Compare</a>
+        <a href="quality.html">🎯 Quality</a>
+        <a href="anomaly.html">🔍 Anomaly</a>
+        <a href="trends.html">📈 Trends</a>
+        <a href="optimizer.html" class="active">⚙️ Optimizer</a>
+        <a href="api.html">📡 API</a>
+        <a href="architecture.html">🏗️ Architecture</a>
+        <a href="guide.html">🛠️ Guide</a>
+    </div>
+
+    <div class="controls">
+        <h2>⚙️ Optimization Target</h2>
+        <div class="control-row">
+            <div class="control-group">
+                <label for="targetMetric">Target Metric</label>
+                <select id="targetMetric">
+                    <option value="livePercent">Live Cell % (viability)</option>
+                    <option value="elasticity">Elasticity</option>
+                    <option value="deadPercent">Dead Cell % (minimize)</option>
+                </select>
+            </div>
+            <div class="control-group">
+                <label for="threshold">Target Threshold</label>
+                <input type="number" id="threshold" value="50" min="0" max="100" step="5" />
+            </div>
+            <div class="control-group">
+                <label for="topPercent">Top Performers %</label>
+                <select id="topPercent">
+                    <option value="10">Top 10%</option>
+                    <option value="15">Top 15%</option>
+                    <option value="20" selected>Top 20%</option>
+                    <option value="25">Top 25%</option>
+                </select>
+            </div>
+            <button class="btn btn-primary" id="optimizeBtn">🔬 Optimize</button>
+            <button class="btn btn-outline" id="resetBtn">Reset</button>
+        </div>
+    </div>
+
+    <div id="results">
+        <div class="loading">Configure target parameters above and click <strong>Optimize</strong> to find optimal ranges.</div>
+    </div>
+
+    <div class="footer">
+        <p>Part of the <a href="index.html">BioBots Analytics Platform</a></p>
+        <p>Built with 🧬 by <a href="https://github.com/sauravbhattacharya001">Saurav Bhattacharya</a></p>
+    </div>
+</div>
+
+<script>
+/* ===== Parameter Definitions ===== */
+var PARAMS = [
+    { key: "extruder1", label: "Extruder 1 Pressure", unit: "kPa", path: ["print_info","pressure","extruder1"], color: "#38bdf8" },
+    { key: "extruder2", label: "Extruder 2 Pressure", unit: "kPa", path: ["print_info","pressure","extruder2"], color: "#a78bfa" },
+    { key: "temperature", label: "Temperature", unit: "°C", path: ["print_info","temperature"], color: "#f87171" },
+    { key: "speed", label: "Print Speed", unit: "mm/s", path: ["print_info","speed"], color: "#fbbf24" },
+    { key: "cl_intensity", label: "Crosslink Intensity", unit: "", path: ["print_info","crosslinking","cl_intensity"], color: "#4ade80" },
+    { key: "cl_duration", label: "Crosslink Duration", unit: "ms", path: ["print_info","crosslinking","cl_duration"], color: "#34d399" },
+    { key: "layerHeight", label: "Layer Height", unit: "mm", path: ["print_info","resolution","layerHeight"], color: "#fb923c" },
+    { key: "layerNum", label: "Layer Count", unit: "", path: ["print_info","resolution","layerNum"], color: "#f472b6" }
+];
+
+var METRICS = {
+    livePercent: { label: "Live Cell %", path: ["print_data","livePercent"], higher: true },
+    elasticity: { label: "Elasticity", path: ["print_data","elasticity"], higher: true },
+    deadPercent: { label: "Dead Cell %", path: ["print_data","deadPercent"], higher: false }
+};
+
+/* ===== Data Loading ===== */
+var allData = null;
+
+function loadData(cb) {
+    if (allData) return cb(allData);
+    var xhr = new XMLHttpRequest();
+    xhr.open("GET", "bioprint-data.json");
+    xhr.onload = function() {
+        if (xhr.status === 200) {
+            allData = JSON.parse(xhr.responseText);
+            cb(allData);
+        }
+    };
+    xhr.send();
+}
+
+/* ===== Utilities ===== */
+function getNestedValue(obj, path) {
+    var v = obj;
+    for (var i = 0; i < path.length; i++) {
+        if (v == null) return null;
+        v = v[path[i]];
+    }
+    return v;
+}
+
+function extractParam(record, param) {
+    return getNestedValue(record, param.path);
+}
+
+function extractMetric(record, metricKey) {
+    return getNestedValue(record, METRICS[metricKey].path);
+}
+
+function sanitize(s) {
+    var d = document.createElement("div");
+    d.appendChild(document.createTextNode(s));
+    return d.innerHTML;
+}
+
+function round(v, d) { var m = Math.pow(10, d || 2); return Math.round(v * m) / m; }
+
+function percentile(arr, p) {
+    var s = arr.slice().sort(function(a, b) { return a - b; });
+    var i = (p / 100) * (s.length - 1);
+    var lo = Math.floor(i);
+    var hi = Math.ceil(i);
+    if (lo === hi) return s[lo];
+    return s[lo] + (s[hi] - s[lo]) * (i - lo);
+}
+
+function mean(arr) { return arr.reduce(function(s, v) { return s + v; }, 0) / arr.length; }
+
+function stddev(arr) {
+    var m = mean(arr);
+    var ss = arr.reduce(function(s, v) { return s + (v - m) * (v - m); }, 0) / arr.length;
+    return Math.sqrt(ss);
+}
+
+function pearson(xs, ys) {
+    var n = xs.length;
+    if (n < 3) return 0;
+    var mx = mean(xs), my = mean(ys);
+    var num = 0, dx = 0, dy = 0;
+    for (var i = 0; i < n; i++) {
+        var a = xs[i] - mx, b = ys[i] - my;
+        num += a * b; dx += a * a; dy += b * b;
+    }
+    var den = Math.sqrt(dx * dy);
+    return den === 0 ? 0 : num / den;
+}
+
+/* ===== Analysis Engine ===== */
+function analyze(data, metricKey, threshold, topPct) {
+    var metric = METRICS[metricKey];
+    var higher = metric.higher;
+
+    // Extract metric values
+    var records = data.map(function(r) {
+        return { record: r, value: extractMetric(r, metricKey) };
+    }).filter(function(r) { return r.value != null && !isNaN(r.value); });
+
+    // Sort by metric
+    records.sort(function(a, b) {
+        return higher ? b.value - a.value : a.value - b.value;
+    });
+
+    // Split into top performers and rest
+    var topN = Math.max(1, Math.floor(records.length * topPct / 100));
+    var topRecords = records.slice(0, topN);
+    var restRecords = records.slice(topN);
+
+    // Threshold-meeting records
+    var thresholdRecords = records.filter(function(r) {
+        return higher ? r.value >= threshold : r.value <= threshold;
+    });
+
+    var allValues = records.map(function(r) { return r.value; });
+
+    // Per-parameter analysis
+    var paramResults = PARAMS.map(function(param) {
+        var topVals = topRecords.map(function(r) { return extractParam(r.record, param); }).filter(function(v) { return v != null && !isNaN(v); });
+        var allVals = records.map(function(r) { return extractParam(r.record, param); }).filter(function(v) { return v != null && !isNaN(v); });
+        var restVals = restRecords.map(function(r) { return extractParam(r.record, param); }).filter(function(v) { return v != null && !isNaN(v); });
+
+        if (topVals.length === 0 || allVals.length === 0) return null;
+
+        var corr = pearson(
+            records.map(function(r) { return extractParam(r.record, param); }).filter(function(v) { return v != null; }),
+            records.map(function(r) { return r.value; })
+        );
+
+        return {
+            key: param.key,
+            label: param.label,
+            unit: param.unit,
+            color: param.color,
+            correlation: corr,
+            absCorrelation: Math.abs(corr),
+            allMin: Math.min.apply(null, allVals),
+            allMax: Math.max.apply(null, allVals),
+            allMean: mean(allVals),
+            allStd: stddev(allVals),
+            topMin: Math.min.apply(null, topVals),
+            topMax: Math.max.apply(null, topVals),
+            topMean: mean(topVals),
+            topP25: percentile(topVals, 25),
+            topP75: percentile(topVals, 75),
+            restMean: restVals.length > 0 ? mean(restVals) : null,
+            impact: Math.abs(mean(topVals) - mean(allVals)) / (stddev(allVals) || 1)
+        };
+    }).filter(function(r) { return r !== null; });
+
+    // Rank by impact
+    paramResults.sort(function(a, b) { return b.impact - a.impact; });
+
+    return {
+        metricKey: metricKey,
+        metricLabel: metric.label,
+        higher: higher,
+        threshold: threshold,
+        topPct: topPct,
+        totalRecords: records.length,
+        topCount: topRecords.length,
+        thresholdCount: thresholdRecords.length,
+        thresholdPct: round(thresholdRecords.length / records.length * 100, 1),
+        metricMean: round(mean(allValues), 2),
+        metricStd: round(stddev(allValues), 2),
+        topMean: round(mean(topRecords.map(function(r) { return r.value; })), 2),
+        topMin: round(Math.min.apply(null, topRecords.map(function(r) { return r.value; })), 2),
+        params: paramResults
+    };
+}
+
+/* ===== Render Results ===== */
+function renderResults(result) {
+    var html = "";
+
+    // Overview cards
+    html += '<div class="cards">';
+    html += '<div class="card"><div class="card-value" style="color:var(--accent)">' + result.totalRecords + '</div><div class="card-label">Total Records</div></div>';
+    html += '<div class="card"><div class="card-value" style="color:var(--success)">' + result.topCount + '</div><div class="card-label">Top ' + result.topPct + '% Performers</div></div>';
+    html += '<div class="card"><div class="card-value" style="color:var(--warning)">' + result.thresholdPct + '%</div><div class="card-label">Meet Threshold (' + (result.higher ? '≥' : '≤') + result.threshold + ')</div></div>';
+    html += '<div class="card"><div class="card-value" style="color:var(--purple)">' + result.metricMean + '</div><div class="card-label">Avg ' + sanitize(result.metricLabel) + '</div></div>';
+    html += '<div class="card"><div class="card-value" style="color:var(--success)">' + result.topMean + '</div><div class="card-label">Top ' + result.topPct + '% Avg</div></div>';
+    html += '<div class="card"><div class="card-value" style="color:var(--accent)">' + result.metricStd + '</div><div class="card-label">Std Dev</div></div>';
+    html += '</div>';
+
+    // Charts
+    html += '<div class="chart-grid">';
+    html += '<div class="chart-panel"><h3>🎯 Parameter Impact Ranking</h3><canvas id="impactChart" width="500" height="350"></canvas></div>';
+    html += '<div class="chart-panel"><h3>📊 Correlation with ' + sanitize(result.metricLabel) + '</h3><canvas id="corrChart" width="500" height="350"></canvas></div>';
+    html += '</div>';
+
+    // Optimal ranges table
+    html += '<div class="chart-panel" style="margin-bottom:1.5rem">';
+    html += '<h3>📋 Optimal Parameter Ranges (from Top ' + result.topPct + '% Performers)</h3>';
+    html += '<table class="param-table"><thead><tr>';
+    html += '<th>Parameter</th><th>All Data Range</th><th>Optimal Range (P25–P75)</th><th>Top Avg</th><th>All Avg</th><th>Shift</th><th>Correlation</th>';
+    html += '</tr></thead><tbody>';
+
+    result.params.forEach(function(p) {
+        var shift = round(p.topMean - p.allMean, 2);
+        var shiftPct = round(shift / (p.allStd || 1) * 100, 0);
+        var shiftColor = Math.abs(shiftPct) > 20 ? "var(--success)" : "var(--muted)";
+        var corrColor = Math.abs(p.correlation) > 0.3 ? "var(--accent)" : "var(--muted)";
+        var corrSign = p.correlation > 0 ? "+" : "";
+
+        html += '<tr>';
+        html += '<td><strong style="color:' + p.color + '">' + sanitize(p.label) + '</strong>' + (p.unit ? ' <span style="color:var(--muted);font-size:0.75rem">(' + sanitize(p.unit) + ')</span>' : '') + '</td>';
+        html += '<td>' + round(p.allMin, 1) + ' – ' + round(p.allMax, 1) + '</td>';
+        html += '<td style="color:var(--success);font-weight:600">' + round(p.topP25, 1) + ' – ' + round(p.topP75, 1) + '</td>';
+        html += '<td>' + round(p.topMean, 2) + '</td>';
+        html += '<td>' + round(p.allMean, 2) + '</td>';
+        html += '<td style="color:' + shiftColor + '">' + (shift > 0 ? '+' : '') + shift + ' (' + (shiftPct > 0 ? '+' : '') + shiftPct + '%σ)</td>';
+        html += '<td style="color:' + corrColor + '">' + corrSign + round(p.correlation, 3) + '</td>';
+        html += '</tr>';
+    });
+    html += '</tbody></table>';
+
+    // Range visualization
+    html += '<h3 style="margin-top:1.5rem;font-size:0.95rem">📐 Visual Range Comparison</h3>';
+    html += '<div style="margin-top:0.75rem">';
+    result.params.forEach(function(p) {
+        var range = p.allMax - p.allMin;
+        if (range === 0) return;
+        var optLeft = ((p.topP25 - p.allMin) / range * 100);
+        var optWidth = ((p.topP75 - p.topP25) / range * 100);
+
+        html += '<div style="margin-bottom:0.6rem">';
+        html += '<div style="display:flex;justify-content:space-between;font-size:0.78rem;margin-bottom:0.2rem">';
+        html += '<span style="color:' + p.color + '">' + sanitize(p.label) + '</span>';
+        html += '<span style="color:var(--muted)">' + round(p.allMin, 1) + ' – ' + round(p.allMax, 1) + '</span>';
+        html += '</div>';
+        html += '<div class="range-bar">';
+        html += '<div class="range-fill" style="left:0;width:100%;background:' + p.color + '"></div>';
+        html += '<div class="range-optimal" style="left:' + optLeft + '%;width:' + Math.max(optWidth, 2) + '%"></div>';
+        html += '</div>';
+        html += '</div>';
+    });
+    html += '<div style="font-size:0.75rem;color:var(--muted);margin-top:0.5rem">■ Full range &nbsp; <span style="color:var(--success)">□</span> Optimal range (top ' + result.topPct + '% IQR)</div>';
+    html += '</div></div>';
+
+    // Recommendations
+    html += '<h3 style="font-size:1.1rem;margin-bottom:0.5rem">💡 Optimization Recommendations</h3>';
+    html += '<p style="font-size:0.82rem;color:var(--muted);margin-bottom:1rem">Prioritized by impact on ' + sanitize(result.metricLabel) + '</p>';
+    html += '<div class="rec-grid">';
+
+    var topParams = result.params.slice(0, 4);
+    topParams.forEach(function(p, i) {
+        var direction = p.topMean > p.allMean ? "increase" : "decrease";
+        var corrDesc = Math.abs(p.correlation) > 0.3 ? (p.correlation > 0 ? "positive" : "negative") + " correlation (r=" + round(p.correlation, 3) + ")" : "weak correlation";
+        var impactLevel = p.impact > 0.3 ? "high" : "medium";
+
+        html += '<div class="rec-card">';
+        html += '<h4>' + (i < 2 ? '🔑' : '📌') + ' ' + sanitize(p.label) + '</h4>';
+        html += '<p>Top performers ' + direction + ' this parameter (avg ' + round(p.topMean, 1) + ' vs overall ' + round(p.allMean, 1) + '). ';
+        html += 'Optimal range: <strong>' + round(p.topP25, 1) + ' – ' + round(p.topP75, 1) + '</strong>' + (p.unit ? ' ' + sanitize(p.unit) : '') + '. ';
+        html += 'Shows ' + corrDesc + ' with ' + sanitize(result.metricLabel) + '.</p>';
+        html += '<span class="impact-badge impact-' + impactLevel + '">' + impactLevel.toUpperCase() + ' IMPACT</span>';
+        html += '</div>';
+    });
+    html += '</div>';
+
+    document.getElementById("results").innerHTML = html;
+
+    // Draw charts after DOM update
+    drawImpactChart(result);
+    drawCorrChart(result);
+}
+
+/* ===== Draw Impact Chart (Horizontal Bars) ===== */
+function drawImpactChart(result) {
+    var canvas = document.getElementById("impactChart");
+    if (!canvas || typeof canvas.getContext !== "function") return;
+    var ctx = canvas.getContext("2d");
+    if (!ctx) return;
+    var W = canvas.width, H = canvas.height;
+    var padL = 130, padR = 50, padT = 10, padB = 30;
+    var cW = W - padL - padR;
+    var cH = H - padT - padB;
+    var n = result.params.length;
+    var barH = Math.min(Math.floor(cH / n * 0.65), 28);
+    var gap = cH / n;
+    var maxImpact = Math.max.apply(null, result.params.map(function(p) { return p.impact; }));
+    if (maxImpact === 0) maxImpact = 1;
+
+    ctx.clearRect(0, 0, W, H);
+
+    result.params.forEach(function(p, i) {
+        var y = padT + i * gap + (gap - barH) / 2;
+        var bW = (p.impact / maxImpact) * cW;
+
+        // Bar
+        ctx.fillStyle = p.color;
+        ctx.globalAlpha = 0.7;
+        ctx.beginPath();
+        if (ctx.roundRect) { ctx.roundRect(padL, y, bW, barH, [0, 4, 4, 0]); } else { ctx.rect(padL, y, bW, barH); }
+        ctx.fill();
+        ctx.globalAlpha = 1;
+
+        // Label
+        ctx.fillStyle = "#e2e8f0"; ctx.font = "11px sans-serif"; ctx.textAlign = "right";
+        ctx.fillText(p.label, padL - 8, y + barH / 2 + 4);
+
+        // Value
+        ctx.fillStyle = p.color; ctx.font = "bold 11px sans-serif"; ctx.textAlign = "left";
+        ctx.fillText(round(p.impact, 3).toString(), padL + bW + 6, y + barH / 2 + 4);
+    });
+
+    // Axis labels
+    ctx.fillStyle = "#94a3b8"; ctx.font = "10px sans-serif"; ctx.textAlign = "center";
+    ctx.fillText("Impact Score (σ shift)", padL + cW / 2, H - 4);
+}
+
+/* ===== Draw Correlation Chart (Bars with sign) ===== */
+function drawCorrChart(result) {
+    var canvas = document.getElementById("corrChart");
+    if (!canvas || typeof canvas.getContext !== "function") return;
+    var ctx = canvas.getContext("2d");
+    if (!ctx) return;
+    var W = canvas.width, H = canvas.height;
+    var padL = 130, padR = 50, padT = 10, padB = 30;
+    var cW = W - padL - padR;
+    var cH = H - padT - padB;
+    var n = result.params.length;
+    var barH = Math.min(Math.floor(cH / n * 0.65), 28);
+    var gap = cH / n;
+    var center = padL + cW / 2;
+
+    ctx.clearRect(0, 0, W, H);
+
+    // Center line
+    ctx.strokeStyle = "rgba(51, 65, 85, 0.8)";
+    ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(center, padT); ctx.lineTo(center, padT + cH); ctx.stroke();
+
+    // Sort by correlation for this chart
+    var sorted = result.params.slice().sort(function(a, b) { return b.correlation - a.correlation; });
+
+    sorted.forEach(function(p, i) {
+        var y = padT + i * gap + (gap - barH) / 2;
+        var corrWidth = (p.correlation) * (cW / 2);
+        var x = p.correlation >= 0 ? center : center + corrWidth;
+        var bW = Math.abs(corrWidth);
+
+        // Bar
+        ctx.fillStyle = p.correlation >= 0 ? "#4ade80" : "#f87171";
+        ctx.globalAlpha = 0.6;
+        ctx.beginPath();
+        if (ctx.roundRect) { ctx.roundRect(x, y, bW, barH, 3); } else { ctx.rect(x, y, bW, barH); }
+        ctx.fill();
+        ctx.globalAlpha = 1;
+
+        // Label
+        ctx.fillStyle = "#e2e8f0"; ctx.font = "11px sans-serif"; ctx.textAlign = "right";
+        ctx.fillText(p.label, padL - 8, y + barH / 2 + 4);
+
+        // Value
+        var valX = p.correlation >= 0 ? center + corrWidth + 6 : center + corrWidth - 6;
+        ctx.textAlign = p.correlation >= 0 ? "left" : "right";
+        ctx.fillStyle = p.correlation >= 0 ? "#4ade80" : "#f87171";
+        ctx.font = "bold 10px sans-serif";
+        ctx.fillText((p.correlation >= 0 ? "+" : "") + round(p.correlation, 3), valX, y + barH / 2 + 4);
+    });
+
+    // Axis labels
+    ctx.fillStyle = "#94a3b8"; ctx.font = "10px sans-serif"; ctx.textAlign = "center";
+    ctx.fillText("Pearson Correlation (r)", padL + cW / 2, H - 4);
+    ctx.textAlign = "left"; ctx.fillText("-1.0", padL, H - 4);
+    ctx.textAlign = "right"; ctx.fillText("+1.0", W - padR, H - 4);
+}
+
+/* ===== Event Handlers ===== */
+function runOptimization() {
+    var metricKey = document.getElementById("targetMetric").value;
+    var threshold = parseFloat(document.getElementById("threshold").value) || 50;
+    var topPct = parseInt(document.getElementById("topPercent").value) || 20;
+
+    document.getElementById("results").innerHTML = '<div class="loading">Analyzing ' + PARAMS.length + ' parameters across 10,000 records...</div>';
+
+    loadData(function(data) {
+        var result = analyze(data, metricKey, threshold, topPct);
+        renderResults(result);
+    });
+}
+
+document.getElementById("optimizeBtn").addEventListener("click", runOptimization);
+document.getElementById("resetBtn").addEventListener("click", function() {
+    document.getElementById("targetMetric").value = "livePercent";
+    document.getElementById("threshold").value = "50";
+    document.getElementById("topPercent").value = "20";
+    document.getElementById("results").innerHTML = '<div class="loading">Configure target parameters above and click <strong>Optimize</strong> to find optimal ranges.</div>';
+});
+
+/* ===== Exports for Testing ===== */
+if (typeof module !== "undefined" && module.exports) {
+    module.exports = {
+        PARAMS: PARAMS,
+        METRICS: METRICS,
+        getNestedValue: getNestedValue,
+        extractParam: extractParam,
+        extractMetric: extractMetric,
+        sanitize: sanitize,
+        round: round,
+        percentile: percentile,
+        mean: mean,
+        stddev: stddev,
+        pearson: pearson,
+        analyze: analyze,
+        renderResults: renderResults,
+        drawImpactChart: drawImpactChart,
+        drawCorrChart: drawCorrChart,
+        runOptimization: runOptimization
+    };
+}
+</script>
+</body>
+</html>
