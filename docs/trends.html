@@ -1,0 +1,1075 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>BioBots 1 &mdash; Trend Analysis</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>&#x1f9ec;</text></svg>">
+    <style>
+        :root {
+            --bg: #0f172a;
+            --surface: #1e293b;
+            --border: #334155;
+            --text: #e2e8f0;
+            --muted: #94a3b8;
+            --accent: #38bdf8;
+            --accent-hover: #7dd3fc;
+            --success: #4ade80;
+            --error: #f87171;
+            --warning: #fbbf24;
+            --purple: #a78bfa;
+            --orange: #fb923c;
+            --teal: #2dd4bf;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            padding: 2rem 1rem;
+        }
+
+        .container { max-width: 1200px; margin: 0 auto; }
+
+        header { text-align: center; margin-bottom: 2rem; }
+
+        header h1 {
+            font-size: 2rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, var(--teal), var(--accent));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        header p { color: var(--muted); margin-top: 0.5rem; }
+
+        .nav {
+            display: flex;
+            justify-content: center;
+            gap: 0.5rem;
+            margin-bottom: 2rem;
+            flex-wrap: wrap;
+        }
+
+        .nav a {
+            color: var(--muted);
+            text-decoration: none;
+            padding: 0.5rem 1rem;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            transition: all 0.2s;
+        }
+
+        .nav a:hover { color: var(--text); background: var(--surface); }
+        .nav a.active { color: var(--accent); background: var(--surface); border: 1px solid var(--border); }
+
+        .card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .card h2 {
+            font-size: 1.1rem;
+            margin-bottom: 1rem;
+            color: var(--muted);
+        }
+
+        /* Stats bar */
+        .stats-bar {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .stat-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 1rem;
+            text-align: center;
+        }
+
+        .stat-card .value {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--accent);
+        }
+
+        .stat-card .label {
+            font-size: 0.75rem;
+            color: var(--muted);
+            margin-top: 0.25rem;
+        }
+
+        .stat-card.success .value { color: var(--success); }
+        .stat-card.danger .value { color: var(--error); }
+        .stat-card.warning .value { color: var(--warning); }
+        .stat-card.purple .value { color: var(--purple); }
+
+        /* Controls */
+        .controls {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.25rem;
+        }
+
+        .control-group label {
+            font-size: 0.75rem;
+            color: var(--muted);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        select, input[type="number"] {
+            background: var(--bg);
+            color: var(--text);
+            border: 1px solid var(--border);
+            padding: 0.5rem 0.75rem;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            cursor: pointer;
+        }
+
+        select:hover, input[type="number"]:hover {
+            border-color: var(--accent);
+        }
+
+        /* Checkboxes */
+        .toggle-row {
+            display: flex;
+            gap: 1rem;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        .toggle-label {
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+            font-size: 0.85rem;
+            color: var(--muted);
+            cursor: pointer;
+        }
+
+        .toggle-label input { cursor: pointer; accent-color: var(--accent); }
+
+        /* Chart */
+        .chart-container {
+            position: relative;
+            width: 100%;
+        }
+
+        canvas {
+            width: 100% !important;
+            height: auto !important;
+            border-radius: 8px;
+        }
+
+        /* Tooltip */
+        .chart-tooltip {
+            position: absolute;
+            background: rgba(15, 23, 42, 0.95);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 0.6rem 0.8rem;
+            font-size: 0.8rem;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.15s;
+            z-index: 10;
+            max-width: 250px;
+        }
+
+        .chart-tooltip.visible { opacity: 1; }
+
+        /* Trend summary table */
+        .trend-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.85rem;
+        }
+
+        .trend-table th {
+            text-align: left;
+            padding: 0.6rem 0.75rem;
+            border-bottom: 2px solid var(--border);
+            color: var(--muted);
+            font-weight: 600;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .trend-table td {
+            padding: 0.5rem 0.75rem;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .trend-table tr:hover { background: rgba(56, 189, 248, 0.05); }
+
+        .trend-up { color: var(--success); }
+        .trend-down { color: var(--error); }
+        .trend-flat { color: var(--muted); }
+
+        .badge {
+            display: inline-block;
+            padding: 0.15rem 0.5rem;
+            border-radius: 999px;
+            font-size: 0.7rem;
+            font-weight: 600;
+        }
+
+        .badge-up { background: rgba(74, 222, 128, 0.15); color: var(--success); }
+        .badge-down { background: rgba(248, 113, 113, 0.15); color: var(--error); }
+        .badge-flat { background: rgba(148, 163, 184, 0.15); color: var(--muted); }
+        .badge-volatile { background: rgba(251, 191, 36, 0.15); color: var(--warning); }
+
+        /* Correlation matrix */
+        .corr-grid {
+            display: grid;
+            gap: 2px;
+            font-size: 0.65rem;
+        }
+
+        .corr-cell {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            aspect-ratio: 1;
+            border-radius: 4px;
+            font-weight: 600;
+            cursor: default;
+        }
+
+        .corr-header {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.6rem;
+            color: var(--muted);
+            font-weight: 600;
+        }
+
+        /* Insights */
+        .insight {
+            display: flex;
+            gap: 0.75rem;
+            padding: 0.75rem;
+            border-radius: 8px;
+            margin-bottom: 0.5rem;
+            font-size: 0.85rem;
+            line-height: 1.4;
+        }
+
+        .insight-icon { font-size: 1.2rem; flex-shrink: 0; }
+
+        .insight-warn { background: rgba(251, 191, 36, 0.1); border: 1px solid rgba(251, 191, 36, 0.2); }
+        .insight-good { background: rgba(74, 222, 128, 0.1); border: 1px solid rgba(74, 222, 128, 0.2); }
+        .insight-info { background: rgba(56, 189, 248, 0.1); border: 1px solid rgba(56, 189, 248, 0.2); }
+        .insight-danger { background: rgba(248, 113, 113, 0.1); border: 1px solid rgba(248, 113, 113, 0.2); }
+
+        footer {
+            text-align: center;
+            padding: 2rem 0;
+            color: var(--muted);
+            font-size: 0.8rem;
+        }
+
+        footer a { color: var(--accent); text-decoration: none; }
+        footer a:hover { text-decoration: underline; }
+
+        @media (max-width: 600px) {
+            .controls { flex-direction: column; }
+            .stats-bar { grid-template-columns: repeat(2, 1fr); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>&#x1f4c8; Trend Analysis</h1>
+            <p>Track how bioprinting parameters and outcomes evolve across sequential prints</p>
+        </header>
+
+        <nav class="nav">
+            <a href="index.html">Query Tool</a>
+            <a href="explorer.html">Data Explorer</a>
+            <a href="table.html">Data Table</a>
+            <a href="compare.html">Compare</a>
+            <a href="quality.html">Quality</a>
+            <a href="anomaly.html">Anomaly</a>
+            <a href="trends.html" class="active">Trends</a>
+            <a href="api.html">API</a>
+            <a href="architecture.html">Architecture</a>
+            <a href="guide.html">Guide</a>
+        </nav>
+
+        <!-- Overview Stats -->
+        <div class="stats-bar" id="statsBar">
+            <div class="stat-card">
+                <div class="value" id="totalPrints">-</div>
+                <div class="label">Total Prints</div>
+            </div>
+            <div class="stat-card success">
+                <div class="value" id="trendingUp">-</div>
+                <div class="label">Metrics Trending Up</div>
+            </div>
+            <div class="stat-card danger">
+                <div class="value" id="trendingDown">-</div>
+                <div class="label">Metrics Trending Down</div>
+            </div>
+            <div class="stat-card warning">
+                <div class="value" id="volatileCount">-</div>
+                <div class="label">High Volatility</div>
+            </div>
+            <div class="stat-card purple">
+                <div class="value" id="avgCorrelation">-</div>
+                <div class="label">Avg |Correlation|</div>
+            </div>
+        </div>
+
+        <!-- Controls -->
+        <div class="card">
+            <h2>Chart Controls</h2>
+            <div class="controls">
+                <div class="control-group">
+                    <label>Primary Metric</label>
+                    <select id="metricSelect"></select>
+                </div>
+                <div class="control-group">
+                    <label>Moving Average Window</label>
+                    <select id="maWindow">
+                        <option value="0">None</option>
+                        <option value="5">5 prints</option>
+                        <option value="10" selected>10 prints</option>
+                        <option value="20">20 prints</option>
+                        <option value="50">50 prints</option>
+                    </select>
+                </div>
+                <div class="control-group">
+                    <label>Range</label>
+                    <select id="rangeSelect">
+                        <option value="all" selected>All prints</option>
+                        <option value="50">Last 50</option>
+                        <option value="100">Last 100</option>
+                        <option value="200">Last 200</option>
+                        <option value="500">Last 500</option>
+                    </select>
+                </div>
+            </div>
+            <div class="toggle-row">
+                <label class="toggle-label">
+                    <input type="checkbox" id="showMA" checked> Show Moving Average
+                </label>
+                <label class="toggle-label">
+                    <input type="checkbox" id="showTrendLine" checked> Show Trend Line
+                </label>
+                <label class="toggle-label">
+                    <input type="checkbox" id="showBands"> Show &plusmn;1&sigma; Bands
+                </label>
+                <label class="toggle-label">
+                    <input type="checkbox" id="showGrid" checked> Grid Lines
+                </label>
+            </div>
+        </div>
+
+        <!-- Main Trend Chart -->
+        <div class="card">
+            <h2>Trend Chart</h2>
+            <div class="chart-container">
+                <canvas id="trendChart" width="1100" height="400"></canvas>
+                <div class="chart-tooltip" id="chartTooltip"></div>
+            </div>
+        </div>
+
+        <!-- Trend Summary Table -->
+        <div class="card">
+            <h2>Metric Trend Summary</h2>
+            <table class="trend-table">
+                <thead>
+                    <tr>
+                        <th>Metric</th>
+                        <th>Current (Last 10 Avg)</th>
+                        <th>Overall Mean</th>
+                        <th>Change</th>
+                        <th>Trend</th>
+                        <th>Volatility (CV%)</th>
+                        <th>Min</th>
+                        <th>Max</th>
+                    </tr>
+                </thead>
+                <tbody id="trendTableBody"></tbody>
+            </table>
+        </div>
+
+        <!-- Correlation Matrix -->
+        <div class="card">
+            <h2>Metric Correlation Matrix</h2>
+            <p style="color: var(--muted); font-size: 0.8rem; margin-bottom: 1rem;">
+                Pearson correlation coefficients between all metrics. Strong positive (green) or negative (red) correlations reveal parameter dependencies.
+            </p>
+            <div id="corrMatrix"></div>
+        </div>
+
+        <!-- Smart Insights -->
+        <div class="card">
+            <h2>Smart Insights</h2>
+            <div id="insightsContainer"></div>
+        </div>
+
+        <footer>
+            <p><a href="https://github.com/sauravbhattacharya001/BioBots">View Source</a> &middot; <a href="index.html">Query Tool</a></p>
+        </footer>
+    </div>
+
+    <script>
+    'use strict';
+
+    // ---- Globals ----
+    let printData = [];
+    const METRICS = ['livePercent', 'deadPercent', 'elasticity', 'cl_duration', 'cl_intensity', 'extruder1', 'extruder2', 'layerHeight', 'layerNum'];
+
+    const metricLabels = {
+        livePercent: 'Live Cell %',
+        deadPercent: 'Dead Cell %',
+        elasticity: 'Elasticity (kPa)',
+        cl_duration: 'CL Duration (ms)',
+        cl_intensity: 'CL Intensity (%)',
+        extruder1: 'Extruder 1 Pressure',
+        extruder2: 'Extruder 2 Pressure',
+        layerHeight: 'Layer Height (mm)',
+        layerNum: 'Layer Count'
+    };
+
+    const metricColors = {
+        livePercent: '#4ade80',
+        deadPercent: '#f87171',
+        elasticity: '#38bdf8',
+        cl_duration: '#fbbf24',
+        cl_intensity: '#fb923c',
+        extruder1: '#a78bfa',
+        extruder2: '#c084fc',
+        layerHeight: '#2dd4bf',
+        layerNum: '#f472b6'
+    };
+
+    function getMetricValue(print, metric) {
+        const paths = {
+            livePercent: p => p.print_data.livePercent,
+            deadPercent: p => p.print_data.deadPercent,
+            elasticity: p => p.print_data.elasticity,
+            cl_duration: p => p.print_info.crosslinking.cl_duration,
+            cl_intensity: p => p.print_info.crosslinking.cl_intensity,
+            extruder1: p => p.print_info.pressure.extruder1,
+            extruder2: p => p.print_info.pressure.extruder2,
+            layerHeight: p => p.print_info.resolution.layerHeight,
+            layerNum: p => p.print_info.resolution.layerNum,
+        };
+        try { return paths[metric] ? paths[metric](print) : null; }
+        catch { return null; }
+    }
+
+    function formatNum(n) {
+        if (n == null) return '-';
+        if (Math.abs(n) >= 1000) return n.toLocaleString(undefined, { maximumFractionDigits: 1 });
+        if (Number.isInteger(n)) return n.toString();
+        return n.toFixed(2);
+    }
+
+    const _escapeEl = document.createElement('div');
+    function escapeHtml(str) {
+        if (str == null) return '';
+        _escapeEl.textContent = String(str);
+        return _escapeEl.innerHTML;
+    }
+
+    // ---- Statistics ----
+    function mean(arr) {
+        if (!arr.length) return 0;
+        let s = 0;
+        for (let i = 0; i < arr.length; i++) s += arr[i];
+        return s / arr.length;
+    }
+
+    function stdDev(arr, m) {
+        if (arr.length < 2) return 0;
+        if (m === undefined) m = mean(arr);
+        let ss = 0;
+        for (let i = 0; i < arr.length; i++) ss += (arr[i] - m) * (arr[i] - m);
+        return Math.sqrt(ss / (arr.length - 1));
+    }
+
+    function movingAverage(arr, window) {
+        if (window <= 0 || window > arr.length) return arr.slice();
+        const result = [];
+        let sum = 0;
+        for (let i = 0; i < arr.length; i++) {
+            sum += arr[i];
+            if (i >= window) sum -= arr[i - window];
+            if (i >= window - 1) result.push(sum / window);
+            else result.push(null); // not enough data yet
+        }
+        return result;
+    }
+
+    function linearRegression(vals) {
+        const n = vals.length;
+        if (n < 2) return { slope: 0, intercept: vals[0] || 0, r2: 0 };
+        let sx = 0, sy = 0, sxx = 0, sxy = 0, syy = 0;
+        for (let i = 0; i < n; i++) {
+            sx += i; sy += vals[i];
+            sxx += i * i; sxy += i * vals[i]; syy += vals[i] * vals[i];
+        }
+        const denom = n * sxx - sx * sx;
+        if (denom === 0) return { slope: 0, intercept: sy / n, r2: 0 };
+        const slope = (n * sxy - sx * sy) / denom;
+        const intercept = (sy - slope * sx) / n;
+        const ssTot = syy - sy * sy / n;
+        const ssRes = syy - intercept * sy - slope * sxy;
+        const r2 = ssTot === 0 ? 0 : Math.max(0, 1 - ssRes / ssTot);
+        return { slope, intercept, r2 };
+    }
+
+    function pearsonCorrelation(x, y) {
+        const n = Math.min(x.length, y.length);
+        if (n < 2) return 0;
+        const mx = mean(x.slice(0, n)), my = mean(y.slice(0, n));
+        let num = 0, dx2 = 0, dy2 = 0;
+        for (let i = 0; i < n; i++) {
+            const dx = x[i] - mx, dy = y[i] - my;
+            num += dx * dy;
+            dx2 += dx * dx;
+            dy2 += dy * dy;
+        }
+        const denom = Math.sqrt(dx2 * dy2);
+        return denom === 0 ? 0 : num / denom;
+    }
+
+    // ---- Metric Analysis ----
+    function analyzeMetric(data, metric) {
+        const vals = data.map(p => getMetricValue(p, metric)).filter(v => v != null);
+        if (vals.length === 0) return null;
+
+        const m = mean(vals);
+        const sd = stdDev(vals, m);
+        const cv = m !== 0 ? (sd / Math.abs(m)) * 100 : 0;
+        const reg = linearRegression(vals);
+
+        // Recent vs overall: last 10 avg
+        const recentN = Math.min(10, vals.length);
+        const recentAvg = mean(vals.slice(-recentN));
+        const changePercent = m !== 0 ? ((recentAvg - m) / Math.abs(m)) * 100 : 0;
+
+        // Trend classification
+        let trend;
+        const slopeNorm = vals.length > 1 ? (reg.slope * vals.length) / (m || 1) : 0;
+        if (Math.abs(slopeNorm) < 0.02) trend = 'flat';
+        else if (slopeNorm > 0) trend = 'up';
+        else trend = 'down';
+
+        return {
+            metric,
+            values: vals,
+            mean: m,
+            stdDev: sd,
+            cv,
+            min: Math.min(...vals),
+            max: Math.max(...vals),
+            recentAvg,
+            changePercent,
+            trend,
+            regression: reg,
+            slopeNorm
+        };
+    }
+
+    // ---- Chart Drawing ----
+    function drawTrendChart() {
+        const canvas = document.getElementById('trendChart');
+        const ctx = canvas.getContext('2d');
+        const dpr = window.devicePixelRatio || 1;
+
+        const metric = document.getElementById('metricSelect').value;
+        const maWindow = parseInt(document.getElementById('maWindow').value);
+        const range = document.getElementById('rangeSelect').value;
+        const showMA = document.getElementById('showMA').checked;
+        const showTrend = document.getElementById('showTrendLine').checked;
+        const showBands = document.getElementById('showBands').checked;
+        const showGrid = document.getElementById('showGrid').checked;
+
+        let data = printData;
+        if (range !== 'all') data = data.slice(-parseInt(range));
+
+        const vals = data.map(p => getMetricValue(p, metric)).filter(v => v != null);
+        if (vals.length === 0) return;
+
+        const w = canvas.parentElement.clientWidth;
+        const h = 400;
+        canvas.width = w * dpr;
+        canvas.height = h * dpr;
+        canvas.style.width = w + 'px';
+        canvas.style.height = h + 'px';
+        ctx.scale(dpr, dpr);
+        ctx.clearRect(0, 0, w, h);
+
+        const pad = { top: 20, right: 20, bottom: 40, left: 60 };
+        const cw = w - pad.left - pad.right;
+        const ch = h - pad.top - pad.bottom;
+
+        const vMin = Math.min(...vals);
+        const vMax = Math.max(...vals);
+        const vRange = vMax - vMin || 1;
+        const margin = vRange * 0.1;
+        const yMin = vMin - margin;
+        const yMax = vMax + margin;
+
+        function xPos(i) { return pad.left + (i / (vals.length - 1 || 1)) * cw; }
+        function yPos(v) { return pad.top + (1 - (v - yMin) / (yMax - yMin)) * ch; }
+
+        // Grid lines
+        if (showGrid) {
+            ctx.strokeStyle = 'rgba(51, 65, 85, 0.5)';
+            ctx.lineWidth = 0.5;
+            const gridLines = 5;
+            for (let i = 0; i <= gridLines; i++) {
+                const y = pad.top + (i / gridLines) * ch;
+                ctx.beginPath();
+                ctx.moveTo(pad.left, y);
+                ctx.lineTo(w - pad.right, y);
+                ctx.stroke();
+            }
+        }
+
+        // +/- 1 sigma bands
+        if (showBands) {
+            const m = mean(vals);
+            const sd = stdDev(vals, m);
+            const bandTop = yPos(m + sd);
+            const bandBot = yPos(m - sd);
+            ctx.fillStyle = 'rgba(56, 189, 248, 0.08)';
+            ctx.fillRect(pad.left, bandTop, cw, bandBot - bandTop);
+
+            // Mean line
+            ctx.strokeStyle = 'rgba(56, 189, 248, 0.3)';
+            ctx.lineWidth = 1;
+            ctx.setLineDash([4, 4]);
+            ctx.beginPath();
+            ctx.moveTo(pad.left, yPos(m));
+            ctx.lineTo(w - pad.right, yPos(m));
+            ctx.stroke();
+            ctx.setLineDash([]);
+        }
+
+        // Raw data line
+        const color = metricColors[metric] || '#38bdf8';
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 1.5;
+        ctx.globalAlpha = 0.7;
+        ctx.beginPath();
+        for (let i = 0; i < vals.length; i++) {
+            const x = xPos(i), y = yPos(vals[i]);
+            if (i === 0) ctx.moveTo(x, y);
+            else ctx.lineTo(x, y);
+        }
+        ctx.stroke();
+        ctx.globalAlpha = 1;
+
+        // Moving average
+        if (showMA && maWindow > 0) {
+            const ma = movingAverage(vals, maWindow);
+            ctx.strokeStyle = '#ffffff';
+            ctx.lineWidth = 2.5;
+            ctx.beginPath();
+            let started = false;
+            for (let i = 0; i < ma.length; i++) {
+                if (ma[i] == null) continue;
+                const x = xPos(i), y = yPos(ma[i]);
+                if (!started) { ctx.moveTo(x, y); started = true; }
+                else ctx.lineTo(x, y);
+            }
+            ctx.stroke();
+        }
+
+        // Trend line (linear regression)
+        if (showTrend) {
+            const reg = linearRegression(vals);
+            ctx.strokeStyle = '#fbbf24';
+            ctx.lineWidth = 2;
+            ctx.setLineDash([6, 3]);
+            ctx.beginPath();
+            ctx.moveTo(xPos(0), yPos(reg.intercept));
+            ctx.lineTo(xPos(vals.length - 1), yPos(reg.intercept + reg.slope * (vals.length - 1)));
+            ctx.stroke();
+            ctx.setLineDash([]);
+
+            // R-squared label
+            ctx.fillStyle = '#fbbf24';
+            ctx.font = '11px -apple-system, sans-serif';
+            ctx.fillText('R\u00b2 = ' + reg.r2.toFixed(3), w - pad.right - 80, pad.top + 15);
+        }
+
+        // Y-axis labels
+        ctx.fillStyle = 'rgba(148, 163, 184, 0.8)';
+        ctx.font = '11px -apple-system, sans-serif';
+        ctx.textAlign = 'right';
+        const yTicks = 5;
+        for (let i = 0; i <= yTicks; i++) {
+            const v = yMin + (i / yTicks) * (yMax - yMin);
+            const y = yPos(v);
+            ctx.fillText(formatNum(v), pad.left - 8, y + 4);
+        }
+
+        // X-axis labels
+        ctx.textAlign = 'center';
+        const xTicks = Math.min(vals.length - 1, 10);
+        for (let i = 0; i <= xTicks; i++) {
+            const idx = Math.round((i / xTicks) * (vals.length - 1));
+            ctx.fillText('#' + (idx + 1), xPos(idx), h - pad.bottom + 20);
+        }
+
+        // Axis label
+        ctx.save();
+        ctx.translate(14, pad.top + ch / 2);
+        ctx.rotate(-Math.PI / 2);
+        ctx.textAlign = 'center';
+        ctx.fillStyle = 'rgba(148, 163, 184, 0.6)';
+        ctx.font = '12px -apple-system, sans-serif';
+        ctx.fillText(metricLabels[metric] || metric, 0, 0);
+        ctx.restore();
+
+        ctx.fillStyle = 'rgba(148, 163, 184, 0.6)';
+        ctx.textAlign = 'center';
+        ctx.fillText('Print Sequence', pad.left + cw / 2, h - 4);
+
+        // Store for tooltip
+        canvas._trendData = { vals, xPos, yPos, color, metric, pad, w, h };
+    }
+
+    // ---- Tooltip ----
+    function setupTooltip() {
+        const canvas = document.getElementById('trendChart');
+        const tooltip = document.getElementById('chartTooltip');
+
+        canvas.addEventListener('mousemove', function(e) {
+            const data = canvas._trendData;
+            if (!data || data.vals.length === 0) return;
+
+            const rect = canvas.getBoundingClientRect();
+            const mx = e.clientX - rect.left;
+            const my = e.clientY - rect.top;
+
+            // Find closest point
+            let closest = -1, minDist = Infinity;
+            for (let i = 0; i < data.vals.length; i++) {
+                const px = data.xPos(i);
+                const d = Math.abs(mx - px);
+                if (d < minDist) { minDist = d; closest = i; }
+            }
+
+            if (closest < 0 || minDist > 30) {
+                tooltip.classList.remove('visible');
+                return;
+            }
+
+            const val = data.vals[closest];
+            const px = data.xPos(closest);
+            const py = data.yPos(val);
+
+            tooltip.innerHTML = '<strong>' + escapeHtml(metricLabels[data.metric]) + '</strong><br>'
+                + 'Print #' + (closest + 1) + '<br>'
+                + 'Value: <strong>' + formatNum(val) + '</strong>';
+
+            tooltip.style.left = (px + 12) + 'px';
+            tooltip.style.top = (py - 20) + 'px';
+            tooltip.classList.add('visible');
+
+            // Draw highlight dot
+            drawTrendChart();
+            const ctx = canvas.getContext('2d');
+            const dpr = window.devicePixelRatio || 1;
+            ctx.save();
+            ctx.scale(dpr, dpr);
+            // Crosshair
+            ctx.strokeStyle = 'rgba(148, 163, 184, 0.3)';
+            ctx.lineWidth = 1;
+            ctx.setLineDash([3, 3]);
+            ctx.beginPath();
+            ctx.moveTo(px, data.pad.top);
+            ctx.lineTo(px, data.h - data.pad.bottom);
+            ctx.stroke();
+            ctx.setLineDash([]);
+            // Dot
+            ctx.fillStyle = data.color;
+            ctx.beginPath();
+            ctx.arc(px, py, 5, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.strokeStyle = '#fff';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+            ctx.restore();
+        });
+
+        canvas.addEventListener('mouseleave', function() {
+            tooltip.classList.remove('visible');
+        });
+    }
+
+    // ---- Trend Summary Table ----
+    function renderTrendTable() {
+        const tbody = document.getElementById('trendTableBody');
+        const analyses = METRICS.map(m => analyzeMetric(printData, m)).filter(a => a);
+
+        let upCount = 0, downCount = 0, volatileCount = 0;
+
+        tbody.innerHTML = analyses.map(a => {
+            if (a.trend === 'up') upCount++;
+            if (a.trend === 'down') downCount++;
+            if (a.cv > 50) volatileCount++;
+
+            const trendClass = a.trend === 'up' ? 'trend-up' : a.trend === 'down' ? 'trend-down' : 'trend-flat';
+            const trendIcon = a.trend === 'up' ? '\u2191' : a.trend === 'down' ? '\u2193' : '\u2192';
+            const badgeClass = a.trend === 'up' ? 'badge-up' : a.trend === 'down' ? 'badge-down' : 'badge-flat';
+            const changePre = a.changePercent > 0 ? '+' : '';
+            const volBadge = a.cv > 50 ? ' <span class="badge badge-volatile">volatile</span>' : '';
+
+            return '<tr>'
+                + '<td><strong>' + escapeHtml(metricLabels[a.metric]) + '</strong></td>'
+                + '<td>' + formatNum(a.recentAvg) + '</td>'
+                + '<td>' + formatNum(a.mean) + '</td>'
+                + '<td class="' + trendClass + '">' + changePre + a.changePercent.toFixed(1) + '%</td>'
+                + '<td><span class="badge ' + badgeClass + '">' + trendIcon + ' ' + a.trend + '</span></td>'
+                + '<td>' + a.cv.toFixed(1) + '%' + volBadge + '</td>'
+                + '<td>' + formatNum(a.min) + '</td>'
+                + '<td>' + formatNum(a.max) + '</td>'
+                + '</tr>';
+        }).join('');
+
+        // Update stats cards
+        document.getElementById('totalPrints').textContent = printData.length;
+        document.getElementById('trendingUp').textContent = upCount;
+        document.getElementById('trendingDown').textContent = downCount;
+        document.getElementById('volatileCount').textContent = volatileCount;
+    }
+
+    // ---- Correlation Matrix ----
+    function renderCorrelation() {
+        const container = document.getElementById('corrMatrix');
+        const n = METRICS.length;
+        const metricVals = {};
+        METRICS.forEach(m => {
+            metricVals[m] = printData.map(p => getMetricValue(p, m)).filter(v => v != null);
+        });
+
+        // Build correlation matrix
+        const corrs = [];
+        let totalAbs = 0, corrCount = 0;
+        for (let i = 0; i < n; i++) {
+            corrs[i] = [];
+            for (let j = 0; j < n; j++) {
+                if (i === j) { corrs[i][j] = 1; continue; }
+                corrs[i][j] = pearsonCorrelation(metricVals[METRICS[i]], metricVals[METRICS[j]]);
+                if (j > i) { totalAbs += Math.abs(corrs[i][j]); corrCount++; }
+            }
+        }
+
+        const avgCorr = corrCount > 0 ? totalAbs / corrCount : 0;
+        document.getElementById('avgCorrelation').textContent = avgCorr.toFixed(2);
+
+        // Render grid
+        const cols = n + 1;
+        container.style.display = 'grid';
+        container.style.gridTemplateColumns = '80px ' + 'repeat(' + n + ', 1fr)';
+        container.style.gap = '2px';
+        container.style.maxWidth = '700px';
+        container.style.margin = '0 auto';
+
+        let html = '<div class="corr-header"></div>';
+        for (let j = 0; j < n; j++) {
+            const short = (metricLabels[METRICS[j]] || METRICS[j]).split(' ')[0];
+            html += '<div class="corr-header">' + escapeHtml(short) + '</div>';
+        }
+
+        for (let i = 0; i < n; i++) {
+            const short = (metricLabels[METRICS[i]] || METRICS[i]).split(' ')[0];
+            html += '<div class="corr-header" style="text-align:right;padding-right:6px">' + escapeHtml(short) + '</div>';
+            for (let j = 0; j < n; j++) {
+                const r = corrs[i][j];
+                const abs = Math.abs(r);
+                let bg;
+                if (r > 0) bg = 'rgba(74, 222, 128, ' + (abs * 0.6) + ')';
+                else bg = 'rgba(248, 113, 113, ' + (abs * 0.6) + ')';
+                if (i === j) bg = 'rgba(56, 189, 248, 0.3)';
+
+                const textColor = abs > 0.4 || i === j ? '#fff' : 'var(--muted)';
+                html += '<div class="corr-cell" style="background:' + bg + ';color:' + textColor + '"'
+                    + ' title="' + escapeHtml(metricLabels[METRICS[i]]) + ' vs ' + escapeHtml(metricLabels[METRICS[j]]) + ': r=' + r.toFixed(3) + '">'
+                    + r.toFixed(2) + '</div>';
+            }
+        }
+
+        container.innerHTML = html;
+    }
+
+    // ---- Smart Insights ----
+    function renderInsights() {
+        const container = document.getElementById('insightsContainer');
+        const analyses = METRICS.map(m => analyzeMetric(printData, m)).filter(a => a);
+        const insights = [];
+
+        // Declining viability warning
+        const live = analyses.find(a => a.metric === 'livePercent');
+        if (live && live.trend === 'down') {
+            insights.push({ type: 'danger', icon: '\u26a0\ufe0f',
+                text: 'Cell viability (Live Cell %) is <strong>trending downward</strong>. Recent average: '
+                    + formatNum(live.recentAvg) + '% vs overall: ' + formatNum(live.mean)
+                    + '%. Consider reviewing material freshness and print parameters.' });
+        } else if (live && live.trend === 'up') {
+            insights.push({ type: 'good', icon: '\u2705',
+                text: 'Cell viability is <strong>improving</strong>! Recent average: '
+                    + formatNum(live.recentAvg) + '% vs overall: ' + formatNum(live.mean) + '%.' });
+        }
+
+        // High volatility warnings
+        const volatile = analyses.filter(a => a.cv > 50);
+        if (volatile.length > 0) {
+            const names = volatile.map(a => '<strong>' + metricLabels[a.metric] + '</strong> (CV=' + a.cv.toFixed(1) + '%)').join(', ');
+            insights.push({ type: 'warn', icon: '\ud83d\udcc9',
+                text: 'High volatility detected in: ' + names + '. Inconsistent parameters may affect reproducibility.' });
+        }
+
+        // Strong correlations
+        const metricVals = {};
+        METRICS.forEach(m => {
+            metricVals[m] = printData.map(p => getMetricValue(p, m)).filter(v => v != null);
+        });
+        const strongCorrs = [];
+        for (let i = 0; i < METRICS.length; i++) {
+            for (let j = i + 1; j < METRICS.length; j++) {
+                const r = pearsonCorrelation(metricVals[METRICS[i]], metricVals[METRICS[j]]);
+                if (Math.abs(r) > 0.6) {
+                    strongCorrs.push({ m1: METRICS[i], m2: METRICS[j], r });
+                }
+            }
+        }
+        if (strongCorrs.length > 0) {
+            const top = strongCorrs.sort((a, b) => Math.abs(b.r) - Math.abs(a.r)).slice(0, 3);
+            const desc = top.map(c => {
+                const dir = c.r > 0 ? 'positive' : 'negative';
+                return '<strong>' + metricLabels[c.m1] + '</strong> &harr; <strong>' + metricLabels[c.m2]
+                    + '</strong> (r=' + c.r.toFixed(2) + ', ' + dir + ')';
+            }).join('<br>');
+            insights.push({ type: 'info', icon: '\ud83d\udd17',
+                text: 'Strong metric correlations found:<br>' + desc });
+        }
+
+        // Elasticity vs crosslinking insight
+        const elast = analyses.find(a => a.metric === 'elasticity');
+        const clDur = analyses.find(a => a.metric === 'cl_duration');
+        if (elast && clDur) {
+            const r = pearsonCorrelation(metricVals['elasticity'], metricVals['cl_duration']);
+            if (r > 0.3) {
+                insights.push({ type: 'info', icon: '\ud83e\uddea',
+                    text: 'Crosslinking duration and elasticity show <strong>' + (r > 0.6 ? 'strong' : 'moderate')
+                        + ' positive correlation</strong> (r=' + r.toFixed(2)
+                        + '). Longer crosslinking tends to produce stiffer constructs.' });
+            }
+        }
+
+        // Pressure balance
+        const ext1 = analyses.find(a => a.metric === 'extruder1');
+        const ext2 = analyses.find(a => a.metric === 'extruder2');
+        if (ext1 && ext2 && Math.abs(ext1.mean - ext2.mean) > ext1.mean * 0.3) {
+            insights.push({ type: 'warn', icon: '\u2696\ufe0f',
+                text: 'Significant extruder pressure imbalance detected. Extruder 1 avg: '
+                    + formatNum(ext1.mean) + ' vs Extruder 2 avg: ' + formatNum(ext2.mean)
+                    + '. This may affect print uniformity.' });
+        }
+
+        // Overall trend
+        const upCount = analyses.filter(a => a.trend === 'up').length;
+        const downCount = analyses.filter(a => a.trend === 'down').length;
+        if (upCount > downCount + 2) {
+            insights.push({ type: 'good', icon: '\ud83d\udcc8',
+                text: upCount + ' of ' + analyses.length + ' metrics are trending upward. Process parameters appear to be <strong>improving over time</strong>.' });
+        } else if (downCount > upCount + 2) {
+            insights.push({ type: 'danger', icon: '\ud83d\udcc9',
+                text: downCount + ' of ' + analyses.length + ' metrics are trending downward. Consider reviewing recent changes to the process.' });
+        }
+
+        if (insights.length === 0) {
+            insights.push({ type: 'info', icon: '\u2139\ufe0f',
+                text: 'All metrics appear stable. No significant trends or anomalies detected.' });
+        }
+
+        container.innerHTML = insights.map(i =>
+            '<div class="insight insight-' + i.type + '">'
+            + '<div class="insight-icon">' + i.icon + '</div>'
+            + '<div>' + i.text + '</div>'
+            + '</div>'
+        ).join('');
+    }
+
+    // ---- Initialize ----
+    function populateMetricSelect() {
+        const select = document.getElementById('metricSelect');
+        METRICS.forEach(m => {
+            const opt = document.createElement('option');
+            opt.value = m;
+            opt.textContent = metricLabels[m] || m;
+            select.appendChild(opt);
+        });
+    }
+
+    function refresh() {
+        drawTrendChart();
+        renderTrendTable();
+        renderCorrelation();
+        renderInsights();
+    }
+
+    populateMetricSelect();
+    setupTooltip();
+
+    // Event listeners
+    document.getElementById('metricSelect').addEventListener('change', drawTrendChart);
+    document.getElementById('maWindow').addEventListener('change', drawTrendChart);
+    document.getElementById('rangeSelect').addEventListener('change', drawTrendChart);
+    document.getElementById('showMA').addEventListener('change', drawTrendChart);
+    document.getElementById('showTrendLine').addEventListener('change', drawTrendChart);
+    document.getElementById('showBands').addEventListener('change', drawTrendChart);
+    document.getElementById('showGrid').addEventListener('change', drawTrendChart);
+    window.addEventListener('resize', drawTrendChart);
+
+    // Load data
+    fetch('bioprint-data.json')
+        .then(r => r.json())
+        .then(data => {
+            printData = data.filter(p =>
+                p.print_data && p.print_info && p.user_info &&
+                p.print_info.crosslinking && p.print_info.pressure && p.print_info.resolution
+            );
+            refresh();
+        })
+        .catch(err => {
+            document.getElementById('totalPrints').textContent = 'ERR';
+            console.error('Failed to load data:', err);
+        });
+    </script>
+</body>
+</html>
