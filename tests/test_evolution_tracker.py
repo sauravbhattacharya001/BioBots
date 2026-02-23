@@ -247,13 +247,19 @@ class TestSelectionDetection:
         assert len(all_events) >= 2  # at least x and y have changes
 
     def test_new_allele_appears(self):
+        """New allele appearing (prev_freq=0.0) is at the boundary — the
+        Wright-Fisher selection coefficient formula is not applicable, so
+        no selection event should be generated (fix for issue #15)."""
         tracker = EvolutionTracker(traits=['x'], selection_threshold=0.05)
         tracker.record_generation(0, diverse_bots('x', {'A': 100}))
         tracker.record_generation(1, diverse_bots('x', {'A': 80, 'B': 20}))
         events = tracker.get_selection_events('x')
+        # B: prev_freq=0.0 → boundary, skipped
+        # A: prev_freq=1.0 → boundary, skipped
         b_events = [e for e in events if e.allele == 'B']
-        assert len(b_events) == 1
-        assert b_events[0].direction == 'positive'
+        a_events = [e for e in events if e.allele == 'A']
+        assert len(b_events) == 0, "Boundary allele (prev_freq=0) should not produce selection event"
+        assert len(a_events) == 0, "Boundary allele (prev_freq=1) should not produce selection event"
 
     def test_allele_disappears(self):
         tracker = EvolutionTracker(traits=['x'], selection_threshold=0.05)
@@ -369,3 +375,147 @@ class TestTrendsAndReports:
         snaps = tracker.record_generation(0, bots)
         assert snaps['speed'].total == 100
         assert abs(snaps['speed'].frequencies['slow'] - 0.7) < 0.001
+
+
+# ============================================================
+# Boundary Frequency Tests (Issue #15)
+# ============================================================
+
+class TestBoundaryFrequencyFix:
+    """Tests for the selection coefficient boundary fix.
+
+    The Wright-Fisher selection coefficient s ≈ Δp / [p(1-p)] is only valid
+    when the previous allele frequency is in the interior of (0, 1). At
+    boundaries (near 0 or 1), p*(1-p) → 0 and the coefficient blows up.
+    The fix skips alleles where prev_freq < 0.01 or prev_freq > 0.99.
+    """
+
+    def test_zero_frequency_no_event(self):
+        """Allele at 0% (new allele appearing) should not trigger selection."""
+        tracker = EvolutionTracker(traits=['x'], selection_threshold=0.05)
+        tracker.record_generation(0, diverse_bots('x', {'A': 100}))
+        tracker.record_generation(1, diverse_bots('x', {'A': 80, 'B': 20}))
+        events = tracker.get_selection_events('x')
+        b_events = [e for e in events if e.allele == 'B']
+        assert len(b_events) == 0
+
+    def test_full_frequency_no_event(self):
+        """Allele at 100% (near fixation) should not trigger selection."""
+        tracker = EvolutionTracker(traits=['x'], selection_threshold=0.05)
+        tracker.record_generation(0, diverse_bots('x', {'A': 100}))
+        tracker.record_generation(1, diverse_bots('x', {'A': 90, 'B': 10}))
+        events = tracker.get_selection_events('x')
+        a_events = [e for e in events if e.allele == 'A']
+        assert len(a_events) == 0
+
+    def test_near_zero_boundary(self):
+        """Allele at 0.5% (below 1% threshold) should be skipped."""
+        tracker = EvolutionTracker(traits=['x'], selection_threshold=0.01)
+        # 200 bots: 1 with B (0.5%), 199 with A (99.5%)
+        tracker.record_generation(0, diverse_bots('x', {'A': 199, 'B': 1}))
+        # Shift B to 10%
+        tracker.record_generation(1, diverse_bots('x', {'A': 180, 'B': 20}))
+        events = tracker.get_selection_events('x')
+        b_events = [e for e in events if e.allele == 'B']
+        # B prev_freq = 0.005 < 0.01 → skipped
+        assert len(b_events) == 0
+
+    def test_near_one_boundary(self):
+        """Allele at 99.5% (above 99% threshold) should be skipped."""
+        tracker = EvolutionTracker(traits=['x'], selection_threshold=0.01)
+        tracker.record_generation(0, diverse_bots('x', {'A': 199, 'B': 1}))
+        tracker.record_generation(1, diverse_bots('x', {'A': 180, 'B': 20}))
+        events = tracker.get_selection_events('x')
+        a_events = [e for e in events if e.allele == 'A']
+        # A prev_freq = 0.995 > 0.99 → skipped
+        assert len(a_events) == 0
+
+    def test_interior_frequency_produces_event(self):
+        """Allele well within (0.01, 0.99) should still trigger selection."""
+        tracker = EvolutionTracker(traits=['x'], selection_threshold=0.05)
+        tracker.record_generation(0, diverse_bots('x', {'A': 50, 'B': 50}))
+        tracker.record_generation(1, diverse_bots('x', {'A': 80, 'B': 20}))
+        events = tracker.get_selection_events('x')
+        # Both A and B are at 0.5 prev_freq — well in interior
+        assert len(events) >= 1
+        a_events = [e for e in events if e.allele == 'A']
+        b_events = [e for e in events if e.allele == 'B']
+        if a_events:
+            assert a_events[0].direction == 'positive'
+        if b_events:
+            assert b_events[0].direction == 'negative'
+
+    def test_coefficient_clamped_to_range(self):
+        """Even in the interior, coefficient should be clamped to [-10, 10]."""
+        tracker = EvolutionTracker(traits=['x'], selection_threshold=0.01)
+        # prev_freq = 0.02 → p*(1-p) = 0.0196, delta = 0.48
+        # Unclamped: 0.48 / 0.0196 ≈ 24.5 → should be clamped to 10.0
+        tracker.record_generation(0, diverse_bots('x', {'A': 98, 'B': 2}))
+        tracker.record_generation(1, diverse_bots('x', {'A': 50, 'B': 50}))
+        events = tracker.get_selection_events('x')
+        b_events = [e for e in events if e.allele == 'B']
+        if b_events:
+            assert b_events[0].coefficient <= 10.0
+            assert b_events[0].coefficient >= -10.0
+
+    def test_negative_coefficient_clamped(self):
+        """Large negative selection should also be clamped."""
+        tracker = EvolutionTracker(traits=['x'], selection_threshold=0.01)
+        # B at 97% → p*(1-p) = 0.0291, delta from 97% to 50% = -0.47
+        # Unclamped: -0.47 / 0.0291 ≈ -16.2 → clamped to -10.0
+        tracker.record_generation(0, diverse_bots('x', {'A': 3, 'B': 97}))
+        tracker.record_generation(1, diverse_bots('x', {'A': 50, 'B': 50}))
+        events = tracker.get_selection_events('x')
+        b_events = [e for e in events if e.allele == 'B']
+        if b_events:
+            assert b_events[0].coefficient >= -10.0
+
+    def test_allele_disappears_from_interior(self):
+        """Allele disappearing from interior (prev_freq=0.2) should work."""
+        tracker = EvolutionTracker(traits=['x'], selection_threshold=0.05)
+        tracker.record_generation(0, diverse_bots('x', {'A': 80, 'B': 20}))
+        tracker.record_generation(1, diverse_bots('x', {'A': 100}))
+        events = tracker.get_selection_events('x')
+        b_events = [e for e in events if e.allele == 'B']
+        # B prev_freq=0.2 is in interior → should produce event
+        assert len(b_events) == 1
+        assert b_events[0].direction == 'negative'
+
+    def test_just_above_lower_boundary(self):
+        """Allele at exactly 1% (0.01) should produce event (boundary is <0.01)."""
+        tracker = EvolutionTracker(traits=['x'], selection_threshold=0.05)
+        # 100 bots: 1 with B (1%), 99 with A (99%)
+        # A at 99% is > 0.99 → skipped
+        # B at 1% is >= 0.01 → should produce event
+        tracker.record_generation(0, diverse_bots('x', {'A': 99, 'B': 1}))
+        tracker.record_generation(1, diverse_bots('x', {'A': 80, 'B': 20}))
+        events = tracker.get_selection_events('x')
+        b_events = [e for e in events if e.allele == 'B']
+        assert len(b_events) == 1
+        assert b_events[0].direction == 'positive'
+
+    def test_multiple_generations_boundary_then_interior(self):
+        """Allele that starts at boundary then moves to interior."""
+        tracker = EvolutionTracker(traits=['x'], selection_threshold=0.05)
+        # Gen 0: B at 0% (boundary)
+        tracker.record_generation(0, diverse_bots('x', {'A': 100}))
+        # Gen 1: B at 10% (B boundary skipped, A boundary skipped)
+        tracker.record_generation(1, diverse_bots('x', {'A': 90, 'B': 10}))
+        # Gen 2: B at 30% (B prev=10% in interior → event!)
+        tracker.record_generation(2, diverse_bots('x', {'A': 70, 'B': 30}))
+        events = tracker.get_selection_events('x')
+        b_events = [e for e in events if e.allele == 'B']
+        # Only gen 1→2 should produce B event (gen 0→1 is boundary)
+        assert len(b_events) == 1
+        assert b_events[0].generation == 2
+
+    def test_no_events_when_both_alleles_at_boundary(self):
+        """When all alleles are at boundary, no events should fire."""
+        tracker = EvolutionTracker(traits=['x'], selection_threshold=0.05)
+        # Only one allele at 100%
+        tracker.record_generation(0, diverse_bots('x', {'A': 100}))
+        # Still only one allele at 100%
+        tracker.record_generation(1, diverse_bots('x', {'B': 100}))
+        events = tracker.get_selection_events('x')
+        # A: prev_freq=1.0 (boundary), B: prev_freq=0.0 (boundary)
+        assert len(events) == 0

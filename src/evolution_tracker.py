@@ -189,9 +189,24 @@ class EvolutionTracker:
 
             if abs(delta) >= self.selection_threshold:
                 # Selection coefficient: s ≈ Δp / (p * (1-p))
-                # Bounded to avoid division by zero
-                denom = max(prev_freq * (1 - prev_freq), 0.001)
+                # This formula is derived from the Wright-Fisher model and is
+                # only valid in the interior of (0, 1). At boundary frequencies
+                # (near 0 or 1), p*(1-p) → 0 and the coefficient blows up,
+                # producing biologically implausible values (e.g., s=100).
+                # Skip boundary alleles where the formula doesn't apply.
+                if prev_freq < 0.01 or prev_freq > 0.99:
+                    continue
+
+                denom = prev_freq * (1 - prev_freq)
+                # Defensive clamp — shouldn't trigger given the boundary check
+                # above, but guards against floating-point edge cases.
+                denom = max(denom, 0.001)
                 coefficient = delta / denom
+
+                # Clamp to biologically plausible range. Real-world selection
+                # coefficients rarely exceed ±1.0; values beyond ±10 are
+                # almost certainly artifacts.
+                coefficient = max(-10.0, min(10.0, coefficient))
 
                 event = SelectionEvent(
                     trait_name=trait,
