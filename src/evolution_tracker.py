@@ -283,17 +283,22 @@ class EvolutionTracker:
         if ht <= 0:
             return 0.0
 
-        # Mean subgroup heterozygosity
+        # Mean subgroup heterozygosity (weighted by subgroup size)
         hs_values = []
+        group_sizes = []
         for group in subgroups:
             if group:
                 sub_snap = self._make_snapshot(trait, group)
                 hs_values.append(sub_snap.simpson)
+                group_sizes.append(len(group))
 
         if not hs_values:
             return None
 
-        mean_hs = sum(hs_values) / len(hs_values)
+        total_n = sum(group_sizes)
+        if total_n == 0:
+            return None
+        mean_hs = sum(n / total_n * hs for n, hs in zip(group_sizes, hs_values))
         return (ht - mean_hs) / ht
 
     def _make_snapshot(self, trait: str, bots: list) -> TraitSnapshot:

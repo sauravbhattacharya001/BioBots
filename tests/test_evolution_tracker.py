@@ -314,6 +314,83 @@ class TestAdvancedMetrics:
         assert tracker.get_fixation_index('x') is None
         assert tracker.get_fixation_index('x', []) is None
 
+    def test_fixation_index_unequal_sizes_never_negative(self):
+        """Regression test for issue #16: Fst must never be negative."""
+        tracker = EvolutionTracker(traits=['color'])
+        # Large uniform group + small diverse group
+        group_a = diverse_bots('color', {'blue': 900})
+        group_b = diverse_bots('color', {'blue': 50, 'red': 50})
+        fst = tracker.get_fixation_index('color', [group_a, group_b])
+        assert fst is not None
+        assert fst >= 0.0, f"Fst should be non-negative, got {fst}"
+
+    def test_fixation_index_weighted_vs_unweighted(self):
+        """Verify weighted mean gives correct results for unequal group sizes."""
+        tracker = EvolutionTracker(traits=['color'])
+        # Group A: 800 bots, all blue (Simpson D = 0)
+        # Group B: 200 bots, 50/50 split (Simpson D = 0.5)
+        group_a = diverse_bots('color', {'blue': 800})
+        group_b = diverse_bots('color', {'blue': 100, 'red': 100})
+        fst = tracker.get_fixation_index('color', [group_a, group_b])
+        assert fst is not None
+        # Weighted Hs = (800/1000)*0.0 + (200/1000)*0.5 = 0.1
+        # Ht for 900 blue, 100 red out of 1000 = 1 - (0.9^2 + 0.1^2) = 0.18
+        # Fst = (0.18 - 0.1) / 0.18 ≈ 0.44
+        assert 0.3 < fst < 0.6, f"Expected Fst ~0.44, got {fst}"
+
+    def test_fixation_index_equal_sizes_unchanged(self):
+        """Equal-sized groups should give same result as before (backward compat)."""
+        tracker = EvolutionTracker(traits=['color'])
+        group1 = diverse_bots('color', {'red': 100, 'blue': 100})
+        group2 = diverse_bots('color', {'red': 100, 'blue': 100})
+        fst = tracker.get_fixation_index('color', [group1, group2])
+        assert fst is not None
+        # Identical groups → no differentiation
+        assert abs(fst) < 0.01
+
+    def test_fixation_index_three_unequal_groups(self):
+        """Weighted Fst with 3 groups of different sizes."""
+        tracker = EvolutionTracker(traits=['color'])
+        group_a = diverse_bots('color', {'red': 500})
+        group_b = diverse_bots('color', {'blue': 300})
+        group_c = diverse_bots('color', {'red': 100, 'blue': 100})
+        fst = tracker.get_fixation_index('color', [group_a, group_b, group_c])
+        assert fst is not None
+        assert fst > 0.0
+        assert fst <= 1.0
+
+    def test_fixation_index_single_bot_groups(self):
+        """Edge case: groups with 1 bot each (Simpson D = 0 for all)."""
+        tracker = EvolutionTracker(traits=['color'])
+        g1 = [{'traits': {'color': 'red'}}]
+        g2 = [{'traits': {'color': 'blue'}}]
+        fst = tracker.get_fixation_index('color', [g1, g2])
+        # Ht = 0.5 (50/50), each subgroup Hs = 0
+        # Fst = (0.5 - 0) / 0.5 = 1.0 (complete differentiation)
+        assert fst is not None
+        assert abs(fst - 1.0) < 0.01
+
+    def test_fixation_index_range_0_to_1(self):
+        """Fst should always be in [0, 1] for reasonable inputs."""
+        tracker = EvolutionTracker(traits=['t'])
+        for _ in range(20):
+            import random
+            sizes = [random.randint(10, 500) for _ in range(random.randint(2, 5))]
+            groups = []
+            for s in sizes:
+                dist = {}
+                for c in ['A', 'B', 'C', 'D']:
+                    n = random.randint(0, s)
+                    if n > 0:
+                        dist[c] = n
+                if not dist:
+                    dist['A'] = s
+                groups.append(diverse_bots('t', dist))
+            fst = tracker.get_fixation_index('t', groups)
+            if fst is not None:
+                assert fst >= -0.001, f"Fst={fst} is negative"
+                assert fst <= 1.001, f"Fst={fst} exceeds 1"
+
 
 # ============================================================
 # Trend and Report Tests
