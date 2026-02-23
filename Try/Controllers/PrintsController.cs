@@ -275,13 +275,16 @@ namespace BioBots.Controllers
             if (prints.Length == 0)
                 return NotFound();
 
-            // O(1) aggregation from pre-computed stats
+            // O(1) aggregation from pre-computed stats (case-insensitive)
             MetricStats ms;
             if (stats.TryGetValue(metricKey, out ms))
             {
-                if (param == "Maximum") return Ok(descriptor.IsInteger ? (object)(int)ms.Max : ms.Max);
-                if (param == "Minimum") return Ok(descriptor.IsInteger ? (object)(int)ms.Min : ms.Min);
-                if (param == "Average") return Ok(ms.Average);
+                if (string.Equals(param, "Maximum", StringComparison.OrdinalIgnoreCase))
+                    return Ok(descriptor.IsInteger ? (object)(int)ms.Max : ms.Max);
+                if (string.Equals(param, "Minimum", StringComparison.OrdinalIgnoreCase))
+                    return Ok(descriptor.IsInteger ? (object)(int)ms.Min : ms.Min);
+                if (string.Equals(param, "Average", StringComparison.OrdinalIgnoreCase))
+                    return Ok(ms.Average);
             }
 
             // Validate arithmetic operator before attempting numeric parse
