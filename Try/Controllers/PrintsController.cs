@@ -57,6 +57,9 @@ namespace BioBots.Controllers
         // Key = metric name (matches route parameter), Value = pre-computed min/max/avg.
         private static Dictionary<string, MetricStats> _cachedStats;
 
+        // Pre-sorted metric values for O(log n) comparison queries via binary search.
+        private static Dictionary<string, double[]> _cachedSortedValues;
+
         /// <summary>
         /// Registry of all queryable metrics. Maps the metric name (used in the
         /// URL route) to its selector and type. Adding a new metric is a one-line
@@ -80,12 +83,14 @@ namespace BioBots.Controllers
 
         Print[] prints;
         Dictionary<string, MetricStats> stats;
+        Dictionary<string, double[]> sortedValues;
 
         public PrintsController() : base()
         {
             EnsureCache();
             prints = _cachedPrints;
             stats = _cachedStats;
+            sortedValues = _cachedSortedValues;
         }
 
         /// <summary>
@@ -137,6 +142,7 @@ namespace BioBots.Controllers
                 var sw = Stopwatch.StartNew();
                 _cachedPrints = LoadAndFilterPrints(path);
                 _cachedStats = PrecomputeStats(_cachedPrints);
+                _cachedSortedValues = PrecomputeSortedValues(_cachedPrints);
                 _cachedFileTimestamp = lastWrite;
                 sw.Stop();
 
@@ -213,42 +219,96 @@ namespace BioBots.Controllers
             if (prints.Length == 0)
                 return new Dictionary<string, MetricStats>();
 
-            // Initialize accumulators from the metric registry
-            var mins = new Dictionary<string, double>();
-            var maxs = new Dictionary<string, double>();
-            var sums = new Dictionary<string, double>();
-            foreach (var key in MetricRegistry.Keys)
+            // Snapshot keys+selectors into arrays for ordinal-indexed inner loop
+            var keys = new List<string>(MetricRegistry.Keys);
+            var selectors = new Func<Print, double>[keys.Count];
+            for (int k = 0; k < keys.Count; k++)
+                selectors[k] = MetricRegistry[keys[k]].Selector;
+
+            int metricCount = keys.Count;
+            var mins = new double[metricCount];
+            var maxs = new double[metricCount];
+            var sums = new double[metricCount];
+
+            for (int k = 0; k < metricCount; k++)
             {
-                mins[key] = double.MaxValue;
-                maxs[key] = double.MinValue;
-                sums[key] = 0;
+                mins[k] = double.MaxValue;
+                maxs[k] = double.MinValue;
             }
 
-            // Single pass over all records — compute all metrics at once
+            // Single pass: array-indexed access avoids dictionary hash lookups
             for (int i = 0; i < prints.Length; i++)
             {
                 var p = prints[i];
-                foreach (var kvp in MetricRegistry)
+                for (int k = 0; k < metricCount; k++)
                 {
-                    double val = kvp.Value.Selector(p);
-                    if (val < mins[kvp.Key]) mins[kvp.Key] = val;
-                    if (val > maxs[kvp.Key]) maxs[kvp.Key] = val;
-                    sums[kvp.Key] += val;
+                    double val = selectors[k](p);
+                    if (val < mins[k]) mins[k] = val;
+                    if (val > maxs[k]) maxs[k] = val;
+                    sums[k] += val;
                 }
             }
 
             var result = new Dictionary<string, MetricStats>();
-            foreach (var key in MetricRegistry.Keys)
+            for (int k = 0; k < metricCount; k++)
             {
-                result[key] = new MetricStats
+                result[keys[k]] = new MetricStats
                 {
-                    Min = mins[key],
-                    Max = maxs[key],
-                    Average = sums[key] / prints.Length
+                    Min = mins[k],
+                    Max = maxs[k],
+                    Average = sums[k] / prints.Length
                 };
             }
 
             return result;
+        }
+
+        /// <summary>
+        /// Pre-sort all metric values at cache load time so comparison queries
+        /// can use binary search (O(log n)) instead of linear scan (O(n)).
+        /// </summary>
+        private static Dictionary<string, double[]> PrecomputeSortedValues(Print[] prints)
+        {
+            var result = new Dictionary<string, double[]>();
+            foreach (var kvp in MetricRegistry)
+            {
+                var values = new double[prints.Length];
+                for (int i = 0; i < prints.Length; i++)
+                    values[i] = kvp.Value.Selector(prints[i]);
+                Array.Sort(values);
+                result[kvp.Key] = values;
+            }
+            return result;
+        }
+
+        /// <summary>
+        /// Returns the index of the first element >= value (lower bound).
+        /// </summary>
+        private static int LowerBound(double[] sorted, double value)
+        {
+            int lo = 0, hi = sorted.Length;
+            while (lo < hi)
+            {
+                int mid = lo + (hi - lo) / 2;
+                if (sorted[mid] < value) lo = mid + 1;
+                else hi = mid;
+            }
+            return lo;
+        }
+
+        /// <summary>
+        /// Returns the index of the first element > value (upper bound).
+        /// </summary>
+        private static int UpperBound(double[] sorted, double value)
+        {
+            int lo = 0, hi = sorted.Length;
+            while (lo < hi)
+            {
+                int mid = lo + (hi - lo) / 2;
+                if (sorted[mid] <= value) lo = mid + 1;
+                else hi = mid;
+            }
+            return lo;
         }
 
         /// <summary>
@@ -297,16 +357,41 @@ namespace BioBots.Controllers
 
             var selector = descriptor.Selector;
 
-            if (arithmetic == "greater") return Ok(prints.Count(p => selector(p) > value));
-            if (arithmetic == "lesser")  return Ok(prints.Count(p => selector(p) < value));
+            // Use pre-sorted arrays for O(log n) comparison queries
+            double[] sorted;
+            if (!sortedValues.TryGetValue(metricKey, out sorted) || sorted.Length == 0)
+                return NotFound();
+
+            if (arithmetic == "greater")
+            {
+                // Count values > value: find first index > value via upper bound
+                int pos = UpperBound(sorted, value);
+                return Ok(sorted.Length - pos);
+            }
+            if (arithmetic == "lesser")
+            {
+                // Count values < value: find first index >= value via lower bound
+                int pos = LowerBound(sorted, value);
+                return Ok(pos);
+            }
 
             // Equality: integers use exact match, doubles use epsilon tolerance (fixes #7)
             if (arithmetic == "equal")
             {
                 if (descriptor.IsInteger)
-                    return Ok(prints.Count(p => (int)selector(p) == (int)value));
+                {
+                    // Integer equality: count range [value, value+1)
+                    int lo = LowerBound(sorted, (int)value);
+                    int hi = UpperBound(sorted, (int)value);
+                    return Ok(hi - lo);
+                }
                 else
-                    return Ok(prints.Count(p => Math.Abs(selector(p) - value) < Epsilon));
+                {
+                    // Double equality with epsilon: count range (value-eps, value+eps)
+                    int lo = LowerBound(sorted, value - Epsilon);
+                    int hi = UpperBound(sorted, value + Epsilon);
+                    return Ok(hi - lo);
+                }
             }
 
             return NotFound();
