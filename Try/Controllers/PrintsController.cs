@@ -326,5 +326,311 @@ namespace BioBots.Controllers
         [HttpGet]
         public IHttpActionResult GetPrintMetric(string metric, string arithmetic, string param)
             => QueryMetric(metric, arithmetic, param);
+
+        // ── Batch Statistics API ────────────────────────────────────────────
+
+        /// <summary>
+        /// Returns descriptive statistics for all queryable metrics in a single
+        /// response. Each metric includes count, mean, standard deviation, min,
+        /// max, median, quartiles, and IQR. Enables dashboard pages to fetch
+        /// all statistics in one request instead of 11+ separate calls.
+        /// 
+        /// GET api/prints/stats
+        /// </summary>
+        [Route("api/prints/stats")]
+        [HttpGet]
+        public IHttpActionResult GetAllStats()
+        {
+            if (prints.Length == 0)
+                return NotFound();
+
+            var result = new Dictionary<string, object>();
+            result["recordCount"] = prints.Length;
+
+            var metrics = new Dictionary<string, object>();
+            foreach (var kvp in MetricRegistry)
+            {
+                var values = ExtractSortedValues(kvp.Key);
+                metrics[kvp.Key] = ComputeDescriptiveStats(kvp.Key, values, kvp.Value.IsInteger);
+            }
+            result["metrics"] = metrics;
+
+            return Ok(result);
+        }
+
+        /// <summary>
+        /// Returns detailed statistics for a single metric, including percentiles
+        /// (P5, P10, P25, P50, P75, P90, P95, P99) and a 10-bin histogram for
+        /// distribution visualization.
+        /// 
+        /// GET api/prints/stats/{metric}
+        /// </summary>
+        [Route("api/prints/stats/{metric}")]
+        [HttpGet]
+        public IHttpActionResult GetMetricStats(string metric)
+        {
+            MetricDescriptor descriptor;
+            if (!MetricRegistry.TryGetValue(metric, out descriptor))
+                return BadRequest($"Unknown metric: '{metric}'. Valid metrics: {string.Join(", ", MetricRegistry.Keys)}.");
+
+            if (prints.Length == 0)
+                return NotFound();
+
+            var values = ExtractSortedValues(metric);
+            var result = ComputeDescriptiveStats(metric, values, descriptor.IsInteger);
+
+            // Add extended percentiles
+            result["percentiles"] = new Dictionary<string, double>
+            {
+                { "p5",  Percentile(values, 0.05) },
+                { "p10", Percentile(values, 0.10) },
+                { "p25", Percentile(values, 0.25) },
+                { "p50", Percentile(values, 0.50) },
+                { "p75", Percentile(values, 0.75) },
+                { "p90", Percentile(values, 0.90) },
+                { "p95", Percentile(values, 0.95) },
+                { "p99", Percentile(values, 0.99) },
+            };
+
+            // Add 10-bin histogram
+            result["histogram"] = ComputeHistogram(values, 10);
+
+            return Ok(result);
+        }
+
+        /// <summary>
+        /// Returns a Pearson correlation matrix across all numeric metrics.
+        /// Each cell is the Pearson r coefficient between two metrics (-1 to 1).
+        /// Useful for identifying relationships between bioprint parameters
+        /// (e.g., elasticity vs. live cell percentage).
+        /// 
+        /// GET api/prints/correlations
+        /// </summary>
+        [Route("api/prints/correlations")]
+        [HttpGet]
+        public IHttpActionResult GetCorrelations()
+        {
+            if (prints.Length < 2)
+                return NotFound();
+
+            var metricKeys = new List<string>(MetricRegistry.Keys);
+            var metricValues = new Dictionary<string, double[]>();
+            var metricMeans = new Dictionary<string, double>();
+
+            // Pre-extract all metric values and compute means
+            foreach (var key in metricKeys)
+            {
+                var selector = MetricRegistry[key].Selector;
+                var vals = new double[prints.Length];
+                double sum = 0;
+                for (int i = 0; i < prints.Length; i++)
+                {
+                    vals[i] = selector(prints[i]);
+                    sum += vals[i];
+                }
+                metricValues[key] = vals;
+                metricMeans[key] = sum / prints.Length;
+            }
+
+            // Compute correlation matrix
+            var matrix = new Dictionary<string, Dictionary<string, double>>();
+            foreach (var keyA in metricKeys)
+            {
+                var row = new Dictionary<string, double>();
+                var valsA = metricValues[keyA];
+                var meanA = metricMeans[keyA];
+
+                foreach (var keyB in metricKeys)
+                {
+                    if (keyA == keyB)
+                    {
+                        row[keyB] = 1.0;
+                        continue;
+                    }
+
+                    var valsB = metricValues[keyB];
+                    var meanB = metricMeans[keyB];
+
+                    row[keyB] = PearsonCorrelation(valsA, meanA, valsB, meanB);
+                }
+                matrix[keyA] = row;
+            }
+
+            return Ok(new
+            {
+                recordCount = prints.Length,
+                metrics = metricKeys,
+                matrix
+            });
+        }
+
+        // ── Statistics Helpers ──────────────────────────────────────────────
+
+        /// <summary>
+        /// Extract all values for a metric and return them sorted ascending.
+        /// </summary>
+        private double[] ExtractSortedValues(string metricKey)
+        {
+            var selector = MetricRegistry[metricKey].Selector;
+            var values = new double[prints.Length];
+            for (int i = 0; i < prints.Length; i++)
+                values[i] = selector(prints[i]);
+            Array.Sort(values);
+            return values;
+        }
+
+        /// <summary>
+        /// Compute descriptive statistics for a pre-sorted array of values.
+        /// </summary>
+        private Dictionary<string, object> ComputeDescriptiveStats(string metricKey, double[] sorted, bool isInteger)
+        {
+            int n = sorted.Length;
+            double sum = 0;
+            for (int i = 0; i < n; i++) sum += sorted[i];
+            double mean = sum / n;
+
+            // Sample standard deviation (n-1)
+            double sumSqDev = 0;
+            for (int i = 0; i < n; i++)
+            {
+                double d = sorted[i] - mean;
+                sumSqDev += d * d;
+            }
+            double std = n > 1 ? Math.Sqrt(sumSqDev / (n - 1)) : 0;
+
+            double median = Percentile(sorted, 0.5);
+            double q1 = Percentile(sorted, 0.25);
+            double q3 = Percentile(sorted, 0.75);
+
+            var result = new Dictionary<string, object>
+            {
+                { "metric", metricKey },
+                { "count", n },
+                { "mean", Math.Round(mean, 4) },
+                { "std", Math.Round(std, 4) },
+                { "min", isInteger ? (object)(int)sorted[0] : Math.Round(sorted[0], 4) },
+                { "max", isInteger ? (object)(int)sorted[n - 1] : Math.Round(sorted[n - 1], 4) },
+                { "median", Math.Round(median, 4) },
+                { "q1", Math.Round(q1, 4) },
+                { "q3", Math.Round(q3, 4) },
+                { "iqr", Math.Round(q3 - q1, 4) },
+                { "coefficientOfVariation", mean != 0 ? Math.Round(std / Math.Abs(mean) * 100, 2) : 0.0 },
+                { "skewness", ComputeSkewness(sorted, mean, std) },
+            };
+
+            return result;
+        }
+
+        /// <summary>
+        /// Compute the percentile value using linear interpolation.
+        /// </summary>
+        private static double Percentile(double[] sorted, double p)
+        {
+            if (sorted.Length == 1) return sorted[0];
+            double rank = p * (sorted.Length - 1);
+            int lower = (int)Math.Floor(rank);
+            int upper = lower + 1;
+            if (upper >= sorted.Length) return sorted[sorted.Length - 1];
+            double frac = rank - lower;
+            return sorted[lower] + frac * (sorted[upper] - sorted[lower]);
+        }
+
+        /// <summary>
+        /// Compute adjusted Fisher-Pearson skewness coefficient.
+        /// Positive = right-skewed, negative = left-skewed, ~0 = symmetric.
+        /// </summary>
+        private static double ComputeSkewness(double[] sorted, double mean, double std)
+        {
+            int n = sorted.Length;
+            if (n < 3 || std < 1e-15) return 0;
+
+            double sumCubedDev = 0;
+            for (int i = 0; i < n; i++)
+            {
+                double d = (sorted[i] - mean) / std;
+                sumCubedDev += d * d * d;
+            }
+
+            // Adjusted Fisher-Pearson: [n / ((n-1)(n-2))] * Σ((xi-mean)/std)³
+            double adjustment = (double)n / ((n - 1) * (n - 2));
+            return Math.Round(adjustment * sumCubedDev, 4);
+        }
+
+        /// <summary>
+        /// Compute an equal-width histogram for the given sorted values.
+        /// Returns an array of bin objects with edges and counts.
+        /// </summary>
+        private static object[] ComputeHistogram(double[] sorted, int binCount)
+        {
+            double min = sorted[0];
+            double max = sorted[sorted.Length - 1];
+            double range = max - min;
+
+            // Handle edge case: all values identical
+            if (range < 1e-15)
+            {
+                return new object[]
+                {
+                    new { binStart = min, binEnd = max, count = sorted.Length }
+                };
+            }
+
+            double binWidth = range / binCount;
+            var bins = new object[binCount];
+            int idx = 0;
+
+            for (int b = 0; b < binCount; b++)
+            {
+                double binStart = min + b * binWidth;
+                double binEnd = (b == binCount - 1) ? max + 1e-10 : min + (b + 1) * binWidth;
+                int count = 0;
+
+                while (idx < sorted.Length && sorted[idx] < binEnd)
+                {
+                    count++;
+                    idx++;
+                }
+
+                // Include the final value in the last bin
+                if (b == binCount - 1)
+                {
+                    while (idx < sorted.Length)
+                    {
+                        count++;
+                        idx++;
+                    }
+                }
+
+                bins[b] = new
+                {
+                    binStart = Math.Round(binStart, 4),
+                    binEnd = Math.Round(b == binCount - 1 ? max : min + (b + 1) * binWidth, 4),
+                    count
+                };
+            }
+
+            return bins;
+        }
+
+        /// <summary>
+        /// Compute Pearson correlation coefficient between two value arrays.
+        /// Returns 0 if either array has zero variance.
+        /// </summary>
+        private static double PearsonCorrelation(double[] x, double meanX, double[] y, double meanY)
+        {
+            int n = x.Length;
+            double sumXY = 0, sumX2 = 0, sumY2 = 0;
+            for (int i = 0; i < n; i++)
+            {
+                double dx = x[i] - meanX;
+                double dy = y[i] - meanY;
+                sumXY += dx * dy;
+                sumX2 += dx * dx;
+                sumY2 += dy * dy;
+            }
+
+            double denom = Math.Sqrt(sumX2 * sumY2);
+            return denom < 1e-15 ? 0 : Math.Round(sumXY / denom, 4);
+        }
     }
 }
