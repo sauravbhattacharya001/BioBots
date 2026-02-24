@@ -347,11 +347,26 @@ namespace BioBots.Controllers
             var result = new Dictionary<string, object>();
             result["recordCount"] = prints.Length;
 
+            // Single pass: extract all metric values at once instead of
+            // 11 separate ExtractSortedValues calls (each O(N) + O(N log N)).
+            var metricKeys = new List<string>(MetricRegistry.Keys);
+            var allValues = new Dictionary<string, double[]>();
+            foreach (var key in metricKeys)
+                allValues[key] = new double[prints.Length];
+
+            for (int i = 0; i < prints.Length; i++)
+            {
+                var p = prints[i];
+                foreach (var kvp in MetricRegistry)
+                    allValues[kvp.Key][i] = kvp.Value.Selector(p);
+            }
+
+            // Sort each metric's values
             var metrics = new Dictionary<string, object>();
             foreach (var kvp in MetricRegistry)
             {
-                var values = ExtractSortedValues(kvp.Key);
-                metrics[kvp.Key] = ComputeDescriptiveStats(kvp.Key, values, kvp.Value.IsInteger);
+                Array.Sort(allValues[kvp.Key]);
+                metrics[kvp.Key] = ComputeDescriptiveStats(kvp.Key, allValues[kvp.Key], kvp.Value.IsInteger);
             }
             result["metrics"] = metrics;
 
@@ -432,28 +447,27 @@ namespace BioBots.Controllers
                 metricMeans[key] = sum / prints.Length;
             }
 
-            // Compute correlation matrix
+            // Compute correlation matrix — upper triangle only (symmetric).
+            // r(A,B) == r(B,A), so we halve the PearsonCorrelation calls
+            // from N*(N-1) to N*(N-1)/2 (110 → 55 for 11 metrics).
             var matrix = new Dictionary<string, Dictionary<string, double>>();
-            foreach (var keyA in metricKeys)
+            foreach (var key in metricKeys)
+                matrix[key] = new Dictionary<string, double>();
+
+            for (int i = 0; i < metricKeys.Count; i++)
             {
-                var row = new Dictionary<string, double>();
-                var valsA = metricValues[keyA];
-                var meanA = metricMeans[keyA];
+                var keyA = metricKeys[i];
+                matrix[keyA][keyA] = 1.0; // Self-correlation
 
-                foreach (var keyB in metricKeys)
+                for (int j = i + 1; j < metricKeys.Count; j++)
                 {
-                    if (keyA == keyB)
-                    {
-                        row[keyB] = 1.0;
-                        continue;
-                    }
-
-                    var valsB = metricValues[keyB];
-                    var meanB = metricMeans[keyB];
-
-                    row[keyB] = PearsonCorrelation(valsA, meanA, valsB, meanB);
+                    var keyB = metricKeys[j];
+                    double r = PearsonCorrelation(
+                        metricValues[keyA], metricMeans[keyA],
+                        metricValues[keyB], metricMeans[keyB]);
+                    matrix[keyA][keyB] = r;
+                    matrix[keyB][keyA] = r; // Mirror
                 }
-                matrix[keyA] = row;
             }
 
             return Ok(new
