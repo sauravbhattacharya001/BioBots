@@ -1,10 +1,10 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>BioBots 1 — Quality Control Dashboard</title>
-    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧬</text></svg>">
+    <title>BioBots 1 â€” Quality Control Dashboard</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>ðŸ§¬</text></svg>">
     <style>
         :root {
             --bg: #0f172a;
@@ -412,7 +412,7 @@
 <body>
     <div class="container">
         <header>
-            <h1>🧬 Quality Control Dashboard</h1>
+            <h1>ðŸ§¬ Quality Control Dashboard</h1>
             <p>Identify optimal bioprinting parameters and track print quality</p>
         </header>
 
@@ -421,34 +421,34 @@
             <a href="explorer.html">Data Explorer</a>
             <a href="table.html">Data Table</a>
             <a href="compare.html">Compare</a>
-            <a href="quality.html" class="active">🎯 Quality</a>
-            <a href="anomaly.html">🔍 Anomaly</a>
+            <a href="quality.html" class="active">ðŸŽ¯ Quality</a>
+            <a href="anomaly.html">ðŸ” Anomaly</a>
             <a href="trends.html">Trends</a>
-        <a href="optimizer.html" style="color:var(--muted);padding:0.5rem 1rem;border-radius:8px;text-decoration:none;font-size:0.9rem;transition:all 0.2s;">⚙️ Optimizer</a>`n            <a href="api.html">📡 API</a>
-            <a href="architecture.html">🏗️ Architecture</a>
-            <a href="guide.html">🛠️ Guide</a>
+        <a href="optimizer.html" style="color:var(--muted);padding:0.5rem 1rem;border-radius:8px;text-decoration:none;font-size:0.9rem;transition:all 0.2s;">âš™ï¸ Optimizer</a>`n            <a href="api.html">ðŸ“¡ API</a>
+            <a href="architecture.html">ðŸ—ï¸ Architecture</a>
+            <a href="guide.html">ðŸ› ï¸ Guide</a>
         </nav>
 
         <!-- Overview Stats -->
         <div class="stats-bar" id="statsBar">
             <div class="stat-card" id="overallGradeCard">
-                <div class="grade-badge grade-B" id="overallGrade">—</div>
+                <div class="grade-badge grade-B" id="overallGrade">â€”</div>
                 <div class="label">Overall Grade</div>
             </div>
             <div class="stat-card">
-                <div class="value" id="avgScore">—</div>
+                <div class="value" id="avgScore">â€”</div>
                 <div class="label">Avg Quality Score</div>
             </div>
             <div class="stat-card good">
-                <div class="value" id="highQualityCount">—</div>
-                <div class="label">High Quality (≥70)</div>
+                <div class="value" id="highQualityCount">â€”</div>
+                <div class="label">High Quality (â‰¥70)</div>
             </div>
             <div class="stat-card warn">
-                <div class="value" id="medQualityCount">—</div>
-                <div class="label">Medium (40–69)</div>
+                <div class="value" id="medQualityCount">â€”</div>
+                <div class="label">Medium (40â€“69)</div>
             </div>
             <div class="stat-card bad">
-                <div class="value" id="lowQualityCount">—</div>
+                <div class="value" id="lowQualityCount">â€”</div>
                 <div class="label">Low Quality (&lt;40)</div>
             </div>
         </div>
@@ -457,10 +457,10 @@
         <div class="grid-2">
             <!-- Correlation Heatmap -->
             <div class="card">
-                <h2><span class="emoji">🔥</span>Parameter Correlation Heatmap</h2>
+                <h2><span class="emoji">ðŸ”¥</span>Parameter Correlation Heatmap</h2>
                 <canvas id="heatmapCanvas" width="500" height="500"></canvas>
                 <div class="heatmap-legend">
-                    <span>−1.0</span>
+                    <span>âˆ’1.0</span>
                     <div class="legend-gradient"></div>
                     <span>+1.0</span>
                     <span style="margin-left: 0.5rem; font-style: italic;">Pearson r</span>
@@ -469,16 +469,16 @@
 
             <!-- Quality Score Distribution -->
             <div class="card">
-                <h2><span class="emoji">📊</span>Quality Score Distribution</h2>
+                <h2><span class="emoji">ðŸ“Š</span>Quality Score Distribution</h2>
                 <canvas id="distributionCanvas" width="500" height="400"></canvas>
                 <div style="display: flex; gap: 0.75rem; margin-top: 0.75rem; justify-content: center; font-size: 0.8rem;">
                     <div style="display: flex; align-items: center; gap: 0.3rem;">
                         <div style="width: 12px; height: 12px; border-radius: 2px; background: var(--success);"></div>
-                        <span style="color: var(--muted);">High (≥70)</span>
+                        <span style="color: var(--muted);">High (â‰¥70)</span>
                     </div>
                     <div style="display: flex; align-items: center; gap: 0.3rem;">
                         <div style="width: 12px; height: 12px; border-radius: 2px; background: var(--warning);"></div>
-                        <span style="color: var(--muted);">Medium (40–69)</span>
+                        <span style="color: var(--muted);">Medium (40â€“69)</span>
                     </div>
                     <div style="display: flex; align-items: center; gap: 0.3rem;">
                         <div style="width: 12px; height: 12px; border-radius: 2px; background: var(--error);"></div>
@@ -490,9 +490,9 @@
 
         <!-- Row 2: Parameter Impact Analysis -->
         <div class="card">
-            <h2><span class="emoji">📈</span>Parameter Impact on Viability</h2>
+            <h2><span class="emoji">ðŸ“ˆ</span>Parameter Impact on Viability</h2>
             <p style="color: var(--muted); font-size: 0.85rem; margin-bottom: 1rem;">
-                How each parameter correlates with cell viability (livePercent). Positive = higher parameter → higher viability.
+                How each parameter correlates with cell viability (livePercent). Positive = higher parameter â†’ higher viability.
             </p>
             <div id="impactContainer"></div>
         </div>
@@ -500,7 +500,7 @@
         <!-- Row 3: Top/Bottom Performers -->
         <div class="grid-2">
             <div class="card">
-                <h2><span class="emoji">🏆</span>Top 10 Performers</h2>
+                <h2><span class="emoji">ðŸ†</span>Top 10 Performers</h2>
                 <table class="performer-table" id="topTable">
                     <thead>
                         <tr>
@@ -517,7 +517,7 @@
             </div>
 
             <div class="card">
-                <h2><span class="emoji">⚠️</span>Bottom 10 Performers</h2>
+                <h2><span class="emoji">âš ï¸</span>Bottom 10 Performers</h2>
                 <table class="performer-table" id="bottomTable">
                     <thead>
                         <tr>
@@ -536,7 +536,7 @@
 
         <!-- Row 4: Optimal Parameter Finder -->
         <div class="card">
-            <h2><span class="emoji">🎯</span>Optimal Parameter Finder</h2>
+            <h2><span class="emoji">ðŸŽ¯</span>Optimal Parameter Finder</h2>
             <p style="color: var(--muted); font-size: 0.85rem; margin-bottom: 1rem;">
                 Set a minimum viability threshold. The tool shows the recommended parameter ranges from prints that meet your criteria.
             </p>
@@ -546,7 +546,7 @@
                     <input type="range" id="viabilityThreshold" min="0" max="100" value="50" step="5" />
                     <span class="slider-value" id="thresholdValue">50%</span>
                 </div>
-                <span style="color: var(--muted); font-size: 0.85rem;" id="matchCount">— prints match</span>
+                <span style="color: var(--muted); font-size: 0.85rem;" id="matchCount">â€” prints match</span>
             </div>
             <div id="optimalRanges"></div>
             <div id="optimalInsights" style="margin-top: 1rem;"></div>
@@ -554,7 +554,7 @@
 
         <!-- Row 5: Quality Score Weights -->
         <div class="card">
-            <h2><span class="emoji">⚙️</span>Quality Score Weights</h2>
+            <h2><span class="emoji">âš™ï¸</span>Quality Score Weights</h2>
             <p style="color: var(--muted); font-size: 0.85rem; margin-bottom: 1rem;">
                 Customize how the quality score is computed. Adjust weights and click "Recalculate" to update all charts.
             </p>
@@ -567,54 +567,43 @@
         </div>
 
         <footer>
-            <p>Built with 🧬 by <a href="https://github.com/sauravbhattacharya001">Saurav Bhattacharya</a></p>
+            <p>Built with ðŸ§¬ by <a href="https://github.com/sauravbhattacharya001">Saurav Bhattacharya</a></p>
             <p><a href="https://github.com/sauravbhattacharya001/BioBots">View Source</a></p>
         </footer>
     </div>
 
+    <script src="shared/constants.js"></script>
+    <script src="shared/utils.js"></script>
     <script>
     'use strict';
 
-    /* ── Constants ────────────────────────────────────────────── */
+    /* â”€â”€ Constants â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 
-    const METRICS = [
-        { key: 'livePercent',  label: 'Live Cell %',  unit: '%',   higherBetter: true,  get: p => p.print_data.livePercent },
-        { key: 'deadPercent',  label: 'Dead Cell %',  unit: '%',   higherBetter: false, get: p => p.print_data.deadPercent },
-        { key: 'elasticity',   label: 'Elasticity',   unit: 'kPa', higherBetter: true,  get: p => p.print_data.elasticity },
-        { key: 'cl_duration',  label: 'CL Duration',  unit: 'ms',  higherBetter: null,  get: p => p.print_info.crosslinking.cl_duration },
-        { key: 'cl_intensity', label: 'CL Intensity', unit: '%',   higherBetter: null,  get: p => p.print_info.crosslinking.cl_intensity },
-        { key: 'extruder1',    label: 'Extruder 1',   unit: '',    higherBetter: null,  get: p => p.print_info.pressure.extruder1 },
-        { key: 'extruder2',    label: 'Extruder 2',   unit: '',    higherBetter: null,  get: p => p.print_info.pressure.extruder2 },
-        { key: 'layerHeight',  label: 'Layer Height', unit: 'mm',  higherBetter: null,  get: p => p.print_info.resolution.layerHeight },
-        { key: 'layerNum',     label: 'Layer Count',  unit: '',    higherBetter: true,  get: p => p.print_info.resolution.layerNum },
-        { key: 'wellplate',    label: 'Wellplate',    unit: '',    higherBetter: null,  get: p => p.print_info.wellplate },
-    ];
+    // Use shared METRIC_DESCRIPTORS from constants.js
+    // (includes key, label, unit, higherBetter, get accessor)
 
     // Default quality score weights (must sum to 1.0)
     const DEFAULT_WEIGHTS = {
         livePercent: 0.40,
         elasticity:  0.25,
         layerNum:    0.15,
-        deadPercent: 0.20,  // inverse — lower is better
+        deadPercent: 0.20,  // inverse â€” lower is better
     };
 
     let printData = [];
     let scored = [];     // { index, score, grade, print }
     let weights = { ...DEFAULT_WEIGHTS };
 
-    /* ── Utilities ────────────────────────────────────────────── */
+    /* â”€â”€ Utilities â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 
+    // Page-specific formatNum with decimals parameter (overrides shared version)
     function formatNum(v, decimals) {
-        if (v == null || isNaN(v)) return '—';
+        if (v == null || isNaN(v)) return 'â€”';
         const d = decimals != null ? decimals : 2;
         return Number(v).toFixed(d);
     }
 
-    function escapeHtml(str) {
-        const el = document.createElement('div');
-        el.textContent = String(str == null ? '' : str);
-        return el.innerHTML;
-    }
+    // escapeHtml is now provided by shared/utils.js
 
     function pearsonR(xs, ys) {
         const n = xs.length;
@@ -658,11 +647,11 @@
         return '#f87171';
     }
 
-    /* ── Quality Score Calculation ────────────────────────────── */
+    /* â”€â”€ Quality Score Calculation â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 
     function computeRanges(data) {
         const ranges = {};
-        METRICS.forEach(m => {
+        METRIC_DESCRIPTORS.forEach(m => {
             const vals = data.map(p => m.get(p)).filter(v => v != null && !isNaN(v));
             if (vals.length === 0) { ranges[m.key] = { min: 0, max: 1 }; return; }
             ranges[m.key] = { min: Math.min(...vals), max: Math.max(...vals) };
@@ -676,10 +665,10 @@
     }
 
     function computeQualityScore(print, ranges, w) {
-        const live = METRICS[0].get(print);
-        const dead = METRICS[1].get(print);
-        const elast = METRICS[2].get(print);
-        const layers = METRICS[8].get(print);
+        const live = METRIC_DESCRIPTORS[0].get(print);
+        const dead = METRIC_DESCRIPTORS[1].get(print);
+        const elast = METRIC_DESCRIPTORS[2].get(print);
+        const layers = METRIC_DESCRIPTORS[8].get(print);
 
         if (live == null || dead == null || elast == null || layers == null) return null;
 
@@ -713,14 +702,14 @@
         scored.sort((a, b) => b.score - a.score);
     }
 
-    /* ── Heatmap ──────────────────────────────────────────────── */
+    /* â”€â”€ Heatmap â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 
     function drawHeatmap() {
         const canvas = document.getElementById('heatmapCanvas');
         const ctx = canvas.getContext('2d');
         const dpr = window.devicePixelRatio || 1;
 
-        const metricsToShow = METRICS; // all 10
+        const metricsToShow = METRIC_DESCRIPTORS; // all 10
         const n = metricsToShow.length;
 
         // Extract metric arrays
@@ -734,7 +723,7 @@
             corrMatrix[i] = [];
             for (let j = 0; j < n; j++) {
                 if (i === j) { corrMatrix[i][j] = 1; continue; }
-                // align arrays — only use prints that have both metrics
+                // align arrays â€” only use prints that have both metrics
                 const xs = [], ys = [];
                 printData.forEach(p => {
                     const x = metricsToShow[i].get(p);
@@ -824,7 +813,7 @@
         }
     }
 
-    /* ── Score Distribution ───────────────────────────────────── */
+    /* â”€â”€ Score Distribution â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 
     function drawDistribution() {
         const canvas = document.getElementById('distributionCanvas');
@@ -908,7 +897,7 @@
             ctx.font = '10px -apple-system, sans-serif';
             ctx.textAlign = 'center';
             ctx.textBaseline = 'top';
-            ctx.fillText(`${i * 10}–${(i + 1) * 10}`, pad.left + i * barW + barW / 2, pad.top + plotH + 8);
+            ctx.fillText(`${i * 10}â€“${(i + 1) * 10}`, pad.left + i * barW + barW / 2, pad.top + plotH + 8);
         });
 
         // Axis labels
@@ -924,14 +913,14 @@
         ctx.restore();
     }
 
-    /* ── Parameter Impact ─────────────────────────────────────── */
+    /* â”€â”€ Parameter Impact â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 
     function renderImpact() {
         const container = document.getElementById('impactContainer');
-        const liveVals = printData.map(p => METRICS[0].get(p));
+        const liveVals = printData.map(p => METRIC_DESCRIPTORS[0].get(p));
 
         // Parameters to analyze (skip livePercent and deadPercent)
-        const params = METRICS.filter(m => m.key !== 'livePercent' && m.key !== 'deadPercent');
+        const params = METRIC_DESCRIPTORS.filter(m => m.key !== 'livePercent' && m.key !== 'deadPercent');
 
         const impacts = params.map(m => {
             const xs = [], ys = [];
@@ -952,7 +941,7 @@
             const absR = Math.abs(imp.r);
             const barWidth = Math.max(2, absR * 100);
             const color = imp.r >= 0 ? '#4ade80' : '#f87171';
-            const direction = imp.r >= 0 ? '↑ positive' : '↓ negative';
+            const direction = imp.r >= 0 ? 'â†‘ positive' : 'â†“ negative';
             const strength = absR >= 0.7 ? 'Strong' : absR >= 0.4 ? 'Moderate' : absR >= 0.2 ? 'Weak' : 'Negligible';
 
             html += `
@@ -975,7 +964,7 @@
         container.innerHTML = html;
     }
 
-    /* ── Performer Tables ─────────────────────────────────────── */
+    /* â”€â”€ Performer Tables â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 
     function renderPerformers() {
         renderTable('topTable', scored.slice(0, 10), false);
@@ -990,8 +979,8 @@
             const rankClass = rank <= 3 && !isBottom ? `rank-${rank}` : 'rank-other';
             const serial = s.print.user_info.serial;
             const email = s.print.user_info.email;
-            const live = METRICS[0].get(s.print);
-            const elast = METRICS[2].get(s.print);
+            const live = METRIC_DESCRIPTORS[0].get(s.print);
+            const elast = METRIC_DESCRIPTORS[2].get(s.print);
 
             html += `<tr>
                 <td><span class="rank-badge ${rankClass}">${isBottom ? scored.length - items.length + i + 1 : rank}</span></td>
@@ -1012,14 +1001,14 @@
         tbody.innerHTML = html;
     }
 
-    /* ── Optimal Parameter Finder ─────────────────────────────── */
+    /* â”€â”€ Optimal Parameter Finder â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 
     function updateOptimalRanges() {
         const threshold = parseFloat(document.getElementById('viabilityThreshold').value);
         document.getElementById('thresholdValue').textContent = threshold + '%';
 
         const matching = printData.filter(p => {
-            const live = METRICS[0].get(p);
+            const live = METRIC_DESCRIPTORS[0].get(p);
             return live != null && live >= threshold;
         });
 
@@ -1035,7 +1024,7 @@
         }
 
         // Compute ranges for matching prints vs all prints
-        const paramsToShow = METRICS.filter(m => m.key !== 'livePercent' && m.key !== 'deadPercent');
+        const paramsToShow = METRIC_DESCRIPTORS.filter(m => m.key !== 'livePercent' && m.key !== 'deadPercent');
         const allRanges = computeRanges(printData);
 
         let html = '';
@@ -1058,15 +1047,15 @@
                     <div class="range-bar-container">
                         <div class="range-bar-fill" style="left: ${leftPct}%; width: ${Math.max(widthPct, 1)}%; background: var(--accent);"></div>
                     </div>
-                    <span class="range-values">${formatNum(min, 1)} – ${formatNum(max, 1)} ${escapeHtml(m.unit)}</span>
+                    <span class="range-values">${formatNum(min, 1)} â€“ ${formatNum(max, 1)} ${escapeHtml(m.unit)}</span>
                 </div>`;
         });
 
         container.innerHTML = html;
 
         // Insights
-        const avgElast = matching.reduce((s, p) => s + (METRICS[2].get(p) || 0), 0) / matching.length;
-        const avgLive = matching.reduce((s, p) => s + (METRICS[0].get(p) || 0), 0) / matching.length;
+        const avgElast = matching.reduce((s, p) => s + (METRIC_DESCRIPTORS[2].get(p) || 0), 0) / matching.length;
+        const avgLive = matching.reduce((s, p) => s + (METRIC_DESCRIPTORS[0].get(p) || 0), 0) / matching.length;
         const clEnabled = matching.filter(p => p.print_info.crosslinking.cl_enabled).length;
         const clPct = ((clEnabled / matching.length) * 100).toFixed(0);
 
@@ -1091,7 +1080,7 @@
             </div>`;
     }
 
-    /* ── Weight Controls ──────────────────────────────────────── */
+    /* â”€â”€ Weight Controls â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 
     function renderWeights() {
         const container = document.getElementById('weightsContainer');
@@ -1149,7 +1138,7 @@
         updateOptimalRanges();
     }
 
-    /* ── Overview Stats ───────────────────────────────────────── */
+    /* â”€â”€ Overview Stats â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 
     function updateOverviewStats() {
         if (scored.length === 0) return;
@@ -1170,7 +1159,7 @@
         gradeEl.className = `grade-badge grade-${grade}`;
     }
 
-    /* ── Heatmap Tooltip ──────────────────────────────────────── */
+    /* â”€â”€ Heatmap Tooltip â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 
     function setupHeatmapTooltip() {
         const canvas = document.getElementById('heatmapCanvas');
@@ -1209,7 +1198,7 @@
         });
     }
 
-    /* ── Initialization ───────────────────────────────────────── */
+    /* â”€â”€ Initialization â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 
     fetch('bioprint-data.json')
         .then(r => r.json())

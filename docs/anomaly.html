@@ -597,6 +597,8 @@
         </footer>
     </div>
 
+    <script src="shared/constants.js"></script>
+    <script src="shared/utils.js"></script>
     <script>
     'use strict';
 
@@ -609,49 +611,8 @@
     let tableSortKey = 'anomalyScore';
     let tableSortAsc = false;
 
-    const METRICS = ['livePercent', 'deadPercent', 'elasticity', 'cl_duration', 'cl_intensity', 'extruder1', 'extruder2', 'layerHeight', 'layerNum'];
-
-    const metricLabels = {
-        deadPercent: 'Dead Cell %',
-        livePercent: 'Live Cell %',
-        elasticity: 'Elasticity (kPa)',
-        cl_duration: 'CL Duration (ms)',
-        cl_intensity: 'CL Intensity (%)',
-        extruder1: 'Extruder 1 Pressure',
-        extruder2: 'Extruder 2 Pressure',
-        layerHeight: 'Layer Height (mm)',
-        layerNum: 'Layer Count'
-    };
-
-    const _escapeEl = document.createElement('div');
-    function escapeHtml(str) {
-        if (str == null) return '';
-        _escapeEl.textContent = String(str);
-        return _escapeEl.innerHTML;
-    }
-
-    function getMetricValue(print, metric) {
-        const paths = {
-            deadPercent: p => p.print_data.deadPercent,
-            livePercent: p => p.print_data.livePercent,
-            elasticity: p => p.print_data.elasticity,
-            cl_duration: p => p.print_info.crosslinking.cl_duration,
-            cl_intensity: p => p.print_info.crosslinking.cl_intensity,
-            extruder1: p => p.print_info.pressure.extruder1,
-            extruder2: p => p.print_info.pressure.extruder2,
-            layerHeight: p => p.print_info.resolution.layerHeight,
-            layerNum: p => p.print_info.resolution.layerNum,
-        };
-        try { return paths[metric] ? paths[metric](print) : null; }
-        catch { return null; }
-    }
-
-    function formatNum(n) {
-        if (n == null) return '-';
-        if (Math.abs(n) >= 1000) return n.toLocaleString(undefined, { maximumFractionDigits: 1 });
-        if (Number.isInteger(n)) return n.toString();
-        return n.toFixed(2);
-    }
+    // METRICS, metricLabels, escapeHtml, getMetricValue, formatNum, computeStats
+    // are now provided by shared/constants.js and shared/utils.js
 
     // ── Canvas helpers ──────────────────────────────────
     function setupCanvas(canvas, width, height) {
@@ -665,18 +626,7 @@
         return ctx;
     }
 
-    // ── Statistics ───────────────────────────────────────
-    function computeStats(values) {
-        const n = values.length;
-        if (n === 0) return { mean: 0, std: 0, q1: 0, q3: 0, iqr: 0, median: 0 };
-        const sorted = [...values].sort((a, b) => a - b);
-        const mean = values.reduce((s, v) => s + v, 0) / n;
-        const std = Math.sqrt(values.reduce((s, v) => s + (v - mean) ** 2, 0) / n);
-        const q1 = sorted[Math.floor(n * 0.25)];
-        const q3 = sorted[Math.floor(n * 0.75)];
-        const median = n % 2 === 0 ? (sorted[n / 2 - 1] + sorted[n / 2]) / 2 : sorted[Math.floor(n / 2)];
-        return { mean, std, q1, q3, iqr: q3 - q1, median };
-    }
+    // computeStats is now provided by shared/utils.js (using sample std dev)
 
     // ── Detection Methods ───────────────────────────────
     function detectAnomalies() {

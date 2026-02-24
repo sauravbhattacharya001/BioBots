@@ -365,50 +365,27 @@
         </footer>
     </div>
 
+    <script src="shared/constants.js"></script>
+    <script src="shared/utils.js"></script>
     <script>
     'use strict';
 
-    // ── HTML Escaping ───────────────────────────────────
-    // Prevent XSS when rendering error messages or data values
-    const _escapeEl = document.createElement('div');
-    function escapeHtml(str) {
-        if (str == null) return '';
-        _escapeEl.textContent = String(str);
-        return _escapeEl.innerHTML;
-    }
+    // escapeHtml, getMetricValue, formatNum, metricLabels
+    // are provided by shared/constants.js and shared/utils.js
 
     // ── Data ───────────────────────────────────────────────
     let printData = [];
 
-    const metricLabels = {
-        deadPercent: 'Dead Cell %',
-        livePercent: 'Live Cell %',
-        elasticity: 'Elasticity (kPa)',
-        cl_duration: 'CL Duration (ms)',
-        cl_intensity: 'CL Intensity (%)',
-        extruder1: 'Extruder 1 Pressure',
-        extruder2: 'Extruder 2 Pressure',
-        layerHeight: 'Layer Height (mm)',
-        layerNum: 'Layer Count',
-        serial: 'Serial #',
-        wellplate: 'Wellplate'
-    };
+    // Extend shared metricLabels with explorer-specific entries
+    metricLabels.serial = 'Serial #';
+    metricLabels.wellplate = 'Wellplate';
 
+    // Wrap shared getMetricValue to also handle serial + wellplate
+    const _sharedGetMetricValue = getMetricValue;
     function getMetricValue(print, metric) {
-        const paths = {
-            deadPercent: p => p.print_data.deadPercent,
-            livePercent: p => p.print_data.livePercent,
-            elasticity: p => p.print_data.elasticity,
-            cl_duration: p => p.print_info.crosslinking.cl_duration,
-            cl_intensity: p => p.print_info.crosslinking.cl_intensity,
-            extruder1: p => p.print_info.pressure.extruder1,
-            extruder2: p => p.print_info.pressure.extruder2,
-            layerHeight: p => p.print_info.resolution.layerHeight,
-            layerNum: p => p.print_info.resolution.layerNum,
-            serial: p => p.user_info.serial,
-            wellplate: p => p.print_info.wellplate,
-        };
-        return paths[metric] ? paths[metric](print) : null;
+        if (metric === 'serial') return print.user_info.serial;
+        if (metric === 'wellplate') return print.print_info.wellplate;
+        return _sharedGetMetricValue(print, metric);
     }
 
     function extractValues(metric) {
@@ -445,11 +422,7 @@
         return ctx;
     }
 
-    function formatNum(n) {
-        if (Math.abs(n) >= 1000) return n.toLocaleString(undefined, { maximumFractionDigits: 1 });
-        if (Number.isInteger(n)) return n.toString();
-        return n.toFixed(2);
-    }
+    // formatNum is now provided by shared/utils.js
 
     // ── Histogram ─────────────────────────────────────────
     const histBins = []; // stored for tooltip

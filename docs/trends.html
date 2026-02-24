@@ -439,68 +439,20 @@
         </footer>
     </div>
 
+    <script src="shared/constants.js"></script>
+    <script src="shared/utils.js"></script>
     <script>
     'use strict';
 
     // ---- Globals ----
     let printData = [];
-    const METRICS = ['livePercent', 'deadPercent', 'elasticity', 'cl_duration', 'cl_intensity', 'extruder1', 'extruder2', 'layerHeight', 'layerNum'];
 
-    const metricLabels = {
-        livePercent: 'Live Cell %',
-        deadPercent: 'Dead Cell %',
-        elasticity: 'Elasticity (kPa)',
-        cl_duration: 'CL Duration (ms)',
-        cl_intensity: 'CL Intensity (%)',
-        extruder1: 'Extruder 1 Pressure',
-        extruder2: 'Extruder 2 Pressure',
-        layerHeight: 'Layer Height (mm)',
-        layerNum: 'Layer Count'
-    };
-
-    const metricColors = {
-        livePercent: '#4ade80',
-        deadPercent: '#f87171',
-        elasticity: '#38bdf8',
-        cl_duration: '#fbbf24',
-        cl_intensity: '#fb923c',
-        extruder1: '#a78bfa',
-        extruder2: '#c084fc',
-        layerHeight: '#2dd4bf',
-        layerNum: '#f472b6'
-    };
-
-    function getMetricValue(print, metric) {
-        const paths = {
-            livePercent: p => p.print_data.livePercent,
-            deadPercent: p => p.print_data.deadPercent,
-            elasticity: p => p.print_data.elasticity,
-            cl_duration: p => p.print_info.crosslinking.cl_duration,
-            cl_intensity: p => p.print_info.crosslinking.cl_intensity,
-            extruder1: p => p.print_info.pressure.extruder1,
-            extruder2: p => p.print_info.pressure.extruder2,
-            layerHeight: p => p.print_info.resolution.layerHeight,
-            layerNum: p => p.print_info.resolution.layerNum,
-        };
-        try { return paths[metric] ? paths[metric](print) : null; }
-        catch { return null; }
-    }
-
-    function formatNum(n) {
-        if (n == null) return '-';
-        if (Math.abs(n) >= 1000) return n.toLocaleString(undefined, { maximumFractionDigits: 1 });
-        if (Number.isInteger(n)) return n.toString();
-        return n.toFixed(2);
-    }
-
-    const _escapeEl = document.createElement('div');
-    function escapeHtml(str) {
-        if (str == null) return '';
-        _escapeEl.textContent = String(str);
-        return _escapeEl.innerHTML;
-    }
+    // METRICS, metricLabels, metricColors, escapeHtml, getMetricValue, formatNum
+    // are now provided by shared/constants.js and shared/utils.js
 
     // ---- Statistics ----
+    // mean() and stdDev() are page-specific helpers used by movingAverage/trends.
+    // computeStats() from shared/utils.js covers general use.
     function mean(arr) {
         if (!arr.length) return 0;
         let s = 0;

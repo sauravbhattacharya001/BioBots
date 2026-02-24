@@ -16,7 +16,11 @@
       "!Try/scripts/ai.*.js"
     ],
     "coverageDirectory": "coverage",
-    "coverageReporters": ["text", "lcov", "json-summary"],
+    "coverageReporters": [
+      "text",
+      "lcov",
+      "json-summary"
+    ],
     "coverageThresholds": {
       "global": {
         "branches": 60,
