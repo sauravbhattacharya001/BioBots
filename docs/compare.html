@@ -1,10 +1,10 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>BioBots 1 â€” Print Comparison</title>
-    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>ðŸ§¬</text></svg>">
+    <title>BioBots 1 — Print Comparison</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧬</text></svg>">
     <style>
         :root {
             --bg: #0f172a;
@@ -373,8 +373,8 @@
 <body>
     <div class="container">
         <header>
-            <h1>ðŸ”¬ Print Comparison</h1>
-            <p>Select 2â€“4 print records and compare metrics side by side</p>
+            <h1>🔬 Print Comparison</h1>
+            <p>Select 2–4 print records and compare metrics side by side</p>
         </header>
 
         <div class="nav">
@@ -382,12 +382,13 @@
             <a href="explorer.html">Data Explorer</a>
             <a href="table.html">Data Table</a>
             <a href="compare.html" class="active">Compare</a>
-            <a href="quality.html">ðŸŽ¯ Quality</a>
-            <a href="anomaly.html">ðŸ” Anomaly</a>
+            <a href="quality.html">🎯 Quality</a>
+            <a href="anomaly.html">🔍 Anomaly</a>
             <a href="trends.html">Trends</a>
-        <a href="optimizer.html" style="color:var(--muted);padding:0.5rem 1rem;border-radius:8px;text-decoration:none;font-size:0.9rem;transition:all 0.2s;">âš™ï¸ Optimizer</a>`n            <a href="api.html">ðŸ“¡ API</a>
-            <a href="architecture.html">ðŸ—ï¸ Architecture</a>
-            <a href="guide.html">ðŸ› ï¸ Guide</a>
+        <a href="optimizer.html" style="color:var(--muted);padding:0.5rem 1rem;border-radius:8px;text-decoration:none;font-size:0.9rem;transition:all 0.2s;">⚙️ Optimizer</a>`n            <a href="api.html">📡 API</a>
+            <a href="architecture.html">🏗️ Architecture</a>
+            <a href="cluster.html">?? Clusters</a>
+            <a href="guide.html">🛠️ Guide</a>
         </div>
 
         <!-- Selection -->
@@ -398,8 +399,8 @@
                     <input type="text" id="searchInput" placeholder="Search by serial #, email, or index..." autocomplete="off" />
                     <div class="search-results" id="searchResults"></div>
                 </div>
-                <button onclick="addRandom()" class="secondary" title="Add a random print">ðŸŽ² Random</button>
-                <button onclick="clearAll()" class="danger" title="Clear all selections">âœ• Clear</button>
+                <button onclick="addRandom()" class="secondary" title="Add a random print">🎲 Random</button>
+                <button onclick="clearAll()" class="danger" title="Clear all selections">✕ Clear</button>
             </div>
             <div class="chips" id="selectedChips"></div>
         </div>
@@ -407,7 +408,7 @@
         <!-- Radar Chart -->
         <div id="comparisonContent">
             <div class="empty-state" id="emptyState">
-                <div class="icon">ðŸ”¬</div>
+                <div class="icon">🔬</div>
                 <p><strong>No prints selected</strong></p>
                 <p>Search for prints above or click Random to add records for comparison</p>
             </div>
@@ -440,7 +441,7 @@
         </div>
 
         <footer>
-            <p>Built with ðŸ§¬ by <a href="https://github.com/sauravbhattacharya001">Saurav Bhattacharya</a></p>
+            <p>Built with 🧬 by <a href="https://github.com/sauravbhattacharya001">Saurav Bhattacharya</a></p>
             <p><a href="https://github.com/sauravbhattacharya001/BioBots">View Source</a></p>
         </footer>
     </div>
@@ -452,18 +453,18 @@
 
     // escapeHtml is now provided by shared/utils.js
 
-    // â”€â”€ Constants â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── Constants ──────────────────────────────────────────
     const COLORS = ['#38bdf8', '#4ade80', '#fbbf24', '#a78bfa'];
     const MAX_SELECTIONS = 4;
 
     // Use shared METRIC_DESCRIPTORS from constants.js
     // (includes key, label, unit, higherBetter, get accessor)
 
-    // â”€â”€ State â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── State ─────────────────────────────────────────────
     let printData = [];
     let selected = []; // array of { index, print }
 
-    // â”€â”€ Data Loading â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── Data Loading ──────────────────────────────────────
     fetch('bioprint-data.json')
         .then(r => r.json())
         .then(data => {
@@ -474,10 +475,10 @@
         })
         .catch(err => {
             document.getElementById('emptyState').innerHTML =
-                '<div class="icon">âš ï¸</div><p>Failed to load data: ' + escapeHtml(err.message) + '</p>';
+                '<div class="icon">⚠️</div><p>Failed to load data: ' + escapeHtml(err.message) + '</p>';
         });
 
-    // â”€â”€ Search â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── Search ────────────────────────────────────────────
     const searchInput = document.getElementById('searchInput');
     const searchResults = document.getElementById('searchResults');
 
@@ -508,8 +509,8 @@
             searchResults.innerHTML = results.map(i => {
                 const p = printData[i];
                 return `<div class="search-result-item" onclick="addPrint(${i})">
-                    <strong>#${i}</strong> â€” Serial ${escapeHtml(p.user_info.serial)}
-                    <div class="sub">${escapeHtml(p.user_info.email)} Â· Live: ${escapeHtml(p.print_data.livePercent)}% Â· Elasticity: ${escapeHtml(p.print_data.elasticity)} kPa</div>
+                    <strong>#${i}</strong> — Serial ${escapeHtml(p.user_info.serial)}
+                    <div class="sub">${escapeHtml(p.user_info.email)} · Live: ${escapeHtml(p.print_data.livePercent)}% · Elasticity: ${escapeHtml(p.print_data.elasticity)} kPa</div>
                 </div>`;
             }).join('');
         }
@@ -529,7 +530,7 @@
         }
     });
 
-    // â”€â”€ Selection Management â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── Selection Management ──────────────────────────────
     function addPrint(index) {
         if (selected.length >= MAX_SELECTIONS) return;
         if (selected.some(s => s.index === index)) return;
@@ -561,7 +562,7 @@
         updateUI();
     }
 
-    // â”€â”€ UI Update â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── UI Update ─────────────────────────────────────────
     function updateUI() {
         renderChips();
 
@@ -573,11 +574,11 @@
 
         if (selected.length === 1) {
             document.getElementById('emptyState').innerHTML =
-                '<div class="icon">â˜ï¸</div><p><strong>Add at least one more print</strong></p><p>Select 2â€“4 prints to see the comparison</p>';
+                '<div class="icon">☝️</div><p><strong>Add at least one more print</strong></p><p>Select 2–4 prints to see the comparison</p>';
             document.getElementById('emptyState').style.display = '';
         } else if (selected.length === 0) {
             document.getElementById('emptyState').innerHTML =
-                '<div class="icon">ðŸ”¬</div><p><strong>No prints selected</strong></p><p>Search for prints above or click Random to add records for comparison</p>';
+                '<div class="icon">🔬</div><p><strong>No prints selected</strong></p><p>Search for prints above or click Random to add records for comparison</p>';
         }
 
         if (hasData) {
@@ -593,12 +594,12 @@
             `<div class="chip color-${ci}">
                 <span class="dot dot-${ci}"></span>
                 Print #${s.index} (S/N ${s.print.user_info.serial})
-                <span class="remove-btn" onclick="removePrint(${s.index})">âœ•</span>
+                <span class="remove-btn" onclick="removePrint(${s.index})">✕</span>
             </div>`
         ).join('');
     }
 
-    // â”€â”€ Radar Chart â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── Radar Chart ───────────────────────────────────────
     function drawRadar() {
         const canvas = document.getElementById('radarCanvas');
         const W = 700, H = 500;
@@ -740,7 +741,7 @@
         ).join('');
     }
 
-    // â”€â”€ Comparison Table â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── Comparison Table ──────────────────────────────────
     function buildTable() {
         const head = document.getElementById('tableHead');
         const body = document.getElementById('tableBody');
@@ -778,14 +779,14 @@
 
             const spread = numericVals.length >= 2
                 ? (Math.max(...numericVals) - Math.min(...numericVals)).toFixed(2)
-                : 'â€”';
+                : '—';
 
             bodyHtml += `<tr><td class="metric-name">${m.label} ${m.unit ? '(' + m.unit + ')' : ''}</td>`;
             for (let i = 0; i < selected.length; i++) {
                 const v = values[i];
-                const formatted = v !== null && isFinite(v) ? formatNum(v) : 'â€”';
+                const formatted = v !== null && isFinite(v) ? formatNum(v) : '—';
                 const cls = i === bestIdx ? 'best' : (i === worstIdx ? 'worst' : '');
-                const icon = i === bestIdx ? ' ðŸ†' : '';
+                const icon = i === bestIdx ? ' 🏆' : '';
                 const barWidth = (v !== null && globalMax > 0) ? Math.round((Math.abs(v) / globalMax) * 80) : 0;
 
                 bodyHtml += `<td class="bar-cell ${cls}">
@@ -800,14 +801,14 @@
         bodyHtml += `<tr><td class="metric-name">Crosslinking</td>`;
         for (let i = 0; i < selected.length; i++) {
             const enabled = selected[i].print.print_info.crosslinking.cl_enabled;
-            bodyHtml += `<td>${enabled ? '<span style="color:var(--success)">âœ… Enabled</span>' : '<span style="color:var(--error)">âŒ Disabled</span>'}</td>`;
+            bodyHtml += `<td>${enabled ? '<span style="color:var(--success)">✅ Enabled</span>' : '<span style="color:var(--error)">❌ Disabled</span>'}</td>`;
         }
-        bodyHtml += '<td>â€”</td></tr>';
+        bodyHtml += '<td>—</td></tr>';
 
         body.innerHTML = bodyHtml;
     }
 
-    // â”€â”€ Insights â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── Insights ──────────────────────────────────────────
     function buildInsights() {
         const grid = document.getElementById('insightsGrid');
         const insights = [];
@@ -864,7 +865,7 @@
             insights.push({
                 title: 'Viability Spread',
                 value: spread.toFixed(1) + '%',
-                detail: spread > 30 ? 'Large variation â€” significantly different outcomes' : spread > 10 ? 'Moderate variation between prints' : 'Prints are fairly similar in viability',
+                detail: spread > 30 ? 'Large variation — significantly different outcomes' : spread > 10 ? 'Moderate variation between prints' : 'Prints are fairly similar in viability',
                 color: 'var(--accent)'
             });
         }
@@ -911,7 +912,7 @@
         ).join('');
     }
 
-    // â”€â”€ Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── Helpers ────────────────────────────────────────────
     function formatNum(n) {
         if (Math.abs(n) >= 1000) return escapeHtml(n.toLocaleString(undefined, { maximumFractionDigits: 1 }));
         if (Number.isInteger(n)) return n.toString();

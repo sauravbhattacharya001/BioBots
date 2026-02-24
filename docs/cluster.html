@@ -1,0 +1,1053 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>BioBots 1 — Cluster Analysis</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧬</text></svg>">
+    <style>
+        :root {
+            --bg: #0f172a;
+            --surface: #1e293b;
+            --border: #334155;
+            --text: #e2e8f0;
+            --muted: #94a3b8;
+            --accent: #38bdf8;
+            --accent-hover: #7dd3fc;
+            --success: #4ade80;
+            --error: #f87171;
+            --warning: #fbbf24;
+            --purple: #a78bfa;
+            --orange: #fb923c;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            padding: 2rem 1rem;
+        }
+
+        .container { max-width: 1200px; margin: 0 auto; }
+
+        header { text-align: center; margin-bottom: 2rem; }
+
+        header h1 {
+            font-size: 2rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, var(--purple), var(--accent));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        header p { color: var(--muted); margin-top: 0.5rem; }
+
+        .nav {
+            display: flex;
+            justify-content: center;
+            gap: 0.5rem;
+            margin-bottom: 2rem;
+            flex-wrap: wrap;
+        }
+
+        .nav a {
+            color: var(--muted);
+            text-decoration: none;
+            padding: 0.5rem 1rem;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            transition: all 0.2s;
+        }
+
+        .nav a:hover { color: var(--text); background: var(--surface); }
+        .nav a.active { color: var(--accent); background: var(--surface); border: 1px solid var(--border); }
+
+        .card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .card h2 {
+            font-size: 1.1rem;
+            margin-bottom: 1rem;
+            color: var(--muted);
+            font-weight: 500;
+        }
+
+        .controls {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            flex-wrap: wrap;
+            margin-bottom: 1.5rem;
+        }
+
+        .controls label {
+            color: var(--muted);
+            font-size: 0.9rem;
+        }
+
+        .controls input[type="range"] {
+            width: 150px;
+            accent-color: var(--accent);
+        }
+
+        .controls select {
+            background: var(--bg);
+            color: var(--text);
+            border: 1px solid var(--border);
+            padding: 0.4rem 0.8rem;
+            border-radius: 8px;
+            font-size: 0.85rem;
+        }
+
+        .btn {
+            padding: 0.5rem 1rem;
+            border: none;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-primary {
+            background: var(--accent);
+            color: var(--bg);
+            font-weight: 600;
+        }
+
+        .btn-primary:hover { background: var(--accent-hover); }
+
+        .btn-secondary {
+            background: var(--surface);
+            color: var(--accent);
+            border: 1px solid var(--border);
+        }
+
+        .btn-secondary:hover { background: var(--border); }
+
+        .stats-bar {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .stat-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 1rem;
+            text-align: center;
+        }
+
+        .stat-card .value {
+            font-size: 1.8rem;
+            font-weight: 700;
+            color: var(--accent);
+        }
+
+        .stat-card .label {
+            font-size: 0.75rem;
+            color: var(--muted);
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            margin-top: 0.3rem;
+        }
+
+        .cluster-cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .cluster-card {
+            background: var(--bg);
+            border: 2px solid var(--border);
+            border-radius: 12px;
+            padding: 1rem;
+        }
+
+        .cluster-card .cluster-header {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin-bottom: 0.75rem;
+        }
+
+        .cluster-card .cluster-dot {
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+        }
+
+        .cluster-card .cluster-name {
+            font-weight: 600;
+            font-size: 1rem;
+        }
+
+        .cluster-card .cluster-size {
+            font-size: 0.8rem;
+            color: var(--muted);
+        }
+
+        .cluster-card .cluster-metrics {
+            font-size: 0.8rem;
+            color: var(--muted);
+            line-height: 1.6;
+        }
+
+        .cluster-card .cluster-metrics span {
+            color: var(--text);
+            font-weight: 500;
+        }
+
+        .chart-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+
+        @media (max-width: 768px) {
+            .chart-row { grid-template-columns: 1fr; }
+        }
+
+        canvas {
+            width: 100%;
+            background: var(--bg);
+            border-radius: 12px;
+        }
+
+        .quality-indicator {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            padding: 1rem;
+            background: var(--bg);
+            border-radius: 12px;
+            margin-bottom: 1rem;
+        }
+
+        .quality-indicator .score {
+            font-size: 2rem;
+            font-weight: 700;
+        }
+
+        .quality-indicator .score.good { color: var(--success); }
+        .quality-indicator .score.ok { color: var(--warning); }
+        .quality-indicator .score.poor { color: var(--error); }
+
+        .quality-indicator .desc {
+            font-size: 0.85rem;
+            color: var(--muted);
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.85rem;
+        }
+
+        th, td {
+            padding: 0.6rem 0.8rem;
+            text-align: left;
+            border-bottom: 1px solid var(--border);
+        }
+
+        th {
+            color: var(--muted);
+            font-weight: 500;
+            text-transform: uppercase;
+            font-size: 0.75rem;
+            letter-spacing: 0.04em;
+        }
+
+        .elbow-section { display: none; }
+        .elbow-section.visible { display: block; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🔬 Cluster Analysis</h1>
+            <p>K-means clustering across bioprint metrics — discover hidden groupings and characteristic profiles</p>
+        </header>
+
+        <nav class="nav">
+            <a href="index.html">Query Tool</a>
+            <a href="explorer.html">Data Explorer</a>
+            <a href="table.html">Data Table</a>
+            <a href="compare.html">Compare</a>
+            <a href="quality.html">🎯 Quality</a>
+            <a href="anomaly.html">🔍 Anomaly</a>
+            <a href="trends.html">Trends</a>
+            <a href="optimizer.html">⚙️ Optimizer</a>
+            <a href="cluster.html" class="active">🔬 Clusters</a>
+            <a href="api.html">📡 API</a>
+            <a href="architecture.html">🏗️ Architecture</a>
+            <a href="guide.html">🛠️ Guide</a>
+        </nav>
+
+        <!-- Overview Stats -->
+        <div class="stats-bar">
+            <div class="stat-card">
+                <div class="value" id="totalPrints">-</div>
+                <div class="label">Total Prints</div>
+            </div>
+            <div class="stat-card">
+                <div class="value" id="clusterCount">-</div>
+                <div class="label">Clusters</div>
+            </div>
+            <div class="stat-card">
+                <div class="value" id="silhouetteScore">-</div>
+                <div class="label">Silhouette Score</div>
+            </div>
+            <div class="stat-card">
+                <div class="value" id="iterations">-</div>
+                <div class="label">Iterations</div>
+            </div>
+        </div>
+
+        <!-- Controls -->
+        <div class="card">
+            <h2>Clustering Controls</h2>
+            <div class="controls">
+                <label>k = <strong id="kLabel">3</strong></label>
+                <input type="range" id="kSlider" min="2" max="8" value="3" />
+                <button class="btn btn-primary" id="runBtn">Run Clustering</button>
+                <button class="btn btn-secondary" id="autoBtn">Auto-detect k</button>
+            </div>
+        </div>
+
+        <!-- Cluster Summary Cards -->
+        <div class="cluster-cards" id="clusterCards"></div>
+
+        <!-- Silhouette Quality Indicator -->
+        <div class="card">
+            <h2>Cluster Quality</h2>
+            <div class="quality-indicator" id="qualityIndicator">
+                <div class="score" id="qualityScore">-</div>
+                <div class="desc" id="qualityDesc">Run clustering to see quality metrics</div>
+            </div>
+        </div>
+
+        <!-- Charts Row: Radar + Scatter -->
+        <div class="chart-row">
+            <div class="card">
+                <h2>Centroid Radar Profile</h2>
+                <canvas id="radarChart" width="500" height="500"></canvas>
+            </div>
+            <div class="card">
+                <h2>Scatter Plot (2D Projection)</h2>
+                <div class="controls" style="margin-bottom:0.5rem">
+                    <label>X: <select id="xMetric"></select></label>
+                    <label>Y: <select id="yMetric"></select></label>
+                </div>
+                <canvas id="scatterChart" width="500" height="400"></canvas>
+            </div>
+        </div>
+
+        <!-- Elbow / Auto-K Section -->
+        <div class="elbow-section" id="elbowSection">
+            <div class="card">
+                <h2>Elbow &amp; Silhouette Analysis</h2>
+                <div class="chart-row">
+                    <canvas id="elbowChart" width="500" height="300"></canvas>
+                    <canvas id="silhouetteChart" width="500" height="300"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Cluster Profiles Table -->
+        <div class="card">
+            <h2>Cluster Profiles — Detailed Metrics</h2>
+            <div style="overflow-x:auto;">
+                <table id="profilesTable">
+                    <thead id="profilesHead"></thead>
+                    <tbody id="profilesBody"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script src="shared/constants.js"></script>
+    <script src="shared/utils.js"></script>
+    <script>
+    // ── Cluster colors ──────────────────────────────────
+    const CLUSTER_COLORS = [
+        '#38bdf8', '#4ade80', '#fbbf24', '#f87171',
+        '#a78bfa', '#fb923c', '#2dd4bf', '#f472b6'
+    ];
+
+    let printData = [];
+    let currentResult = null;
+    let currentProfiles = null;
+    let normalizedData = null;
+
+    // ── Pure Functions ──────────────────────────────────
+
+    function normalizeMatrix(matrix) {
+        if (matrix.length === 0) return { normalized: [], mins: [], maxs: [] };
+        const cols = matrix[0].length;
+        const mins = new Array(cols).fill(Infinity);
+        const maxs = new Array(cols).fill(-Infinity);
+
+        for (let i = 0; i < matrix.length; i++) {
+            for (let j = 0; j < cols; j++) {
+                if (matrix[i][j] < mins[j]) mins[j] = matrix[i][j];
+                if (matrix[i][j] > maxs[j]) maxs[j] = matrix[i][j];
+            }
+        }
+
+        const normalized = matrix.map(row =>
+            row.map((val, j) => {
+                const range = maxs[j] - mins[j];
+                return range > 0 ? (val - mins[j]) / range : 0;
+            })
+        );
+
+        return { normalized, mins, maxs };
+    }
+
+    function euclidean(a, b) {
+        let sum = 0;
+        for (let i = 0; i < a.length; i++) {
+            const d = a[i] - b[i];
+            sum += d * d;
+        }
+        return Math.sqrt(sum);
+    }
+
+    function seededRandom(seed) {
+        let s = seed | 0;
+        return function() {
+            s = (s + 0x6D2B79F5) | 0;
+            let t = Math.imul(s ^ (s >>> 15), 1 | s);
+            t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+            return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+        };
+    }
+
+    function kMeansPPInit(data, k, seed = null) {
+        let rng = seed !== null ? seededRandom(seed) : Math.random;
+        const n = data.length;
+        const centroids = [];
+
+        centroids.push([...data[Math.floor(rng() * n)]]);
+
+        for (let c = 1; c < k; c++) {
+            const dists = new Array(n);
+            let totalDist = 0;
+
+            for (let i = 0; i < n; i++) {
+                let minDist = Infinity;
+                for (let j = 0; j < centroids.length; j++) {
+                    const d = euclidean(data[i], centroids[j]);
+                    if (d < minDist) minDist = d;
+                }
+                dists[i] = minDist * minDist;
+                totalDist += dists[i];
+            }
+
+            let r = rng() * totalDist;
+            for (let i = 0; i < n; i++) {
+                r -= dists[i];
+                if (r <= 0) {
+                    centroids.push([...data[i]]);
+                    break;
+                }
+            }
+
+            if (centroids.length <= c) {
+                centroids.push([...data[n - 1]]);
+            }
+        }
+
+        return centroids;
+    }
+
+    function kMeans(data, k, maxIter = 100, seed = null) {
+        const n = data.length;
+        const dims = data[0].length;
+
+        if (k >= n) {
+            return {
+                assignments: data.map((_, i) => i),
+                centroids: data.map(row => [...row]),
+                iterations: 0,
+                inertia: 0
+            };
+        }
+
+        const centroids = kMeansPPInit(data, k, seed);
+        const assignments = new Array(n).fill(0);
+        let iterations = 0;
+
+        for (let iter = 0; iter < maxIter; iter++) {
+            iterations = iter + 1;
+            let changed = false;
+
+            for (let i = 0; i < n; i++) {
+                let minDist = Infinity;
+                let bestCluster = 0;
+                for (let c = 0; c < k; c++) {
+                    const d = euclidean(data[i], centroids[c]);
+                    if (d < minDist) {
+                        minDist = d;
+                        bestCluster = c;
+                    }
+                }
+                if (assignments[i] !== bestCluster) {
+                    assignments[i] = bestCluster;
+                    changed = true;
+                }
+            }
+
+            if (!changed) break;
+
+            const counts = new Array(k).fill(0);
+            const sums = Array.from({ length: k }, () => new Array(dims).fill(0));
+
+            for (let i = 0; i < n; i++) {
+                const c = assignments[i];
+                counts[c]++;
+                for (let d = 0; d < dims; d++) {
+                    sums[c][d] += data[i][d];
+                }
+            }
+
+            for (let c = 0; c < k; c++) {
+                if (counts[c] > 0) {
+                    for (let d = 0; d < dims; d++) {
+                        centroids[c][d] = sums[c][d] / counts[c];
+                    }
+                }
+            }
+        }
+
+        let inertia = 0;
+        for (let i = 0; i < n; i++) {
+            const d = euclidean(data[i], centroids[assignments[i]]);
+            inertia += d * d;
+        }
+
+        return { assignments, centroids, iterations, inertia };
+    }
+
+    function computeClusterProfiles(prints, assignments, k, metricKeys) {
+        const clusters = Array.from({ length: k }, () => []);
+        for (let i = 0; i < prints.length; i++) {
+            clusters[assignments[i]].push(prints[i]);
+        }
+
+        return clusters.map((members, idx) => {
+            const profile = { clusterId: idx, size: members.length, metrics: {} };
+
+            for (const key of metricKeys) {
+                const values = members.map(p => getMetricValue(p, key)).filter(v => v !== null);
+                if (values.length === 0) {
+                    profile.metrics[key] = { mean: 0, std: 0, min: 0, max: 0 };
+                    continue;
+                }
+                const mean = values.reduce((s, v) => s + v, 0) / values.length;
+                const std = values.length > 1
+                    ? Math.sqrt(values.reduce((s, v) => s + (v - mean) ** 2, 0) / (values.length - 1))
+                    : 0;
+                profile.metrics[key] = {
+                    mean: Math.round(mean * 100) / 100,
+                    std: Math.round(std * 100) / 100,
+                    min: Math.min(...values),
+                    max: Math.max(...values),
+                };
+            }
+
+            return profile;
+        });
+    }
+
+    function silhouetteCoefficients(data, assignments, k) {
+        const n = data.length;
+        const silhouettes = new Array(n).fill(0);
+
+        if (k <= 1 || n <= 1) return { scores: silhouettes, average: 0 };
+
+        for (let i = 0; i < n; i++) {
+            const myCluster = assignments[i];
+
+            let aSum = 0, aCount = 0;
+            const bSums = new Array(k).fill(0);
+            const bCounts = new Array(k).fill(0);
+
+            for (let j = 0; j < n; j++) {
+                if (i === j) continue;
+                const d = euclidean(data[i], data[j]);
+                if (assignments[j] === myCluster) {
+                    aSum += d;
+                    aCount++;
+                } else {
+                    bSums[assignments[j]] += d;
+                    bCounts[assignments[j]]++;
+                }
+            }
+
+            const a = aCount > 0 ? aSum / aCount : 0;
+            let b = Infinity;
+            for (let c = 0; c < k; c++) {
+                if (c !== myCluster && bCounts[c] > 0) {
+                    const avg = bSums[c] / bCounts[c];
+                    if (avg < b) b = avg;
+                }
+            }
+            if (b === Infinity) b = 0;
+
+            const maxAB = Math.max(a, b);
+            silhouettes[i] = maxAB > 0 ? (b - a) / maxAB : 0;
+        }
+
+        const average = silhouettes.reduce((s, v) => s + v, 0) / n;
+        return { scores: silhouettes, average };
+    }
+
+    function findOptimalK(data, maxK = 8, seed = 42) {
+        const results = [];
+        for (let k = 2; k <= Math.min(maxK, data.length); k++) {
+            const { assignments, centroids, iterations, inertia } = kMeans(data, k, 100, seed);
+            const sil = silhouetteCoefficients(data, assignments, k);
+            results.push({ k, inertia, silhouette: sil.average, iterations });
+        }
+        return results;
+    }
+
+    // ── UI Rendering ────────────────────────────────────
+
+    function buildMatrix(prints) {
+        return prints.map(p =>
+            METRICS.map(m => {
+                const v = getMetricValue(p, m);
+                return v !== null ? v : 0;
+            })
+        );
+    }
+
+    function runClustering(k) {
+        const matrix = buildMatrix(printData);
+        const { normalized, mins, maxs } = normalizeMatrix(matrix);
+        normalizedData = normalized;
+
+        const result = kMeans(normalized, k, 100, 42);
+        currentResult = result;
+
+        const sil = silhouetteCoefficients(normalized, result.assignments, k);
+        currentResult.silhouette = sil;
+
+        currentProfiles = computeClusterProfiles(printData, result.assignments, k, METRICS);
+
+        updateStats(k, result, sil);
+        renderClusterCards(currentProfiles, k);
+        renderRadarChart(result.centroids, k);
+        renderScatterPlot(normalized, result.assignments, k);
+        renderProfilesTable(currentProfiles, k);
+        updateQualityIndicator(sil.average);
+    }
+
+    function updateStats(k, result, sil) {
+        document.getElementById('totalPrints').textContent = printData.length;
+        document.getElementById('clusterCount').textContent = k;
+        document.getElementById('silhouetteScore').textContent = sil.average.toFixed(3);
+        document.getElementById('iterations').textContent = result.iterations;
+    }
+
+    function renderClusterCards(profiles, k) {
+        const container = document.getElementById('clusterCards');
+        container.innerHTML = '';
+        profiles.forEach((prof, i) => {
+            const card = document.createElement('div');
+            card.className = 'cluster-card';
+            card.style.borderColor = CLUSTER_COLORS[i % CLUSTER_COLORS.length];
+
+            const topMetrics = ['livePercent', 'elasticity', 'cl_duration'];
+            const metricsHtml = topMetrics.map(m => {
+                const label = metricLabels[m] || m;
+                const val = prof.metrics[m] ? prof.metrics[m].mean : '-';
+                return `${label}: <span>${typeof val === 'number' ? val.toFixed(1) : val}</span>`;
+            }).join('<br>');
+
+            card.innerHTML = `
+                <div class="cluster-header">
+                    <div class="cluster-dot" style="background:${CLUSTER_COLORS[i % CLUSTER_COLORS.length]}"></div>
+                    <div class="cluster-name">Cluster ${i + 1}</div>
+                </div>
+                <div class="cluster-size">${prof.size} prints</div>
+                <div class="cluster-metrics">${metricsHtml}</div>
+            `;
+            container.appendChild(card);
+        });
+    }
+
+    function updateQualityIndicator(avg) {
+        const scoreEl = document.getElementById('qualityScore');
+        const descEl = document.getElementById('qualityDesc');
+        scoreEl.textContent = avg.toFixed(3);
+        scoreEl.className = 'score';
+
+        if (avg >= 0.5) {
+            scoreEl.classList.add('good');
+            descEl.textContent = 'Strong cluster structure detected — clusters are well-separated.';
+        } else if (avg >= 0.25) {
+            scoreEl.classList.add('ok');
+            descEl.textContent = 'Moderate cluster structure — some overlap between groups.';
+        } else {
+            scoreEl.classList.add('poor');
+            descEl.textContent = 'Weak cluster structure — consider adjusting k or reviewing data.';
+        }
+    }
+
+    // ── Canvas Charts ───────────────────────────────────
+
+    function renderRadarChart(centroids, k) {
+        const canvas = document.getElementById('radarChart');
+        const ctx = canvas.getContext('2d');
+        const W = canvas.width;
+        const H = canvas.height;
+        ctx.clearRect(0, 0, W, H);
+
+        const cx = W / 2;
+        const cy = H / 2;
+        const radius = Math.min(W, H) * 0.35;
+        const dims = METRICS.length;
+        const angleStep = (2 * Math.PI) / dims;
+
+        // Draw grid rings
+        ctx.strokeStyle = '#334155';
+        ctx.lineWidth = 1;
+        for (let r = 0.2; r <= 1.0; r += 0.2) {
+            ctx.beginPath();
+            for (let d = 0; d <= dims; d++) {
+                const angle = d * angleStep - Math.PI / 2;
+                const x = cx + Math.cos(angle) * radius * r;
+                const y = cy + Math.sin(angle) * radius * r;
+                d === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+            }
+            ctx.stroke();
+        }
+
+        // Draw axes and labels
+        ctx.fillStyle = '#94a3b8';
+        ctx.font = '11px sans-serif';
+        ctx.textAlign = 'center';
+        for (let d = 0; d < dims; d++) {
+            const angle = d * angleStep - Math.PI / 2;
+            const x1 = cx + Math.cos(angle) * radius;
+            const y1 = cy + Math.sin(angle) * radius;
+
+            ctx.strokeStyle = '#334155';
+            ctx.beginPath();
+            ctx.moveTo(cx, cy);
+            ctx.lineTo(x1, y1);
+            ctx.stroke();
+
+            const lx = cx + Math.cos(angle) * (radius + 20);
+            const ly = cy + Math.sin(angle) * (radius + 20);
+            ctx.fillText(METRICS[d], lx, ly + 4);
+        }
+
+        // Draw centroid polygons
+        centroids.forEach((centroid, ci) => {
+            const color = CLUSTER_COLORS[ci % CLUSTER_COLORS.length];
+            ctx.strokeStyle = color;
+            ctx.lineWidth = 2;
+            ctx.fillStyle = color + '33';
+            ctx.beginPath();
+            for (let d = 0; d <= dims; d++) {
+                const di = d % dims;
+                const angle = di * angleStep - Math.PI / 2;
+                const val = centroid[di] || 0;
+                const x = cx + Math.cos(angle) * radius * val;
+                const y = cy + Math.sin(angle) * radius * val;
+                d === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+            }
+            ctx.fill();
+            ctx.stroke();
+        });
+    }
+
+    function renderScatterPlot(data, assignments, k) {
+        const canvas = document.getElementById('scatterChart');
+        const ctx = canvas.getContext('2d');
+        const W = canvas.width;
+        const H = canvas.height;
+        ctx.clearRect(0, 0, W, H);
+
+        const xIdx = document.getElementById('xMetric').selectedIndex;
+        const yIdx = document.getElementById('yMetric').selectedIndex;
+
+        const pad = 50;
+        const plotW = W - pad * 2;
+        const plotH = H - pad * 2;
+
+        // Axes
+        ctx.strokeStyle = '#334155';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(pad, pad);
+        ctx.lineTo(pad, H - pad);
+        ctx.lineTo(W - pad, H - pad);
+        ctx.stroke();
+
+        // Axis labels
+        ctx.fillStyle = '#94a3b8';
+        ctx.font = '11px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText(METRICS[xIdx], W / 2, H - 10);
+        ctx.save();
+        ctx.translate(12, H / 2);
+        ctx.rotate(-Math.PI / 2);
+        ctx.fillText(METRICS[yIdx], 0, 0);
+        ctx.restore();
+
+        // Points
+        data.forEach((point, i) => {
+            const x = pad + point[xIdx] * plotW;
+            const y = H - pad - point[yIdx] * plotH;
+            const color = CLUSTER_COLORS[assignments[i] % CLUSTER_COLORS.length];
+
+            ctx.beginPath();
+            ctx.arc(x, y, 4, 0, 2 * Math.PI);
+            ctx.fillStyle = color;
+            ctx.fill();
+            ctx.strokeStyle = color + 'aa';
+            ctx.lineWidth = 1;
+            ctx.stroke();
+        });
+    }
+
+    function renderElbowCharts(results) {
+        // Inertia chart (elbow)
+        const canvas1 = document.getElementById('elbowChart');
+        const ctx1 = canvas1.getContext('2d');
+        const W1 = canvas1.width;
+        const H1 = canvas1.height;
+        ctx1.clearRect(0, 0, W1, H1);
+
+        const pad = 50;
+        const ks = results.map(r => r.k);
+        const inertias = results.map(r => r.inertia);
+        const maxInertia = Math.max(...inertias);
+
+        ctx1.strokeStyle = '#334155';
+        ctx1.beginPath();
+        ctx1.moveTo(pad, pad);
+        ctx1.lineTo(pad, H1 - pad);
+        ctx1.lineTo(W1 - pad, H1 - pad);
+        ctx1.stroke();
+
+        ctx1.fillStyle = '#94a3b8';
+        ctx1.font = '12px sans-serif';
+        ctx1.textAlign = 'center';
+        ctx1.fillText('k', W1 / 2, H1 - 10);
+        ctx1.fillText('Inertia (Elbow Method)', W1 / 2, 20);
+
+        const plotW = W1 - pad * 2;
+        const plotH = H1 - pad * 2;
+        const kMin = ks[0], kMax = ks[ks.length - 1];
+
+        // Draw line
+        ctx1.strokeStyle = var_accent();
+        ctx1.lineWidth = 2;
+        ctx1.beginPath();
+        results.forEach((r, i) => {
+            const x = pad + ((r.k - kMin) / (kMax - kMin || 1)) * plotW;
+            const y = H1 - pad - (r.inertia / (maxInertia || 1)) * plotH;
+            i === 0 ? ctx1.moveTo(x, y) : ctx1.lineTo(x, y);
+        });
+        ctx1.stroke();
+
+        // Draw points
+        results.forEach(r => {
+            const x = pad + ((r.k - kMin) / (kMax - kMin || 1)) * plotW;
+            const y = H1 - pad - (r.inertia / (maxInertia || 1)) * plotH;
+            ctx1.beginPath();
+            ctx1.arc(x, y, 4, 0, 2 * Math.PI);
+            ctx1.fillStyle = var_accent();
+            ctx1.fill();
+        });
+
+        // k labels
+        ks.forEach(k => {
+            const x = pad + ((k - kMin) / (kMax - kMin || 1)) * plotW;
+            ctx1.fillStyle = '#94a3b8';
+            ctx1.fillText(k, x, H1 - pad + 18);
+        });
+
+        // Silhouette chart
+        const canvas2 = document.getElementById('silhouetteChart');
+        const ctx2 = canvas2.getContext('2d');
+        const W2 = canvas2.width;
+        const H2 = canvas2.height;
+        ctx2.clearRect(0, 0, W2, H2);
+
+        const sils = results.map(r => r.silhouette);
+        const maxSil = Math.max(...sils.map(Math.abs), 1);
+
+        ctx2.strokeStyle = '#334155';
+        ctx2.beginPath();
+        ctx2.moveTo(pad, pad);
+        ctx2.lineTo(pad, H2 - pad);
+        ctx2.lineTo(W2 - pad, H2 - pad);
+        ctx2.stroke();
+
+        ctx2.fillStyle = '#94a3b8';
+        ctx2.font = '12px sans-serif';
+        ctx2.textAlign = 'center';
+        ctx2.fillText('k', W2 / 2, H2 - 10);
+        ctx2.fillText('Silhouette Score', W2 / 2, 20);
+
+        const plotW2 = W2 - pad * 2;
+        const plotH2 = H2 - pad * 2;
+
+        ctx2.strokeStyle = '#4ade80';
+        ctx2.lineWidth = 2;
+        ctx2.beginPath();
+        results.forEach((r, i) => {
+            const x = pad + ((r.k - kMin) / (kMax - kMin || 1)) * plotW2;
+            const y = H2 - pad - ((r.silhouette + 1) / 2) * plotH2;
+            i === 0 ? ctx2.moveTo(x, y) : ctx2.lineTo(x, y);
+        });
+        ctx2.stroke();
+
+        results.forEach(r => {
+            const x = pad + ((r.k - kMin) / (kMax - kMin || 1)) * plotW2;
+            const y = H2 - pad - ((r.silhouette + 1) / 2) * plotH2;
+            ctx2.beginPath();
+            ctx2.arc(x, y, 4, 0, 2 * Math.PI);
+            ctx2.fillStyle = '#4ade80';
+            ctx2.fill();
+        });
+
+        ks.forEach(k => {
+            const x = pad + ((k - kMin) / (kMax - kMin || 1)) * plotW2;
+            ctx2.fillStyle = '#94a3b8';
+            ctx2.fillText(k, x, H2 - pad + 18);
+        });
+    }
+
+    function var_accent() { return '#38bdf8'; }
+
+    function renderProfilesTable(profiles, k) {
+        const head = document.getElementById('profilesHead');
+        const body = document.getElementById('profilesBody');
+
+        let headerHtml = '<tr><th>Cluster</th><th>Size</th>';
+        METRICS.forEach(m => {
+            headerHtml += `<th>${metricLabels[m] || m}</th>`;
+        });
+        headerHtml += '</tr>';
+        head.innerHTML = headerHtml;
+
+        let bodyHtml = '';
+        profiles.forEach((prof, i) => {
+            bodyHtml += `<tr>`;
+            bodyHtml += `<td><span style="color:${CLUSTER_COLORS[i % CLUSTER_COLORS.length]}">● Cluster ${i + 1}</span></td>`;
+            bodyHtml += `<td>${prof.size}</td>`;
+            METRICS.forEach(m => {
+                const s = prof.metrics[m];
+                bodyHtml += `<td>${s.mean.toFixed(1)} ± ${s.std.toFixed(1)}<br><small style="color:var(--muted)">[${formatNum(s.min)} – ${formatNum(s.max)}]</small></td>`;
+            });
+            bodyHtml += `</tr>`;
+        });
+        body.innerHTML = bodyHtml;
+    }
+
+    // ── Event Handlers ──────────────────────────────────
+
+    document.getElementById('kSlider').addEventListener('input', function() {
+        document.getElementById('kLabel').textContent = this.value;
+    });
+
+    document.getElementById('runBtn').addEventListener('click', function() {
+        const k = parseInt(document.getElementById('kSlider').value);
+        runClustering(k);
+    });
+
+    document.getElementById('autoBtn').addEventListener('click', function() {
+        const matrix = buildMatrix(printData);
+        const { normalized } = normalizeMatrix(matrix);
+        const results = findOptimalK(normalized, 8, 42);
+
+        // Show elbow section
+        document.getElementById('elbowSection').classList.add('visible');
+        renderElbowCharts(results);
+
+        // Pick best k (highest silhouette)
+        let bestK = 2;
+        let bestSil = -1;
+        results.forEach(r => {
+            if (r.silhouette > bestSil) {
+                bestSil = r.silhouette;
+                bestK = r.k;
+            }
+        });
+
+        document.getElementById('kSlider').value = bestK;
+        document.getElementById('kLabel').textContent = bestK;
+        runClustering(bestK);
+    });
+
+    // Populate metric selects
+    function populateMetricSelects() {
+        const xSel = document.getElementById('xMetric');
+        const ySel = document.getElementById('yMetric');
+        METRICS.forEach((m, i) => {
+            const opt1 = document.createElement('option');
+            opt1.value = i;
+            opt1.textContent = metricLabels[m] || m;
+            xSel.appendChild(opt1);
+
+            const opt2 = document.createElement('option');
+            opt2.value = i;
+            opt2.textContent = metricLabels[m] || m;
+            ySel.appendChild(opt2);
+        });
+        if (METRICS.length > 1) ySel.selectedIndex = 1;
+
+        xSel.addEventListener('change', () => {
+            if (currentResult && normalizedData) {
+                renderScatterPlot(normalizedData, currentResult.assignments, parseInt(document.getElementById('kSlider').value));
+            }
+        });
+        ySel.addEventListener('change', () => {
+            if (currentResult && normalizedData) {
+                renderScatterPlot(normalizedData, currentResult.assignments, parseInt(document.getElementById('kSlider').value));
+            }
+        });
+    }
+
+    populateMetricSelects();
+
+    // ── Init ────────────────────────────────────────────
+    fetch('bioprint-data.json')
+        .then(r => r.json())
+        .then(data => {
+            printData = data.filter(p =>
+                p.print_data && p.print_info && p.user_info &&
+                p.print_info.crosslinking && p.print_info.pressure && p.print_info.resolution
+            );
+            document.getElementById('totalPrints').textContent = printData.length;
+            runClustering(3);
+        })
+        .catch(err => {
+            document.getElementById('totalPrints').textContent = 'ERR';
+            console.error('Failed to load data:', err);
+        });
+    </script>
+</body>
+</html>
