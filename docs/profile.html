@@ -1,0 +1,780 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>BioBots 1 — Print Profile Card</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧬</text></svg>">
+    <style>
+        :root {
+            --bg: #0f172a;
+            --surface: #1e293b;
+            --border: #334155;
+            --text: #e2e8f0;
+            --muted: #94a3b8;
+            --accent: #38bdf8;
+            --accent-hover: #7dd3fc;
+            --success: #4ade80;
+            --error: #f87171;
+            --warning: #fbbf24;
+            --purple: #a78bfa;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            padding: 2rem 1rem;
+        }
+
+        .container { max-width: 1200px; margin: 0 auto; }
+
+        header { text-align: center; margin-bottom: 2rem; }
+
+        header h1 {
+            font-size: 2rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, var(--accent), var(--success));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        header p { color: var(--muted); margin-top: 0.5rem; }
+
+        .nav {
+            display: flex;
+            justify-content: center;
+            gap: 0.5rem;
+            margin-bottom: 2rem;
+            flex-wrap: wrap;
+        }
+
+        .nav a {
+            color: var(--muted);
+            text-decoration: none;
+            padding: 0.5rem 1rem;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            transition: all 0.2s;
+        }
+
+        .nav a:hover { color: var(--text); background: var(--surface); }
+        .nav a.active { color: var(--accent); background: var(--surface); border: 1px solid var(--border); }
+
+        .card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .card h2 {
+            font-size: 1.1rem;
+            margin-bottom: 1rem;
+            color: var(--muted);
+            font-weight: 500;
+        }
+
+        /* Search */
+        .search-bar {
+            display: flex;
+            gap: 0.75rem;
+            align-items: center;
+            flex-wrap: wrap;
+            position: relative;
+        }
+
+        .search-bar input {
+            flex: 1;
+            min-width: 200px;
+            padding: 0.6rem 1rem;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            background: var(--bg);
+            color: var(--text);
+            font-size: 0.95rem;
+            outline: none;
+        }
+
+        .search-bar input:focus { border-color: var(--accent); }
+
+        .btn {
+            padding: 0.6rem 1.2rem;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            background: var(--surface);
+            color: var(--text);
+            cursor: pointer;
+            font-size: 0.9rem;
+            transition: all 0.2s;
+        }
+
+        .btn:hover { border-color: var(--accent); color: var(--accent); }
+
+        .btn-primary {
+            background: var(--accent);
+            color: var(--bg);
+            border-color: var(--accent);
+            font-weight: 600;
+        }
+
+        .btn-primary:hover { background: var(--accent-hover); }
+
+        .autocomplete-list {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            max-height: 250px;
+            overflow-y: auto;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            z-index: 100;
+            display: none;
+            margin-top: 4px;
+        }
+
+        .autocomplete-list.show { display: block; }
+
+        .autocomplete-item {
+            padding: 0.5rem 1rem;
+            cursor: pointer;
+            font-size: 0.9rem;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .autocomplete-item:hover { background: var(--bg); }
+
+        .autocomplete-item:last-child { border-bottom: none; }
+
+        /* Profile Header */
+        .profile-header {
+            display: flex;
+            align-items: center;
+            gap: 2rem;
+            flex-wrap: wrap;
+        }
+
+        .grade-badge {
+            width: 100px;
+            height: 100px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2.5rem;
+            font-weight: 800;
+            flex-shrink: 0;
+        }
+
+        .grade-A { background: rgba(74, 222, 128, 0.2); color: #4ade80; border: 3px solid #4ade80; }
+        .grade-B { background: rgba(56, 189, 248, 0.2); color: #38bdf8; border: 3px solid #38bdf8; }
+        .grade-C { background: rgba(251, 191, 36, 0.2); color: #fbbf24; border: 3px solid #fbbf24; }
+        .grade-D { background: rgba(251, 146, 60, 0.2); color: #fb923c; border: 3px solid #fb923c; }
+        .grade-F { background: rgba(248, 113, 113, 0.2); color: #f87171; border: 3px solid #f87171; }
+
+        .profile-info h3 { font-size: 1.3rem; margin-bottom: 0.25rem; }
+        .profile-info .meta { color: var(--muted); font-size: 0.9rem; }
+        .profile-info .score { font-size: 1.1rem; margin-top: 0.5rem; }
+
+        /* Metric Cards Grid */
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 1rem;
+        }
+
+        .metric-card {
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 1rem;
+        }
+
+        .metric-card .metric-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.5rem;
+        }
+
+        .metric-card .metric-name { font-weight: 600; font-size: 0.95rem; }
+        .metric-card .metric-value { font-size: 1.3rem; font-weight: 700; color: var(--accent); }
+        .metric-card .metric-avg { color: var(--muted); font-size: 0.85rem; }
+        .metric-card .anomaly { color: var(--warning); font-size: 1.1rem; }
+
+        .percentile-bar {
+            width: 100%;
+            height: 8px;
+            background: var(--border);
+            border-radius: 4px;
+            margin: 0.5rem 0;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .percentile-fill {
+            height: 100%;
+            border-radius: 4px;
+            transition: width 0.4s;
+        }
+
+        .percentile-text {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.8rem;
+            color: var(--muted);
+        }
+
+        .trend-up { color: var(--success); }
+        .trend-down { color: var(--error); }
+        .trend-same { color: var(--muted); }
+
+        /* Radar Chart */
+        .radar-container {
+            display: flex;
+            justify-content: center;
+            padding: 1rem;
+        }
+
+        /* Strengths / Weaknesses */
+        .sw-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+        }
+
+        .sw-item {
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 0.75rem 1rem;
+        }
+
+        .sw-item .sw-metric { font-weight: 600; }
+        .sw-item .sw-percentile { font-size: 0.85rem; color: var(--muted); }
+
+        /* Similar Prints */
+        .similar-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 1rem;
+        }
+
+        .similar-card {
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 1rem;
+            cursor: pointer;
+            transition: border-color 0.2s;
+        }
+
+        .similar-card:hover { border-color: var(--accent); }
+
+        /* Export */
+        .export-bar {
+            display: flex;
+            gap: 0.75rem;
+            justify-content: flex-end;
+            flex-wrap: wrap;
+        }
+
+        /* Loading/Empty */
+        .placeholder { text-align: center; color: var(--muted); padding: 3rem 1rem; }
+
+        #profileContent { display: none; }
+
+        /* Print styles */
+        @media print {
+            body { background: #fff; color: #000; padding: 1rem; }
+            .nav, .search-bar, .export-bar, .btn, .autocomplete-list { display: none !important; }
+            .card { border: 1px solid #ccc; background: #fff; break-inside: avoid; }
+            .metric-card { background: #f9f9f9; border-color: #ccc; }
+            .percentile-fill { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+            .grade-badge { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+            header h1 { -webkit-text-fill-color: #333; background: none; color: #333; }
+        }
+
+        @media (max-width: 640px) {
+            .sw-grid { grid-template-columns: 1fr; }
+            .profile-header { flex-direction: column; text-align: center; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🧬 Print Profile Card</h1>
+            <p>Deep-dive visualization of individual bioprint records</p>
+        </header>
+
+        <nav class="nav">
+            <a href="index.html">Query Tool</a>
+            <a href="explorer.html">Data Explorer</a>
+            <a href="table.html">Data Table</a>
+            <a href="compare.html">Compare</a>
+            <a href="quality.html">🔬 Quality</a>
+            <a href="anomaly.html">🔍 Anomaly</a>
+            <a href="trends.html">Trends</a>
+            <a href="optimizer.html">⚡ Optimizer</a>
+            <a href="api.html">📡 API</a>
+            <a href="architecture.html">🏗️ Architecture</a>
+            <a href="cluster.html">🔮 Clusters</a>
+            <a href="guide.html">📖 Guide</a>
+            <a href="profile.html" class="active">🪪 Profile</a>
+        </nav>
+
+        <div class="card">
+            <h2>Search Print</h2>
+            <div class="search-bar" style="position:relative;">
+                <input type="text" id="searchInput" placeholder="Search by serial number, email, or index..." autocomplete="off" />
+                <button class="btn" onclick="randomPrint()">🎲 Random Print</button>
+                <div class="autocomplete-list" id="autocomplete"></div>
+            </div>
+        </div>
+
+        <div class="placeholder" id="placeholder">
+            <p style="font-size:2rem;margin-bottom:1rem;">🪪</p>
+            <p>Search for a print or click <strong>Random Print</strong> to get started.</p>
+        </div>
+
+        <div id="profileContent">
+            <!-- Header -->
+            <div class="card" id="headerCard">
+                <div class="profile-header">
+                    <div class="grade-badge" id="gradeBadge"></div>
+                    <div class="profile-info">
+                        <h3 id="serialTitle"></h3>
+                        <div class="meta" id="emailMeta"></div>
+                        <div class="meta" id="dateMeta"></div>
+                        <div class="score" id="scoreDisplay"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Export -->
+            <div class="export-bar" style="margin-bottom:1.5rem;">
+                <button class="btn" onclick="copyReport()">📋 Copy Report</button>
+                <button class="btn" onclick="window.print()">🖨️ Print</button>
+            </div>
+
+            <!-- Metrics -->
+            <div class="card">
+                <h2>Metric Cards</h2>
+                <div class="metrics-grid" id="metricsGrid"></div>
+            </div>
+
+            <!-- Radar -->
+            <div class="card">
+                <h2>Radar Chart — Population Comparison</h2>
+                <div class="radar-container">
+                    <canvas id="radarCanvas" width="500" height="500"></canvas>
+                </div>
+            </div>
+
+            <!-- Strengths & Weaknesses -->
+            <div class="card">
+                <h2>Strengths & Weaknesses</h2>
+                <div class="sw-grid" id="swGrid"></div>
+            </div>
+
+            <!-- Similar Prints -->
+            <div class="card">
+                <h2>Similar Prints</h2>
+                <div class="similar-grid" id="similarGrid"></div>
+            </div>
+        </div>
+    </div>
+
+    <script src="shared/constants.js"></script>
+    <script src="shared/utils.js"></script>
+    <script>
+    /* ── Profile Card Logic ── */
+
+    const PROFILE_METRICS = [
+        'livePercent', 'deadPercent', 'elasticity',
+        'cl_duration', 'cl_intensity',
+        'extruder1', 'extruder2',
+        'layerHeight', 'layerNum', 'wellplate'
+    ];
+
+    const PROFILE_METRIC_LABELS = {
+        ...metricLabels,
+        wellplate: 'Wellplate'
+    };
+
+    let allPrints = [];
+    let populationStats = {};
+
+    /* ── Quality Score ── */
+    function computeQualityScore(print) {
+        const lp = getMetricValue(print, 'livePercent');
+        const el = getMetricValue(print, 'elasticity');
+        const ln = getMetricValue(print, 'layerNum');
+        const cli = getMetricValue(print, 'cl_intensity');
+
+        if (lp == null || el == null || ln == null || cli == null) return null;
+
+        const viabilityNorm = Math.min(Math.max(lp / 100, 0), 1);
+        const elastNorm = Math.min(Math.max(el / 100, 0), 1);
+        const layerNorm = Math.min(Math.max(ln / 100, 0), 1);
+        const clNorm = Math.min(Math.max(cli / 100, 0), 1);
+
+        return (viabilityNorm * 40 + elastNorm * 25 + layerNorm * 20 + clNorm * 15);
+    }
+
+    function qualityGrade(score) {
+        if (score == null) return 'F';
+        if (score >= 80) return 'A';
+        if (score >= 60) return 'B';
+        if (score >= 40) return 'C';
+        if (score >= 20) return 'D';
+        return 'F';
+    }
+
+    /* ── Population Stats ── */
+    function buildPopulationStats(prints) {
+        const stats = {};
+        for (const m of PROFILE_METRICS) {
+            const vals = prints.map(p => getMetricValue(p, m)).filter(v => v != null);
+            stats[m] = computeStats(vals);
+            stats[m].values = vals.sort((a, b) => a - b);
+        }
+        return stats;
+    }
+
+    /* ── Percentile ── */
+    function computePercentile(value, sortedValues) {
+        if (!sortedValues || sortedValues.length === 0) return 0;
+        let count = 0;
+        for (const v of sortedValues) {
+            if (v < value) count++;
+            else break;
+        }
+        return (count / sortedValues.length) * 100;
+    }
+
+    /* ── Anomaly Detection ── */
+    function isAnomaly(value, mean, std) {
+        if (std === 0) return false;
+        return Math.abs(value - mean) > 2 * std;
+    }
+
+    /* ── Normalize Metric ── */
+    function normalizeMetric(value, sortedValues) {
+        if (!sortedValues || sortedValues.length === 0) return 0;
+        const min = sortedValues[0];
+        const max = sortedValues[sortedValues.length - 1];
+        if (max === min) return 0.5;
+        return (value - min) / (max - min);
+    }
+
+    /* ── Similar Prints ── */
+    function findSimilarPrints(targetIdx, prints, topN) {
+        topN = topN || 3;
+        const targetNorm = PROFILE_METRICS.map(m => {
+            const v = getMetricValue(prints[targetIdx], m);
+            return v != null ? normalizeMetric(v, populationStats[m].values) : 0;
+        });
+
+        const distances = [];
+        for (let i = 0; i < prints.length; i++) {
+            if (i === targetIdx) continue;
+            const norm = PROFILE_METRICS.map(m => {
+                const v = getMetricValue(prints[i], m);
+                return v != null ? normalizeMetric(v, populationStats[m].values) : 0;
+            });
+            let dist = 0;
+            for (let j = 0; j < norm.length; j++) dist += (targetNorm[j] - norm[j]) ** 2;
+            dist = Math.sqrt(dist);
+            distances.push({ index: i, distance: dist });
+        }
+
+        distances.sort((a, b) => a.distance - b.distance);
+        return distances.slice(0, topN);
+    }
+
+    /* ── Strengths & Weaknesses ── */
+    function findStrengthsWeaknesses(print) {
+        const percs = PROFILE_METRICS.map(m => {
+            const v = getMetricValue(print, m);
+            if (v == null) return { metric: m, percentile: -1 };
+            return { metric: m, percentile: computePercentile(v, populationStats[m].values) };
+        }).filter(p => p.percentile >= 0);
+
+        const sorted = [...percs].sort((a, b) => b.percentile - a.percentile);
+        const strengths = sorted.slice(0, 3);
+        const weaknesses = [...percs].sort((a, b) => a.percentile - b.percentile).slice(0, 3);
+        return { strengths, weaknesses };
+    }
+
+    /* ── Search ── */
+    function searchPrints(query) {
+        if (!query) return [];
+        const q = query.toLowerCase();
+        const results = [];
+        for (let i = 0; i < allPrints.length && results.length < 10; i++) {
+            const p = allPrints[i];
+            const serial = String(p.user_info.serial);
+            const email = (p.user_info.email || '').toLowerCase();
+            const idx = String(i);
+            if (serial.includes(q) || email.includes(q) || idx === q) {
+                results.push(i);
+            }
+        }
+        return results;
+    }
+
+    /* ── Render ── */
+    function renderProfile(idx) {
+        const print = allPrints[idx];
+        if (!print) return;
+
+        document.getElementById('placeholder').style.display = 'none';
+        document.getElementById('profileContent').style.display = 'block';
+
+        const score = computeQualityScore(print);
+        const grade = qualityGrade(score);
+
+        // Header
+        const badge = document.getElementById('gradeBadge');
+        badge.textContent = grade;
+        badge.className = 'grade-badge grade-' + grade;
+
+        document.getElementById('serialTitle').textContent = 'Serial #' + print.user_info.serial;
+        document.getElementById('emailMeta').textContent = print.user_info.email || 'N/A';
+        document.getElementById('dateMeta').textContent = 'Record Index: ' + idx;
+        document.getElementById('scoreDisplay').innerHTML = 'Quality Score: <strong>' + (score != null ? score.toFixed(1) : 'N/A') + '</strong> / 100';
+
+        // Metrics
+        const grid = document.getElementById('metricsGrid');
+        grid.innerHTML = '';
+        for (const m of PROFILE_METRICS) {
+            const v = getMetricValue(print, m);
+            const st = populationStats[m];
+            const pct = v != null ? computePercentile(v, st.values) : 0;
+            const anom = v != null ? isAnomaly(v, st.mean, st.std) : false;
+            const diff = v != null ? v - st.mean : 0;
+            const threshold = st.std * 0.25;
+            let trendIcon, trendClass;
+            if (Math.abs(diff) <= threshold) { trendIcon = '→'; trendClass = 'trend-same'; }
+            else if (diff > 0) { trendIcon = '↑'; trendClass = 'trend-up'; }
+            else { trendIcon = '↓'; trendClass = 'trend-down'; }
+
+            let barColor;
+            if (pct >= 75) barColor = '#4ade80';
+            else if (pct >= 25) barColor = '#fbbf24';
+            else barColor = '#f87171';
+
+            const label = PROFILE_METRIC_LABELS[m] || m;
+            grid.innerHTML += `
+                <div class="metric-card">
+                    <div class="metric-header">
+                        <span class="metric-name">${escapeHtml(label)}</span>
+                        ${anom ? '<span class="anomaly" title="Anomaly detected">⚠️</span>' : ''}
+                    </div>
+                    <div class="metric-value">${formatNum(v)} <span class="${trendClass}" style="font-size:0.9rem;">${trendIcon}</span></div>
+                    <div class="percentile-bar"><div class="percentile-fill" style="width:${pct}%;background:${barColor};"></div></div>
+                    <div class="percentile-text">
+                        <span>P${pct.toFixed(0)}</span>
+                        <span>Avg: ${formatNum(st.mean)}</span>
+                    </div>
+                </div>`;
+        }
+
+        // Radar
+        drawRadar(print);
+
+        // Strengths & Weaknesses
+        const sw = findStrengthsWeaknesses(print);
+        const swGrid = document.getElementById('swGrid');
+        swGrid.innerHTML = '<div><h3 style="color:var(--success);margin-bottom:0.75rem;">💪 Strengths</h3>' +
+            sw.strengths.map(s => `<div class="sw-item"><div class="sw-metric">${escapeHtml(PROFILE_METRIC_LABELS[s.metric] || s.metric)}</div><div class="sw-percentile">P${s.percentile.toFixed(0)} — Top performer</div></div>`).join('') +
+            '</div><div><h3 style="color:var(--error);margin-bottom:0.75rem;">⚠️ Weaknesses</h3>' +
+            sw.weaknesses.map(w => `<div class="sw-item"><div class="sw-metric">${escapeHtml(PROFILE_METRIC_LABELS[w.metric] || w.metric)}</div><div class="sw-percentile">P${w.percentile.toFixed(0)} — Needs improvement</div></div>`).join('') +
+            '</div>';
+
+        // Similar
+        const similar = findSimilarPrints(idx, allPrints, 3);
+        const simGrid = document.getElementById('similarGrid');
+        simGrid.innerHTML = similar.map(s => {
+            const sp = allPrints[s.index];
+            const sg = qualityGrade(computeQualityScore(sp));
+            const sim = Math.max(0, (1 - s.distance / Math.sqrt(PROFILE_METRICS.length)) * 100);
+            return `<div class="similar-card" onclick="renderProfile(${s.index})">
+                <div style="font-weight:700;">Serial #${sp.user_info.serial}</div>
+                <div style="color:var(--muted);font-size:0.85rem;">${sp.user_info.email || 'N/A'}</div>
+                <div style="margin-top:0.5rem;">Grade: <strong>${sg}</strong></div>
+                <div style="color:var(--muted);font-size:0.85rem;">Similarity: ${sim.toFixed(1)}%</div>
+            </div>`;
+        }).join('');
+    }
+
+    /* ── Radar Chart ── */
+    function drawRadar(print) {
+        const canvas = document.getElementById('radarCanvas');
+        const ctx = canvas.getContext('2d');
+        const W = canvas.width, H = canvas.height;
+        const cx = W / 2, cy = H / 2;
+        const R = Math.min(cx, cy) - 60;
+        const n = PROFILE_METRICS.length;
+
+        ctx.clearRect(0, 0, W, H);
+
+        // Grid
+        for (let ring = 1; ring <= 5; ring++) {
+            const r = R * ring / 5;
+            ctx.beginPath();
+            for (let i = 0; i <= n; i++) {
+                const angle = (Math.PI * 2 * i / n) - Math.PI / 2;
+                const x = cx + r * Math.cos(angle);
+                const y = cy + r * Math.sin(angle);
+                i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+            }
+            ctx.strokeStyle = '#334155';
+            ctx.lineWidth = 1;
+            ctx.stroke();
+        }
+
+        // Axes + labels
+        ctx.fillStyle = '#94a3b8';
+        ctx.font = '11px sans-serif';
+        ctx.textAlign = 'center';
+        for (let i = 0; i < n; i++) {
+            const angle = (Math.PI * 2 * i / n) - Math.PI / 2;
+            ctx.beginPath();
+            ctx.moveTo(cx, cy);
+            ctx.lineTo(cx + R * Math.cos(angle), cy + R * Math.sin(angle));
+            ctx.strokeStyle = '#334155';
+            ctx.stroke();
+
+            const lx = cx + (R + 30) * Math.cos(angle);
+            const ly = cy + (R + 30) * Math.sin(angle);
+            const label = (PROFILE_METRIC_LABELS[PROFILE_METRICS[i]] || PROFILE_METRICS[i]).split(' ').slice(0, 2).join(' ');
+            ctx.fillText(label, lx, ly + 4);
+        }
+
+        // Population average polygon
+        drawPolygon(ctx, cx, cy, R, n, PROFILE_METRICS.map(m => {
+            return normalizeMetric(populationStats[m].mean, populationStats[m].values);
+        }), 'rgba(148, 163, 184, 0.3)', 'rgba(148, 163, 184, 0.8)');
+
+        // Current print polygon
+        drawPolygon(ctx, cx, cy, R, n, PROFILE_METRICS.map(m => {
+            const v = getMetricValue(print, m);
+            return v != null ? normalizeMetric(v, populationStats[m].values) : 0;
+        }), 'rgba(56, 189, 248, 0.2)', 'rgba(56, 189, 248, 0.9)');
+
+        // Legend
+        ctx.fillStyle = 'rgba(56, 189, 248, 0.9)';
+        ctx.fillRect(20, H - 30, 12, 12);
+        ctx.fillStyle = '#e2e8f0';
+        ctx.textAlign = 'left';
+        ctx.fillText('This Print', 38, H - 20);
+
+        ctx.fillStyle = 'rgba(148, 163, 184, 0.8)';
+        ctx.fillRect(120, H - 30, 12, 12);
+        ctx.fillStyle = '#e2e8f0';
+        ctx.fillText('Population Avg', 138, H - 20);
+    }
+
+    function drawPolygon(ctx, cx, cy, R, n, values, fill, stroke) {
+        ctx.beginPath();
+        for (let i = 0; i <= n; i++) {
+            const idx = i % n;
+            const angle = (Math.PI * 2 * idx / n) - Math.PI / 2;
+            const r = R * Math.max(0.05, values[idx]);
+            const x = cx + r * Math.cos(angle);
+            const y = cy + r * Math.sin(angle);
+            i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+        }
+        ctx.closePath();
+        ctx.fillStyle = fill;
+        ctx.fill();
+        ctx.strokeStyle = stroke;
+        ctx.lineWidth = 2;
+        ctx.stroke();
+    }
+
+    /* ── Export ── */
+    function generateReportText(idx) {
+        const p = allPrints[idx];
+        const score = computeQualityScore(p);
+        const grade = qualityGrade(score);
+        let text = `PRINT PROFILE CARD\n==================\n`;
+        text += `Serial: ${p.user_info.serial}\nEmail: ${p.user_info.email || 'N/A'}\n`;
+        text += `Quality Grade: ${grade} (${score != null ? score.toFixed(1) : 'N/A'}/100)\n\n`;
+        text += `METRICS\n-------\n`;
+        for (const m of PROFILE_METRICS) {
+            const v = getMetricValue(p, m);
+            const st = populationStats[m];
+            const pct = v != null ? computePercentile(v, st.values) : 0;
+            const anom = v != null && isAnomaly(v, st.mean, st.std) ? ' ⚠️ ANOMALY' : '';
+            text += `${PROFILE_METRIC_LABELS[m] || m}: ${formatNum(v)} (P${pct.toFixed(0)}, avg: ${formatNum(st.mean)})${anom}\n`;
+        }
+        return text;
+    }
+
+    let currentIdx = -1;
+    function copyReport() {
+        if (currentIdx < 0) return;
+        const text = generateReportText(currentIdx);
+        navigator.clipboard.writeText(text);
+    }
+
+    function randomPrint() {
+        if (allPrints.length === 0) return;
+        currentIdx = Math.floor(Math.random() * allPrints.length);
+        document.getElementById('searchInput').value = String(allPrints[currentIdx].user_info.serial);
+        renderProfile(currentIdx);
+    }
+
+    /* ── Init ── */
+    document.addEventListener('DOMContentLoaded', async () => {
+        const resp = await fetch('bioprint-data.json');
+        allPrints = await resp.json();
+        populationStats = buildPopulationStats(allPrints);
+
+        const input = document.getElementById('searchInput');
+        const acList = document.getElementById('autocomplete');
+
+        input.addEventListener('input', () => {
+            const q = input.value.trim();
+            const results = searchPrints(q);
+            if (results.length === 0 || !q) {
+                acList.classList.remove('show');
+                return;
+            }
+            acList.innerHTML = results.map(i => {
+                const p = allPrints[i];
+                return `<div class="autocomplete-item" data-idx="${i}">
+                    #${p.user_info.serial} — ${p.user_info.email || 'N/A'} (idx ${i})
+                </div>`;
+            }).join('');
+            acList.classList.add('show');
+        });
+
+        acList.addEventListener('click', e => {
+            const item = e.target.closest('.autocomplete-item');
+            if (!item) return;
+            const idx = parseInt(item.dataset.idx);
+            currentIdx = idx;
+            input.value = String(allPrints[idx].user_info.serial);
+            acList.classList.remove('show');
+            renderProfile(idx);
+        });
+
+        document.addEventListener('click', e => {
+            if (!e.target.closest('.search-bar')) acList.classList.remove('show');
+        });
+    });
+    </script>
+</body>
+</html>
