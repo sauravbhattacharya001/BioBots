@@ -12,7 +12,7 @@ Analyze 3D bioprinting run data — cell viability, print resolution, crosslinki
 [![codecov](https://codecov.io/gh/sauravbhattacharya001/BioBots/graph/badge.svg)](https://codecov.io/gh/sauravbhattacharya001/BioBots)
 [![Docker Build](https://github.com/sauravbhattacharya001/BioBots/actions/workflows/docker.yml/badge.svg)](https://github.com/sauravbhattacharya001/BioBots/actions/workflows/docker.yml)
 [![GitHub Pages](https://github.com/sauravbhattacharya001/BioBots/actions/workflows/pages.yml/badge.svg)](https://sauravbhattacharya001.github.io/BioBots/)
-![Tests](https://img.shields.io/badge/tests-216%20passed-brightgreen)
+![Tests](https://img.shields.io/badge/tests-630%20passed-brightgreen)
 ![C#](https://img.shields.io/badge/C%23-ASP.NET%20Web%20API-purple)
 ![.NET Framework](https://img.shields.io/badge/.NET%20Framework-4.x-blue)
 [![Visual Studio](https://img.shields.io/badge/IDE-Visual%20Studio%202015+-blueviolet)](https://visualstudio.microsoft.com/)
@@ -36,6 +36,22 @@ The tool supports:
 - **Aggregation functions** — Maximum, Minimum, Average across all records
 - **11 queryable metrics** — From cell viability to extruder pressure
 - **File-watch caching** — Data reloads automatically when the JSON file changes (no restart needed)
+- **8 interactive analysis tools** — Explorer, Comparison, Quality Control, Anomaly Detection, Clustering, Optimization, Trend Analysis, and Data Table — all running client-side with zero dependencies
+
+### 🌐 Live Demo
+
+All analysis tools are deployed on GitHub Pages:
+
+| Tool | Description |
+|------|-------------|
+| [📊 Data Explorer](https://sauravbhattacharya001.github.io/BioBots/explorer.html) | Histograms and scatter plots with regression |
+| [🔬 Print Comparison](https://sauravbhattacharya001.github.io/BioBots/compare.html) | Side-by-side comparison of 2–4 prints |
+| [🎯 Quality Control](https://sauravbhattacharya001.github.io/BioBots/quality.html) | Quality grading, heatmaps, optimal parameters |
+| [🔍 Anomaly Detector](https://sauravbhattacharya001.github.io/BioBots/anomaly.html) | Z-Score and IQR outlier detection |
+| [🔗 Cluster Analysis](https://sauravbhattacharya001.github.io/BioBots/cluster.html) | K-means clustering with auto-k detection |
+| [⚙️ Parameter Optimizer](https://sauravbhattacharya001.github.io/BioBots/optimizer.html) | Find optimal parameters for any target metric |
+| [📈 Trend Analysis](https://sauravbhattacharya001.github.io/BioBots/trends.html) | Metric trends, moving averages, correlations |
+| [📋 Data Table](https://sauravbhattacharya001.github.io/BioBots/table.html) | Searchable, sortable, filterable data browser |
 
 ## 🏗️ Architecture
 
@@ -208,6 +224,48 @@ The [Anomaly Detector](https://sauravbhattacharya001.github.io/BioBots/anomaly.h
 - **Detailed Table** — Sortable, paginated list of anomalous prints with expandable detail rows showing all metrics, Z-scores, and means
 - **Export** — Download anomaly reports as CSV or JSON for external analysis
 - All charts render client-side using Canvas API (zero dependencies)
+
+## 🔗 Cluster Analysis
+
+The [Cluster Analysis](https://sauravbhattacharya001.github.io/BioBots/cluster.html) tool groups print records by similarity using k-means clustering:
+
+- **K-Means Clustering** — Configurable cluster count (k) with automatic k detection via elbow method
+- **Cluster Quality Metrics** — Silhouette score assessment and elbow/silhouette analysis charts to find the optimal number of clusters
+- **Centroid Radar Profile** — Radar chart showing each cluster's centroid across all normalized metrics
+- **2D Scatter Plot** — PCA-projected scatter plot with color-coded cluster assignments for visual separation
+- **Cluster Profiles** — Detailed per-cluster metric breakdowns showing average values and how each cluster differs
+- All charts render client-side using Canvas API (zero dependencies)
+
+## ⚙️ Parameter Optimizer
+
+The [Parameter Optimizer](https://sauravbhattacharya001.github.io/BioBots/optimizer.html) finds optimal bioprinting parameters to maximize a target metric:
+
+- **Configurable Target** — Optimize for any metric (e.g., maximize cell viability, minimize dead cell %)
+- **Parameter Impact Ranking** — Bar chart showing how strongly each parameter correlates with the target metric
+- **Correlation Chart** — Scatter plot of each parameter vs. the target metric
+- **Optimal Ranges** — Derived parameter ranges from the top-performing prints with visual range comparison bars
+- **Optimization Recommendations** — Actionable suggestions based on statistical analysis of the highest-performing prints
+- All charts render client-side using Canvas API (zero dependencies)
+
+## 📈 Trend Analysis
+
+The [Trend Analysis](https://sauravbhattacharya001.github.io/BioBots/trends.html) tool visualizes how metrics change across print records:
+
+- **Trend Chart** — Line chart with configurable metric, moving average smoothing, and linear regression trend line
+- **Chart Controls** — Adjustable moving average window, metric selection, and display toggles
+- **Metric Trend Summary** — Statistical summary of trend direction and magnitude for each metric
+- **Correlation Matrix** — Heatmap showing pairwise metric correlations across sequential prints
+- **Smart Insights** — Auto-generated observations about improving/declining trends, strongest correlations, and notable patterns
+- All charts render client-side using Canvas API (zero dependencies)
+
+## 📚 Developer Guide
+
+The [Developer Guide](https://sauravbhattacharya001.github.io/BioBots/guide.html) provides comprehensive documentation for contributors:
+
+- **Prerequisites & Setup** — .NET Framework, Visual Studio, Node.js requirements
+- **Running Locally** — Backend (ASP.NET Web API) and frontend (GitHub Pages preview) instructions
+- **Testing** — Jest test suite with coverage reporting, threshold checks, watch mode, and per-file execution
+- **Architecture Reference** — API structure, data model, and frontend organization
 
 ## 📋 Data Table
 
