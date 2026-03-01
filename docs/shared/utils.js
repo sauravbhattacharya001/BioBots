@@ -21,21 +21,25 @@ function escapeHtml(str) {
 }
 
 /**
- * Metric accessor lookup — hoisted outside getMetricValue so the object
- * is created once instead of on every call (hot path: 310K records × N metrics).
+ * Metric accessor lookup — built from METRIC_DESCRIPTORS (constants.js)
+ * so accessor definitions live in exactly one place. Falls back to a
+ * static map if constants.js hasn't been loaded (shouldn't happen in
+ * normal use, but guards against reorder).
  * @private
  */
-const _metricAccessors = {
-    livePercent:  p => p.print_data.livePercent,
-    deadPercent:  p => p.print_data.deadPercent,
-    elasticity:   p => p.print_data.elasticity,
-    cl_duration:  p => p.print_info.crosslinking.cl_duration,
-    cl_intensity: p => p.print_info.crosslinking.cl_intensity,
-    extruder1:    p => p.print_info.pressure.extruder1,
-    extruder2:    p => p.print_info.pressure.extruder2,
-    layerHeight:  p => p.print_info.resolution.layerHeight,
-    layerNum:     p => p.print_info.resolution.layerNum,
-};
+const _metricAccessors = (typeof METRIC_DESCRIPTORS !== 'undefined')
+    ? METRIC_DESCRIPTORS.reduce(function (acc, d) { acc[d.key] = d.get; return acc; }, {})
+    : {
+        livePercent:  p => p.print_data.livePercent,
+        deadPercent:  p => p.print_data.deadPercent,
+        elasticity:   p => p.print_data.elasticity,
+        cl_duration:  p => p.print_info.crosslinking.cl_duration,
+        cl_intensity: p => p.print_info.crosslinking.cl_intensity,
+        extruder1:    p => p.print_info.pressure.extruder1,
+        extruder2:    p => p.print_info.pressure.extruder2,
+        layerHeight:  p => p.print_info.resolution.layerHeight,
+        layerNum:     p => p.print_info.resolution.layerNum,
+    };
 
 /**
  * Extract a metric value from a print record by metric key.

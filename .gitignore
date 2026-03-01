@@ -245,3 +245,11 @@ ModelManifest.xml
 .fake/
 # Test coverage output
 coverage/
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.egg-info/
+dist/
+*.egg
