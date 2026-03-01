@@ -1,0 +1,757 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>BioBots 1 — SPC Dashboard</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧬</text></svg>">
+    <style>
+        :root {
+            --bg: #0f172a;
+            --surface: #1e293b;
+            --border: #334155;
+            --text: #e2e8f0;
+            --muted: #94a3b8;
+            --accent: #38bdf8;
+            --accent-hover: #7dd3fc;
+            --success: #4ade80;
+            --error: #f87171;
+            --warning: #fbbf24;
+            --purple: #a78bfa;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            padding: 2rem 1rem;
+        }
+        .container { max-width: 1200px; margin: 0 auto; }
+        header { text-align: center; margin-bottom: 2rem; }
+        header h1 {
+            font-size: 2rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, var(--accent), var(--success));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        header p { color: var(--muted); margin-top: 0.5rem; }
+
+        .nav {
+            display: flex;
+            justify-content: center;
+            gap: 0.25rem;
+            flex-wrap: wrap;
+            margin-bottom: 2rem;
+            padding: 0.5rem;
+            background: var(--surface);
+            border-radius: 12px;
+            border: 1px solid var(--border);
+        }
+        .nav a {
+            color: var(--muted);
+            padding: 0.5rem 1rem;
+            border-radius: 8px;
+            text-decoration: none;
+            font-size: 0.9rem;
+            transition: all 0.2s;
+        }
+        .nav a:hover { color: var(--text); background: rgba(56, 189, 248, 0.1); }
+        .nav a.active { color: var(--accent); background: var(--surface); border: 1px solid var(--border); }
+
+        .controls {
+            display: flex;
+            gap: 1rem;
+            flex-wrap: wrap;
+            margin-bottom: 1.5rem;
+            align-items: center;
+        }
+        .controls label { color: var(--muted); font-size: 0.85rem; }
+        .controls select, .controls input {
+            background: var(--surface);
+            color: var(--text);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 0.5rem 0.75rem;
+            font-size: 0.9rem;
+            outline: none;
+        }
+        .controls select:focus, .controls input:focus { border-color: var(--accent); }
+
+        .cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+        .card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 1rem;
+            text-align: center;
+        }
+        .card .value {
+            font-size: 1.4rem;
+            font-weight: 700;
+        }
+        .card .label {
+            font-size: 0.75rem;
+            color: var(--muted);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-top: 0.25rem;
+        }
+
+        .chart-panel {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 1.25rem;
+            margin-bottom: 1.5rem;
+            position: relative;
+        }
+        .chart-panel h3 {
+            font-size: 1rem;
+            margin-bottom: 1rem;
+        }
+        canvas { width: 100%; }
+
+        .violations-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.85rem;
+        }
+        .violations-table th {
+            text-align: left;
+            color: var(--muted);
+            font-weight: 600;
+            padding: 0.5rem 0.75rem;
+            border-bottom: 1px solid var(--border);
+            font-size: 0.75rem;
+            text-transform: uppercase;
+        }
+        .violations-table td {
+            padding: 0.5rem 0.75rem;
+            border-bottom: 1px solid rgba(51, 65, 85, 0.5);
+        }
+        .badge {
+            display: inline-block;
+            padding: 0.15rem 0.5rem;
+            border-radius: 6px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+        .badge-ooc { background: rgba(248, 113, 113, 0.2); color: var(--error); }
+        .badge-warn { background: rgba(251, 191, 36, 0.2); color: var(--warning); }
+        .badge-run { background: rgba(167, 139, 250, 0.2); color: var(--purple); }
+        .badge-trend { background: rgba(56, 189, 248, 0.2); color: var(--accent); }
+
+        #tooltip {
+            position: absolute;
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 0.5rem 0.75rem;
+            font-size: 0.8rem;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.15s;
+            z-index: 10;
+        }
+        #tooltip.visible { opacity: 1; }
+
+        .loading {
+            text-align: center;
+            color: var(--muted);
+            padding: 4rem;
+            font-size: 1.1rem;
+        }
+        .cap-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+        }
+        .cap-card {
+            background: rgba(15, 23, 42, 0.5);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 1rem;
+        }
+        .cap-card .cap-value {
+            font-size: 1.6rem;
+            font-weight: 700;
+            margin-bottom: 0.25rem;
+        }
+        .cap-card .cap-label {
+            font-size: 0.8rem;
+            color: var(--muted);
+        }
+        .cap-card .cap-desc {
+            font-size: 0.75rem;
+            color: var(--muted);
+            margin-top: 0.5rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>📊 Statistical Process Control</h1>
+            <p>X̄ and R control charts with Western Electric rules &amp; capability analysis</p>
+        </header>
+
+        <nav class="nav">
+            <a href="index.html">Query Tool</a>
+            <a href="explorer.html">Data Explorer</a>
+            <a href="table.html">Data Table</a>
+            <a href="compare.html">Compare</a>
+            <a href="quality.html">🔬 Quality</a>
+            <a href="anomaly.html">🔍 Anomaly</a>
+            <a href="trends.html">Trends</a>
+            <a href="optimizer.html">🎯 Optimizer</a>
+            <a href="cluster.html">🔘 Clusters</a>
+            <a href="correlation.html">📈 Correlation</a>
+            <a href="spc.html" class="active">📊 SPC</a>
+            <a href="api.html">📡 API</a>
+            <a href="guide.html">📖 Guide</a>
+        </nav>
+
+        <div class="controls">
+            <div>
+                <label for="metricSelect">Metric</label><br>
+                <select id="metricSelect"></select>
+            </div>
+            <div>
+                <label for="subgroupSize">Subgroup Size</label><br>
+                <input type="number" id="subgroupSize" value="5" min="2" max="25" style="width:80px">
+            </div>
+            <div>
+                <label for="specLower">LSL</label><br>
+                <input type="number" id="specLower" placeholder="Optional" step="any" style="width:100px">
+            </div>
+            <div>
+                <label for="specUpper">USL</label><br>
+                <input type="number" id="specUpper" placeholder="Optional" step="any" style="width:100px">
+            </div>
+        </div>
+
+        <div id="output"><div class="loading">Loading data…</div></div>
+    </div>
+
+    <div id="tooltip"></div>
+
+    <script src="shared/constants.js"></script>
+    <script src="shared/utils.js"></script>
+    <script>
+    /* ===== SPC Constants (A2, D3, D4 for subgroup sizes 2-25) ===== */
+    var SPC_A2 = { 2:1.880, 3:1.023, 4:0.729, 5:0.577, 6:0.483, 7:0.419, 8:0.373, 9:0.337, 10:0.308,
+        11:0.285, 12:0.266, 13:0.249, 14:0.235, 15:0.223, 16:0.212, 17:0.203, 18:0.194, 19:0.187,
+        20:0.180, 21:0.173, 22:0.167, 23:0.162, 24:0.157, 25:0.153 };
+    var SPC_D3 = { 2:0, 3:0, 4:0, 5:0, 6:0, 7:0.076, 8:0.136, 9:0.184, 10:0.223,
+        11:0.256, 12:0.283, 13:0.307, 14:0.328, 15:0.347, 16:0.363, 17:0.378, 18:0.391, 19:0.403,
+        20:0.415, 21:0.425, 22:0.434, 23:0.443, 24:0.451, 25:0.459 };
+    var SPC_D4 = { 2:3.267, 3:2.574, 4:2.282, 5:2.114, 6:2.004, 7:1.924, 8:1.864, 9:1.816, 10:1.777,
+        11:1.744, 12:1.717, 13:1.693, 14:1.672, 15:1.653, 16:1.637, 17:1.622, 18:1.608, 19:1.597,
+        20:1.585, 21:1.575, 22:1.566, 23:1.557, 24:1.549, 25:1.541 };
+    var SPC_d2 = { 2:1.128, 3:1.693, 4:2.059, 5:2.326, 6:2.534, 7:2.704, 8:2.847, 9:2.970, 10:3.078,
+        11:3.173, 12:3.258, 13:3.336, 14:3.407, 15:3.472, 16:3.532, 17:3.588, 18:3.640, 19:3.689,
+        20:3.735, 21:3.778, 22:3.819, 23:3.858, 24:3.895, 25:3.931 };
+
+    var printData = [];
+
+    /* ===== Core SPC Computation ===== */
+    function computeSubgroups(values, n) {
+        var groups = [];
+        for (var i = 0; i + n <= values.length; i += n) {
+            var sub = values.slice(i, i + n);
+            var sum = 0, min = sub[0], max = sub[0];
+            for (var j = 0; j < sub.length; j++) {
+                sum += sub[j];
+                if (sub[j] < min) min = sub[j];
+                if (sub[j] > max) max = sub[j];
+            }
+            groups.push({ mean: sum / sub.length, range: max - min, values: sub, index: groups.length });
+        }
+        return groups;
+    }
+
+    function computeControlLimits(subgroups, n) {
+        if (subgroups.length === 0) return null;
+        var sumMean = 0, sumRange = 0;
+        for (var i = 0; i < subgroups.length; i++) {
+            sumMean += subgroups[i].mean;
+            sumRange += subgroups[i].range;
+        }
+        var xBar = sumMean / subgroups.length;
+        var rBar = sumRange / subgroups.length;
+        var A2 = SPC_A2[n] || 0.577;
+        var D3 = SPC_D3[n] || 0;
+        var D4 = SPC_D4[n] || 2.114;
+
+        return {
+            xBar: xBar,
+            rBar: rBar,
+            xBar_UCL: xBar + A2 * rBar,
+            xBar_LCL: xBar - A2 * rBar,
+            r_UCL: D4 * rBar,
+            r_LCL: D3 * rBar
+        };
+    }
+
+    function computeCapability(subgroups, n, lsl, usl) {
+        if (subgroups.length < 2) return null;
+        var sumMean = 0, sumRange = 0;
+        for (var i = 0; i < subgroups.length; i++) {
+            sumMean += subgroups[i].mean;
+            sumRange += subgroups[i].range;
+        }
+        var xBar = sumMean / subgroups.length;
+        var rBar = sumRange / subgroups.length;
+        var d2 = SPC_d2[n] || 2.326;
+        var sigmaW = rBar / d2;
+
+        var result = { sigma: sigmaW, xBar: xBar };
+        var hasLSL = lsl !== null && !isNaN(lsl);
+        var hasUSL = usl !== null && !isNaN(usl);
+
+        if (hasLSL && hasUSL && sigmaW > 0) {
+            result.cp = (usl - lsl) / (6 * sigmaW);
+            var cpuVal = (usl - xBar) / (3 * sigmaW);
+            var cplVal = (xBar - lsl) / (3 * sigmaW);
+            result.cpk = Math.min(cpuVal, cplVal);
+            var target = (usl + lsl) / 2;
+            var denom = Math.sqrt(sigmaW * sigmaW + (xBar - target) * (xBar - target));
+            result.cpm = (usl - lsl) / (6 * denom);
+            result.cpu = cpuVal;
+            result.cpl = cplVal;
+        } else if (hasUSL && sigmaW > 0) {
+            result.cpu = (usl - xBar) / (3 * sigmaW);
+            result.cpk = result.cpu;
+        } else if (hasLSL && sigmaW > 0) {
+            result.cpl = (xBar - lsl) / (3 * sigmaW);
+            result.cpk = result.cpl;
+        }
+        return result;
+    }
+
+    /* ===== Western Electric Rules ===== */
+    function detectViolations(subgroups, limits) {
+        var violations = [];
+        var xBar = limits.xBar;
+        var sigma = (limits.xBar_UCL - xBar) / 3;
+        var zone1u = xBar + 2 * sigma;
+        var zone1l = xBar - 2 * sigma;
+
+        for (var i = 0; i < subgroups.length; i++) {
+            var m = subgroups[i].mean;
+
+            // Rule 1: Beyond 3σ (out of control)
+            if (m > limits.xBar_UCL || m < limits.xBar_LCL) {
+                violations.push({ subgroup: i + 1, value: m, rule: 1, type: 'ooc',
+                    desc: 'Point beyond control limits (' + formatNum(m) + ')' });
+            }
+
+            // Rule 2: 9 consecutive points on same side of center
+            if (i >= 8) {
+                var allAbove = true, allBelow = true;
+                for (var j = i - 8; j <= i; j++) {
+                    if (subgroups[j].mean <= xBar) allAbove = false;
+                    if (subgroups[j].mean >= xBar) allBelow = false;
+                }
+                if (allAbove || allBelow) {
+                    violations.push({ subgroup: i + 1, value: m, rule: 2, type: 'run',
+                        desc: '9 consecutive points ' + (allAbove ? 'above' : 'below') + ' center line' });
+                }
+            }
+
+            // Rule 3: 6 consecutive increasing or decreasing
+            if (i >= 5) {
+                var rising = true, falling = true;
+                for (var j = i - 4; j <= i; j++) {
+                    if (subgroups[j].mean <= subgroups[j - 1].mean) rising = false;
+                    if (subgroups[j].mean >= subgroups[j - 1].mean) falling = false;
+                }
+                if (rising || falling) {
+                    violations.push({ subgroup: i + 1, value: m, rule: 3, type: 'trend',
+                        desc: '6 consecutive ' + (rising ? 'increasing' : 'decreasing') + ' points' });
+                }
+            }
+
+            // Rule 4: 2 of 3 consecutive beyond 2σ (same side)
+            if (i >= 2) {
+                var aboveCount = 0, belowCount = 0;
+                for (var j = i - 2; j <= i; j++) {
+                    if (subgroups[j].mean > zone1u) aboveCount++;
+                    if (subgroups[j].mean < zone1l) belowCount++;
+                }
+                if (aboveCount >= 2 || belowCount >= 2) {
+                    violations.push({ subgroup: i + 1, value: m, rule: 4, type: 'warn',
+                        desc: '2 of 3 points beyond 2σ (' + (aboveCount >= 2 ? 'upper' : 'lower') + ')' });
+                }
+            }
+        }
+
+        // Deduplicate: keep first violation per subgroup-rule combo
+        var seen = {};
+        var unique = [];
+        for (var i = 0; i < violations.length; i++) {
+            var key = violations[i].subgroup + '-' + violations[i].rule;
+            if (!seen[key]) { seen[key] = true; unique.push(violations[i]); }
+        }
+        return unique;
+    }
+
+    /* ===== Chart Drawing ===== */
+    function drawControlChart(canvasId, subgroups, centerLine, ucl, lcl, label, color, violations) {
+        var canvas = document.getElementById(canvasId);
+        if (!canvas || typeof canvas.getContext !== 'function') return;
+        var ctx = canvas.getContext('2d');
+        if (!ctx) return;
+        var dpr = window.devicePixelRatio || 1;
+        var w = canvas.parentElement.clientWidth - 40;
+        var h = 300;
+        canvas.width = w * dpr;
+        canvas.height = h * dpr;
+        canvas.style.width = w + 'px';
+        canvas.style.height = h + 'px';
+        ctx.scale(dpr, dpr);
+
+        var pad = { top: 20, right: 60, bottom: 40, left: 60 };
+        var cw = w - pad.left - pad.right;
+        var ch = h - pad.top - pad.bottom;
+
+        // Compute data range
+        var values = [];
+        for (var i = 0; i < subgroups.length; i++) {
+            values.push(label === 'X\u0304' ? subgroups[i].mean : subgroups[i].range);
+        }
+        var allVals = values.concat([ucl, lcl, centerLine]);
+        var minVal = Math.min.apply(null, allVals);
+        var maxVal = Math.max.apply(null, allVals);
+        var margin = (maxVal - minVal) * 0.1 || 1;
+        minVal -= margin;
+        maxVal += margin;
+
+        // Build violation set for this chart
+        var violationSet = {};
+        if (violations) {
+            for (var i = 0; i < violations.length; i++) {
+                violationSet[violations[i].subgroup - 1] = violations[i].type;
+            }
+        }
+
+        function xPos(i) { return pad.left + (i / Math.max(1, subgroups.length - 1)) * cw; }
+        function yPos(v) { return pad.top + (1 - (v - minVal) / (maxVal - minVal)) * ch; }
+
+        // Background
+        ctx.fillStyle = 'rgba(15, 23, 42, 0.3)';
+        ctx.fillRect(0, 0, w, h);
+
+        // Grid
+        ctx.strokeStyle = 'rgba(51, 65, 85, 0.4)';
+        ctx.lineWidth = 0.5;
+        var steps = 5;
+        for (var i = 0; i <= steps; i++) {
+            var y = pad.top + (i / steps) * ch;
+            ctx.beginPath(); ctx.moveTo(pad.left, y); ctx.lineTo(w - pad.right, y); ctx.stroke();
+            var val = maxVal - (i / steps) * (maxVal - minVal);
+            ctx.fillStyle = 'rgba(148, 163, 184, 0.6)';
+            ctx.font = '11px -apple-system, sans-serif';
+            ctx.textAlign = 'right';
+            ctx.fillText(formatNum(val), pad.left - 8, y + 4);
+        }
+
+        // Control limit zones (3σ shading)
+        var sigma = (ucl - centerLine) / 3;
+        if (sigma > 0) {
+            // Zone C (1σ)
+            ctx.fillStyle = 'rgba(74, 222, 128, 0.05)';
+            ctx.fillRect(pad.left, yPos(centerLine + sigma), cw, yPos(centerLine) - yPos(centerLine + sigma));
+            ctx.fillRect(pad.left, yPos(centerLine), cw, yPos(centerLine - sigma) - yPos(centerLine));
+            // Zone B (2σ)
+            ctx.fillStyle = 'rgba(251, 191, 36, 0.05)';
+            ctx.fillRect(pad.left, yPos(centerLine + 2 * sigma), cw, yPos(centerLine + sigma) - yPos(centerLine + 2 * sigma));
+            ctx.fillRect(pad.left, yPos(centerLine - sigma), cw, yPos(centerLine - 2 * sigma) - yPos(centerLine - sigma));
+            // Zone A (3σ)
+            ctx.fillStyle = 'rgba(248, 113, 113, 0.05)';
+            ctx.fillRect(pad.left, yPos(ucl), cw, yPos(centerLine + 2 * sigma) - yPos(ucl));
+            ctx.fillRect(pad.left, yPos(centerLine - 2 * sigma), cw, yPos(lcl) - yPos(centerLine - 2 * sigma));
+        }
+
+        // UCL line
+        ctx.strokeStyle = 'rgba(248, 113, 113, 0.7)';
+        ctx.lineWidth = 1.5;
+        ctx.setLineDash([6, 4]);
+        ctx.beginPath(); ctx.moveTo(pad.left, yPos(ucl)); ctx.lineTo(w - pad.right, yPos(ucl)); ctx.stroke();
+        ctx.fillStyle = 'rgba(248, 113, 113, 0.8)';
+        ctx.font = '10px -apple-system, sans-serif';
+        ctx.textAlign = 'left';
+        ctx.fillText('UCL ' + formatNum(ucl), w - pad.right + 4, yPos(ucl) + 3);
+
+        // Center line
+        ctx.strokeStyle = 'rgba(74, 222, 128, 0.7)';
+        ctx.setLineDash([]);
+        ctx.lineWidth = 1.5;
+        ctx.beginPath(); ctx.moveTo(pad.left, yPos(centerLine)); ctx.lineTo(w - pad.right, yPos(centerLine)); ctx.stroke();
+        ctx.fillStyle = 'rgba(74, 222, 128, 0.8)';
+        ctx.fillText(label + '=' + formatNum(centerLine), w - pad.right + 4, yPos(centerLine) + 3);
+
+        // LCL line
+        ctx.strokeStyle = 'rgba(248, 113, 113, 0.7)';
+        ctx.setLineDash([6, 4]);
+        ctx.beginPath(); ctx.moveTo(pad.left, yPos(lcl)); ctx.lineTo(w - pad.right, yPos(lcl)); ctx.stroke();
+        ctx.fillStyle = 'rgba(248, 113, 113, 0.8)';
+        ctx.fillText('LCL ' + formatNum(lcl), w - pad.right + 4, yPos(lcl) + 3);
+        ctx.setLineDash([]);
+
+        // Data line
+        if (subgroups.length > 1) {
+            ctx.strokeStyle = color;
+            ctx.lineWidth = 1.5;
+            ctx.beginPath();
+            ctx.moveTo(xPos(0), yPos(values[0]));
+            for (var i = 1; i < values.length; i++) {
+                ctx.lineTo(xPos(i), yPos(values[i]));
+            }
+            ctx.stroke();
+        }
+
+        // Data points
+        for (var i = 0; i < values.length; i++) {
+            var px = xPos(i);
+            var py = yPos(values[i]);
+            var isViolation = violationSet.hasOwnProperty(i);
+
+            ctx.beginPath();
+            ctx.arc(px, py, isViolation ? 5 : 3, 0, Math.PI * 2);
+            if (isViolation) {
+                var vType = violationSet[i];
+                ctx.fillStyle = vType === 'ooc' ? '#f87171' :
+                    vType === 'warn' ? '#fbbf24' :
+                    vType === 'run' ? '#a78bfa' : '#38bdf8';
+            } else {
+                ctx.fillStyle = color;
+            }
+            ctx.fill();
+
+            if (isViolation) {
+                ctx.strokeStyle = 'rgba(255,255,255,0.3)';
+                ctx.lineWidth = 1;
+                ctx.stroke();
+            }
+        }
+
+        // X-axis labels
+        ctx.fillStyle = 'rgba(148, 163, 184, 0.6)';
+        ctx.font = '11px -apple-system, sans-serif';
+        ctx.textAlign = 'center';
+        var step = Math.max(1, Math.floor(subgroups.length / 10));
+        for (var i = 0; i < subgroups.length; i += step) {
+            ctx.fillText(i + 1, xPos(i), h - pad.bottom + 16);
+        }
+        ctx.fillText('Subgroup', pad.left + cw / 2, h - 4);
+
+        // Y-axis label
+        ctx.save();
+        ctx.translate(14, pad.top + ch / 2);
+        ctx.rotate(-Math.PI / 2);
+        ctx.fillText(label + ' Value', 0, 0);
+        ctx.restore();
+
+        // Store data for tooltip
+        canvas._spcData = { values: values, xPos: xPos, yPos: yPos, label: label, pad: pad, violationSet: violationSet };
+    }
+
+    /* ===== Tooltip Setup ===== */
+    function setupTooltip(canvasId) {
+        var canvas = document.getElementById(canvasId);
+        var tooltip = document.getElementById('tooltip');
+
+        canvas.addEventListener('mousemove', function(e) {
+            var data = canvas._spcData;
+            if (!data || data.values.length === 0) { tooltip.classList.remove('visible'); return; }
+            var rect = canvas.getBoundingClientRect();
+            var mx = e.clientX - rect.left;
+            var closest = -1, minDist = Infinity;
+            for (var i = 0; i < data.values.length; i++) {
+                var d = Math.abs(mx - data.xPos(i));
+                if (d < minDist) { minDist = d; closest = i; }
+            }
+            if (closest < 0 || minDist > 20) { tooltip.classList.remove('visible'); return; }
+            var val = data.values[closest];
+            var html = '<strong>' + escapeHtml(data.label) + ' Chart</strong><br>'
+                + 'Subgroup #' + (closest + 1) + '<br>'
+                + 'Value: <strong>' + formatNum(val) + '</strong>';
+            if (data.violationSet[closest]) {
+                html += '<br><span style="color:#f87171">\u26a0 Violation detected</span>';
+            }
+            tooltip.innerHTML = html;
+            tooltip.style.left = (e.pageX + 12) + 'px';
+            tooltip.style.top = (e.pageY - 30) + 'px';
+            tooltip.classList.add('visible');
+        });
+        canvas.addEventListener('mouseleave', function() { tooltip.classList.remove('visible'); });
+    }
+
+    /* ===== Rendering ===== */
+    function refresh() {
+        var metric = document.getElementById('metricSelect').value;
+        var n = parseInt(document.getElementById('subgroupSize').value) || 5;
+        n = Math.max(2, Math.min(25, n));
+        var lslInput = document.getElementById('specLower').value;
+        var uslInput = document.getElementById('specUpper').value;
+        var lsl = lslInput !== '' ? parseFloat(lslInput) : null;
+        var usl = uslInput !== '' ? parseFloat(uslInput) : null;
+
+        // Extract metric values
+        var values = [];
+        for (var i = 0; i < printData.length; i++) {
+            var v = getMetricValue(printData[i], metric);
+            if (v !== null && isFinite(v)) values.push(v);
+        }
+
+        if (values.length < n * 2) {
+            document.getElementById('output').innerHTML = '<div class="loading">Not enough data for subgroup size ' + n + ' (need at least ' + (n * 2) + ' values, have ' + values.length + ')</div>';
+            return;
+        }
+
+        var subgroups = computeSubgroups(values, n);
+        var limits = computeControlLimits(subgroups, n);
+        if (!limits) { document.getElementById('output').innerHTML = '<div class="loading">Cannot compute control limits</div>'; return; }
+
+        var violations = detectViolations(subgroups, limits);
+        var capability = computeCapability(subgroups, n, lsl, usl);
+
+        var inControl = 0;
+        var violatedSet = {};
+        for (var i = 0; i < violations.length; i++) violatedSet[violations[i].subgroup] = true;
+        for (var i = 0; i < subgroups.length; i++) {
+            if (!violatedSet[i + 1]) inControl++;
+        }
+        var controlPct = subgroups.length > 0 ? (inControl / subgroups.length * 100).toFixed(1) : '0';
+
+        var html = '';
+
+        // Summary cards
+        html += '<div class="cards">';
+        html += '<div class="card"><div class="value" style="color:#38bdf8">' + values.length + '</div><div class="label">Data Points</div></div>';
+        html += '<div class="card"><div class="value" style="color:#4ade80">' + subgroups.length + '</div><div class="label">Subgroups (n=' + n + ')</div></div>';
+        html += '<div class="card"><div class="value" style="color:' + (violations.length === 0 ? '#4ade80' : '#f87171') + '">' + violations.length + '</div><div class="label">Violations</div></div>';
+        html += '<div class="card"><div class="value" style="color:' + (parseFloat(controlPct) >= 95 ? '#4ade80' : '#fbbf24') + '">' + controlPct + '%</div><div class="label">In Control</div></div>';
+        html += '<div class="card"><div class="value" style="color:#38bdf8">' + formatNum(limits.xBar) + '</div><div class="label">X\u0304 (Grand Mean)</div></div>';
+        html += '<div class="card"><div class="value" style="color:#a78bfa">' + formatNum(limits.rBar) + '</div><div class="label">R\u0304 (Mean Range)</div></div>';
+        html += '</div>';
+
+        // Charts
+        html += '<div class="chart-panel"><h3>\ud83d\udcc8 X\u0304 Chart (Subgroup Means)</h3><canvas id="xbarChart"></canvas></div>';
+        html += '<div class="chart-panel"><h3>\ud83d\udcc9 R Chart (Subgroup Ranges)</h3><canvas id="rChart"></canvas></div>';
+
+        // Capability section
+        if (capability && (capability.cp !== undefined || capability.cpk !== undefined)) {
+            html += '<div class="chart-panel"><h3>\ud83c\udfaf Process Capability</h3><div class="cap-grid">';
+            if (capability.cp !== undefined) {
+                var cpColor = capability.cp >= 1.33 ? '#4ade80' : capability.cp >= 1.0 ? '#fbbf24' : '#f87171';
+                html += '<div class="cap-card"><div class="cap-value" style="color:' + cpColor + '">' + capability.cp.toFixed(3) + '</div>';
+                html += '<div class="cap-label">Cp (Potential Capability)</div>';
+                html += '<div class="cap-desc">' + (capability.cp >= 1.33 ? 'Capable' : capability.cp >= 1.0 ? 'Marginally capable' : 'Not capable') + '</div></div>';
+            }
+            if (capability.cpk !== undefined) {
+                var cpkColor = capability.cpk >= 1.33 ? '#4ade80' : capability.cpk >= 1.0 ? '#fbbf24' : '#f87171';
+                html += '<div class="cap-card"><div class="cap-value" style="color:' + cpkColor + '">' + capability.cpk.toFixed(3) + '</div>';
+                html += '<div class="cap-label">Cpk (Actual Capability)</div>';
+                html += '<div class="cap-desc">' + (capability.cpk >= 1.33 ? 'Capable & centered' : capability.cpk >= 1.0 ? 'Marginally capable' : 'Not capable or off-center') + '</div></div>';
+            }
+            if (capability.cpm !== undefined) {
+                html += '<div class="cap-card"><div class="cap-value" style="color:#38bdf8">' + capability.cpm.toFixed(3) + '</div>';
+                html += '<div class="cap-label">Cpm (Taguchi Index)</div>';
+                html += '<div class="cap-desc">Accounts for deviation from target</div></div>';
+            }
+            html += '<div class="cap-card"><div class="cap-value" style="color:#94a3b8">' + capability.sigma.toFixed(4) + '</div>';
+            html += '<div class="cap-label">\u03c3\u0302 (Within-group Std Dev)</div>';
+            html += '<div class="cap-desc">Estimated from R\u0304/d\u2082</div></div>';
+            html += '</div></div>';
+        } else if (lsl === null && usl === null) {
+            html += '<div class="chart-panel"><h3>\ud83c\udfaf Process Capability</h3>';
+            html += '<p style="color:#94a3b8;font-size:0.9rem">Enter specification limits (LSL/USL) above to compute Cp, Cpk, and Cpm indices.</p></div>';
+        }
+
+        // Violations table
+        if (violations.length > 0) {
+            html += '<div class="chart-panel"><h3>\u26a0\ufe0f Control Violations (' + violations.length + ')</h3>';
+            html += '<table class="violations-table"><thead><tr>';
+            html += '<th>Subgroup</th><th>Value</th><th>Rule</th><th>Type</th><th>Description</th>';
+            html += '</tr></thead><tbody>';
+            var shown = Math.min(violations.length, 50);
+            for (var i = 0; i < shown; i++) {
+                var v = violations[i];
+                var badge = v.type === 'ooc' ? 'badge-ooc' : v.type === 'warn' ? 'badge-warn' : v.type === 'run' ? 'badge-run' : 'badge-trend';
+                var typeLabel = v.type === 'ooc' ? 'Out of Control' : v.type === 'warn' ? 'Warning' : v.type === 'run' ? 'Run' : 'Trend';
+                html += '<tr><td>#' + v.subgroup + '</td><td>' + formatNum(v.value) + '</td><td>Rule ' + v.rule + '</td>';
+                html += '<td><span class="badge ' + badge + '">' + escapeHtml(typeLabel) + '</span></td>';
+                html += '<td>' + escapeHtml(v.desc) + '</td></tr>';
+            }
+            if (violations.length > 50) {
+                html += '<tr><td colspan="5" style="color:#94a3b8;text-align:center">\u2026 and ' + (violations.length - 50) + ' more</td></tr>';
+            }
+            html += '</tbody></table></div>';
+        } else {
+            html += '<div class="chart-panel" style="text-align:center;padding:2rem">';
+            html += '<span style="font-size:2rem">\u2705</span>';
+            html += '<p style="color:#4ade80;font-weight:600;margin-top:0.5rem">Process is in statistical control</p>';
+            html += '<p style="color:#94a3b8;font-size:0.85rem">No Western Electric rule violations detected</p></div>';
+        }
+
+        // Legend
+        html += '<div style="display:flex;gap:1.5rem;flex-wrap:wrap;font-size:0.8rem;color:#94a3b8;margin-top:0.5rem">';
+        html += '<span>Western Electric Rules: </span>';
+        html += '<span><span class="badge badge-ooc">Rule 1</span> Beyond 3\u03c3</span>';
+        html += '<span><span class="badge badge-run">Rule 2</span> 9 pts same side</span>';
+        html += '<span><span class="badge badge-trend">Rule 3</span> 6 pts trending</span>';
+        html += '<span><span class="badge badge-warn">Rule 4</span> 2/3 beyond 2\u03c3</span>';
+        html += '</div>';
+
+        document.getElementById('output').innerHTML = html;
+
+        // Draw charts
+        drawControlChart('xbarChart', subgroups, limits.xBar, limits.xBar_UCL, limits.xBar_LCL, 'X\u0304', 'rgba(56, 189, 248, 0.9)', violations);
+        drawControlChart('rChart', subgroups, limits.rBar, limits.r_UCL, limits.r_LCL, 'R', 'rgba(167, 139, 250, 0.9)', []);
+        setupTooltip('xbarChart');
+        setupTooltip('rChart');
+    }
+
+    /* ===== Initialization ===== */
+    // Populate metric dropdown
+    var sel = document.getElementById('metricSelect');
+    METRICS.forEach(function(m) {
+        var opt = document.createElement('option');
+        opt.value = m;
+        opt.textContent = metricLabels[m] || m;
+        sel.appendChild(opt);
+    });
+
+    // Event listeners
+    document.getElementById('metricSelect').addEventListener('change', refresh);
+    document.getElementById('subgroupSize').addEventListener('change', refresh);
+    document.getElementById('specLower').addEventListener('change', refresh);
+    document.getElementById('specUpper').addEventListener('change', refresh);
+    window.addEventListener('resize', function() { if (printData.length) refresh(); });
+
+    // Load data
+    fetch('bioprint-data.json')
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            printData = data.filter(function(p) {
+                return p.print_data && p.print_info && p.user_info &&
+                    p.print_info.crosslinking && p.print_info.pressure && p.print_info.resolution;
+            });
+            refresh();
+        })
+        .catch(function(err) {
+            document.getElementById('output').innerHTML = '<div class="loading" style="color:#f87171">Failed to load data: ' + escapeHtml(err.message) + '</div>';
+        });
+    </script>
+</body>
+</html>
