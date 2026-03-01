@@ -1,0 +1,704 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>BioBots 1 — Experiment Coverage Map</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧬</text></svg>">
+    <style>
+        :root {
+            --bg: #0f172a;
+            --surface: #1e293b;
+            --border: #334155;
+            --text: #e2e8f0;
+            --muted: #94a3b8;
+            --accent: #38bdf8;
+            --accent-hover: #7dd3fc;
+            --success: #4ade80;
+            --error: #f87171;
+            --warning: #fbbf24;
+            --purple: #a78bfa;
+            --orange: #fb923c;
+            --teal: #2dd4bf;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            padding: 2rem 1rem;
+        }
+
+        .container { max-width: 1200px; margin: 0 auto; }
+
+        header { text-align: center; margin-bottom: 1.5rem; }
+        header h1 {
+            font-size: 2rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, var(--accent), var(--success));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        header p { color: var(--muted); margin-top: 0.5rem; }
+
+        .nav {
+            display: flex;
+            justify-content: center;
+            gap: 0.25rem;
+            flex-wrap: wrap;
+            margin-bottom: 2rem;
+            padding: 0.5rem;
+            background: var(--surface);
+            border-radius: 12px;
+            border: 1px solid var(--border);
+        }
+        .nav a {
+            color: var(--muted);
+            padding: 0.5rem 1rem;
+            border-radius: 8px;
+            text-decoration: none;
+            font-size: 0.9rem;
+            transition: all 0.2s;
+        }
+        .nav a:hover { color: var(--text); background: rgba(56, 189, 248, 0.1); }
+        .nav a.active { color: var(--accent); background: var(--surface); border: 1px solid var(--border); }
+
+        .controls {
+            display: flex;
+            gap: 1rem;
+            flex-wrap: wrap;
+            margin-bottom: 1.5rem;
+            align-items: flex-end;
+        }
+        .controls > div { display: flex; flex-direction: column; gap: 0.25rem; }
+        .controls label { font-size: 0.8rem; color: var(--muted); }
+        .controls select, .controls input {
+            background: var(--bg);
+            border: 1px solid var(--border);
+            color: var(--text);
+            padding: 0.5rem 0.75rem;
+            border-radius: 8px;
+            font-size: 0.9rem;
+        }
+        .controls select:focus, .controls input:focus { border-color: var(--accent); outline: none; }
+
+        .stats-bar {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+            flex-wrap: wrap;
+        }
+        .stat-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 0.75rem 1.25rem;
+            text-align: center;
+            flex: 1;
+            min-width: 100px;
+        }
+        .stat-card .value { font-size: 1.3rem; font-weight: 700; color: var(--accent); }
+        .stat-card .label { font-size: 0.7rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; margin-top: 0.15rem; }
+
+        .card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+        .card h2 { font-size: 1rem; color: var(--muted); margin-bottom: 1rem; font-weight: 500; }
+
+        canvas { width: 100%; cursor: crosshair; }
+
+        .legend {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            margin-top: 1rem;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+        .legend-item { display: flex; align-items: center; gap: 0.3rem; font-size: 0.8rem; color: var(--muted); }
+        .legend-swatch { width: 16px; height: 16px; border-radius: 3px; border: 1px solid var(--border); }
+
+        .tooltip {
+            position: fixed;
+            background: var(--surface);
+            border: 1px solid var(--accent);
+            border-radius: 8px;
+            padding: 0.75rem;
+            font-size: 0.85rem;
+            pointer-events: none;
+            display: none;
+            z-index: 100;
+            max-width: 250px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        }
+        .tooltip .tt-title { font-weight: 600; color: var(--accent); margin-bottom: 0.3rem; }
+        .tooltip .tt-row { color: var(--muted); line-height: 1.5; }
+        .tooltip .tt-value { color: var(--text); font-weight: 500; }
+
+        footer {
+            margin-top: 2rem;
+            padding-top: 1rem;
+            color: var(--muted);
+            font-size: 0.8rem;
+            text-align: center;
+        }
+        footer a { color: var(--accent); text-decoration: none; }
+        footer a:hover { text-decoration: underline; }
+
+        @media (max-width: 640px) {
+            .controls { flex-direction: column; }
+            .stat-card { min-width: 80px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🗺️ Experiment Coverage Map</h1>
+            <p>Visualize which parameter combinations have been tested and identify gaps</p>
+        </header>
+
+        <nav class="nav">
+            <a href="index.html">Query Tool</a>
+            <a href="explorer.html">Data Explorer</a>
+            <a href="table.html">Data Table</a>
+            <a href="compare.html">Compare</a>
+            <a href="quality.html">🎯 Quality</a>
+            <a href="anomaly.html">🔍 Anomaly</a>
+            <a href="trends.html">Trends</a>
+            <a href="optimizer.html">⚙️ Optimizer</a>
+            <a href="cluster.html">🔗 Clusters</a>
+            <a href="correlation.html">🔗 Correlation</a>
+            <a href="spc.html">📊 SPC</a>
+            <a href="coverage.html" class="active">🗺️ Coverage</a>
+            <a href="api.html">📡 API</a>
+            <a href="guide.html">🛠️ Guide</a>
+        </nav>
+
+        <div class="controls" id="controls">
+            <div>
+                <label for="xMetric">X Axis</label>
+                <select id="xMetric"></select>
+            </div>
+            <div>
+                <label for="yMetric">Y Axis</label>
+                <select id="yMetric"></select>
+            </div>
+            <div>
+                <label for="colorMetric">Color By</label>
+                <select id="colorMetric">
+                    <option value="count">Experiment Count</option>
+                    <option value="livePercent" selected>Avg Live Cell %</option>
+                    <option value="elasticity">Avg Elasticity</option>
+                    <option value="deadPercent">Avg Dead Cell %</option>
+                </select>
+            </div>
+            <div>
+                <label for="binsX">X Bins</label>
+                <input type="number" id="binsX" value="15" min="3" max="40" />
+            </div>
+            <div>
+                <label for="binsY">Y Bins</label>
+                <input type="number" id="binsY" value="15" min="3" max="40" />
+            </div>
+        </div>
+
+        <div class="stats-bar" id="statsBar">
+            <div class="stat-card">
+                <div class="value" id="statTotalCells">—</div>
+                <div class="label">Grid Cells</div>
+            </div>
+            <div class="stat-card">
+                <div class="value" id="statCovered">—</div>
+                <div class="label">Covered</div>
+            </div>
+            <div class="stat-card">
+                <div class="value" id="statGaps">—</div>
+                <div class="label">Gaps</div>
+            </div>
+            <div class="stat-card">
+                <div class="value" id="statCoverage">—</div>
+                <div class="label">Coverage %</div>
+            </div>
+            <div class="stat-card">
+                <div class="value" id="statBestCell">—</div>
+                <div class="label">Best Region</div>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>Parameter Space Heatmap</h2>
+            <canvas id="heatmap" height="500"></canvas>
+            <div class="legend" id="legend"></div>
+        </div>
+
+        <div class="card" id="gapCard" style="display:none;">
+            <h2>🔍 Suggested Experiments — Unexplored Regions</h2>
+            <div id="gapList" style="line-height:1.8;"></div>
+        </div>
+
+        <div class="tooltip" id="tooltip">
+            <div class="tt-title" id="ttTitle"></div>
+            <div class="tt-row" id="ttBody"></div>
+        </div>
+
+        <footer>
+            <p>Built with 🧬 by <a href="https://github.com/sauravbhattacharya001">Saurav Bhattacharya</a></p>
+            <p><a href="https://github.com/sauravbhattacharya001/BioBots">View Source</a></p>
+        </footer>
+    </div>
+
+    <script src="shared/constants.js"></script>
+    <script src="shared/utils.js"></script>
+    <script>
+    'use strict';
+
+    var printData = [];
+    var gridData = null;
+    var canvasRect = null;
+    var gridLayout = null; // stores pixel positions for hover detection
+
+    /* ── Metric selectors ── */
+
+    var axisMetrics = METRICS.filter(function (m) { return m !== 'serial'; });
+
+    function populateSelects() {
+        var xSel = document.getElementById('xMetric');
+        var ySel = document.getElementById('yMetric');
+        for (var i = 0; i < axisMetrics.length; i++) {
+            var m = axisMetrics[i];
+            var label = metricLabels[m] || m;
+            xSel.appendChild(new Option(label, m));
+            ySel.appendChild(new Option(label, m));
+        }
+        // Default: extruder1 vs cl_duration (common parameter pair)
+        xSel.value = 'extruder1';
+        ySel.value = 'cl_duration';
+    }
+
+    /* ── Grid computation ── */
+
+    function buildGrid() {
+        var xKey = document.getElementById('xMetric').value;
+        var yKey = document.getElementById('yMetric').value;
+        var colorKey = document.getElementById('colorMetric').value;
+        var binsX = parseInt(document.getElementById('binsX').value, 10) || 15;
+        var binsY = parseInt(document.getElementById('binsY').value, 10) || 15;
+
+        // Extract valid data points
+        var points = [];
+        for (var i = 0; i < printData.length; i++) {
+            var xv = getMetricValue(printData[i], xKey);
+            var yv = getMetricValue(printData[i], yKey);
+            if (xv == null || yv == null || isNaN(xv) || isNaN(yv)) continue;
+            var cv = null;
+            if (colorKey !== 'count') {
+                cv = getMetricValue(printData[i], colorKey);
+            }
+            points.push({ x: xv, y: yv, c: cv });
+        }
+
+        if (points.length === 0) {
+            gridData = null;
+            drawEmpty();
+            return;
+        }
+
+        // Compute ranges
+        var xMin = Infinity, xMax = -Infinity, yMin = Infinity, yMax = -Infinity;
+        for (var j = 0; j < points.length; j++) {
+            if (points[j].x < xMin) xMin = points[j].x;
+            if (points[j].x > xMax) xMax = points[j].x;
+            if (points[j].y < yMin) yMin = points[j].y;
+            if (points[j].y > yMax) yMax = points[j].y;
+        }
+
+        // Add small padding to avoid edge points falling outside
+        var xPad = (xMax - xMin) * 0.001 || 1;
+        var yPad = (yMax - yMin) * 0.001 || 1;
+        xMax += xPad;
+        yMax += yPad;
+
+        var xStep = (xMax - xMin) / binsX;
+        var yStep = (yMax - yMin) / binsY;
+
+        // Allocate grid
+        var grid = [];
+        for (var r = 0; r < binsY; r++) {
+            var row = [];
+            for (var ci = 0; ci < binsX; ci++) {
+                row.push({ count: 0, colorSum: 0, colorCount: 0 });
+            }
+            grid.push(row);
+        }
+
+        // Bucket points
+        for (var k = 0; k < points.length; k++) {
+            var xi = Math.min(Math.floor((points[k].x - xMin) / xStep), binsX - 1);
+            var yi = Math.min(Math.floor((points[k].y - yMin) / yStep), binsY - 1);
+            grid[yi][xi].count++;
+            if (points[k].c != null && !isNaN(points[k].c)) {
+                grid[yi][xi].colorSum += points[k].c;
+                grid[yi][xi].colorCount++;
+            }
+        }
+
+        // Find color range
+        var cMin = Infinity, cMax = -Infinity;
+        var covered = 0, gaps = 0;
+        var bestVal = -Infinity, bestR = 0, bestC = 0;
+
+        for (var gy = 0; gy < binsY; gy++) {
+            for (var gx = 0; gx < binsX; gx++) {
+                var cell = grid[gy][gx];
+                if (cell.count > 0) {
+                    covered++;
+                    var val;
+                    if (colorKey === 'count') {
+                        val = cell.count;
+                    } else {
+                        val = cell.colorCount > 0 ? cell.colorSum / cell.colorCount : 0;
+                    }
+                    cell.value = val;
+                    if (val < cMin) cMin = val;
+                    if (val > cMax) cMax = val;
+                    if (val > bestVal) { bestVal = val; bestR = gy; bestC = gx; }
+                } else {
+                    gaps++;
+                    cell.value = null;
+                }
+            }
+        }
+
+        var totalCells = binsX * binsY;
+        gridData = {
+            grid: grid,
+            binsX: binsX,
+            binsY: binsY,
+            xMin: xMin, xMax: xMax, yMin: yMin, yMax: yMax,
+            xStep: xStep, yStep: yStep,
+            cMin: cMin, cMax: cMax,
+            covered: covered, gaps: gaps, totalCells: totalCells,
+            bestR: bestR, bestC: bestC, bestVal: bestVal,
+            xKey: xKey, yKey: yKey, colorKey: colorKey
+        };
+
+        updateStats();
+        drawHeatmap();
+        showGaps();
+    }
+
+    /* ── Stats ── */
+
+    function updateStats() {
+        if (!gridData) return;
+        var d = gridData;
+        document.getElementById('statTotalCells').textContent = d.totalCells;
+        document.getElementById('statCovered').textContent = d.covered;
+        document.getElementById('statGaps').textContent = d.gaps;
+        document.getElementById('statCoverage').textContent = (d.covered / d.totalCells * 100).toFixed(1) + '%';
+
+        var bestLabel = '';
+        if (d.bestVal > -Infinity) {
+            bestLabel = formatNum(d.bestVal);
+        }
+        document.getElementById('statBestCell').textContent = bestLabel;
+    }
+
+    /* ── Canvas rendering ── */
+
+    function drawEmpty() {
+        var canvas = document.getElementById('heatmap');
+        var ctx = canvas.getContext('2d');
+        canvas.width = canvas.offsetWidth * (window.devicePixelRatio || 1);
+        canvas.height = 500 * (window.devicePixelRatio || 1);
+        ctx.scale(window.devicePixelRatio || 1, window.devicePixelRatio || 1);
+        ctx.fillStyle = '#1e293b';
+        ctx.fillRect(0, 0, canvas.offsetWidth, 500);
+        ctx.fillStyle = '#94a3b8';
+        ctx.font = '14px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('No data to display — select valid metrics', canvas.offsetWidth / 2, 250);
+    }
+
+    function heatColor(value, min, max, isEmpty) {
+        if (isEmpty) return '#1a1a2e';
+        if (max === min) return 'rgb(56, 189, 248)';
+        var t = (value - min) / (max - min);
+        // Dark blue (cool) → green → yellow → red (hot)
+        var r, g, b;
+        if (t < 0.25) {
+            r = 15; g = Math.round(40 + t * 4 * 160); b = Math.round(100 + t * 4 * 155);
+        } else if (t < 0.5) {
+            var u = (t - 0.25) * 4;
+            r = Math.round(u * 100); g = 200; b = Math.round(255 - u * 200);
+        } else if (t < 0.75) {
+            var v = (t - 0.5) * 4;
+            r = Math.round(100 + v * 155); g = Math.round(200 - v * 50); b = Math.round(55 - v * 55);
+        } else {
+            var w = (t - 0.75) * 4;
+            r = 255; g = Math.round(150 - w * 150); b = 0;
+        }
+        return 'rgb(' + r + ',' + g + ',' + b + ')';
+    }
+
+    function drawHeatmap() {
+        if (!gridData) return;
+        var d = gridData;
+        var canvas = document.getElementById('heatmap');
+        var dpr = window.devicePixelRatio || 1;
+        var displayW = canvas.offsetWidth;
+        var displayH = 500;
+        canvas.width = displayW * dpr;
+        canvas.height = displayH * dpr;
+        var ctx = canvas.getContext('2d');
+        ctx.scale(dpr, dpr);
+
+        ctx.fillStyle = '#0f172a';
+        ctx.fillRect(0, 0, displayW, displayH);
+
+        var margin = { top: 20, right: 20, bottom: 50, left: 65 };
+        var plotW = displayW - margin.left - margin.right;
+        var plotH = displayH - margin.top - margin.bottom;
+
+        var cellW = plotW / d.binsX;
+        var cellH = plotH / d.binsY;
+
+        gridLayout = { margin: margin, cellW: cellW, cellH: cellH, plotW: plotW, plotH: plotH };
+
+        // Draw cells (y inverted so low values at bottom)
+        for (var r = 0; r < d.binsY; r++) {
+            for (var c = 0; c < d.binsX; c++) {
+                var cell = d.grid[r][c];
+                var px = margin.left + c * cellW;
+                var py = margin.top + (d.binsY - 1 - r) * cellH; // invert y
+                var isEmpty = cell.count === 0;
+                ctx.fillStyle = heatColor(cell.value, d.cMin, d.cMax, isEmpty);
+                ctx.fillRect(px, py, cellW - 1, cellH - 1);
+
+                // Highlight gaps with a subtle X
+                if (isEmpty) {
+                    ctx.strokeStyle = '#334155';
+                    ctx.lineWidth = 0.5;
+                    ctx.beginPath();
+                    ctx.moveTo(px + 2, py + 2);
+                    ctx.lineTo(px + cellW - 3, py + cellH - 3);
+                    ctx.moveTo(px + cellW - 3, py + 2);
+                    ctx.lineTo(px + 2, py + cellH - 3);
+                    ctx.stroke();
+                }
+            }
+        }
+
+        // Axis labels
+        ctx.fillStyle = '#94a3b8';
+        ctx.font = '11px sans-serif';
+        ctx.textAlign = 'center';
+
+        // X axis tick labels (5 ticks)
+        for (var tx = 0; tx <= 4; tx++) {
+            var xv = d.xMin + (d.xMax - d.xMin) * (tx / 4);
+            var xpx = margin.left + plotW * (tx / 4);
+            ctx.fillText(formatNum(xv), xpx, displayH - margin.bottom + 20);
+        }
+
+        // Y axis tick labels (5 ticks)
+        ctx.textAlign = 'right';
+        for (var ty = 0; ty <= 4; ty++) {
+            var yv = d.yMin + (d.yMax - d.yMin) * (ty / 4);
+            var ypx = margin.top + plotH * (1 - ty / 4);
+            ctx.fillText(formatNum(yv), margin.left - 8, ypx + 4);
+        }
+
+        // Axis names
+        ctx.fillStyle = '#e2e8f0';
+        ctx.font = '13px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText(metricLabels[d.xKey] || d.xKey, margin.left + plotW / 2, displayH - 5);
+
+        ctx.save();
+        ctx.translate(15, margin.top + plotH / 2);
+        ctx.rotate(-Math.PI / 2);
+        ctx.fillText(metricLabels[d.yKey] || d.yKey, 0, 0);
+        ctx.restore();
+
+        // Draw color legend bar
+        drawLegend(d);
+        canvasRect = canvas.getBoundingClientRect();
+    }
+
+    function drawLegend(d) {
+        var legendEl = document.getElementById('legend');
+        var colorLabel = d.colorKey === 'count' ? 'Experiment Count' : (metricLabels[d.colorKey] || d.colorKey);
+        var html = '<span style="font-size:0.8rem;color:var(--muted);">' + escapeHtml(colorLabel) + ':</span>';
+
+        var steps = 6;
+        for (var s = 0; s < steps; s++) {
+            var t = s / (steps - 1);
+            var val = d.cMin + (d.cMax - d.cMin) * t;
+            var col = heatColor(val, d.cMin, d.cMax, false);
+            html += '<div class="legend-item">'
+                + '<div class="legend-swatch" style="background:' + col + ';"></div>'
+                + '<span>' + formatNum(val) + '</span>'
+                + '</div>';
+        }
+        html += '<div class="legend-item">'
+            + '<div class="legend-swatch" style="background:#1a1a2e;"></div>'
+            + '<span>No data</span>'
+            + '</div>';
+        legendEl.innerHTML = html;
+    }
+
+    /* ── Gap suggestions ── */
+
+    function showGaps() {
+        if (!gridData || gridData.gaps === 0) {
+            document.getElementById('gapCard').style.display = 'none';
+            return;
+        }
+
+        var d = gridData;
+        var xLabel = metricLabels[d.xKey] || d.xKey;
+        var yLabel = metricLabels[d.yKey] || d.yKey;
+
+        // Find gaps that border high-value cells (most interesting to explore)
+        var gapScores = [];
+        for (var r = 0; r < d.binsY; r++) {
+            for (var c = 0; c < d.binsX; c++) {
+                if (d.grid[r][c].count > 0) continue;
+                // Score by average value of non-empty neighbors
+                var nSum = 0, nCount = 0;
+                var neighbors = [[-1,0],[1,0],[0,-1],[0,1]];
+                for (var n = 0; n < neighbors.length; n++) {
+                    var nr = r + neighbors[n][0], nc = c + neighbors[n][1];
+                    if (nr >= 0 && nr < d.binsY && nc >= 0 && nc < d.binsX && d.grid[nr][nc].count > 0) {
+                        nSum += d.grid[nr][nc].value;
+                        nCount++;
+                    }
+                }
+                if (nCount > 0) {
+                    gapScores.push({ r: r, c: c, score: nSum / nCount, neighbors: nCount });
+                }
+            }
+        }
+
+        // Sort by score descending (gaps near best results first)
+        gapScores.sort(function (a, b) { return b.score - a.score; });
+
+        var maxShow = Math.min(gapScores.length, 8);
+        if (maxShow === 0) {
+            document.getElementById('gapCard').style.display = 'none';
+            return;
+        }
+
+        var html = '<div style="color:var(--muted);font-size:0.85rem;margin-bottom:0.75rem;">'
+            + 'These unexplored parameter regions are adjacent to high-performing experiments — '
+            + 'testing here may reveal better conditions.</div>';
+        html += '<ol style="padding-left:1.5rem;">';
+        for (var gi = 0; gi < maxShow; gi++) {
+            var g = gapScores[gi];
+            var xLo = formatNum(d.xMin + g.c * d.xStep);
+            var xHi = formatNum(d.xMin + (g.c + 1) * d.xStep);
+            var yLo = formatNum(d.yMin + g.r * d.yStep);
+            var yHi = formatNum(d.yMin + (g.r + 1) * d.yStep);
+            html += '<li style="margin-bottom:0.3rem;">'
+                + '<span style="color:var(--accent);">' + escapeHtml(xLabel) + '</span> '
+                + xLo + '–' + xHi
+                + ' &times; '
+                + '<span style="color:var(--accent);">' + escapeHtml(yLabel) + '</span> '
+                + yLo + '–' + yHi
+                + ' <span style="color:var(--muted);">(neighbor avg: ' + formatNum(g.score) + ')</span>'
+                + '</li>';
+        }
+        html += '</ol>';
+
+        document.getElementById('gapList').innerHTML = html;
+        document.getElementById('gapCard').style.display = '';
+    }
+
+    /* ── Tooltip on hover ── */
+
+    document.getElementById('heatmap').addEventListener('mousemove', function (e) {
+        if (!gridData || !gridLayout) return;
+
+        var rect = this.getBoundingClientRect();
+        var mx = e.clientX - rect.left;
+        var my = e.clientY - rect.top;
+        var m = gridLayout.margin;
+
+        var col = Math.floor((mx - m.left) / gridLayout.cellW);
+        var row = gridData.binsY - 1 - Math.floor((my - m.top) / gridLayout.cellH);
+
+        if (col < 0 || col >= gridData.binsX || row < 0 || row >= gridData.binsY) {
+            document.getElementById('tooltip').style.display = 'none';
+            return;
+        }
+
+        var d = gridData;
+        var cell = d.grid[row][col];
+        var xLo = formatNum(d.xMin + col * d.xStep);
+        var xHi = formatNum(d.xMin + (col + 1) * d.xStep);
+        var yLo = formatNum(d.yMin + row * d.yStep);
+        var yHi = formatNum(d.yMin + (row + 1) * d.yStep);
+
+        var xLabel = metricLabels[d.xKey] || d.xKey;
+        var yLabel = metricLabels[d.yKey] || d.yKey;
+
+        var tt = document.getElementById('tooltip');
+        var title = cell.count > 0 ? cell.count + ' experiment(s)' : 'No experiments';
+        document.getElementById('ttTitle').textContent = title;
+
+        var body = escapeHtml(xLabel) + ': ' + xLo + ' – ' + xHi + '<br>'
+            + escapeHtml(yLabel) + ': ' + yLo + ' – ' + yHi;
+        if (cell.count > 0 && cell.value != null) {
+            var colorLabel = d.colorKey === 'count' ? 'Count' : (metricLabels[d.colorKey] || d.colorKey);
+            body += '<br><span class="tt-value">' + escapeHtml(colorLabel) + ': ' + formatNum(cell.value) + '</span>';
+        }
+        document.getElementById('ttBody').innerHTML = body;
+
+        tt.style.display = '';
+        var ttRect = tt.getBoundingClientRect();
+        var left = e.clientX + 12;
+        var top = e.clientY - 10;
+        if (left + ttRect.width > window.innerWidth) left = e.clientX - ttRect.width - 12;
+        if (top + ttRect.height > window.innerHeight) top = e.clientY - ttRect.height;
+        tt.style.left = left + 'px';
+        tt.style.top = top + 'px';
+    });
+
+    document.getElementById('heatmap').addEventListener('mouseleave', function () {
+        document.getElementById('tooltip').style.display = 'none';
+    });
+
+    /* ── Event binding ── */
+
+    document.getElementById('xMetric').addEventListener('change', buildGrid);
+    document.getElementById('yMetric').addEventListener('change', buildGrid);
+    document.getElementById('colorMetric').addEventListener('change', buildGrid);
+    document.getElementById('binsX').addEventListener('change', buildGrid);
+    document.getElementById('binsY').addEventListener('change', buildGrid);
+
+    /* ── Init ── */
+
+    populateSelects();
+
+    fetch('bioprint-data.json')
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+            printData = data;
+            buildGrid();
+        })
+        .catch(function (err) {
+            drawEmpty();
+        });
+    </script>
+</body>
+</html>
