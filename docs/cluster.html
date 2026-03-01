@@ -558,15 +558,22 @@
                     profile.metrics[key] = { mean: 0, std: 0, min: 0, max: 0 };
                     continue;
                 }
-                const mean = values.reduce((s, v) => s + v, 0) / values.length;
-                const std = values.length > 1
-                    ? Math.sqrt(values.reduce((s, v) => s + (v - mean) ** 2, 0) / (values.length - 1))
-                    : 0;
+                // Single-pass mean, variance, min, max (avoids spread on large arrays)
+                let mean = 0, m2 = 0, lo = Infinity, hi = -Infinity;
+                for (let vi = 0; vi < values.length; vi++) {
+                    const v = values[vi];
+                    const delta = v - mean;
+                    mean += delta / (vi + 1);
+                    m2 += delta * (v - mean);
+                    if (v < lo) lo = v;
+                    if (v > hi) hi = v;
+                }
+                const std = values.length > 1 ? Math.sqrt(m2 / (values.length - 1)) : 0;
                 profile.metrics[key] = {
                     mean: Math.round(mean * 100) / 100,
                     std: Math.round(std * 100) / 100,
-                    min: Math.min(...values),
-                    max: Math.max(...values),
+                    min: lo,
+                    max: hi,
                 };
             }
 

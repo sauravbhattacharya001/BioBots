@@ -936,10 +936,14 @@
 
         if (scatterPts.length === 0) return;
 
-        const xMin = Math.min(...scatterPts.map(p => p.x));
-        const xMax = Math.max(...scatterPts.map(p => p.x));
-        const yMin = Math.min(...scatterPts.map(p => p.y));
-        const yMax = Math.max(...scatterPts.map(p => p.y));
+        let xMin = Infinity, xMax = -Infinity, yMin = Infinity, yMax = -Infinity;
+        for (let si = 0; si < scatterPts.length; si++) {
+            const sp = scatterPts[si];
+            if (sp.x < xMin) xMin = sp.x;
+            if (sp.x > xMax) xMax = sp.x;
+            if (sp.y < yMin) yMin = sp.y;
+            if (sp.y > yMax) yMax = sp.y;
+        }
         const xPad2 = (xMax - xMin) * 0.05 || 1;
         const yPad2 = (yMax - yMin) * 0.05 || 1;
         const xLo = xMin - xPad2, xHi = xMax + xPad2;
