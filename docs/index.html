@@ -381,8 +381,18 @@
 
         let result;
         switch (func) {
-            case 'Maximum': result = Math.max(...values); break;
-            case 'Minimum': result = Math.min(...values); break;
+            case 'Maximum': {
+                let mx = values[0];
+                for (let i = 1; i < values.length; i++) { if (values[i] > mx) mx = values[i]; }
+                result = mx;
+                break;
+            }
+            case 'Minimum': {
+                let mn = values[0];
+                for (let i = 1; i < values.length; i++) { if (values[i] < mn) mn = values[i]; }
+                result = mn;
+                break;
+            }
             case 'Average': result = (values.reduce((a, b) => a + b, 0) / values.length).toFixed(2); break;
         }
 

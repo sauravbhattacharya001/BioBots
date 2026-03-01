@@ -441,8 +441,11 @@
         const ctx = setupCanvas(canvas, W, H);
         const pad = { top: 30, right: 20, bottom: 60, left: 65 };
 
-        const min = Math.min(...values);
-        const max = Math.max(...values);
+        let min = values[0], max = values[0];
+        for (let i = 1; i < values.length; i++) {
+            if (values[i] < min) min = values[i];
+            if (values[i] > max) max = values[i];
+        }
         const range = max - min || 1;
         const binWidth = range / numBins;
 
@@ -600,10 +603,14 @@
         const chartW = W - pad.left - pad.right;
         const chartH = H - pad.top - pad.bottom;
 
-        const xMin = Math.min(...points.map(p => p.x));
-        const xMax = Math.max(...points.map(p => p.x));
-        const yMin = Math.min(...points.map(p => p.y));
-        const yMax = Math.max(...points.map(p => p.y));
+        let xMin = points[0].x, xMax = points[0].x;
+        let yMin = points[0].y, yMax = points[0].y;
+        for (let i = 1; i < points.length; i++) {
+            if (points[i].x < xMin) xMin = points[i].x;
+            if (points[i].x > xMax) xMax = points[i].x;
+            if (points[i].y < yMin) yMin = points[i].y;
+            if (points[i].y > yMax) yMax = points[i].y;
+        }
         const xRange = xMax - xMin || 1;
         const yRange = yMax - yMin || 1;
 

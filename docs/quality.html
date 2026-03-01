@@ -653,9 +653,17 @@
     function computeRanges(data) {
         const ranges = {};
         METRIC_DESCRIPTORS.forEach(m => {
-            const vals = data.map(p => m.get(p)).filter(v => v != null && !isNaN(v));
-            if (vals.length === 0) { ranges[m.key] = { min: 0, max: 1 }; return; }
-            ranges[m.key] = { min: Math.min(...vals), max: Math.max(...vals) };
+            let min = Infinity, max = -Infinity, count = 0;
+            for (let i = 0; i < data.length; i++) {
+                const v = m.get(data[i]);
+                if (v == null || isNaN(v)) continue;
+                if (v < min) min = v;
+                if (v > max) max = v;
+                count++;
+            }
+            ranges[m.key] = count === 0
+                ? { min: 0, max: 1 }
+                : { min: min, max: max };
         });
         return ranges;
     }
@@ -718,22 +726,37 @@
             printData.map(p => m.get(p)).filter(v => v != null && !isNaN(v))
         );
 
-        // Compute correlation matrix
+        // Compute correlation matrix — extract values once, exploit symmetry
+        // Pre-extract all metric values per print in a single pass
+        const metricArrays = new Array(n);
+        for (let i = 0; i < n; i++) {
+            metricArrays[i] = new Array(printData.length);
+            const getter = metricsToShow[i].get;
+            for (let p = 0; p < printData.length; p++) {
+                const v = getter(printData[p]);
+                metricArrays[i][p] = (v != null && !isNaN(v)) ? v : null;
+            }
+        }
+
         const corrMatrix = [];
         for (let i = 0; i < n; i++) {
-            corrMatrix[i] = [];
-            for (let j = 0; j < n; j++) {
-                if (i === j) { corrMatrix[i][j] = 1; continue; }
-                // align arrays — only use prints that have both metrics
+            corrMatrix[i] = new Array(n);
+            corrMatrix[i][i] = 1;
+        }
+        for (let i = 0; i < n; i++) {
+            for (let j = i + 1; j < n; j++) {
+                // Align: only use prints where both metrics are non-null
                 const xs = [], ys = [];
-                printData.forEach(p => {
-                    const x = metricsToShow[i].get(p);
-                    const y = metricsToShow[j].get(p);
-                    if (x != null && !isNaN(x) && y != null && !isNaN(y)) {
+                for (let p = 0; p < printData.length; p++) {
+                    const x = metricArrays[i][p];
+                    const y = metricArrays[j][p];
+                    if (x !== null && y !== null) {
                         xs.push(x); ys.push(y);
                     }
-                });
-                corrMatrix[i][j] = pearsonR(xs, ys);
+                }
+                const r = pearsonR(xs, ys);
+                corrMatrix[i][j] = r;
+                corrMatrix[j][i] = r; // symmetric
             }
         }
 

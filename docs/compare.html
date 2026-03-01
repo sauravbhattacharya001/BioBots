@@ -629,10 +629,16 @@
             const allVals = printData.map(p => {
                 try { return m.get(p); } catch { return null; }
             }).filter(v => v !== null && isFinite(v));
+            let lo = Infinity, hi = -Infinity;
+            for (let i = 0; i < allVals.length; i++) {
+                if (allVals[i] < lo) lo = allVals[i];
+                if (allVals[i] > hi) hi = allVals[i];
+            }
+            if (!isFinite(lo)) { lo = 0; hi = 1; }
             return {
-                min: Math.min(...allVals),
-                max: Math.max(...allVals),
-                range: Math.max(...allVals) - Math.min(...allVals) || 1
+                min: lo,
+                max: hi,
+                range: hi - lo || 1
             };
         });
 
@@ -765,7 +771,10 @@
             const allDataVals = printData.map(p => {
                 try { return m.get(p); } catch { return null; }
             }).filter(v => v !== null && isFinite(v));
-            const globalMax = allDataVals.length > 0 ? Math.max(...allDataVals) : 1;
+            let globalMax = 1;
+            for (let i = 0; i < allDataVals.length; i++) {
+                if (allDataVals[i] > globalMax) globalMax = allDataVals[i];
+            }
 
             let bestIdx = -1, worstIdx = -1;
             if (numericVals.length >= 2 && m.higherBetter !== null) {
