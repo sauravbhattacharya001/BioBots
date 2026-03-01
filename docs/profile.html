@@ -738,8 +738,15 @@
 
     /* ── Init ── */
     document.addEventListener('DOMContentLoaded', async () => {
-        const resp = await fetch('bioprint-data.json');
-        allPrints = await resp.json();
+        try {
+            const resp = await fetch('bioprint-data.json');
+            if (!resp.ok) throw new Error('HTTP ' + resp.status);
+            allPrints = await resp.json();
+        } catch (err) {
+            document.querySelector('.content').innerHTML =
+                '<div class="loading" style="color:#f87171">Failed to load data: ' + err.message + '</div>';
+            return;
+        }
         populationStats = buildPopulationStats(allPrints);
 
         const input = document.getElementById('searchInput');
