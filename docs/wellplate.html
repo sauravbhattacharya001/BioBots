@@ -1,0 +1,928 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>BioBots 1 — Wellplate Analyzer</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧬</text></svg>">
+    <style>
+        :root {
+            --bg: #0f172a;
+            --surface: #1e293b;
+            --border: #334155;
+            --text: #e2e8f0;
+            --muted: #94a3b8;
+            --accent: #38bdf8;
+            --accent-hover: #7dd3fc;
+            --success: #4ade80;
+            --error: #f87171;
+            --warning: #fbbf24;
+            --purple: #a78bfa;
+            --orange: #fb923c;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            padding: 2rem 1rem;
+        }
+
+        .container { max-width: 1200px; margin: 0 auto; }
+
+        header { text-align: center; margin-bottom: 2rem; }
+
+        header h1 {
+            font-size: 2rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, var(--accent), var(--purple));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        header p { color: var(--muted); margin-top: 0.5rem; }
+
+        .nav {
+            display: flex;
+            justify-content: center;
+            gap: 0.5rem;
+            margin-bottom: 2rem;
+            flex-wrap: wrap;
+        }
+
+        .nav a {
+            color: var(--muted);
+            text-decoration: none;
+            padding: 0.5rem 1rem;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            transition: all 0.2s;
+        }
+
+        .nav a:hover { color: var(--text); background: var(--surface); }
+        .nav a.active { color: var(--accent); background: var(--surface); border: 1px solid var(--border); }
+
+        .stats-bar {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 2rem;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .stat-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 1rem 1.5rem;
+            text-align: center;
+            min-width: 110px;
+        }
+
+        .stat-card .value {
+            font-size: 1.4rem;
+            font-weight: 700;
+            color: var(--accent);
+        }
+
+        .stat-card .label {
+            font-size: 0.75rem;
+            color: var(--muted);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-top: 0.25rem;
+        }
+
+        .stat-card.best .value { color: var(--success); }
+        .stat-card.worst .value { color: var(--error); }
+
+        .card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .card h2 {
+            font-size: 1.1rem;
+            margin-bottom: 1rem;
+            color: var(--muted);
+            font-weight: 500;
+        }
+
+        .controls {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        select {
+            background: var(--bg);
+            border: 1px solid var(--border);
+            color: var(--text);
+            padding: 0.5rem 0.8rem;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            outline: none;
+        }
+
+        select:focus { border-color: var(--accent); }
+
+        button {
+            background: var(--accent);
+            color: var(--bg);
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        button:hover {
+            background: var(--accent-hover);
+            transform: translateY(-1px);
+        }
+
+        button.secondary {
+            background: transparent;
+            color: var(--muted);
+            border: 1px solid var(--border);
+        }
+
+        button.secondary:hover {
+            color: var(--text);
+            border-color: var(--text);
+            background: transparent;
+        }
+
+        .chart-wrapper {
+            width: 100%;
+            overflow-x: auto;
+        }
+
+        canvas { max-width: 100%; }
+
+        .breakdown-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.9rem;
+        }
+
+        .breakdown-table th,
+        .breakdown-table td {
+            text-align: right;
+            padding: 10px 14px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .breakdown-table th {
+            color: var(--accent);
+            font-weight: 600;
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            text-align: right;
+        }
+
+        .breakdown-table th:first-child,
+        .breakdown-table td:first-child {
+            text-align: left;
+        }
+
+        .breakdown-table tr:hover td {
+            background: rgba(56, 189, 248, 0.05);
+        }
+
+        .breakdown-table .best-cell {
+            color: var(--success);
+            font-weight: 600;
+        }
+
+        .breakdown-table .worst-cell {
+            color: var(--error);
+            font-weight: 600;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+
+        .badge-success { background: rgba(74, 222, 128, 0.15); color: var(--success); }
+        .badge-error { background: rgba(248, 113, 113, 0.15); color: var(--error); }
+
+        .cl-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+        }
+
+        .cl-card {
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 1rem;
+        }
+
+        .cl-card h3 {
+            font-size: 0.9rem;
+            color: var(--accent);
+            margin-bottom: 0.5rem;
+        }
+
+        .cl-card .cl-stat {
+            display: flex;
+            justify-content: space-between;
+            padding: 4px 0;
+            font-size: 0.85rem;
+        }
+
+        .cl-card .cl-stat .cl-label { color: var(--muted); }
+
+        .loading {
+            text-align: center;
+            padding: 3rem;
+            color: var(--muted);
+        }
+
+        @media (max-width: 768px) {
+            .breakdown-table { font-size: 0.8rem; }
+            .breakdown-table th, .breakdown-table td { padding: 8px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🧫 Wellplate Analyzer</h1>
+            <p>Performance breakdown by wellplate format — compare outcomes across 1, 6, 12, 24, and 96-well plates</p>
+        </header>
+
+        <nav class="nav">
+            <a href="index.html">Query Tool</a>
+            <a href="explorer.html">Data Explorer</a>
+            <a href="table.html">Data Table</a>
+            <a href="compare.html">Compare</a>
+            <a href="quality.html">🛡️ Quality</a>
+            <a href="anomaly.html">🔍 Anomaly</a>
+            <a href="trends.html">Trends</a>
+            <a href="optimizer.html">⚙️ Optimizer</a>
+            <a href="api.html">📡 API</a>
+            <a href="architecture.html">🏗️ Architecture</a>
+            <a href="cluster.html">📊 Clusters</a>
+            <a href="guide.html">📖 Guide</a>
+            <a href="wellplate.html" class="active">🧫 Wellplate</a>
+        </nav>
+
+        <div class="stats-bar" id="statsBar">
+            <div class="stat-card">
+                <div class="value" id="totalPrints">-</div>
+                <div class="label">Total Prints</div>
+            </div>
+            <div class="stat-card">
+                <div class="value" id="wellplateTypes">-</div>
+                <div class="label">Plate Types</div>
+            </div>
+            <div class="stat-card best">
+                <div class="value" id="bestPlate">-</div>
+                <div class="label">Best Live Cell %</div>
+            </div>
+            <div class="stat-card worst">
+                <div class="value" id="worstPlate">-</div>
+                <div class="label">Lowest Live Cell %</div>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>Metric Selection</h2>
+            <div class="controls">
+                <label style="color:var(--muted);font-size:0.9rem;">Primary metric:</label>
+                <select id="metricSelect">
+                    <option value="livePercent">Live Cell %</option>
+                    <option value="deadPercent">Dead Cell %</option>
+                    <option value="elasticity">Elasticity (kPa)</option>
+                    <option value="cl_duration">CL Duration (ms)</option>
+                    <option value="cl_intensity">CL Intensity (%)</option>
+                    <option value="extruder1">Extruder 1 Pressure</option>
+                    <option value="extruder2">Extruder 2 Pressure</option>
+                    <option value="layerHeight">Layer Height (mm)</option>
+                    <option value="layerNum">Layer Count</option>
+                </select>
+                <button class="secondary" onclick="exportCSV()">📥 Export CSV</button>
+                <button class="secondary" onclick="exportJSON()">📥 Export JSON</button>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>Mean Value by Wellplate</h2>
+            <div class="chart-wrapper">
+                <canvas id="barChart" width="800" height="350"></canvas>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>Detailed Breakdown</h2>
+            <div style="overflow-x:auto;">
+                <table class="breakdown-table" id="breakdownTable">
+                    <thead>
+                        <tr>
+                            <th>Wellplate</th>
+                            <th>Count</th>
+                            <th>Mean</th>
+                            <th>Median</th>
+                            <th>Std Dev</th>
+                            <th>Min</th>
+                            <th>Max</th>
+                            <th>Best?</th>
+                        </tr>
+                    </thead>
+                    <tbody id="breakdownBody"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>Crosslinking Usage by Wellplate</h2>
+            <div class="cl-grid" id="clGrid"></div>
+        </div>
+
+        <div class="card">
+            <h2>Distribution Comparison</h2>
+            <div class="chart-wrapper">
+                <canvas id="boxChart" width="800" height="300"></canvas>
+            </div>
+        </div>
+
+        <div class="loading" id="loadingMsg">Loading bioprint data…</div>
+    </div>
+
+    <script src="shared/constants.js"></script>
+    <script src="shared/utils.js"></script>
+    <script src="shared/export.js"></script>
+    <script>
+    'use strict';
+
+    var printData = [];
+    var wellplateGroups = {};
+    var wellplateStats = {};
+
+    var WELLPLATE_COLORS = {
+        1:  '#38bdf8',
+        6:  '#4ade80',
+        12: '#fbbf24',
+        24: '#a78bfa',
+        96: '#fb923c'
+    };
+
+    function groupByWellplate(data) {
+        var groups = {};
+        for (var i = 0; i < data.length; i++) {
+            var wp = data[i].print_info.wellplate;
+            if (!groups[wp]) groups[wp] = [];
+            groups[wp].push(data[i]);
+        }
+        return groups;
+    }
+
+    function computeWellplateStats(groups, metric) {
+        var result = {};
+        var wellplates = Object.keys(groups).map(Number).sort(function(a, b) { return a - b; });
+
+        for (var w = 0; w < wellplates.length; w++) {
+            var wp = wellplates[w];
+            var prints = groups[wp];
+            var values = [];
+
+            for (var i = 0; i < prints.length; i++) {
+                var v = getMetricValue(prints[i], metric);
+                if (v !== null && isFinite(v)) values.push(v);
+            }
+
+            if (values.length === 0) {
+                result[wp] = { count: 0, mean: 0, median: 0, std: 0, min: 0, max: 0, q1: 0, q3: 0 };
+                continue;
+            }
+
+            var stats = computeStats(values.slice());
+            var sorted = values.slice().sort(function(a, b) { return a - b; });
+
+            result[wp] = {
+                count: values.length,
+                mean: stats.mean,
+                median: stats.median,
+                std: stats.std,
+                min: sorted[0],
+                max: sorted[sorted.length - 1],
+                q1: stats.q1,
+                q3: stats.q3
+            };
+        }
+
+        return result;
+    }
+
+    function findBestWellplate(stats, higherBetter) {
+        var best = null;
+        var bestVal = higherBetter ? -Infinity : Infinity;
+        var wellplates = Object.keys(stats).map(Number);
+
+        for (var i = 0; i < wellplates.length; i++) {
+            var wp = wellplates[i];
+            var s = stats[wp];
+            if (s.count === 0) continue;
+
+            if (higherBetter ? s.mean > bestVal : s.mean < bestVal) {
+                bestVal = s.mean;
+                best = wp;
+            }
+        }
+
+        return best;
+    }
+
+    function computeCrosslinkingBreakdown(groups) {
+        var result = {};
+        var wellplates = Object.keys(groups).map(Number).sort(function(a, b) { return a - b; });
+
+        for (var w = 0; w < wellplates.length; w++) {
+            var wp = wellplates[w];
+            var prints = groups[wp];
+            var enabled = 0;
+            var totalDuration = 0;
+            var totalIntensity = 0;
+            var durationCount = 0;
+
+            for (var i = 0; i < prints.length; i++) {
+                var cl = prints[i].print_info.crosslinking;
+                if (cl.cl_enabled) {
+                    enabled++;
+                    totalDuration += cl.cl_duration;
+                    totalIntensity += cl.cl_intensity;
+                    durationCount++;
+                }
+            }
+
+            result[wp] = {
+                total: prints.length,
+                enabled: enabled,
+                enabledPct: prints.length > 0 ? (enabled / prints.length * 100) : 0,
+                avgDuration: durationCount > 0 ? totalDuration / durationCount : 0,
+                avgIntensity: durationCount > 0 ? totalIntensity / durationCount : 0
+            };
+        }
+
+        return result;
+    }
+
+    function fmt(n) {
+        if (n == null) return '-';
+        if (Number.isInteger(n)) return n.toLocaleString();
+        return n.toFixed(2);
+    }
+
+    // ── Rendering ───────────────────────────────────────
+
+    function renderOverviewStats(stats, metric) {
+        document.getElementById('totalPrints').textContent = printData.length.toLocaleString();
+        var types = Object.keys(stats).filter(function(k) { return stats[k].count > 0; });
+        document.getElementById('wellplateTypes').textContent = types.length;
+
+        var desc = null;
+        if (typeof METRIC_DESCRIPTORS !== 'undefined') {
+            for (var i = 0; i < METRIC_DESCRIPTORS.length; i++) {
+                if (METRIC_DESCRIPTORS[i].key === metric) { desc = METRIC_DESCRIPTORS[i]; break; }
+            }
+        }
+        var higherBetter = desc && desc.higherBetter === true;
+
+        var bestWp = findBestWellplate(stats, higherBetter);
+        var worstWp = findBestWellplate(stats, !higherBetter);
+
+        var label = (typeof metricLabels !== 'undefined' && metricLabels[metric]) || metric;
+        document.getElementById('bestPlate').textContent = bestWp != null ? bestWp + '-well' : '-';
+        document.getElementById('worstPlate').textContent = worstWp != null ? worstWp + '-well' : '-';
+
+        var bestLabel = document.querySelector('#statsBar .stat-card.best .label');
+        var worstLabel = document.querySelector('#statsBar .stat-card.worst .label');
+        if (bestLabel) bestLabel.textContent = 'Best ' + label;
+        if (worstLabel) worstLabel.textContent = 'Lowest ' + label;
+    }
+
+    function renderBreakdownTable(stats, metric) {
+        var tbody = document.getElementById('breakdownBody');
+        if (!tbody) return;
+
+        var desc = null;
+        if (typeof METRIC_DESCRIPTORS !== 'undefined') {
+            for (var i = 0; i < METRIC_DESCRIPTORS.length; i++) {
+                if (METRIC_DESCRIPTORS[i].key === metric) { desc = METRIC_DESCRIPTORS[i]; break; }
+            }
+        }
+        var higherBetter = desc && desc.higherBetter === true;
+        var bestWp = findBestWellplate(stats, higherBetter);
+        var worstWp = findBestWellplate(stats, !higherBetter);
+
+        var wellplates = Object.keys(stats).map(Number).sort(function(a, b) { return a - b; });
+        var rows = '';
+
+        for (var i = 0; i < wellplates.length; i++) {
+            var wp = wellplates[i];
+            var s = stats[wp];
+            if (s.count === 0) continue;
+
+            var meanClass = '';
+            var badge = '';
+            if (wp === bestWp) {
+                meanClass = ' class="best-cell"';
+                badge = '<span class="badge badge-success">Best</span>';
+            } else if (wp === worstWp) {
+                meanClass = ' class="worst-cell"';
+                badge = '<span class="badge badge-error">Worst</span>';
+            }
+
+            rows += '<tr>'
+                + '<td><strong>' + escapeHtml(wp + '-well') + '</strong></td>'
+                + '<td>' + s.count.toLocaleString() + '</td>'
+                + '<td' + meanClass + '>' + fmt(s.mean) + '</td>'
+                + '<td>' + fmt(s.median) + '</td>'
+                + '<td>' + fmt(s.std) + '</td>'
+                + '<td>' + fmt(s.min) + '</td>'
+                + '<td>' + fmt(s.max) + '</td>'
+                + '<td>' + badge + '</td>'
+                + '</tr>';
+        }
+
+        tbody.innerHTML = rows;
+    }
+
+    function renderBarChart(stats, metric) {
+        var canvas = document.getElementById('barChart');
+        if (!canvas) return;
+        var ctx = canvas.getContext('2d');
+        var dpr = window.devicePixelRatio || 1;
+
+        var width = canvas.parentElement.clientWidth || 800;
+        var height = 350;
+        canvas.width = width * dpr;
+        canvas.height = height * dpr;
+        canvas.style.width = width + 'px';
+        canvas.style.height = height + 'px';
+        ctx.scale(dpr, dpr);
+
+        ctx.clearRect(0, 0, width, height);
+
+        var wellplates = Object.keys(stats).map(Number).sort(function(a, b) { return a - b; });
+        var active = wellplates.filter(function(wp) { return stats[wp].count > 0; });
+
+        if (active.length === 0) {
+            ctx.fillStyle = '#94a3b8';
+            ctx.font = '14px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText('No data available', width / 2, height / 2);
+            return;
+        }
+
+        var label = (typeof metricLabels !== 'undefined' && metricLabels[metric]) || metric;
+        var maxVal = 0;
+        for (var i = 0; i < active.length; i++) {
+            if (stats[active[i]].mean > maxVal) maxVal = stats[active[i]].mean;
+        }
+        maxVal = maxVal * 1.15;
+
+        var padLeft = 70;
+        var padRight = 30;
+        var padTop = 30;
+        var padBottom = 50;
+        var chartW = width - padLeft - padRight;
+        var chartH = height - padTop - padBottom;
+        var barW = Math.min(80, chartW / active.length * 0.6);
+        var gap = (chartW - barW * active.length) / (active.length + 1);
+
+        // Y-axis grid
+        ctx.strokeStyle = '#334155';
+        ctx.lineWidth = 1;
+        var gridLines = 5;
+        ctx.textAlign = 'right';
+        ctx.font = '12px sans-serif';
+        ctx.fillStyle = '#94a3b8';
+
+        for (var g = 0; g <= gridLines; g++) {
+            var yVal = (maxVal / gridLines) * g;
+            var yPos = padTop + chartH - (chartH * (yVal / maxVal));
+            ctx.beginPath();
+            ctx.moveTo(padLeft, yPos);
+            ctx.lineTo(width - padRight, yPos);
+            ctx.stroke();
+            ctx.fillText(fmt(yVal), padLeft - 8, yPos + 4);
+        }
+
+        // Y-axis label
+        ctx.save();
+        ctx.translate(16, padTop + chartH / 2);
+        ctx.rotate(-Math.PI / 2);
+        ctx.textAlign = 'center';
+        ctx.font = '12px sans-serif';
+        ctx.fillStyle = '#94a3b8';
+        ctx.fillText(label, 0, 0);
+        ctx.restore();
+
+        // Bars
+        for (var i = 0; i < active.length; i++) {
+            var wp = active[i];
+            var s = stats[wp];
+            var x = padLeft + gap + i * (barW + gap);
+            var barH = (s.mean / maxVal) * chartH;
+            var y = padTop + chartH - barH;
+
+            ctx.fillStyle = WELLPLATE_COLORS[wp] || '#38bdf8';
+            ctx.beginPath();
+            var r = Math.min(6, barW / 4);
+            ctx.moveTo(x, y + r);
+            ctx.arcTo(x, y, x + r, y, r);
+            ctx.arcTo(x + barW, y, x + barW, y + r, r);
+            ctx.lineTo(x + barW, padTop + chartH);
+            ctx.lineTo(x, padTop + chartH);
+            ctx.closePath();
+            ctx.fill();
+
+            // Error bar (std dev)
+            if (s.std > 0) {
+                var errTop = padTop + chartH - ((s.mean + s.std) / maxVal) * chartH;
+                var errBot = padTop + chartH - (Math.max(0, s.mean - s.std) / maxVal) * chartH;
+                var cx = x + barW / 2;
+                ctx.strokeStyle = '#e2e8f0';
+                ctx.lineWidth = 1.5;
+                ctx.beginPath();
+                ctx.moveTo(cx, Math.max(padTop, errTop));
+                ctx.lineTo(cx, Math.min(padTop + chartH, errBot));
+                ctx.stroke();
+                ctx.beginPath();
+                ctx.moveTo(cx - 5, Math.max(padTop, errTop));
+                ctx.lineTo(cx + 5, Math.max(padTop, errTop));
+                ctx.stroke();
+                ctx.beginPath();
+                ctx.moveTo(cx - 5, Math.min(padTop + chartH, errBot));
+                ctx.lineTo(cx + 5, Math.min(padTop + chartH, errBot));
+                ctx.stroke();
+            }
+
+            // Value label
+            ctx.fillStyle = '#e2e8f0';
+            ctx.textAlign = 'center';
+            ctx.font = 'bold 12px sans-serif';
+            ctx.fillText(fmt(s.mean), x + barW / 2, y - 8);
+
+            // X-axis label
+            ctx.fillStyle = '#94a3b8';
+            ctx.font = '12px sans-serif';
+            ctx.fillText(wp + '-well', x + barW / 2, padTop + chartH + 20);
+            ctx.fillStyle = '#64748b';
+            ctx.font = '11px sans-serif';
+            ctx.fillText('n=' + s.count, x + barW / 2, padTop + chartH + 36);
+        }
+    }
+
+    function renderBoxPlot(stats, metric) {
+        var canvas = document.getElementById('boxChart');
+        if (!canvas) return;
+        var ctx = canvas.getContext('2d');
+        var dpr = window.devicePixelRatio || 1;
+
+        var width = canvas.parentElement.clientWidth || 800;
+        var height = 300;
+        canvas.width = width * dpr;
+        canvas.height = height * dpr;
+        canvas.style.width = width + 'px';
+        canvas.style.height = height + 'px';
+        ctx.scale(dpr, dpr);
+
+        ctx.clearRect(0, 0, width, height);
+
+        var wellplates = Object.keys(stats).map(Number).sort(function(a, b) { return a - b; });
+        var active = wellplates.filter(function(wp) { return stats[wp].count > 0; });
+
+        if (active.length === 0) return;
+
+        var globalMin = Infinity;
+        var globalMax = -Infinity;
+        for (var i = 0; i < active.length; i++) {
+            var s = stats[active[i]];
+            if (s.min < globalMin) globalMin = s.min;
+            if (s.max > globalMax) globalMax = s.max;
+        }
+
+        var range = globalMax - globalMin;
+        if (range === 0) range = 1;
+        var padLeft = 70;
+        var padRight = 30;
+        var padTop = 20;
+        var padBottom = 40;
+        var chartW = width - padLeft - padRight;
+        var chartH = height - padTop - padBottom;
+
+        var boxW = Math.min(50, chartW / active.length * 0.5);
+        var gap = (chartW - boxW * active.length) / (active.length + 1);
+
+        function scaleY(val) {
+            return padTop + chartH - ((val - globalMin) / range) * chartH;
+        }
+
+        // Grid
+        ctx.strokeStyle = '#334155';
+        ctx.lineWidth = 1;
+        ctx.fillStyle = '#94a3b8';
+        ctx.textAlign = 'right';
+        ctx.font = '11px sans-serif';
+        var gridLines = 4;
+        for (var g = 0; g <= gridLines; g++) {
+            var yVal = globalMin + (range / gridLines) * g;
+            var yPos = scaleY(yVal);
+            ctx.beginPath();
+            ctx.moveTo(padLeft, yPos);
+            ctx.lineTo(width - padRight, yPos);
+            ctx.stroke();
+            ctx.fillText(fmt(yVal), padLeft - 8, yPos + 4);
+        }
+
+        // Box plots
+        for (var i = 0; i < active.length; i++) {
+            var wp = active[i];
+            var s = stats[wp];
+            var x = padLeft + gap + i * (boxW + gap);
+            var color = WELLPLATE_COLORS[wp] || '#38bdf8';
+
+            var yMin = scaleY(s.min);
+            var yMax = scaleY(s.max);
+            var yQ1 = scaleY(s.q1);
+            var yQ3 = scaleY(s.q3);
+            var yMed = scaleY(s.median);
+            var cx = x + boxW / 2;
+
+            // Whiskers
+            ctx.strokeStyle = color;
+            ctx.lineWidth = 1.5;
+            ctx.beginPath();
+            ctx.moveTo(cx, yMax);
+            ctx.lineTo(cx, yQ3);
+            ctx.stroke();
+            ctx.beginPath();
+            ctx.moveTo(cx, yQ1);
+            ctx.lineTo(cx, yMin);
+            ctx.stroke();
+
+            // Whisker caps
+            ctx.beginPath();
+            ctx.moveTo(x + boxW * 0.25, yMax);
+            ctx.lineTo(x + boxW * 0.75, yMax);
+            ctx.stroke();
+            ctx.beginPath();
+            ctx.moveTo(x + boxW * 0.25, yMin);
+            ctx.lineTo(x + boxW * 0.75, yMin);
+            ctx.stroke();
+
+            // Box (Q1 to Q3)
+            ctx.fillStyle = color + '33';
+            ctx.strokeStyle = color;
+            ctx.lineWidth = 2;
+            ctx.fillRect(x, yQ3, boxW, yQ1 - yQ3);
+            ctx.strokeRect(x, yQ3, boxW, yQ1 - yQ3);
+
+            // Median line
+            ctx.strokeStyle = '#e2e8f0';
+            ctx.lineWidth = 2.5;
+            ctx.beginPath();
+            ctx.moveTo(x, yMed);
+            ctx.lineTo(x + boxW, yMed);
+            ctx.stroke();
+
+            // Label
+            ctx.fillStyle = '#94a3b8';
+            ctx.textAlign = 'center';
+            ctx.font = '12px sans-serif';
+            ctx.fillText(wp + '-well', cx, height - padBottom + 20);
+        }
+    }
+
+    function renderCrosslinking(groups) {
+        var clData = computeCrosslinkingBreakdown(groups);
+        var grid = document.getElementById('clGrid');
+        if (!grid) return;
+
+        var wellplates = Object.keys(clData).map(Number).sort(function(a, b) { return a - b; });
+        var html = '';
+
+        for (var i = 0; i < wellplates.length; i++) {
+            var wp = wellplates[i];
+            var cl = clData[wp];
+            var color = WELLPLATE_COLORS[wp] || '#38bdf8';
+
+            html += '<div class="cl-card" style="border-color:' + color + '33">'
+                + '<h3 style="color:' + color + '">' + wp + '-Well Plate</h3>'
+                + '<div class="cl-stat"><span class="cl-label">Total prints</span><span>' + cl.total + '</span></div>'
+                + '<div class="cl-stat"><span class="cl-label">CL enabled</span><span>' + cl.enabled + ' (' + cl.enabledPct.toFixed(1) + '%)</span></div>'
+                + '<div class="cl-stat"><span class="cl-label">Avg duration</span><span>' + fmt(cl.avgDuration) + ' ms</span></div>'
+                + '<div class="cl-stat"><span class="cl-label">Avg intensity</span><span>' + fmt(cl.avgIntensity) + '%</span></div>'
+                + '</div>';
+        }
+
+        grid.innerHTML = html;
+    }
+
+    function updateAll() {
+        var metric = document.getElementById('metricSelect').value;
+        wellplateStats = computeWellplateStats(wellplateGroups, metric);
+        renderOverviewStats(wellplateStats, metric);
+        renderBreakdownTable(wellplateStats, metric);
+        renderBarChart(wellplateStats, metric);
+        renderBoxPlot(wellplateStats, metric);
+        renderCrosslinking(wellplateGroups);
+    }
+
+    // ── Export ───────────────────────────────────────────
+
+    function exportCSV() {
+        var metric = document.getElementById('metricSelect').value;
+        var stats = computeWellplateStats(wellplateGroups, metric);
+        var wellplates = Object.keys(stats).map(Number).sort(function(a, b) { return a - b; });
+
+        var rows = [['Wellplate', 'Count', 'Mean', 'Median', 'Std Dev', 'Min', 'Max', 'Q1', 'Q3'].join(',')];
+        for (var i = 0; i < wellplates.length; i++) {
+            var wp = wellplates[i];
+            var s = stats[wp];
+            rows.push([
+                wp + '-well', s.count, s.mean.toFixed(4), s.median.toFixed(4),
+                s.std.toFixed(4), s.min.toFixed(4), s.max.toFixed(4),
+                s.q1.toFixed(4), s.q3.toFixed(4)
+            ].join(','));
+        }
+
+        var csv = '\uFEFF' + rows.join('\r\n');
+        var blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+        var url = URL.createObjectURL(blob);
+        var a = document.createElement('a');
+        a.href = url;
+        a.download = 'wellplate_analysis_' + metric + '.csv';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+    }
+
+    function exportJSON() {
+        var metric = document.getElementById('metricSelect').value;
+        var stats = computeWellplateStats(wellplateGroups, metric);
+        var clBreakdown = computeCrosslinkingBreakdown(wellplateGroups);
+
+        var data = {
+            metric: metric,
+            exportDate: new Date().toISOString(),
+            totalPrints: printData.length,
+            wellplateStats: stats,
+            crosslinking: clBreakdown
+        };
+
+        var json = JSON.stringify(data, null, 2);
+        var blob = new Blob([json], { type: 'application/json;charset=utf-8' });
+        var url = URL.createObjectURL(blob);
+        var a = document.createElement('a');
+        a.href = url;
+        a.download = 'wellplate_analysis_' + metric + '.json';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+    }
+
+    // ── Init ────────────────────────────────────────────
+
+    document.getElementById('metricSelect').addEventListener('change', updateAll);
+
+    fetch('bioprint-data.json')
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            printData = data.filter(function(p) {
+                return p.print_data && p.print_info && p.user_info
+                    && p.print_info.crosslinking && p.print_info.pressure && p.print_info.resolution;
+            });
+            wellplateGroups = groupByWellplate(printData);
+            document.getElementById('loadingMsg').style.display = 'none';
+            updateAll();
+        })
+        .catch(function(err) {
+            document.getElementById('loadingMsg').textContent = 'Failed to load data: ' + err.message;
+        });
+    </script>
+</body>
+</html>
