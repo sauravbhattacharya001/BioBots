@@ -351,6 +351,12 @@ namespace BioBots.Controllers
             if (!ValidArithmetic.Contains(arithmetic))
                 return BadRequest($"Invalid comparison operator: '{arithmetic}'. Expected 'greater', 'lesser', or 'equal'.");
 
+            // Normalize to lowercase — ValidArithmetic accepts case-insensitively
+            // but the comparison logic below uses exact string matching.
+            // Without this, "Greater" or "GREATER" pass validation but fall
+            // through every branch to NotFound(). (fixes operator case bug)
+            arithmetic = arithmetic.ToLowerInvariant();
+
             double value;
             if (!double.TryParse(param, out value))
                 return BadRequest($"Invalid numeric parameter: '{param}'. Expected a number.");
