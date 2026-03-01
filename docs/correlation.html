@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>BioBots 1 — Correlation Matrix</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧬</text></svg>">
+    <style>
+        :root {
+            --bg: #0f172a;
+            --surface: #1e293b;
+            --border: #334155;
+            --text: #e2e8f0;
+            --muted: #94a3b8;
+            --accent: #38bdf8;
+            --accent-hover: #7dd3fc;
+            --success: #4ade80;
+            --error: #f87171;
+            --warning: #fbbf24;
+            --purple: #a78bfa;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            padding: 2rem 1rem;
+        }
+
+        .container { max-width: 1000px; margin: 0 auto; }
+
+        header { text-align: center; margin-bottom: 2rem; }
+
+        header h1 {
+            font-size: 2rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, var(--purple), var(--accent));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        header p { color: var(--muted); margin-top: 0.5rem; }
+
+        .nav {
+            display: flex;
+            justify-content: center;
+            gap: 0.5rem;
+            margin-bottom: 2rem;
+            flex-wrap: wrap;
+        }
+
+        .nav a {
+            color: var(--muted);
+            text-decoration: none;
+            padding: 0.5rem 1rem;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            transition: all 0.2s;
+        }
+
+        .nav a:hover { color: var(--accent); background: var(--surface); }
+        .nav a.active { color: var(--accent); background: var(--surface); border: 1px solid var(--border); }
+
+        .card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .card h2 {
+            font-size: 1.1rem;
+            margin-bottom: 1rem;
+            color: var(--muted);
+            font-weight: 500;
+        }
+
+        .matrix-wrapper {
+            overflow-x: auto;
+            padding: 0.5rem 0;
+        }
+
+        table.matrix {
+            border-collapse: collapse;
+            margin: 0 auto;
+        }
+
+        table.matrix th, table.matrix td {
+            width: 70px;
+            height: 50px;
+            text-align: center;
+            font-size: 0.75rem;
+            border: 1px solid var(--bg);
+            position: relative;
+        }
+
+        table.matrix th {
+            background: var(--surface);
+            color: var(--muted);
+            font-weight: 600;
+            padding: 0.3rem;
+            white-space: nowrap;
+        }
+
+        table.matrix th.row-header {
+            text-align: right;
+            padding-right: 0.5rem;
+            width: auto;
+        }
+
+        table.matrix td {
+            cursor: pointer;
+            font-weight: 600;
+            transition: transform 0.1s;
+        }
+
+        table.matrix td:hover {
+            outline: 2px solid var(--text);
+            outline-offset: -2px;
+            z-index: 1;
+        }
+
+        .tooltip {
+            display: none;
+            position: fixed;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 0.75rem 1rem;
+            font-size: 0.85rem;
+            z-index: 100;
+            pointer-events: none;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.4);
+        }
+
+        .tooltip .label { color: var(--muted); font-size: 0.75rem; }
+        .tooltip .value { font-size: 1.1rem; font-weight: 700; margin-top: 0.25rem; }
+
+        .legend {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 0.5rem;
+            margin-top: 1rem;
+            font-size: 0.8rem;
+            color: var(--muted);
+        }
+
+        .legend-bar {
+            width: 200px;
+            height: 14px;
+            border-radius: 7px;
+            background: linear-gradient(90deg, #f87171, #fbbf24, #e2e8f0, #7dd3fc, #38bdf8);
+        }
+
+        .insight-list {
+            list-style: none;
+            display: grid;
+            gap: 0.5rem;
+        }
+
+        .insight-list li {
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 0.75rem 1rem;
+            font-size: 0.9rem;
+        }
+
+        .insight-list li .corr {
+            font-weight: 700;
+            margin-left: 0.25rem;
+        }
+
+        .positive { color: var(--accent); }
+        .negative { color: var(--error); }
+        .neutral { color: var(--muted); }
+
+        footer {
+            margin-top: 3rem;
+            text-align: center;
+            color: var(--muted);
+            font-size: 0.8rem;
+        }
+
+        footer a { color: var(--accent); text-decoration: none; }
+        footer a:hover { text-decoration: underline; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🔗 Correlation Matrix</h1>
+            <p>Pairwise Pearson correlations across all bioprinting metrics</p>
+        </header>
+
+        <div class="nav">
+            <a href="index.html">Query Tool</a>
+            <a href="explorer.html">Data Explorer</a>
+            <a href="table.html">Data Table</a>
+            <a href="compare.html">Compare</a>
+            <a href="quality.html">🎯 Quality</a>
+            <a href="anomaly.html">🔍 Anomaly</a>
+            <a href="trends.html">📈 Trends</a>
+            <a href="optimizer.html">⚙️ Optimizer</a>
+            <a href="cluster.html">🔗 Clusters</a>
+            <a href="correlation.html" class="active">🔗 Correlation</a>
+            <a href="api.html">📡 API</a>
+            <a href="architecture.html">🏗️ Architecture</a>
+            <a href="guide.html">🛠️ Guide</a>
+        </div>
+
+        <div class="card">
+            <h2>Correlation Heatmap</h2>
+            <div class="matrix-wrapper" id="matrixContainer">
+                <p style="color:var(--muted);text-align:center;">Loading data…</p>
+            </div>
+            <div class="legend">
+                <span>−1</span>
+                <div class="legend-bar"></div>
+                <span>+1</span>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>Notable Correlations</h2>
+            <ul class="insight-list" id="insights">
+                <li style="color:var(--muted);">Loading…</li>
+            </ul>
+        </div>
+
+        <div class="tooltip" id="tooltip">
+            <div class="label" id="tipLabel"></div>
+            <div class="value" id="tipValue"></div>
+        </div>
+
+        <footer>
+            <p>Built with 🧬 by <a href="https://github.com/sauravbhattacharya001">Saurav Bhattacharya</a></p>
+            <p><a href="https://github.com/sauravbhattacharya001/BioBots">View Source</a></p>
+        </footer>
+    </div>
+
+    <script>
+    'use strict';
+
+    const METRICS = [
+        { key: 'deadPercent', label: 'Dead %',       get: p => p.print_data.deadPercent },
+        { key: 'livePercent', label: 'Live %',       get: p => p.print_data.livePercent },
+        { key: 'elasticity',  label: 'Elasticity',   get: p => p.print_data.elasticity },
+        { key: 'cl_duration', label: 'CL Dur',       get: p => p.print_info.crosslinking.cl_duration },
+        { key: 'cl_intensity',label: 'CL Int',       get: p => p.print_info.crosslinking.cl_intensity },
+        { key: 'extruder1',   label: 'Ext 1',        get: p => p.print_info.pressure.extruder1 },
+        { key: 'extruder2',   label: 'Ext 2',        get: p => p.print_info.pressure.extruder2 },
+        { key: 'layerHeight', label: 'Layer H',      get: p => p.print_info.resolution.layerHeight },
+        { key: 'layerNum',    label: 'Layers',       get: p => p.print_info.resolution.layerNum },
+        { key: 'wellplate',   label: 'Wellplate',    get: p => p.print_info.wellplate },
+    ];
+
+    function pearson(xs, ys) {
+        const n = xs.length;
+        if (n < 3) return 0;
+        let sx = 0, sy = 0, sxx = 0, syy = 0, sxy = 0;
+        for (let i = 0; i < n; i++) {
+            sx += xs[i]; sy += ys[i];
+            sxx += xs[i] * xs[i]; syy += ys[i] * ys[i];
+            sxy += xs[i] * ys[i];
+        }
+        const num = n * sxy - sx * sy;
+        const den = Math.sqrt((n * sxx - sx * sx) * (n * syy - sy * sy));
+        return den === 0 ? 0 : num / den;
+    }
+
+    function corrColor(r) {
+        // -1 → red, 0 → neutral gray, +1 → blue
+        const abs = Math.abs(r);
+        if (r > 0) {
+            const g = Math.round(189 + (1 - abs) * 37);
+            const b = Math.round(248 - (1 - abs) * 10);
+            const rr = Math.round(56 + (1 - abs) * 170);
+            return `rgb(${rr}, ${g}, ${b})`;
+        } else {
+            const rr = Math.round(248 - (1 - abs) * 22);
+            const g = Math.round(113 + (1 - abs) * 113);
+            const b = Math.round(113 + (1 - abs) * 127);
+            return `rgb(${rr}, ${g}, ${b})`;
+        }
+    }
+
+    function textColor(r) {
+        return Math.abs(r) > 0.5 ? '#0f172a' : '#e2e8f0';
+    }
+
+    fetch('bioprint-data.json')
+        .then(r => r.json())
+        .then(data => {
+            // Extract metric arrays
+            const arrays = METRICS.map(m => data.map(m.get).filter(v => v != null && !isNaN(v)));
+
+            // Compute correlation matrix
+            const n = METRICS.length;
+            const corr = [];
+            for (let i = 0; i < n; i++) {
+                corr[i] = [];
+                for (let j = 0; j < n; j++) {
+                    // Align arrays: only use indices present in both
+                    const aI = data.map(m => METRICS[i].get(m));
+                    const aJ = data.map(m => METRICS[j].get(m));
+                    const xs = [], ys = [];
+                    for (let k = 0; k < data.length; k++) {
+                        if (aI[k] != null && !isNaN(aI[k]) && aJ[k] != null && !isNaN(aJ[k])) {
+                            xs.push(aI[k]);
+                            ys.push(aJ[k]);
+                        }
+                    }
+                    corr[i][j] = pearson(xs, ys);
+                }
+            }
+
+            // Build table
+            let html = '<table class="matrix"><thead><tr><th></th>';
+            for (const m of METRICS) html += `<th>${m.label}</th>`;
+            html += '</tr></thead><tbody>';
+            for (let i = 0; i < n; i++) {
+                html += `<tr><th class="row-header">${METRICS[i].label}</th>`;
+                for (let j = 0; j < n; j++) {
+                    const r = corr[i][j];
+                    const bg = corrColor(r);
+                    const fg = textColor(r);
+                    html += `<td style="background:${bg};color:${fg}" data-i="${i}" data-j="${j}">${r.toFixed(2)}</td>`;
+                }
+                html += '</tr>';
+            }
+            html += '</tbody></table>';
+            document.getElementById('matrixContainer').innerHTML = html;
+
+            // Tooltip
+            const tooltip = document.getElementById('tooltip');
+            const tipLabel = document.getElementById('tipLabel');
+            const tipValue = document.getElementById('tipValue');
+
+            document.querySelector('.matrix').addEventListener('mouseover', e => {
+                const td = e.target.closest('td[data-i]');
+                if (!td) return;
+                const i = +td.dataset.i, j = +td.dataset.j;
+                const r = corr[i][j];
+                tipLabel.textContent = `${METRICS[i].label} ↔ ${METRICS[j].label}`;
+                tipValue.textContent = r.toFixed(4);
+                tipValue.className = 'value ' + (r > 0.3 ? 'positive' : r < -0.3 ? 'negative' : 'neutral');
+                tooltip.style.display = 'block';
+            });
+
+            document.querySelector('.matrix').addEventListener('mousemove', e => {
+                tooltip.style.left = (e.clientX + 12) + 'px';
+                tooltip.style.top = (e.clientY + 12) + 'px';
+            });
+
+            document.querySelector('.matrix').addEventListener('mouseout', e => {
+                if (!e.target.closest('td[data-i]')) return;
+                tooltip.style.display = 'none';
+            });
+
+            // Notable correlations
+            const pairs = [];
+            for (let i = 0; i < n; i++) {
+                for (let j = i + 1; j < n; j++) {
+                    pairs.push({ i, j, r: corr[i][j] });
+                }
+            }
+            pairs.sort((a, b) => Math.abs(b.r) - Math.abs(a.r));
+
+            const top = pairs.slice(0, 8);
+            const insightsEl = document.getElementById('insights');
+            insightsEl.innerHTML = top.map(p => {
+                const cls = p.r > 0.3 ? 'positive' : p.r < -0.3 ? 'negative' : 'neutral';
+                const dir = p.r > 0 ? '↑↑' : '↑↓';
+                return `<li>${METRICS[p.i].label} ${dir} ${METRICS[p.j].label}<span class="corr ${cls}">${p.r.toFixed(3)}</span></li>`;
+            }).join('');
+        })
+        .catch(err => {
+            document.getElementById('matrixContainer').innerHTML =
+                `<p style="color:var(--error);text-align:center;">Failed to load data: ${err.message}</p>`;
+        });
+    </script>
+</body>
+</html>
