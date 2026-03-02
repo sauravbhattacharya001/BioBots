@@ -1,0 +1,690 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>BioBots 1 — DOE Analyzer</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧬</text></svg>">
+    <style>
+        :root {
+            --bg: #0f172a;
+            --surface: #1e293b;
+            --border: #334155;
+            --text: #e2e8f0;
+            --muted: #94a3b8;
+            --accent: #38bdf8;
+            --accent-hover: #7dd3fc;
+            --success: #4ade80;
+            --error: #f87171;
+            --warning: #fbbf24;
+            --purple: #a78bfa;
+            --orange: #fb923c;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            padding: 2rem 1rem;
+        }
+        .container { max-width: 1400px; margin: 0 auto; }
+        header { text-align: center; margin-bottom: 2rem; }
+        header h1 {
+            font-size: 2rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, var(--accent), var(--purple));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        header p { color: var(--muted); margin-top: 0.5rem; }
+        .back-link {
+            display: inline-block;
+            color: var(--accent);
+            text-decoration: none;
+            margin-bottom: 1rem;
+            font-size: 0.9rem;
+        }
+        .back-link:hover { color: var(--accent-hover); }
+        .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(420px, 1fr)); gap: 1.5rem; margin-bottom: 1.5rem; }
+        .card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 1.5rem;
+        }
+        .card h2 { font-size: 1.15rem; margin-bottom: 1rem; color: var(--accent); }
+        .card h3 { font-size: 0.95rem; margin: 1rem 0 0.5rem; color: var(--muted); }
+        table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+        th, td { padding: 0.5rem 0.75rem; text-align: left; border-bottom: 1px solid var(--border); }
+        th { color: var(--muted); font-weight: 600; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.05em; }
+        .controls { display: flex; flex-wrap: wrap; gap: 0.75rem; align-items: center; margin-bottom: 1.5rem; }
+        .controls label { color: var(--muted); font-size: 0.85rem; }
+        select, button, input[type="number"] {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            color: var(--text);
+            padding: 0.5rem 0.75rem;
+            border-radius: 8px;
+            font-size: 0.85rem;
+        }
+        select:focus, input:focus { outline: none; border-color: var(--accent); }
+        button {
+            background: var(--accent);
+            color: var(--bg);
+            border: none;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        button:hover { background: var(--accent-hover); }
+        .btn-secondary { background: var(--border); color: var(--text); }
+        .btn-secondary:hover { background: var(--muted); }
+        .badge {
+            display: inline-block;
+            padding: 0.15rem 0.5rem;
+            border-radius: 999px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+        .badge-green { background: rgba(74,222,128,0.15); color: var(--success); }
+        .badge-yellow { background: rgba(251,191,36,0.15); color: var(--warning); }
+        .badge-red { background: rgba(248,113,113,0.15); color: var(--error); }
+        .badge-blue { background: rgba(56,189,248,0.15); color: var(--accent); }
+        .badge-purple { background: rgba(167,139,250,0.15); color: var(--purple); }
+        .stat-row { display: flex; justify-content: space-between; padding: 0.4rem 0; border-bottom: 1px solid var(--border); }
+        .stat-label { color: var(--muted); font-size: 0.85rem; }
+        .stat-value { font-weight: 600; font-size: 0.85rem; }
+        .progress-bar { width: 100%; height: 8px; background: var(--border); border-radius: 4px; overflow: hidden; margin-top: 0.3rem; }
+        .progress-fill { height: 100%; border-radius: 4px; transition: width 0.5s; }
+        .suggestion-list { list-style: none; }
+        .suggestion-list li {
+            padding: 0.75rem;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            margin-bottom: 0.5rem;
+            font-size: 0.85rem;
+            background: rgba(30,41,59,0.5);
+        }
+        .suggestion-list li strong { color: var(--accent); }
+        .full-width { grid-column: 1 / -1; }
+        canvas { max-width: 100%; margin-top: 0.5rem; }
+        #loading { text-align: center; padding: 3rem; color: var(--muted); }
+        #content { display: none; }
+        .chip-row { display: flex; flex-wrap: wrap; gap: 0.5rem; margin: 0.5rem 0; }
+        .chip {
+            padding: 0.3rem 0.7rem;
+            border-radius: 999px;
+            font-size: 0.78rem;
+            cursor: pointer;
+            border: 1px solid var(--border);
+            background: var(--surface);
+            color: var(--text);
+            transition: all 0.2s;
+        }
+        .chip.active { border-color: var(--accent); background: rgba(56,189,248,0.15); color: var(--accent); }
+        .chip:hover { border-color: var(--accent); }
+        @media (max-width: 768px) { .grid { grid-template-columns: 1fr; } }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <a href="index.html" class="back-link">← Back to Dashboard</a>
+        <header>
+            <h1>🧪 Design of Experiments Analyzer</h1>
+            <p>Identify parameter coverage gaps, compute factorial designs, and get suggestions for optimal next experiments</p>
+        </header>
+
+        <div id="loading">Loading bioprint data…</div>
+
+        <div id="content">
+            <!-- Factor Selection -->
+            <div class="card" style="margin-bottom:1.5rem;">
+                <h2>📋 Select Experiment Factors</h2>
+                <p style="color:var(--muted);font-size:0.85rem;margin-bottom:1rem;">
+                    Choose 2–4 parameters to analyze. The tool will evaluate coverage, identify gaps, and suggest experiments.
+                </p>
+                <div class="chip-row" id="factorChips"></div>
+                <div class="controls" style="margin-top:1rem;margin-bottom:0;">
+                    <label>Levels per factor:</label>
+                    <select id="levelCount">
+                        <option value="3">3 levels (low/mid/high)</option>
+                        <option value="4">4 levels</option>
+                        <option value="5" selected>5 levels</option>
+                    </select>
+                    <label>Response metric:</label>
+                    <select id="responseMetric"></select>
+                    <button id="analyzeBtn" onclick="runAnalysis()">Analyze Coverage</button>
+                </div>
+            </div>
+
+            <div class="grid" id="resultsGrid" style="display:none;">
+                <!-- Coverage Summary -->
+                <div class="card">
+                    <h2>📊 Parameter Space Coverage</h2>
+                    <div id="coverageSummary"></div>
+                    <canvas id="coverageChart" height="200"></canvas>
+                </div>
+
+                <!-- Factor Ranges -->
+                <div class="card">
+                    <h2>📐 Factor Level Ranges</h2>
+                    <div id="factorRanges"></div>
+                </div>
+
+                <!-- Gap Analysis -->
+                <div class="card">
+                    <h2>🔍 Coverage Gaps</h2>
+                    <p style="color:var(--muted);font-size:0.85rem;margin-bottom:1rem;">
+                        Parameter combinations with no or few existing prints
+                    </p>
+                    <div id="gapAnalysis"></div>
+                </div>
+
+                <!-- Best Observed -->
+                <div class="card">
+                    <h2>🏆 Best Response by Region</h2>
+                    <p style="color:var(--muted);font-size:0.85rem;margin-bottom:1rem;">
+                        Average response metric for covered parameter regions
+                    </p>
+                    <div id="bestRegions"></div>
+                </div>
+
+                <!-- Suggested Experiments -->
+                <div class="card full-width">
+                    <h2>💡 Suggested Next Experiments</h2>
+                    <p style="color:var(--muted);font-size:0.85rem;margin-bottom:1rem;">
+                        Prioritized by coverage gap size and proximity to high-performing regions
+                    </p>
+                    <ol class="suggestion-list" id="suggestions"></ol>
+                    <div style="margin-top:1rem;">
+                        <button onclick="exportSuggestions()" class="btn-secondary">📥 Export as CSV</button>
+                    </div>
+                </div>
+
+                <!-- Factorial Design -->
+                <div class="card full-width">
+                    <h2>🧮 Full Factorial Design</h2>
+                    <p style="color:var(--muted);font-size:0.85rem;margin-bottom:1rem;">
+                        Complete design matrix for the selected factors and levels
+                    </p>
+                    <div style="overflow-x:auto;">
+                        <table id="factorialTable">
+                            <thead id="factorialHead"></thead>
+                            <tbody id="factorialBody"></tbody>
+                        </table>
+                    </div>
+                    <div style="margin-top:0.75rem;color:var(--muted);font-size:0.8rem;" id="factorialInfo"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="shared/constants.js"></script>
+    <script src="shared/utils.js"></script>
+    <script>
+    /* ============================================================
+     *  DOE Analyzer — Design of Experiments for Bioprinting
+     * ============================================================ */
+    let DATA = [];
+    let selectedFactors = [];
+
+    // Factors available for DOE (subset of METRICS that are tunable parameters)
+    const DOE_FACTORS = [
+        { key: 'cl_duration',  label: 'CL Duration (ms)' },
+        { key: 'cl_intensity', label: 'CL Intensity (%)' },
+        { key: 'extruder1',    label: 'Extruder 1 Pressure' },
+        { key: 'extruder2',    label: 'Extruder 2 Pressure' },
+        { key: 'layerHeight',  label: 'Layer Height (mm)' },
+        { key: 'layerNum',     label: 'Layer Count' },
+    ];
+
+    // Response metrics (outcomes to optimize)
+    const RESPONSE_METRICS = [
+        { key: 'livePercent', label: 'Live Cell %', higherBetter: true },
+        { key: 'deadPercent', label: 'Dead Cell %', higherBetter: false },
+        { key: 'elasticity',  label: 'Elasticity (kPa)', higherBetter: true },
+    ];
+
+    function init() {
+        // Build factor chips
+        const chipRow = document.getElementById('factorChips');
+        DOE_FACTORS.forEach(f => {
+            const chip = document.createElement('span');
+            chip.className = 'chip';
+            chip.textContent = f.label;
+            chip.dataset.key = f.key;
+            chip.onclick = () => toggleFactor(chip);
+            chipRow.appendChild(chip);
+        });
+
+        // Build response dropdown
+        const sel = document.getElementById('responseMetric');
+        RESPONSE_METRICS.forEach(m => {
+            const opt = document.createElement('option');
+            opt.value = m.key;
+            opt.textContent = m.label;
+            sel.appendChild(opt);
+        });
+
+        // Default: select first 2 factors
+        const chips = chipRow.querySelectorAll('.chip');
+        if (chips.length >= 2) {
+            chips[0].click();
+            chips[1].click();
+        }
+    }
+
+    function toggleFactor(chip) {
+        const key = chip.dataset.key;
+        const idx = selectedFactors.indexOf(key);
+        if (idx >= 0) {
+            selectedFactors.splice(idx, 1);
+            chip.classList.remove('active');
+        } else {
+            if (selectedFactors.length >= 4) {
+                // Remove oldest
+                const oldKey = selectedFactors.shift();
+                document.querySelector(`.chip[data-key="${oldKey}"]`).classList.remove('active');
+            }
+            selectedFactors.push(key);
+            chip.classList.add('active');
+        }
+    }
+
+    function getFactorLabel(key) {
+        const f = DOE_FACTORS.find(d => d.key === key);
+        return f ? f.label : key;
+    }
+
+    /* ── Analysis Engine ── */
+
+    function runAnalysis() {
+        if (selectedFactors.length < 2) {
+            alert('Select at least 2 factors.');
+            return;
+        }
+
+        const levels = parseInt(document.getElementById('levelCount').value);
+        const responseKey = document.getElementById('responseMetric').value;
+        const responseMeta = RESPONSE_METRICS.find(m => m.key === responseKey);
+
+        // Compute factor ranges and level boundaries
+        const factorInfo = {};
+        selectedFactors.forEach(key => {
+            const vals = DATA.map(p => getMetricValue(p, key)).filter(v => v != null);
+            vals.sort((a, b) => a - b);
+            const min = vals[0];
+            const max = vals[vals.length - 1];
+            const step = (max - min) / levels;
+            const boundaries = [];
+            for (let i = 0; i <= levels; i++) {
+                boundaries.push(min + step * i);
+            }
+            const levelLabels = [];
+            for (let i = 0; i < levels; i++) {
+                const lo = boundaries[i];
+                const hi = boundaries[i + 1];
+                levelLabels.push({ lo, hi, mid: (lo + hi) / 2, label: `${formatNum(lo)}–${formatNum(hi)}` });
+            }
+            factorInfo[key] = { min, max, step, boundaries, levels: levelLabels, values: vals };
+        });
+
+        // Map each print to a cell in the factor grid
+        const cellMap = {};
+        const totalCells = Math.pow(levels, selectedFactors.length);
+
+        DATA.forEach(p => {
+            const indices = [];
+            let valid = true;
+            selectedFactors.forEach(key => {
+                const v = getMetricValue(p, key);
+                if (v == null) { valid = false; return; }
+                let lvl = Math.floor((v - factorInfo[key].min) / factorInfo[key].step);
+                if (lvl >= levels) lvl = levels - 1;
+                if (lvl < 0) lvl = 0;
+                indices.push(lvl);
+            });
+            if (!valid) return;
+            const cellKey = indices.join(',');
+            if (!cellMap[cellKey]) cellMap[cellKey] = [];
+            cellMap[cellKey].push(p);
+        });
+
+        const coveredCells = Object.keys(cellMap).length;
+        const coveragePct = ((coveredCells / totalCells) * 100).toFixed(1);
+
+        // ── Render Coverage Summary ──
+        const covDiv = document.getElementById('coverageSummary');
+        const covColor = coveragePct >= 60 ? 'var(--success)' : coveragePct >= 30 ? 'var(--warning)' : 'var(--error)';
+        covDiv.innerHTML = `
+            <div class="stat-row"><span class="stat-label">Total parameter cells</span><span class="stat-value">${totalCells}</span></div>
+            <div class="stat-row"><span class="stat-label">Covered cells</span><span class="stat-value">${coveredCells}</span></div>
+            <div class="stat-row"><span class="stat-label">Coverage</span><span class="stat-value" style="color:${covColor}">${coveragePct}%</span></div>
+            <div class="stat-row"><span class="stat-label">Uncovered cells</span><span class="stat-value" style="color:var(--error)">${totalCells - coveredCells}</span></div>
+            <div class="progress-bar"><div class="progress-fill" style="width:${coveragePct}%;background:${covColor}"></div></div>
+        `;
+
+        // Coverage chart (bar chart of prints per level for each factor)
+        renderCoverageChart(factorInfo, levels);
+
+        // ── Factor Ranges ──
+        const rangeDiv = document.getElementById('factorRanges');
+        let rangeHtml = '<table><thead><tr><th>Factor</th><th>Min</th><th>Max</th><th>Levels</th></tr></thead><tbody>';
+        selectedFactors.forEach(key => {
+            const fi = factorInfo[key];
+            rangeHtml += `<tr>
+                <td>${escapeHtml(getFactorLabel(key))}</td>
+                <td>${formatNum(fi.min)}</td>
+                <td>${formatNum(fi.max)}</td>
+                <td>${fi.levels.map(l => `<span class="badge badge-blue">${l.label}</span>`).join(' ')}</td>
+            </tr>`;
+        });
+        rangeHtml += '</tbody></table>';
+        rangeDiv.innerHTML = rangeHtml;
+
+        // ── Gap Analysis ──
+        const gaps = [];
+        function findGaps(indices, depth) {
+            if (depth === selectedFactors.length) {
+                const cellKey = indices.join(',');
+                const count = cellMap[cellKey] ? cellMap[cellKey].length : 0;
+                if (count <= 1) {
+                    const desc = indices.map((lvl, i) => {
+                        const key = selectedFactors[i];
+                        return `${getFactorLabel(key)}: ${factorInfo[key].levels[lvl].label}`;
+                    });
+                    gaps.push({ indices: [...indices], count, desc });
+                }
+                return;
+            }
+            for (let i = 0; i < levels; i++) {
+                indices.push(i);
+                findGaps(indices, depth + 1);
+                indices.pop();
+            }
+        }
+        findGaps([], 0);
+        gaps.sort((a, b) => a.count - b.count);
+
+        const gapDiv = document.getElementById('gapAnalysis');
+        if (gaps.length === 0) {
+            gapDiv.innerHTML = '<p style="color:var(--success)">✅ All parameter regions have 2+ prints. Excellent coverage!</p>';
+        } else {
+            const empty = gaps.filter(g => g.count === 0).length;
+            const sparse = gaps.filter(g => g.count === 1).length;
+            let gapHtml = `<p style="margin-bottom:0.75rem;">
+                <span class="badge badge-red">${empty} empty</span>
+                <span class="badge badge-yellow">${sparse} sparse (1 print)</span>
+            </p><table><thead><tr><th>Region</th><th>Prints</th><th>Status</th></tr></thead><tbody>`;
+            gaps.slice(0, 20).forEach(g => {
+                const badge = g.count === 0
+                    ? '<span class="badge badge-red">Empty</span>'
+                    : '<span class="badge badge-yellow">Sparse</span>';
+                gapHtml += `<tr><td style="font-size:0.8rem">${g.desc.join('<br>')}</td><td>${g.count}</td><td>${badge}</td></tr>`;
+            });
+            if (gaps.length > 20) gapHtml += `<tr><td colspan="3" style="color:var(--muted)">… and ${gaps.length - 20} more</td></tr>`;
+            gapHtml += '</tbody></table>';
+            gapDiv.innerHTML = gapHtml;
+        }
+
+        // ── Best Response by Region ──
+        const regionScores = [];
+        Object.entries(cellMap).forEach(([cellKey, prints]) => {
+            if (prints.length < 2) return;
+            const responseVals = prints.map(p => getMetricValue(p, responseKey)).filter(v => v != null);
+            if (responseVals.length === 0) return;
+            const avg = responseVals.reduce((a, b) => a + b, 0) / responseVals.length;
+            const indices = cellKey.split(',').map(Number);
+            const desc = indices.map((lvl, i) => {
+                const key = selectedFactors[i];
+                return `${getFactorLabel(key)}: ${factorInfo[key].levels[lvl].label}`;
+            });
+            regionScores.push({ cellKey, avg, count: prints.length, desc, indices });
+        });
+        regionScores.sort((a, b) => responseMeta.higherBetter ? b.avg - a.avg : a.avg - b.avg);
+
+        const bestDiv = document.getElementById('bestRegions');
+        if (regionScores.length === 0) {
+            bestDiv.innerHTML = '<p style="color:var(--muted)">Not enough data in covered regions (need 2+ prints per region).</p>';
+        } else {
+            let bestHtml = `<table><thead><tr><th>Rank</th><th>Region</th><th>Avg ${escapeHtml(responseMeta.label)}</th><th>Prints</th></tr></thead><tbody>`;
+            regionScores.slice(0, 10).forEach((r, i) => {
+                const medal = i < 3 ? ['🥇','🥈','🥉'][i] : `#${i+1}`;
+                bestHtml += `<tr>
+                    <td>${medal}</td>
+                    <td style="font-size:0.8rem">${r.desc.join('<br>')}</td>
+                    <td><strong>${formatNum(r.avg)}</strong></td>
+                    <td>${r.count}</td>
+                </tr>`;
+            });
+            bestHtml += '</tbody></table>';
+            bestDiv.innerHTML = bestHtml;
+        }
+
+        // ── Suggested Experiments ──
+        const emptyGaps = gaps.filter(g => g.count === 0);
+        const suggestions = scoreSuggestions(emptyGaps, factorInfo, regionScores, responseMeta, levels);
+
+        const sugDiv = document.getElementById('suggestions');
+        if (suggestions.length === 0) {
+            sugDiv.innerHTML = '<li style="color:var(--success)">✅ Full coverage achieved! Consider increasing level count for finer resolution.</li>';
+        } else {
+            sugDiv.innerHTML = suggestions.slice(0, 10).map((s, i) => `
+                <li>
+                    <strong>#${i + 1} — Priority: ${s.priority}</strong>
+                    <div style="margin-top:0.3rem;">${s.desc.join(' &nbsp;|&nbsp; ')}</div>
+                    <div style="margin-top:0.3rem;color:var(--muted);font-size:0.8rem;">
+                        Suggested values: ${s.values.map((v, j) => `<strong>${getFactorLabel(selectedFactors[j])}</strong> = ${formatNum(v)}`).join(', ')}
+                    </div>
+                    <div style="color:var(--muted);font-size:0.8rem;">${s.reason}</div>
+                </li>`).join('');
+        }
+
+        // ── Factorial Design Table ──
+        renderFactorialTable(factorInfo, levels, cellMap);
+
+        document.getElementById('resultsGrid').style.display = 'grid';
+    }
+
+    function scoreSuggestions(emptyGaps, factorInfo, regionScores, responseMeta, levels) {
+        if (emptyGaps.length === 0) return [];
+
+        // For each empty gap, score it based on:
+        // 1. Adjacency to high-performing regions
+        // 2. Whether it fills a boundary gap (edge of explored space)
+        const suggestions = emptyGaps.map(gap => {
+            let adjacencyScore = 0;
+            let nearBest = false;
+
+            // Check adjacent cells (±1 in each dimension)
+            regionScores.forEach(r => {
+                const dist = gap.indices.reduce((sum, idx, i) => sum + Math.abs(idx - r.indices[i]), 0);
+                if (dist <= selectedFactors.length) {
+                    adjacencyScore += (1 / (dist + 1)) * (responseMeta.higherBetter ? r.avg : (100 - r.avg));
+                    if (dist === 1 && regionScores.indexOf(r) < 3) nearBest = true;
+                }
+            });
+
+            // Edge bonus: gaps at extremes of parameter space are more interesting
+            const edgeBonus = gap.indices.reduce((sum, idx) =>
+                sum + (idx === 0 || idx === levels - 1 ? 1 : 0), 0);
+
+            const totalScore = adjacencyScore + edgeBonus * 5 + (nearBest ? 20 : 0);
+
+            // Compute suggested midpoint values
+            const values = gap.indices.map((lvl, i) => {
+                const key = selectedFactors[i];
+                return factorInfo[key].levels[lvl].mid;
+            });
+
+            let priority, reason;
+            if (nearBest) {
+                priority = '🔴 High';
+                reason = 'Adjacent to top-performing region — could reveal better parameters';
+            } else if (adjacencyScore > 0) {
+                priority = '🟡 Medium';
+                reason = 'Near explored regions — extends known parameter space';
+            } else {
+                priority = '🔵 Exploratory';
+                reason = 'Unexplored territory — useful for coverage but uncertain outcome';
+            }
+
+            return { ...gap, totalScore, priority, reason, values };
+        });
+
+        suggestions.sort((a, b) => b.totalScore - a.totalScore);
+        return suggestions;
+    }
+
+    function renderCoverageChart(factorInfo, levels) {
+        const canvas = document.getElementById('coverageChart');
+        const ctx = canvas.getContext('2d');
+        const W = canvas.width = canvas.parentElement.clientWidth - 48;
+        const H = canvas.height = 180;
+        ctx.clearRect(0, 0, W, H);
+
+        const factors = selectedFactors;
+        const barGroupWidth = (W - 60) / factors.length;
+        const barWidth = Math.min(20, (barGroupWidth - 20) / levels);
+
+        factors.forEach((key, fi) => {
+            const info = factorInfo[key];
+            // Count prints per level
+            const counts = new Array(levels).fill(0);
+            DATA.forEach(p => {
+                const v = getMetricValue(p, key);
+                if (v == null) return;
+                let lvl = Math.floor((v - info.min) / info.step);
+                if (lvl >= levels) lvl = levels - 1;
+                if (lvl < 0) lvl = 0;
+                counts[lvl]++;
+            });
+
+            const maxCount = Math.max(...counts, 1);
+            const groupX = 40 + fi * barGroupWidth;
+
+            // Label
+            ctx.fillStyle = '#94a3b8';
+            ctx.font = '11px sans-serif';
+            ctx.textAlign = 'center';
+            const shortLabel = getFactorLabel(key).split(' ')[0];
+            ctx.fillText(shortLabel, groupX + barGroupWidth / 2, H - 2);
+
+            // Bars
+            const colors = ['#4ade80', '#38bdf8', '#fbbf24', '#fb923c', '#a78bfa', '#f472b6'];
+            counts.forEach((c, li) => {
+                const barH = (c / maxCount) * (H - 40);
+                const x = groupX + 10 + li * (barWidth + 2);
+                const y = H - 20 - barH;
+                ctx.fillStyle = colors[li % colors.length];
+                ctx.fillRect(x, y, barWidth, barH);
+                // Count label
+                if (barH > 12) {
+                    ctx.fillStyle = '#0f172a';
+                    ctx.font = '9px sans-serif';
+                    ctx.textAlign = 'center';
+                    ctx.fillText(c, x + barWidth / 2, y + 12);
+                }
+            });
+        });
+    }
+
+    function renderFactorialTable(factorInfo, levels, cellMap) {
+        const head = document.getElementById('factorialHead');
+        const body = document.getElementById('factorialBody');
+        const info = document.getElementById('factorialInfo');
+
+        const totalRuns = Math.pow(levels, selectedFactors.length);
+
+        // Header
+        head.innerHTML = '<tr>' +
+            selectedFactors.map(k => `<th>${escapeHtml(getFactorLabel(k))}</th>`).join('') +
+            '<th>Existing Prints</th><th>Status</th></tr>';
+
+        // Generate all combinations
+        let rows = '';
+        let shown = 0;
+        const maxRows = 100;
+
+        function genRows(indices, depth) {
+            if (shown >= maxRows) return;
+            if (depth === selectedFactors.length) {
+                const cellKey = indices.join(',');
+                const count = cellMap[cellKey] ? cellMap[cellKey].length : 0;
+                const status = count === 0
+                    ? '<span class="badge badge-red">Needed</span>'
+                    : count <= 2
+                    ? '<span class="badge badge-yellow">Sparse</span>'
+                    : '<span class="badge badge-green">Covered</span>';
+                rows += '<tr>' +
+                    indices.map((lvl, i) => {
+                        const key = selectedFactors[i];
+                        return `<td>${factorInfo[key].levels[lvl].label}</td>`;
+                    }).join('') +
+                    `<td>${count}</td><td>${status}</td></tr>`;
+                shown++;
+                return;
+            }
+            for (let i = 0; i < levels; i++) {
+                indices.push(i);
+                genRows(indices, depth + 1);
+                indices.pop();
+            }
+        }
+        genRows([], 0);
+
+        body.innerHTML = rows;
+        info.textContent = `Full factorial: ${totalRuns} runs` +
+            (totalRuns > maxRows ? ` (showing first ${maxRows})` : '') +
+            ` | ${selectedFactors.length} factors × ${levels} levels`;
+    }
+
+    /* ── Export ── */
+
+    function exportSuggestions() {
+        const rows = document.querySelectorAll('#suggestions li');
+        if (rows.length === 0) return;
+
+        let csv = selectedFactors.map(k => getFactorLabel(k)).join(',') + ',Priority,Reason\n';
+        rows.forEach(li => {
+            const strong = li.querySelector('strong');
+            const divs = li.querySelectorAll('div');
+            const priority = strong ? strong.textContent.replace(/^#\d+ — Priority: /, '') : '';
+            const valuesText = divs[1] ? divs[1].textContent : '';
+            const reason = divs[2] ? divs[2].textContent : '';
+
+            // Parse suggested values
+            const vals = selectedFactors.map(key => {
+                const regex = new RegExp(getFactorLabel(key).replace(/[()]/g, '\\$&') + '\\s*=\\s*([\\d.]+)');
+                const m = valuesText.match(regex);
+                return m ? m[1] : '';
+            });
+
+            csv += vals.join(',') + ',' + priority.replace(/,/g, '') + ',"' + reason.replace(/"/g, '""') + '"\n';
+        });
+
+        const blob = new Blob([csv], { type: 'text/csv' });
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = 'doe_suggestions.csv';
+        a.click();
+        URL.revokeObjectURL(a.href);
+    }
+
+    /* ── Data Loading ── */
+
+    fetch('bioprint-data.json')
+        .then(r => r.json())
+        .then(data => {
+            DATA = data;
+            document.getElementById('loading').style.display = 'none';
+            document.getElementById('content').style.display = 'block';
+            init();
+        })
+        .catch(err => {
+            document.getElementById('loading').textContent = 'Error loading data: ' + err.message;
+        });
+    </script>
+</body>
+</html>
