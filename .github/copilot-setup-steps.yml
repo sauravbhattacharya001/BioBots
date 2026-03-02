@@ -3,8 +3,10 @@
 # GitHub Copilot coding agents (Claude, Codex) can autonomously work
 # on issues and pull requests.
 #
-# BioBots is a .NET Framework 4.5.2 ASP.NET Web API project that uses
-# NuGet for package management and MSBuild for compilation.
+# BioBots is a hybrid project:
+# - .NET Framework 4.5.2 ASP.NET Web API (C# backend)
+# - JavaScript frontend with Jest test suite (970+ tests)
+# - Python evolution_tracker module with pytest tests
 
 name: "Copilot Setup"
 
@@ -17,6 +19,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      # --- .NET Backend ---
       - name: Setup NuGet
         uses: nuget/setup-nuget@v2
         with:
@@ -30,3 +33,28 @@ jobs:
 
       - name: Build solution
         run: msbuild BioBotsTool.sln /p:Configuration=Release /p:Platform="Any CPU" /t:Build /verbosity:minimal
+
+      # --- JavaScript Frontend Tests ---
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+
+      - name: Install npm dependencies
+        run: npm ci
+
+      - name: Run JavaScript tests
+        run: npm test
+
+      # --- Python Module ---
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Python test dependencies
+        run: pip install pytest
+
+      - name: Run Python tests
+        run: pytest tests/ -v

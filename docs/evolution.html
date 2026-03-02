@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>BioBots — Evolution Tracker</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧬</text></svg>">
+    <style>
+        :root{--bg:#0f172a;--surface:#1e293b;--border:#334155;--text:#e2e8f0;--muted:#94a3b8;--accent:#38bdf8;--accent-hover:#7dd3fc;--success:#4ade80;--error:#f87171;--warning:#fbbf24;--purple:#a78bfa}
+        *{margin:0;padding:0;box-sizing:border-box}
+        body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;display:flex;flex-direction:column;align-items:center;padding:2rem 1rem}
+        nav{display:flex;gap:.5rem;margin-bottom:2rem;flex-wrap:wrap;justify-content:center}
+        nav a{color:var(--muted);padding:.5rem 1rem;border-radius:8px;text-decoration:none;font-size:.9rem;transition:all .2s}
+        nav a:hover{color:var(--accent);background:var(--surface)}
+        nav a.active{color:var(--accent);background:var(--surface);border:1px solid var(--border)}
+        header{text-align:center;margin-bottom:2rem}
+        header h1{font-size:2rem;font-weight:700;background:linear-gradient(135deg,var(--purple),var(--success));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+        header p{color:var(--muted);margin-top:.5rem;max-width:600px}
+        .layout{display:grid;grid-template-columns:320px 1fr;gap:1.5rem;width:100%;max-width:1100px}
+        @media(max-width:800px){.layout{grid-template-columns:1fr}}
+        .card{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:1.5rem}
+        .card h2{font-size:1.1rem;margin-bottom:1rem;color:var(--muted);font-weight:500}
+        .form-group{display:flex;flex-direction:column;gap:.3rem;margin-bottom:.8rem}
+        label{font-size:.8rem;color:var(--muted);font-weight:500}
+        select,input[type="number"],input[type="text"]{background:var(--bg);border:1px solid var(--border);color:var(--text);padding:.5rem .7rem;border-radius:8px;font-size:.9rem;outline:none;transition:border-color .2s}
+        select:focus,input:focus{border-color:var(--accent)}
+        .btn{background:var(--accent);color:var(--bg);border:none;padding:.7rem 1.5rem;border-radius:8px;font-size:.95rem;font-weight:600;cursor:pointer;transition:background .2s;width:100%;margin-top:.5rem}
+        .btn:hover{background:var(--accent-hover)}
+        .btn.secondary{background:transparent;color:var(--accent);border:1px solid var(--accent)}
+        .btn.secondary:hover{background:rgba(56,189,248,.1)}
+        .metrics-grid{display:grid;grid-template-columns:1fr 1fr;gap:.8rem;margin-bottom:1rem}
+        .metric-card{background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:.8rem;text-align:center}
+        .metric-card .value{font-size:1.3rem;font-weight:700;color:var(--accent)}
+        .metric-card .label{font-size:.7rem;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-top:.2rem}
+        .metric-card.success .value{color:var(--success)}
+        .metric-card.warning .value{color:var(--warning)}
+        .metric-card.purple .value{color:var(--purple)}
+        canvas{width:100%;border-radius:8px;background:var(--bg);border:1px solid var(--border)}
+        .chart-container{margin-bottom:1rem}
+        .chart-container h3{font-size:.9rem;color:var(--muted);margin-bottom:.5rem;font-weight:500}
+        .event-list{max-height:200px;overflow-y:auto}
+        .event-item{display:flex;justify-content:space-between;align-items:center;padding:.4rem .6rem;border-radius:6px;font-size:.8rem;margin-bottom:.3rem;background:var(--bg)}
+        .event-item .tag{padding:.15rem .5rem;border-radius:4px;font-size:.7rem;font-weight:600}
+        .event-item .tag.positive{background:rgba(74,222,128,.15);color:var(--success)}
+        .event-item .tag.negative{background:rgba(248,113,113,.15);color:var(--error)}
+        .trend-badge{display:inline-block;padding:.2rem .6rem;border-radius:12px;font-size:.75rem;font-weight:600}
+        .trend-badge.increasing{background:rgba(74,222,128,.15);color:var(--success)}
+        .trend-badge.stable{background:rgba(148,163,184,.15);color:var(--muted)}
+        .trend-badge.decreasing{background:rgba(248,113,113,.15);color:var(--error)}
+        .freq-bar{display:flex;align-items:center;margin-bottom:.3rem;gap:.5rem}
+        .freq-bar .allele{font-size:.8rem;color:var(--muted);width:60px;text-align:right;flex-shrink:0}
+        .freq-bar .track{flex:1;height:18px;background:var(--bg);border-radius:4px;overflow:hidden}
+        .freq-bar .fill{height:100%;border-radius:4px;transition:width .3s ease}
+        .freq-bar .pct{font-size:.75rem;color:var(--text);width:45px;flex-shrink:0}
+        .tabs{display:flex;gap:.3rem;margin-bottom:1rem}
+        .tab-btn{background:var(--bg);color:var(--muted);border:1px solid var(--border);padding:.4rem .8rem;border-radius:6px;font-size:.8rem;cursor:pointer;transition:all .2s}
+        .tab-btn:hover{color:var(--accent)}
+        .tab-btn.active{color:var(--accent);background:var(--surface);border-color:var(--accent)}
+        .tab-panel{display:none}
+        .tab-panel.active{display:block}
+        .info-box{background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:1rem;font-size:.85rem;line-height:1.6;color:var(--muted);margin-bottom:1rem}
+        .info-box strong{color:var(--text)}
+        .info-box code{background:var(--surface);padding:.1rem .4rem;border-radius:4px;font-size:.8rem;color:var(--accent)}
+        footer{margin-top:3rem;text-align:center;color:var(--muted);font-size:.8rem}
+        footer a{color:var(--accent);text-decoration:none}
+        .right-col{display:flex;flex-direction:column;gap:1.5rem}
+    </style>
+</head>
+<body>
+    <nav>
+        <a href="index.html">Query Tool</a>
+        <a href="explorer.html">Data Explorer</a>
+        <a href="table.html">Data Table</a>
+        <a href="compare.html">Compare</a>
+        <a href="quality.html">Quality</a>
+        <a href="anomaly.html">Anomaly</a>
+        <a href="trends.html">Trends</a>
+        <a href="optimizer.html">Optimizer</a>
+        <a href="api.html">API</a>
+        <a href="architecture.html">Architecture</a>
+        <a href="cluster.html">Clusters</a>
+        <a href="correlation.html">Correlation</a>
+        <a href="spc.html">SPC</a>
+        <a href="batch.html">Batch Planner</a>
+        <a href="guide.html">Guide</a>
+        <a href="calculator.html">Calculator</a>
+        <a href="doe.html">DOE</a>
+        <a href="protocol.html">Protocol Library</a>
+        <a href="evolution.html" class="active">Evolution</a>
+    </nav>
+    <header>
+        <h1>&#x1F9EC; Evolution Tracker</h1>
+        <p>Simulate and visualize population genetics &mdash; track trait diversity, detect selection pressure, and analyze allele frequency drift across generations</p>
+    </header>
+    <div class="layout">
+        <div>
+            <div class="card" style="margin-bottom:1.5rem">
+                <h2>&#x2699;&#xFE0F; Simulation Parameters</h2>
+                <div class="form-group"><label>Population Size</label><input type="number" id="pop-size" value="100" min="10" max="1000" step="10"></div>
+                <div class="form-group"><label>Generations</label><input type="number" id="num-gens" value="50" min="5" max="500" step="5"></div>
+                <div class="form-group"><label>Traits (comma-separated)</label><input type="text" id="traits-input" value="speed, size, color"></div>
+                <div class="form-group"><label>Alleles per Trait</label><input type="number" id="num-alleles" value="5" min="2" max="20"></div>
+                <div class="form-group"><label>Selection Pressure</label>
+                    <select id="selection-mode">
+                        <option value="neutral">Neutral (no selection)</option>
+                        <option value="mild" selected>Mild (s &asymp; 0.05)</option>
+                        <option value="strong">Strong (s &asymp; 0.15)</option>
+                        <option value="directional">Directional (one allele favored)</option>
+                        <option value="balancing">Balancing (heterozygote advantage)</option>
+                    </select>
+                </div>
+                <div class="form-group"><label>Mutation Rate</label><input type="number" id="mutation-rate" value="0.01" min="0" max="0.5" step="0.005"></div>
+                <div class="form-group"><label>Selection Threshold</label><input type="number" id="sel-threshold" value="0.05" min="0.01" max="0.3" step="0.01"></div>
+                <button class="btn" onclick="runSimulation()">&#x25B6; Run Simulation</button>
+                <button class="btn secondary" style="margin-top:.5rem" onclick="resetSimulation()">&#x21BA; Reset</button>
+            </div>
+            <div class="card" id="events-card" style="display:none">
+                <h2>&#x26A1; Selection Events</h2>
+                <div id="event-count" style="font-size:.85rem;color:var(--muted);margin-bottom:.5rem"></div>
+                <div class="event-list" id="event-list"></div>
+            </div>
+        </div>
+        <div class="right-col">
+            <div class="card" id="summary-card" style="display:none"><h2>&#x1F4CA; Summary</h2><div class="metrics-grid" id="summary-grid"></div></div>
+            <div class="card" id="charts-card" style="display:none"><div class="tabs" id="trait-tabs"></div><div id="tab-panels"></div></div>
+            <div class="card">
+                <h2>&#x1F4D6; About Evolution Tracking</h2>
+                <div class="info-box">
+                    <p>The <strong>Evolution Tracker</strong> module (<code>evolution_tracker.py</code>) monitors population genetics in biobot simulations.</p><br>
+                    <p><strong>Shannon Diversity (H)</strong> &mdash; Information entropy: <code>H = -&sum;(p &times; ln(p))</code>. Higher values mean more even trait distribution.</p><br>
+                    <p><strong>Simpson's Diversity (D)</strong> &mdash; Probability two random bots differ: <code>D = 1 - &sum;(p&sup2;)</code>. Ranges 0 (monoculture) to 1 (maximum diversity).</p><br>
+                    <p><strong>Heterozygosity</strong> &mdash; Fraction of the population with non-modal trait values.</p><br>
+                    <p><strong>Selection Coefficient (s)</strong> &mdash; Rate of allele frequency change: <code>s &asymp; &Delta;p / (p(1-p))</code>. Clamped to &plusmn;10.</p><br>
+                    <p><strong>Effective Population Size (Ne)</strong> &mdash; Diversity-adjusted count: <code>Ne = H / (1 - H)</code>.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    <footer><p>Built with &#x1F9EC; by <a href="https://github.com/sauravbhattacharya001">Saurav Bhattacharya</a></p><p><a href="https://github.com/sauravbhattacharya001/BioBots">View Source</a></p></footer>
+    <script>
+    const COLORS=['#38bdf8','#4ade80','#fbbf24','#f87171','#a78bfa','#fb923c','#2dd4bf','#f472b6','#818cf8','#a3e635','#e879f9','#67e8f9','#facc15','#fb7185','#34d399','#c084fc','#fda4af','#86efac','#93c5fd','#fcd34d'];
+    function esc(t){const d=document.createElement('div');d.textContent=String(t);return d.innerHTML}
+    class TraitSnapshot{constructor(n,g,vals){this.traitName=n;this.generation=g;this.total=vals.length;const c={};for(const v of vals)c[v]=(c[v]||0)+1;this.frequencies={};for(const[k,v]of Object.entries(c))this.frequencies[k]=this.total>0?v/this.total:0;let mx=0;this.modalValue=null;for(const[k,v]of Object.entries(c))if(v>mx){mx=v;this.modalValue=k}this.shannon=0;for(const f of Object.values(this.frequencies))if(f>0)this.shannon-=f*Math.log(f);this.simpson=1-Object.values(this.frequencies).reduce((s,f)=>s+f*f,0);this.heterozygosity=this.total>0&&this.modalValue!==null?1-(c[this.modalValue]||0)/this.total:0}}
+    class SelectionEvent{constructor(t,a,g,c,p,q){this.traitName=t;this.allele=a;this.generation=g;this.coefficient=c;this.prevFreq=p;this.currFreq=q;this.direction=c>0?'positive':'negative'}}
+    class EvolutionTracker{constructor(traits,th=0.05){this.traits=[...traits];this.selectionThreshold=th;this.history={};this.selectionEvents=[];this.generationsRecorded=0}recordGeneration(g,bots){const tv={};for(const t of this.traits)tv[t]=[];for(const b of bots)for(const t of this.traits)if(b.traits[t]!==undefined)tv[t].push(b.traits[t]);for(const t of this.traits){const s=new TraitSnapshot(t,g,tv[t]);if(!this.history[t])this.history[t]=[];this.history[t].push(s);this._detect(t,s)}this.generationsRecorded++}_detect(t,cur){const h=this.history[t]||[];if(h.length<2)return;const prev=h[h.length-2];const all=new Set([...Object.keys(prev.frequencies),...Object.keys(cur.frequencies)]);for(const a of all){const pf=prev.frequencies[a]||0,cf=cur.frequencies[a]||0,d=cf-pf;if(Math.abs(d)>=this.selectionThreshold){if(pf<.01||pf>.99)continue;let dn=Math.max(pf*(1-pf),.001);let c=Math.max(-10,Math.min(10,d/dn));this.selectionEvents.push(new SelectionEvent(t,a,cur.generation,c,pf,cf))}}}getDiversityTrend(t){const h=this.history[t]||[];if(h.length<3)return'insufficient_data';const r=h.slice(-3).map(s=>s.shannon),d=r[2]-r[0];return d>.05?'increasing':d<-.05?'decreasing':'stable'}getEffectivePopSize(t){const h=this.history[t]||[];if(!h.length)return null;const het=h[h.length-1].heterozygosity;if(het>=1)return null;if(het<=0)return 0;return het/(1-het)}}
+    function genPop(sz,traits,na,mode,prev,mr){const pop=[],an=[];for(let i=0;i<na;i++)an.push(String.fromCharCode(65+i));for(let i=0;i<sz;i++){const b={traits:{}};for(const t of traits){if(prev&&prev.length>0){const p=prev[Math.floor(Math.random()*prev.length)];let a=p.traits[t];if(Math.random()<mr)a=an[Math.floor(Math.random()*na)];if(mode!=='neutral'){const f=fitness(a,an,mode);if(Math.random()>f){const p2=prev[Math.floor(Math.random()*prev.length)];a=p2.traits[t]}}b.traits[t]=a}else b.traits[t]=an[Math.floor(Math.random()*na)]}pop.push(b)}return pop}
+    function fitness(a,an,m){const i=an.indexOf(a),n=an.length;switch(m){case'mild':return 1-i/n*.05;case'strong':return 1-i/n*.15;case'directional':return i===0?1:.85;case'balancing':return 1-Math.abs(i-(n-1)/2)/n*.1;default:return 1}}
+    let tracker=null,simData=null;
+    function runSimulation(){const ps=parseInt(document.getElementById('pop-size').value)||100,ng=parseInt(document.getElementById('num-gens').value)||50,ts=document.getElementById('traits-input').value.split(',').map(t=>t.trim()).filter(t=>t),na=parseInt(document.getElementById('num-alleles').value)||5,sm=document.getElementById('selection-mode').value,mr=parseFloat(document.getElementById('mutation-rate').value)||.01,st=parseFloat(document.getElementById('sel-threshold').value)||.05;if(!ts.length)return;tracker=new EvolutionTracker(ts,st);let pop=null;for(let g=0;g<ng;g++){pop=genPop(ps,ts,na,sm,pop,mr);tracker.recordGeneration(g,pop)}simData={popSize:ps,numGens:ng,traits:ts,numAlleles:na,selMode:sm};renderResults()}
+    function resetSimulation(){tracker=null;simData=null;document.getElementById('summary-card').style.display='none';document.getElementById('charts-card').style.display='none';document.getElementById('events-card').style.display='none'}
+    function renderResults(){if(!tracker||!simData)return;const sc=document.getElementById('summary-card');sc.style.display='block';const sg=document.getElementById('summary-grid');const te=tracker.selectionEvents.length;const ad=simData.traits.reduce((s,t)=>{const h=tracker.history[t];return s+(h&&h.length?h[h.length-1].shannon:0)},0)/simData.traits.length;const as=simData.traits.reduce((s,t)=>{const h=tracker.history[t];return s+(h&&h.length?h[h.length-1].simpson:0)},0)/simData.traits.length;const an=simData.traits.reduce((s,t)=>{const n=tracker.getEffectivePopSize(t);return s+(n!==null?n:0)},0)/simData.traits.length;sg.innerHTML=`<div class="metric-card"><div class="value">${simData.numGens}</div><div class="label">Generations</div></div><div class="metric-card success"><div class="value">${ad.toFixed(3)}</div><div class="label">Avg Shannon H</div></div><div class="metric-card purple"><div class="value">${as.toFixed(3)}</div><div class="label">Avg Simpson D</div></div><div class="metric-card warning"><div class="value">${te}</div><div class="label">Selection Events</div></div><div class="metric-card"><div class="value">${simData.popSize}</div><div class="label">Pop Size</div></div><div class="metric-card success"><div class="value">${an.toFixed(1)}</div><div class="label">Avg Eff. Pop (Ne)</div></div>`;const cc=document.getElementById('charts-card');cc.style.display='block';const td=document.getElementById('trait-tabs'),pd=document.getElementById('tab-panels');td.innerHTML='';pd.innerHTML='';simData.traits.forEach((t,i)=>{const b=document.createElement('button');b.className='tab-btn'+(i===0?' active':'');b.textContent=t;b.onclick=()=>switchTab(t);td.appendChild(b);const p=document.createElement('div');p.className='tab-panel'+(i===0?' active':'');p.id='panel-'+t;p.innerHTML=`<div class="metrics-grid" id="tm-${esc(t)}"></div><div class="chart-container"><h3>Allele Frequency Over Time</h3><canvas id="fc-${esc(t)}" height="200"></canvas></div><div class="chart-container"><h3>Diversity Metrics Over Time</h3><canvas id="dc-${esc(t)}" height="160"></canvas></div><div><h3 style="font-size:.9rem;color:var(--muted);margin-bottom:.5rem;font-weight:500">Current Allele Distribution</h3><div id="fb-${esc(t)}"></div></div>`;pd.appendChild(p)});simData.traits.forEach(t=>renderTrait(t));renderEvents()}
+    function switchTab(t){document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));document.querySelectorAll('.tab-panel').forEach(p=>p.classList.remove('active'));document.querySelectorAll('.tab-btn').forEach(b=>{if(b.textContent===t)b.classList.add('active')});const p=document.getElementById('panel-'+t);if(p)p.classList.add('active')}
+    function renderTrait(t){const h=tracker.history[t]||[];if(!h.length)return;const l=h[h.length-1],tr=tracker.getDiversityTrend(t),ne=tracker.getEffectivePopSize(t),ev=tracker.selectionEvents.filter(e=>e.traitName===t);const md=document.getElementById('tm-'+t);if(md)md.innerHTML=`<div class="metric-card success"><div class="value">${l.shannon.toFixed(3)}</div><div class="label">Shannon H</div></div><div class="metric-card purple"><div class="value">${l.simpson.toFixed(3)}</div><div class="label">Simpson D</div></div><div class="metric-card"><div class="value">${(l.heterozygosity*100).toFixed(1)}%</div><div class="label">Heterozygosity</div></div><div class="metric-card warning"><div class="value">${Object.keys(l.frequencies).length}</div><div class="label">Alleles</div></div><div style="grid-column:1/-1;text-align:center"><span class="trend-badge ${esc(tr)}">${tr==='increasing'?'&#x2191;':tr==='decreasing'?'&#x2193;':'&#x2192;'} ${esc(tr)}</span> <span style="font-size:.8rem;color:var(--muted)">Ne = ${ne!==null?ne.toFixed(1):'N/A'} | ${ev.length} selection events</span></div>`;drawFreqChart(t);drawDivChart(t);renderBars(t,l)}
+    function drawFreqChart(t){const cv=document.getElementById('fc-'+t);if(!cv)return;const ctx=cv.getContext('2d'),r=cv.parentElement.getBoundingClientRect();cv.width=r.width*2;cv.height=400;ctx.scale(2,2);const W=r.width,H=200,h=tracker.history[t],al=new Set();for(const s of h)for(const a of Object.keys(s.frequencies))al.add(a);const alleles=[...al].sort(),p={l:45,r:15,t:15,b:30},pw=W-p.l-p.r,ph=H-p.t-p.b;ctx.clearRect(0,0,W,H);ctx.strokeStyle='#334155';ctx.lineWidth=.5;for(let y=0;y<=1;y+=.25){const py=p.t+ph*(1-y);ctx.beginPath();ctx.moveTo(p.l,py);ctx.lineTo(W-p.r,py);ctx.stroke();ctx.fillStyle='#94a3b8';ctx.font='10px system-ui';ctx.textAlign='right';ctx.fillText((y*100).toFixed(0)+'%',p.l-5,py+3)}const xs=Math.max(1,Math.floor(h.length/10));ctx.textAlign='center';for(let i=0;i<h.length;i+=xs){const px=p.l+(i/(h.length-1))*pw;ctx.fillText(h[i].generation,px,H-5)}alleles.forEach((a,ai)=>{ctx.beginPath();ctx.strokeStyle=COLORS[ai%COLORS.length];ctx.lineWidth=1.5;for(let i=0;i<h.length;i++){const px=p.l+(i/Math.max(1,h.length-1))*pw,f=h[i].frequencies[a]||0,py=p.t+ph*(1-f);i===0?ctx.moveTo(px,py):ctx.lineTo(px,py)}ctx.stroke()});let lx=p.l+5;ctx.font='9px system-ui';alleles.forEach((a,ai)=>{ctx.fillStyle=COLORS[ai%COLORS.length];ctx.fillRect(lx,p.t+2,10,10);ctx.fillStyle='#e2e8f0';ctx.textAlign='left';ctx.fillText(a,lx+13,p.t+11);lx+=ctx.measureText(a).width+22})}
+    function drawDivChart(t){const cv=document.getElementById('dc-'+t);if(!cv)return;const ctx=cv.getContext('2d'),r=cv.parentElement.getBoundingClientRect();cv.width=r.width*2;cv.height=320;ctx.scale(2,2);const W=r.width,H=160,h=tracker.history[t],p={l:45,r:15,t:15,b:30},pw=W-p.l-p.r,ph=H-p.t-p.b;ctx.clearRect(0,0,W,H);let mH=0;for(const s of h)mH=Math.max(mH,s.shannon);mH=Math.max(mH,.1);ctx.strokeStyle='#334155';ctx.lineWidth=.5;for(let y=0;y<=1;y+=.25){const py=p.t+ph*(1-y);ctx.beginPath();ctx.moveTo(p.l,py);ctx.lineTo(W-p.r,py);ctx.stroke()}const lines=[['shannon','#4ade80','Shannon H'],['simpson','#a78bfa','Simpson D'],['heterozygosity','#fbbf24','Heterozygosity']];for(const[k,c]of lines){ctx.beginPath();ctx.strokeStyle=c;ctx.lineWidth=2;for(let i=0;i<h.length;i++){const px=p.l+(i/Math.max(1,h.length-1))*pw,v=k==='shannon'?h[i][k]/mH:h[i][k],py=p.t+ph*(1-v);i===0?ctx.moveTo(px,py):ctx.lineTo(px,py)}ctx.stroke()}ctx.fillStyle='#94a3b8';ctx.font='10px system-ui';ctx.textAlign='right';for(let y=0;y<=1;y+=.25){const v=y*mH,py=p.t+ph*(1-y);ctx.fillText(v.toFixed(2),p.l-5,py+3)}const xs=Math.max(1,Math.floor(h.length/10));ctx.textAlign='center';for(let i=0;i<h.length;i+=xs){const px=p.l+(i/(h.length-1))*pw;ctx.fillText(h[i].generation,px,H-5)}let lx=p.l+5;ctx.font='9px system-ui';for(const[,c,n]of lines){ctx.fillStyle=c;ctx.fillRect(lx,p.t+2,10,10);ctx.fillStyle='#e2e8f0';ctx.textAlign='left';ctx.fillText(n,lx+13,p.t+11);lx+=ctx.measureText(n).width+25}}
+    function renderBars(t,snap){const c=document.getElementById('fb-'+t);if(!c)return;const e=Object.entries(snap.frequencies).sort((a,b)=>b[1]-a[1]),sk=[...new Set(Object.keys(snap.frequencies))].sort();c.innerHTML=e.map(([a,f])=>{const ci=sk.indexOf(a)%COLORS.length;return`<div class="freq-bar"><span class="allele">${esc(a)}</span><div class="track"><div class="fill" style="width:${(f*100).toFixed(1)}%;background:${COLORS[ci]}"></div></div><span class="pct">${(f*100).toFixed(1)}%</span></div>`}).join('')}
+    function renderEvents(){const ec=document.getElementById('events-card');if(!tracker||!tracker.selectionEvents.length){ec.style.display='none';return}ec.style.display='block';document.getElementById('event-count').textContent=tracker.selectionEvents.length+' events detected';const el=document.getElementById('event-list'),ev=[...tracker.selectionEvents].reverse().slice(0,50);el.innerHTML=ev.map(e=>{const s=e.direction==='positive'?'+':'';return`<div class="event-item"><span><strong>${esc(e.traitName)}</strong> allele ${esc(e.allele)} @ gen ${e.generation}</span><span class="tag ${esc(e.direction)}">${s}${e.coefficient.toFixed(3)}</span></div>`}).join('')}
+    </script>
+</body>
+</html>
