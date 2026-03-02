@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>BioBots 1 — Batch Planner</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧬</text></svg>">
+    <style>
+        :root {
+            --bg: #0f172a; --surface: #1e293b; --border: #334155;
+            --text: #e2e8f0; --muted: #94a3b8; --accent: #38bdf8;
+            --accent-hover: #7dd3fc; --success: #4ade80; --error: #f87171;
+            --warning: #fbbf24; --purple: #a78bfa;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; padding: 2rem 1rem; }
+        nav { display: flex; gap: 0.5rem; margin-bottom: 2rem; flex-wrap: wrap; justify-content: center; }
+        nav a { color: var(--muted); padding: 0.5rem 1rem; border-radius: 8px; text-decoration: none; font-size: 0.9rem; transition: all 0.2s; }
+        nav a:hover { color: var(--accent); background: var(--surface); }
+        nav a.active { color: var(--accent); background: var(--surface); border: 1px solid var(--border); }
+        header { text-align: center; margin-bottom: 2rem; }
+        header h1 { font-size: 2rem; font-weight: 700; background: linear-gradient(135deg, var(--accent), var(--purple)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+        header p { color: var(--muted); margin-top: 0.5rem; }
+        .container { max-width: 1100px; margin: 0 auto; }
+        .card { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 1.5rem; margin-bottom: 1.5rem; }
+        .card h2 { font-size: 1.1rem; margin-bottom: 1rem; color: var(--muted); font-weight: 500; }
+        .form-row { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 0.8rem; margin-bottom: 1rem; }
+        .form-group { display: flex; flex-direction: column; gap: 0.3rem; }
+        label { font-size: 0.75rem; color: var(--muted); font-weight: 500; text-transform: uppercase; letter-spacing: 0.03em; }
+        select, input[type="number"], input[type="text"] { background: var(--bg); border: 1px solid var(--border); color: var(--text); padding: 0.5rem 0.7rem; border-radius: 8px; font-size: 0.9rem; outline: none; transition: border-color 0.2s; width: 100%; }
+        select:focus, input:focus { border-color: var(--accent); }
+        .btn { border: none; padding: 0.6rem 1.2rem; border-radius: 8px; font-size: 0.9rem; font-weight: 600; cursor: pointer; transition: all 0.2s; }
+        .btn-primary { background: var(--accent); color: var(--bg); }
+        .btn-primary:hover { background: var(--accent-hover); }
+        .btn-success { background: var(--success); color: var(--bg); }
+        .btn-success:hover { opacity: 0.9; }
+        .btn-danger { background: transparent; color: var(--error); border: 1px solid var(--error); padding: 0.3rem 0.6rem; font-size: 0.75rem; }
+        .btn-danger:hover { background: var(--error); color: var(--bg); }
+        .btn-outline { background: transparent; color: var(--muted); border: 1px solid var(--border); }
+        .btn-outline:hover { color: var(--text); border-color: var(--text); }
+        .btn-group { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+        table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+        th { text-align: left; padding: 0.6rem; color: var(--muted); font-weight: 500; border-bottom: 1px solid var(--border); font-size: 0.75rem; text-transform: uppercase; }
+        td { padding: 0.6rem; border-bottom: 1px solid rgba(51,65,85,0.5); }
+        tr:hover td { background: rgba(56,189,248,0.05); }
+        .empty-state { text-align: center; padding: 3rem 1rem; color: var(--muted); }
+        .empty-state .icon { font-size: 3rem; margin-bottom: 1rem; }
+        .summary-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 1rem; }
+        .stat-card { background: var(--bg); border: 1px solid var(--border); border-radius: 10px; padding: 1rem; text-align: center; }
+        .stat-card .value { font-size: 1.5rem; font-weight: 700; }
+        .stat-card .label { font-size: 0.7rem; color: var(--muted); text-transform: uppercase; margin-top: 0.3rem; }
+        .stat-card.accent .value { color: var(--accent); }
+        .stat-card.success .value { color: var(--success); }
+        .stat-card.warning .value { color: var(--warning); }
+        .stat-card.purple .value { color: var(--purple); }
+        .priority-high { color: var(--error); }
+        .priority-medium { color: var(--warning); }
+        .priority-low { color: var(--success); }
+        .tag { display: inline-block; padding: 0.15rem 0.5rem; border-radius: 4px; font-size: 0.7rem; font-weight: 600; }
+        .tag-high { background: rgba(248,113,113,0.15); color: var(--error); }
+        .tag-medium { background: rgba(251,191,36,0.15); color: var(--warning); }
+        .tag-low { background: rgba(74,222,128,0.15); color: var(--success); }
+        footer { margin-top: 3rem; text-align: center; color: var(--muted); font-size: 0.8rem; }
+        footer a { color: var(--accent); text-decoration: none; }
+        @media print {
+            body { background: #fff; color: #000; padding: 0.5cm; }
+            nav, .btn, .card h2, header p, footer { display: none; }
+            .card { border: 1px solid #ccc; break-inside: avoid; }
+            .stat-card { border: 1px solid #ccc; }
+            .stat-card .value { color: #000 !important; }
+            th { color: #333; }
+        }
+    </style>
+</head>
+<body>
+    <nav>
+        <a href="index.html">Query Tool</a>
+        <a href="explorer.html">Data Explorer</a>
+        <a href="table.html">Data Table</a>
+        <a href="compare.html">Compare</a>
+        <a href="quality.html">🔬 Quality</a>
+        <a href="anomaly.html">⚠️ Anomaly</a>
+        <a href="trends.html">Trends</a>
+        <a href="optimizer.html">⚡ Optimizer</a>
+        <a href="cluster.html">🔮 Clusters</a>
+        <a href="correlation.html">📊 Correlation</a>
+        <a href="calculator.html">🧮 Calculator</a>
+        <a href="batch.html" class="active">📋 Batch Planner</a>
+        <a href="guide.html">📖 Guide</a>
+        <a href="api.html">🔌 API</a>
+        <a href="architecture.html">🏗️ Architecture</a>
+    </nav>
+
+    <header>
+        <h1>📋 Batch Planner</h1>
+        <p>Plan multiple print runs, estimate total resources, and export a printable run sheet</p>
+    </header>
+
+    <div class="container">
+        <div class="card">
+            <h2>Add Print Run</h2>
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="run-name">Run Name</label>
+                    <input type="text" id="run-name" placeholder="e.g. Scaffold A" />
+                </div>
+                <div class="form-group">
+                    <label for="run-wellplate">Wellplate</label>
+                    <select id="run-wellplate">
+                        <option value="6">6-well</option>
+                        <option value="12">12-well</option>
+                        <option value="24" selected>24-well</option>
+                        <option value="48">48-well</option>
+                        <option value="96">96-well</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="run-wells">Wells</label>
+                    <input type="number" id="run-wells" value="24" min="1" max="96" />
+                </div>
+                <div class="form-group">
+                    <label for="run-layers">Layers</label>
+                    <input type="number" id="run-layers" value="10" min="1" max="500" />
+                </div>
+                <div class="form-group">
+                    <label for="run-height">Layer Height (mm)</label>
+                    <input type="number" id="run-height" value="0.8" min="0.05" max="5" step="0.05" />
+                </div>
+                <div class="form-group">
+                    <label for="run-pressure">Pressure (psi)</label>
+                    <input type="number" id="run-pressure" value="38" min="1" max="100" />
+                </div>
+                <div class="form-group">
+                    <label for="run-priority">Priority</label>
+                    <select id="run-priority">
+                        <option value="high">High</option>
+                        <option value="medium" selected>Medium</option>
+                        <option value="low">Low</option>
+                    </select>
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="run-notes">Notes</label>
+                    <input type="text" id="run-notes" placeholder="Optional notes..." style="grid-column: 1 / -1;" />
+                </div>
+            </div>
+            <button class="btn btn-primary" onclick="addRun()">+ Add to Queue</button>
+        </div>
+
+        <div class="card" id="summary-card" style="display:none;">
+            <h2>Batch Summary</h2>
+            <div class="summary-grid" id="summary"></div>
+        </div>
+
+        <div class="card">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; flex-wrap: wrap; gap: 0.5rem;">
+                <h2 style="margin-bottom: 0;">Run Queue</h2>
+                <div class="btn-group">
+                    <button class="btn btn-outline" onclick="sortQueue('priority')">Sort: Priority</button>
+                    <button class="btn btn-outline" onclick="sortQueue('name')">Sort: Name</button>
+                    <button class="btn btn-success" onclick="exportCSV()">⬇ Export CSV</button>
+                    <button class="btn btn-outline" onclick="window.print()">🖨 Print</button>
+                    <button class="btn btn-danger" onclick="clearAll()">Clear All</button>
+                </div>
+            </div>
+            <div id="queue-body"></div>
+        </div>
+    </div>
+
+    <footer>
+        <p>Built with 🧬 by <a href="https://github.com/sauravbhattacharya001">Saurav Bhattacharya</a></p>
+        <p><a href="https://github.com/sauravbhattacharya001/BioBots">View Source</a></p>
+    </footer>
+
+    <script>
+    (function() {
+        var STORAGE_KEY = 'biobots-batch-runs';
+        var runCounter = 0;
+        var runs = [];
+
+        // Well diameters in mm for volume estimation
+        var WELL_DIAMETERS = { 6: 34.8, 12: 22.1, 24: 15.6, 48: 11.0, 96: 6.4 };
+
+        function loadRuns() {
+            try {
+                var saved = localStorage.getItem(STORAGE_KEY);
+                if (saved) { runs = JSON.parse(saved); runCounter = runs.length; }
+            } catch(e) {}
+        }
+
+        function saveRuns() {
+            try { localStorage.setItem(STORAGE_KEY, JSON.stringify(runs)); } catch(e) {}
+        }
+
+        function estimateVolume(wellplate, wells, layers, layerHeight) {
+            var d = WELL_DIAMETERS[wellplate] || 15.6;
+            var r = d / 2;
+            var areaPerWell = Math.PI * r * r; // mm²
+            var volumePerWell = areaPerWell * layers * layerHeight; // mm³
+            var totalMm3 = volumePerWell * wells;
+            var totalMl = totalMm3 / 1000;
+            return { totalMl: totalMl, perWellUl: (volumePerWell / 1000) * 1000 };
+        }
+
+        function estimateTime(wells, layers, layerHeight) {
+            // Rough estimate: 2 seconds per layer per well + 5s setup per well
+            var printSec = wells * layers * 2 + wells * 5;
+            return printSec;
+        }
+
+        function formatTime(seconds) {
+            if (seconds < 60) return seconds + 's';
+            if (seconds < 3600) return Math.floor(seconds / 60) + 'm ' + (seconds % 60) + 's';
+            var h = Math.floor(seconds / 3600);
+            var m = Math.floor((seconds % 3600) / 60);
+            return h + 'h ' + m + 'm';
+        }
+
+        function priorityOrder(p) { return p === 'high' ? 0 : p === 'medium' ? 1 : 2; }
+
+        window.addRun = function() {
+            var name = document.getElementById('run-name').value.trim() || ('Run ' + (++runCounter));
+            var run = {
+                id: Date.now(),
+                name: name,
+                wellplate: parseInt(document.getElementById('run-wellplate').value),
+                wells: parseInt(document.getElementById('run-wells').value),
+                layers: parseInt(document.getElementById('run-layers').value),
+                layerHeight: parseFloat(document.getElementById('run-height').value),
+                pressure: parseFloat(document.getElementById('run-pressure').value),
+                priority: document.getElementById('run-priority').value,
+                notes: document.getElementById('run-notes').value.trim()
+            };
+            // Validate wells
+            if (run.wells > run.wellplate) run.wells = run.wellplate;
+            if (run.wells < 1) run.wells = 1;
+            runs.push(run);
+            saveRuns();
+            render();
+            // Reset name
+            document.getElementById('run-name').value = '';
+            document.getElementById('run-notes').value = '';
+            runCounter = runs.length;
+        };
+
+        window.removeRun = function(id) {
+            runs = runs.filter(function(r) { return r.id !== id; });
+            saveRuns();
+            render();
+        };
+
+        window.moveRun = function(id, dir) {
+            var idx = runs.findIndex(function(r) { return r.id === id; });
+            if (idx < 0) return;
+            var newIdx = idx + dir;
+            if (newIdx < 0 || newIdx >= runs.length) return;
+            var tmp = runs[idx]; runs[idx] = runs[newIdx]; runs[newIdx] = tmp;
+            saveRuns();
+            render();
+        };
+
+        window.sortQueue = function(by) {
+            if (by === 'priority') {
+                runs.sort(function(a, b) { return priorityOrder(a.priority) - priorityOrder(b.priority); });
+            } else {
+                runs.sort(function(a, b) { return a.name.localeCompare(b.name); });
+            }
+            saveRuns();
+            render();
+        };
+
+        window.clearAll = function() {
+            if (!confirm('Clear all runs from the queue?')) return;
+            runs = [];
+            saveRuns();
+            render();
+        };
+
+        window.exportCSV = function() {
+            if (runs.length === 0) return;
+            var headers = ['Order', 'Name', 'Priority', 'Wellplate', 'Wells', 'Layers', 'Layer Height (mm)', 'Pressure (psi)', 'Est. Volume (mL)', 'Est. Time', 'Notes'];
+            var rows = [headers.join(',')];
+            runs.forEach(function(r, i) {
+                var vol = estimateVolume(r.wellplate, r.wells, r.layers, r.layerHeight);
+                var time = estimateTime(r.wells, r.layers, r.layerHeight);
+                var row = [
+                    i + 1, '"' + r.name.replace(/"/g, '""') + '"', r.priority,
+                    r.wellplate + '-well', r.wells, r.layers, r.layerHeight, r.pressure,
+                    vol.totalMl.toFixed(2), formatTime(time),
+                    '"' + (r.notes || '').replace(/"/g, '""') + '"'
+                ];
+                rows.push(row.join(','));
+            });
+            var blob = new Blob([rows.join('\n')], { type: 'text/csv' });
+            var url = URL.createObjectURL(blob);
+            var a = document.createElement('a');
+            a.href = url; a.download = 'biobots-batch-' + new Date().toISOString().slice(0, 10) + '.csv';
+            a.click();
+            URL.revokeObjectURL(url);
+        };
+
+        function render() {
+            var queueBody = document.getElementById('queue-body');
+            var summaryCard = document.getElementById('summary-card');
+
+            if (runs.length === 0) {
+                queueBody.innerHTML = '<div class="empty-state"><div class="icon">📋</div><p>No print runs queued yet.<br>Add runs above to start planning your batch.</p></div>';
+                summaryCard.style.display = 'none';
+                return;
+            }
+
+            // Summary
+            summaryCard.style.display = '';
+            var totalVol = 0, totalTime = 0, totalWells = 0;
+            runs.forEach(function(r) {
+                var vol = estimateVolume(r.wellplate, r.wells, r.layers, r.layerHeight);
+                totalVol += vol.totalMl;
+                totalTime += estimateTime(r.wells, r.layers, r.layerHeight);
+                totalWells += r.wells;
+            });
+            document.getElementById('summary').innerHTML =
+                '<div class="stat-card accent"><div class="value">' + runs.length + '</div><div class="label">Total Runs</div></div>' +
+                '<div class="stat-card success"><div class="value">' + totalWells + '</div><div class="label">Total Wells</div></div>' +
+                '<div class="stat-card warning"><div class="value">' + totalVol.toFixed(1) + ' mL</div><div class="label">Est. Volume</div></div>' +
+                '<div class="stat-card purple"><div class="value">' + formatTime(totalTime) + '</div><div class="label">Est. Total Time</div></div>';
+
+            // Table
+            var html = '<table><thead><tr><th>#</th><th>Name</th><th>Priority</th><th>Plate</th><th>Wells</th><th>Layers</th><th>Height</th><th>Pressure</th><th>Volume</th><th>Time</th><th>Notes</th><th></th></tr></thead><tbody>';
+            runs.forEach(function(r, i) {
+                var vol = estimateVolume(r.wellplate, r.wells, r.layers, r.layerHeight);
+                var time = estimateTime(r.wells, r.layers, r.layerHeight);
+                var tagClass = r.priority === 'high' ? 'tag-high' : r.priority === 'medium' ? 'tag-medium' : 'tag-low';
+                html += '<tr>' +
+                    '<td>' + (i + 1) + '</td>' +
+                    '<td><strong>' + escHtml(r.name) + '</strong></td>' +
+                    '<td><span class="tag ' + tagClass + '">' + r.priority.toUpperCase() + '</span></td>' +
+                    '<td>' + r.wellplate + '-well</td>' +
+                    '<td>' + r.wells + '</td>' +
+                    '<td>' + r.layers + '</td>' +
+                    '<td>' + r.layerHeight + ' mm</td>' +
+                    '<td>' + r.pressure + ' psi</td>' +
+                    '<td>' + vol.totalMl.toFixed(2) + ' mL</td>' +
+                    '<td>' + formatTime(time) + '</td>' +
+                    '<td style="color:var(--muted);font-size:0.8rem;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="' + escAttr(r.notes) + '">' + escHtml(r.notes || '—') + '</td>' +
+                    '<td style="white-space:nowrap;"><button class="btn btn-danger" onclick="removeRun(' + r.id + ')" title="Remove">✕</button></td>' +
+                    '</tr>';
+            });
+            html += '</tbody></table>';
+            queueBody.innerHTML = html;
+        }
+
+        function escHtml(s) { var d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+        function escAttr(s) { return (s || '').replace(/"/g, '&quot;').replace(/</g, '&lt;'); }
+
+        loadRuns();
+        render();
+    })();
+    </script>
+</body>
+</html>
