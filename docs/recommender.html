@@ -1,0 +1,621 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Parameter Recommender — BioBots</title>
+    <style>
+        :root {
+            --bg: #0f172a;
+            --surface: #1e293b;
+            --surface2: #334155;
+            --border: #475569;
+            --text: #e2e8f0;
+            --text-muted: #94a3b8;
+            --accent: #38bdf8;
+            --accent2: #818cf8;
+            --good: #4ade80;
+            --warn: #facc15;
+            --bad: #f87171;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.6;
+            min-height: 100vh;
+        }
+        .container { max-width: 960px; margin: 0 auto; padding: 2rem 1.5rem; }
+        h1 { font-size: 1.8rem; margin-bottom: 0.5rem; }
+        h1 span { color: var(--accent); }
+        .subtitle { color: var(--text-muted); margin-bottom: 2rem; font-size: 0.95rem; }
+        .card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+        .card h2 {
+            font-size: 1.1rem;
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        .objectives {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-bottom: 1rem;
+        }
+        .obj-btn {
+            background: var(--surface2);
+            border: 2px solid var(--border);
+            border-radius: 10px;
+            padding: 1rem;
+            cursor: pointer;
+            transition: all 0.2s;
+            color: var(--text);
+            text-align: left;
+        }
+        .obj-btn:hover { border-color: var(--accent); }
+        .obj-btn.active { border-color: var(--accent); background: rgba(56, 189, 248, 0.1); }
+        .obj-btn .label { font-weight: 600; font-size: 1rem; display: block; }
+        .obj-btn .desc { color: var(--text-muted); font-size: 0.8rem; margin-top: 0.25rem; }
+        .top-pct-row {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+        .top-pct-row label { color: var(--text-muted); font-size: 0.9rem; white-space: nowrap; }
+        .top-pct-row select {
+            background: var(--surface2);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            color: var(--text);
+            padding: 0.4rem 0.6rem;
+            font-size: 0.9rem;
+        }
+        .top-pct-row .info { color: var(--text-muted); font-size: 0.8rem; }
+        .run-btn {
+            background: var(--accent);
+            color: #0f172a;
+            border: none;
+            border-radius: 8px;
+            padding: 0.7rem 1.5rem;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: opacity 0.2s;
+        }
+        .run-btn:hover { opacity: 0.85; }
+        .run-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+        .hidden { display: none; }
+        .score-bar {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+        .score-ring {
+            width: 80px;
+            height: 80px;
+            position: relative;
+            flex-shrink: 0;
+        }
+        .score-ring svg { transform: rotate(-90deg); }
+        .score-ring .bg { stroke: var(--surface2); }
+        .score-ring .fg { transition: stroke-dashoffset 0.8s ease; }
+        .score-text {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.3rem;
+            font-weight: 700;
+        }
+        .score-label { font-size: 0.95rem; }
+        .score-label .big { font-size: 1.2rem; font-weight: 600; }
+        .param-grid { display: grid; grid-template-columns: 1fr; gap: 1rem; }
+        .param-row {
+            display: grid;
+            grid-template-columns: 140px 1fr 100px;
+            align-items: center;
+            gap: 1rem;
+            padding: 0.75rem 1rem;
+            background: var(--surface2);
+            border-radius: 8px;
+        }
+        .param-name { font-weight: 600; font-size: 0.9rem; }
+        .param-unit { color: var(--text-muted); font-size: 0.75rem; }
+        .range-vis { position: relative; height: 28px; }
+        .range-track {
+            position: absolute; top: 12px; left: 0; right: 0;
+            height: 4px; background: var(--border); border-radius: 2px;
+        }
+        .range-optimal {
+            position: absolute; top: 8px; height: 12px;
+            background: var(--accent); border-radius: 4px; opacity: 0.7;
+        }
+        .range-label {
+            position: absolute; top: -2px; font-size: 0.65rem;
+            color: var(--text-muted); transform: translateX(-50%); white-space: nowrap;
+        }
+        .range-label.left { left: 0; transform: none; }
+        .range-label.right { right: 0; transform: none; }
+        .param-values { text-align: right; font-size: 0.85rem; }
+        .param-values .optimal { color: var(--accent); font-weight: 600; }
+        .prints-table {
+            width: 100%; border-collapse: collapse;
+            font-size: 0.8rem; margin-top: 0.5rem;
+        }
+        .prints-table th {
+            text-align: left; padding: 0.5rem;
+            color: var(--text-muted); border-bottom: 1px solid var(--border); font-weight: 500;
+        }
+        .prints-table td {
+            padding: 0.5rem;
+            border-bottom: 1px solid rgba(71, 85, 105, 0.3);
+        }
+        .prints-table tr:hover td { background: rgba(56, 189, 248, 0.05); }
+        .badge {
+            display: inline-block; padding: 0.15rem 0.5rem;
+            border-radius: 10px; font-size: 0.7rem; font-weight: 600;
+        }
+        .badge-good { background: rgba(74, 222, 128, 0.15); color: var(--good); }
+        .badge-warn { background: rgba(250, 204, 21, 0.15); color: var(--warn); }
+        .badge-bad { background: rgba(248, 113, 113, 0.15); color: var(--bad); }
+        .compat-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+            gap: 0.75rem; margin-top: 1rem;
+        }
+        .compat-input { display: flex; flex-direction: column; gap: 0.25rem; }
+        .compat-input label { font-size: 0.8rem; color: var(--text-muted); }
+        .compat-input input {
+            background: var(--surface); border: 1px solid var(--border);
+            border-radius: 6px; color: var(--text);
+            padding: 0.4rem 0.6rem; font-size: 0.9rem; width: 100%;
+        }
+        .compat-input input:focus { outline: none; border-color: var(--accent); }
+        .compat-result {
+            margin-top: 1rem; padding: 1rem;
+            background: var(--surface2); border-radius: 8px;
+        }
+        .compat-meter {
+            height: 8px; background: var(--border);
+            border-radius: 4px; overflow: hidden; margin: 0.5rem 0;
+        }
+        .compat-fill {
+            height: 100%; border-radius: 4px; transition: width 0.5s ease;
+        }
+        .compat-details {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+            gap: 0.5rem; margin-top: 0.75rem; font-size: 0.8rem;
+        }
+        .compat-item { display: flex; justify-content: space-between; padding: 0.3rem 0; }
+        .compat-item .status { font-weight: 600; }
+        .back-link {
+            display: inline-block; margin-bottom: 1rem;
+            color: var(--accent); text-decoration: none; font-size: 0.9rem;
+        }
+        .back-link:hover { text-decoration: underline; }
+        .error-msg {
+            color: var(--bad); padding: 1rem;
+            background: rgba(248, 113, 113, 0.1); border-radius: 8px; margin-top: 1rem;
+        }
+        @media (max-width: 600px) {
+            .param-row { grid-template-columns: 1fr; gap: 0.5rem; }
+            .param-values { text-align: left; }
+            .objectives { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <a class="back-link" href="index.html">&larr; Back to Docs</a>
+        <h1>🎯 Parameter <span>Recommender</span></h1>
+        <p class="subtitle">
+            Analyze top-performing bioprints to find optimal parameter settings for your target outcome.
+        </p>
+
+        <div class="card">
+            <h2>📋 Select Objective</h2>
+            <div class="objectives" id="objectives">
+                <button class="obj-btn active" data-obj="viability" onclick="selectObj(this)">
+                    <span class="label">🧬 Maximize Viability</span>
+                    <span class="desc">Optimize for highest live cell percentage</span>
+                </button>
+                <button class="obj-btn" data-obj="elasticity" onclick="selectObj(this)">
+                    <span class="label">🔧 Maximize Elasticity</span>
+                    <span class="desc">Optimize for structural rigidity (kPa)</span>
+                </button>
+                <button class="obj-btn" data-obj="balanced" onclick="selectObj(this)">
+                    <span class="label">⚖️ Balanced</span>
+                    <span class="desc">Best trade-off between viability and elasticity</span>
+                </button>
+            </div>
+            <div class="top-pct-row">
+                <label>Analyze top</label>
+                <select id="topPct">
+                    <option value="10">10%</option>
+                    <option value="15">15%</option>
+                    <option value="20" selected>20%</option>
+                    <option value="25">25%</option>
+                </select>
+                <span class="info" id="sampleInfo">of prints by selected metric</span>
+            </div>
+            <button class="run-btn" id="runBtn" onclick="analyze()">Analyze &amp; Recommend</button>
+        </div>
+
+        <div id="results" class="hidden">
+            <div class="card">
+                <h2>📊 Recommendation Confidence</h2>
+                <div class="score-bar">
+                    <div class="score-ring">
+                        <svg width="80" height="80" viewBox="0 0 80 80">
+                            <circle class="bg" cx="40" cy="40" r="34" fill="none" stroke-width="6"/>
+                            <circle class="fg" id="scoreCircle" cx="40" cy="40" r="34" fill="none"
+                                stroke-width="6" stroke-linecap="round"
+                                stroke-dasharray="213.6" stroke-dashoffset="213.6"/>
+                        </svg>
+                        <div class="score-text" id="scoreText">&mdash;</div>
+                    </div>
+                    <div class="score-label">
+                        <div class="big" id="scoreLabel">Analyzing...</div>
+                        <div id="scoreSummary" style="color: var(--text-muted); font-size: 0.85rem;"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <h2>🎯 Optimal Parameter Ranges</h2>
+                <div class="param-grid" id="paramGrid"></div>
+            </div>
+
+            <div class="card">
+                <h2>🔍 Check Your Settings</h2>
+                <p style="color: var(--text-muted); font-size: 0.85rem; margin-bottom: 0.5rem;">
+                    Enter your current parameters to see how close they are to the recommended ranges.
+                </p>
+                <div class="compat-grid" id="compatInputs"></div>
+                <button class="run-btn" style="margin-top: 1rem; font-size: 0.9rem; padding: 0.5rem 1.2rem;"
+                    onclick="checkCompat()">Check Compatibility</button>
+                <div id="compatResult" class="hidden"></div>
+            </div>
+
+            <div class="card">
+                <h2>🏆 Top Prints Informing Recommendations</h2>
+                <p style="color: var(--text-muted); font-size: 0.85rem; margin-bottom: 0.5rem;" id="topPrintsDesc"></p>
+                <div style="overflow-x: auto;">
+                    <table class="prints-table" id="printsTable">
+                        <thead><tr id="printsHead"></tr></thead>
+                        <tbody id="printsBody"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div id="errorBox" class="hidden"></div>
+    </div>
+
+    <script>
+    // ── Exported helpers (testable) ─────────────────────
+
+    function fmtNum(n) {
+        if (n === undefined || n === null) return '\u2014';
+        if (Number.isInteger(n)) return n.toString();
+        if (Math.abs(n) >= 100) return n.toFixed(1);
+        if (Math.abs(n) >= 1) return n.toFixed(2);
+        return n.toFixed(4);
+    }
+
+    function checkParam(val, optMin, optMax) {
+        if (val >= optMin && val <= optMax) return 100;
+        var range = optMax - optMin;
+        var guardBand = range > 0 ? range : 1;
+        if (val < optMin) return Math.max(0, 100 - ((optMin - val) / guardBand) * 100);
+        return Math.max(0, 100 - ((val - optMax) / guardBand) * 100);
+    }
+
+    function computeConfidence(cvValues, count) {
+        var confidence = 0;
+        for (var i = 0; i < cvValues.length; i++) {
+            confidence += Math.max(0, 1 - cvValues[i] / 100);
+        }
+        var confScore = cvValues.length > 0 ? Math.round((confidence / cvValues.length) * 100) : 0;
+        var sizeBonus = Math.min(count / 100, 1) * 10;
+        return Math.min(Math.round(confScore * 0.8 + sizeBonus + 10), 99);
+    }
+
+    function classifyConfidence(score) {
+        if (score >= 70) return 'High Confidence';
+        if (score >= 40) return 'Moderate Confidence';
+        return 'Low Confidence';
+    }
+
+    function compatVerdict(avg) {
+        if (avg >= 80) return 'well-aligned';
+        if (avg >= 50) return 'could be adjusted';
+        return 'revising';
+    }
+
+    function statusBadge(score) {
+        if (score >= 80) return 'Good';
+        if (score >= 50) return 'Fair';
+        return 'Off';
+    }
+
+    function spreadLabel(cv) {
+        if (cv < 30) return 'Tight';
+        if (cv < 60) return 'Moderate';
+        return 'Wide';
+    }
+
+    function rangePosition(val, min, max) {
+        if (max === min) return 0;
+        return ((val - min) / (max - min)) * 100;
+    }
+
+    // ── Application logic ───────────────────────────────
+
+    var PARAMS = [
+        { key: 'extruder1',    label: 'Extruder 1 Pressure', unit: 'psi' },
+        { key: 'extruder2',    label: 'Extruder 2 Pressure', unit: 'psi' },
+        { key: 'cl_duration',  label: 'Crosslink Duration',  unit: 'ms' },
+        { key: 'cl_intensity', label: 'Crosslink Intensity', unit: '%' },
+        { key: 'layerHeight',  label: 'Layer Height',        unit: 'mm' },
+        { key: 'layerNum',     label: 'Layer Count',         unit: '' },
+        { key: 'wellplate',    label: 'Wellplate Type',      unit: '' },
+    ];
+
+    var selectedObj = 'viability';
+    var currentRanges = null;
+
+    function selectObj(btn) {
+        document.querySelectorAll('.obj-btn').forEach(function(b) { b.classList.remove('active'); });
+        btn.classList.add('active');
+        selectedObj = btn.dataset.obj;
+    }
+
+    function buildRecommendation(metrics, count, topPct) {
+        var ranges = {};
+        var cvValues = [];
+
+        for (var i = 0; i < PARAMS.length; i++) {
+            var param = PARAMS[i];
+            var m = metrics[param.key];
+            if (!m) continue;
+
+            var optMin, optMax, ideal;
+            if (selectedObj === 'viability' || selectedObj === 'elasticity') {
+                optMin = m.q1;
+                optMax = m.q3;
+                ideal = m.median;
+            } else {
+                var iqr = m.q3 - m.q1;
+                optMin = m.median - iqr * 0.3;
+                optMax = m.median + iqr * 0.3;
+                ideal = m.median;
+            }
+
+            ranges[param.key] = {
+                min: m.min, max: m.max,
+                optMin: Math.max(optMin, m.min),
+                optMax: Math.min(optMax, m.max),
+                ideal: ideal, mean: m.mean, std: m.std,
+                cv: m.coefficientOfVariation,
+            };
+
+            cvValues.push(m.coefficientOfVariation || 0);
+        }
+
+        return {
+            ranges: ranges,
+            confidence: computeConfidence(cvValues, count),
+            sampleSize: Math.round(count * topPct / 100),
+            totalRecords: count,
+        };
+    }
+
+    function analyze() {
+        var btn = document.getElementById('runBtn');
+        btn.disabled = true;
+        btn.textContent = 'Analyzing...';
+        document.getElementById('errorBox').classList.add('hidden');
+
+        var API = (function() {
+            var loc = window.location;
+            if (loc.hostname === 'localhost' || loc.hostname === '127.0.0.1')
+                return loc.protocol + '//' + loc.hostname + ':' + loc.port + '/api/prints';
+            return '/api/prints';
+        })();
+
+        fetch(API + '/stats')
+            .then(function(resp) {
+                if (!resp.ok) throw new Error('API error: ' + resp.status);
+                return resp.json();
+            })
+            .then(function(statsData) {
+                var metrics = statsData.metrics;
+                var count = statsData.recordCount;
+                var topPct = parseInt(document.getElementById('topPct').value);
+                var rec = buildRecommendation(metrics, count, topPct);
+                renderResults(rec, metrics, count, topPct);
+                document.getElementById('results').classList.remove('hidden');
+            })
+            .catch(function(err) {
+                var box = document.getElementById('errorBox');
+                box.innerHTML = '<div class="error-msg">\u274C ' + err.message +
+                    '<br><small>Make sure the BioBots API is running.</small></div>';
+                box.classList.remove('hidden');
+            })
+            .finally(function() {
+                btn.disabled = false;
+                btn.textContent = 'Analyze & Recommend';
+            });
+    }
+
+    function renderResults(rec, metrics, count, topPct) {
+        // Score ring
+        var circle = document.getElementById('scoreCircle');
+        var circumference = 2 * Math.PI * 34;
+        var offset = circumference - (rec.confidence / 100) * circumference;
+        var color = rec.confidence >= 70 ? 'var(--good)' : rec.confidence >= 40 ? 'var(--warn)' : 'var(--bad)';
+        circle.style.stroke = color;
+        circle.style.strokeDashoffset = offset;
+        document.getElementById('scoreText').textContent = rec.confidence;
+        document.getElementById('scoreText').style.color = color;
+        document.getElementById('scoreLabel').textContent = classifyConfidence(rec.confidence);
+        document.getElementById('scoreSummary').textContent =
+            'Based on ' + count + ' prints \u00B7 Top ' + topPct + '% (' + rec.sampleSize + ' prints)';
+
+        // Parameter ranges
+        var grid = document.getElementById('paramGrid');
+        grid.innerHTML = '';
+        currentRanges = rec.ranges;
+
+        for (var i = 0; i < PARAMS.length; i++) {
+            var param = PARAMS[i];
+            var r = rec.ranges[param.key];
+            if (!r) continue;
+            var dataRange = r.max - r.min;
+            if (dataRange === 0) continue;
+
+            var optLeftPct = ((r.optMin - r.min) / dataRange * 100).toFixed(1);
+            var optWidthPct = ((r.optMax - r.optMin) / dataRange * 100).toFixed(1);
+
+            var row = document.createElement('div');
+            row.className = 'param-row';
+            row.innerHTML =
+                '<div>' +
+                    '<div class="param-name">' + param.label + '</div>' +
+                    '<div class="param-unit">' + param.unit + '</div>' +
+                '</div>' +
+                '<div class="range-vis">' +
+                    '<div class="range-track"></div>' +
+                    '<div class="range-optimal" style="left:' + optLeftPct + '%;width:' + optWidthPct + '%"></div>' +
+                    '<span class="range-label left">' + fmtNum(r.min) + '</span>' +
+                    '<span class="range-label right">' + fmtNum(r.max) + '</span>' +
+                '</div>' +
+                '<div class="param-values">' +
+                    '<div class="optimal">' + fmtNum(r.optMin) + ' \u2013 ' + fmtNum(r.optMax) + '</div>' +
+                    '<div style="color:var(--text-muted);font-size:0.75rem">ideal: ' + fmtNum(r.ideal) + '</div>' +
+                '</div>';
+            grid.appendChild(row);
+        }
+
+        // Compatibility inputs
+        var inputs = document.getElementById('compatInputs');
+        inputs.innerHTML = '';
+        for (var j = 0; j < PARAMS.length; j++) {
+            var p = PARAMS[j];
+            if (!rec.ranges[p.key]) continue;
+            var div = document.createElement('div');
+            div.className = 'compat-input';
+            div.innerHTML =
+                '<label>' + p.label + (p.unit ? ' (' + p.unit + ')' : '') + '</label>' +
+                '<input type="number" step="any" id="compat_' + p.key + '" placeholder="' + fmtNum(rec.ranges[p.key].ideal) + '">';
+            inputs.appendChild(div);
+        }
+        document.getElementById('compatResult').classList.add('hidden');
+
+        // Stats table
+        document.getElementById('topPrintsDesc').textContent =
+            'Dataset statistics across all ' + count + ' prints.';
+        var head = document.getElementById('printsHead');
+        var body = document.getElementById('printsBody');
+        head.innerHTML = '<th>Metric</th><th>Mean</th><th>Median</th><th>Std Dev</th><th>Best</th><th>Spread</th>';
+        body.innerHTML = '';
+
+        var outcomeKeys = ['livePercent', 'deadPercent', 'elasticity'];
+        var allKeys = outcomeKeys.concat(PARAMS.map(function(p) { return p.key; }));
+
+        for (var k = 0; k < allKeys.length; k++) {
+            var key = allKeys[k];
+            var m = metrics[key];
+            if (!m) continue;
+            var cv = m.coefficientOfVariation || 0;
+            var sl = spreadLabel(cv);
+            var badgeClass = cv < 30 ? 'badge-good' : cv < 60 ? 'badge-warn' : 'badge-bad';
+            var isOutcome = outcomeKeys.indexOf(key) >= 0;
+
+            var tr = document.createElement('tr');
+            tr.style.fontWeight = isOutcome ? '600' : 'normal';
+            tr.innerHTML =
+                '<td>' + key + '</td>' +
+                '<td>' + fmtNum(m.mean) + '</td>' +
+                '<td>' + fmtNum(m.median) + '</td>' +
+                '<td>' + fmtNum(m.std) + '</td>' +
+                '<td>' + fmtNum(m.max) + '</td>' +
+                '<td><span class="badge ' + badgeClass + '">' + sl + ' (CV ' + cv.toFixed(1) + '%)</span></td>';
+            body.appendChild(tr);
+        }
+    }
+
+    function checkCompat() {
+        if (!currentRanges) return;
+        var resultDiv = document.getElementById('compatResult');
+        resultDiv.classList.remove('hidden');
+
+        var totalScore = 0;
+        var counted = 0;
+        var details = [];
+
+        for (var i = 0; i < PARAMS.length; i++) {
+            var param = PARAMS[i];
+            var r = currentRanges[param.key];
+            if (!r) continue;
+            var input = document.getElementById('compat_' + param.key);
+            var val = parseFloat(input.value);
+            if (isNaN(val)) continue;
+
+            counted++;
+            var score = checkParam(val, r.optMin, r.optMax);
+            var sb = statusBadge(score);
+            var statusColor = score >= 80 ? 'var(--good)' : score >= 50 ? 'var(--warn)' : 'var(--bad)';
+            var icon = score >= 80 ? '\u2705' : score >= 50 ? '\u26A0\uFE0F' : '\u274C';
+            details.push({ label: param.label, score: Math.round(score), status: icon + ' ' + sb, statusColor: statusColor });
+            totalScore += score;
+        }
+
+        if (counted === 0) {
+            resultDiv.innerHTML = '<div class="compat-result"><p style="color:var(--text-muted)">Enter at least one parameter value above.</p></div>';
+            return;
+        }
+
+        var avg = Math.round(totalScore / counted);
+        var fillColor = avg >= 80 ? 'var(--good)' : avg >= 50 ? 'var(--warn)' : 'var(--bad)';
+        var verdict;
+        if (avg >= 80) verdict = 'Your settings are well-aligned with optimal ranges.';
+        else if (avg >= 50) verdict = 'Some parameters could be adjusted for better results.';
+        else verdict = 'Consider revising your parameters \u2014 several are outside optimal ranges.';
+
+        var detailsHtml = details.map(function(d) {
+            return '<div class="compat-item">' +
+                '<span>' + d.label + '</span>' +
+                '<span class="status" style="color:' + d.statusColor + '">' + d.status + '</span>' +
+            '</div>';
+        }).join('');
+
+        resultDiv.innerHTML =
+            '<div class="compat-result">' +
+                '<div style="display:flex;align-items:center;gap:1rem;margin-bottom:0.5rem;">' +
+                    '<span style="font-size:1.5rem;font-weight:700;color:' + fillColor + '">' + avg + '%</span>' +
+                    '<span style="font-weight:600;">Compatibility Score</span>' +
+                '</div>' +
+                '<div class="compat-meter">' +
+                    '<div class="compat-fill" style="width:' + avg + '%;background:' + fillColor + '"></div>' +
+                '</div>' +
+                '<p style="color:var(--text-muted);font-size:0.85rem;margin-bottom:0.75rem;">' + verdict + '</p>' +
+                '<div class="compat-details">' + detailsHtml + '</div>' +
+            '</div>';
+    }
+    </script>
+</body>
+</html>
