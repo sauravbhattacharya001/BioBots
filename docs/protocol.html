@@ -1,0 +1,729 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>BioBots 1 — Protocol Library</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧬</text></svg>">
+    <style>
+        :root {
+            --bg: #0f172a;
+            --surface: #1e293b;
+            --border: #334155;
+            --text: #e2e8f0;
+            --muted: #94a3b8;
+            --accent: #38bdf8;
+            --accent-hover: #7dd3fc;
+            --success: #4ade80;
+            --error: #f87171;
+            --warning: #fbbf24;
+            --purple: #a78bfa;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            padding: 2rem 1rem;
+        }
+
+        header { text-align: center; margin-bottom: 2rem; }
+
+        header h1 {
+            font-size: 2rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, var(--accent), var(--purple));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        header p { color: var(--muted); margin-top: 0.5rem; }
+
+        nav {
+            display: flex; flex-wrap: wrap; gap: 0.5rem;
+            justify-content: center; margin-bottom: 2rem;
+        }
+        nav a {
+            color: var(--muted); padding: 0.5rem 1rem; border-radius: 8px;
+            text-decoration: none; font-size: 0.9rem; transition: all 0.2s;
+        }
+        nav a:hover { color: var(--accent); background: var(--surface); }
+        nav a.active {
+            color: var(--accent); background: var(--surface);
+            border: 1px solid var(--border);
+        }
+
+        .container { max-width: 1000px; margin: 0 auto; }
+
+        .card {
+            background: var(--surface); border: 1px solid var(--border);
+            border-radius: 16px; padding: 2rem; margin-bottom: 1.5rem;
+        }
+        .card h2 {
+            font-size: 1.1rem; margin-bottom: 1rem;
+            color: var(--muted); font-weight: 500;
+        }
+
+        .form-row {
+            display: grid; grid-template-columns: 1fr 1fr;
+            gap: 1rem; margin-bottom: 1rem;
+        }
+        .form-group { display: flex; flex-direction: column; gap: 0.4rem; }
+        .form-group.full { grid-column: 1 / -1; }
+
+        label { font-size: 0.85rem; color: var(--muted); font-weight: 500; }
+
+        input, select, textarea {
+            background: var(--bg); border: 1px solid var(--border);
+            color: var(--text); padding: 0.6rem 0.8rem; border-radius: 8px;
+            font-size: 0.95rem; outline: none; transition: border-color 0.2s;
+            font-family: inherit;
+        }
+        input:focus, select:focus, textarea:focus { border-color: var(--accent); }
+        textarea { resize: vertical; min-height: 60px; }
+
+        .btn {
+            padding: 0.6rem 1.2rem; border-radius: 8px; border: none;
+            font-weight: 600; cursor: pointer; font-size: 0.9rem;
+            transition: all 0.2s;
+        }
+        .btn-primary { background: var(--accent); color: var(--bg); }
+        .btn-primary:hover { background: var(--accent-hover); }
+        .btn-danger { background: var(--error); color: white; }
+        .btn-danger:hover { opacity: 0.8; }
+        .btn-secondary {
+            background: transparent; border: 1px solid var(--border);
+            color: var(--text);
+        }
+        .btn-secondary:hover { border-color: var(--accent); color: var(--accent); }
+        .btn-sm { padding: 0.4rem 0.8rem; font-size: 0.8rem; }
+
+        .btn-group { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+
+        .toolbar {
+            display: flex; gap: 1rem; align-items: center;
+            flex-wrap: wrap; margin-bottom: 1rem;
+        }
+        .toolbar input[type="text"] { flex: 1; min-width: 200px; }
+
+        .tag {
+            display: inline-block; padding: 0.2rem 0.6rem; border-radius: 9999px;
+            font-size: 0.75rem; font-weight: 600; margin-right: 0.3rem;
+            margin-bottom: 0.2rem;
+        }
+        .tag-bio { background: rgba(74, 222, 128, 0.15); color: var(--success); }
+        .tag-hydrogel { background: rgba(56, 189, 248, 0.15); color: var(--accent); }
+        .tag-scaffold { background: rgba(167, 139, 250, 0.15); color: var(--purple); }
+        .tag-custom { background: rgba(251, 191, 36, 0.15); color: var(--warning); }
+
+        .protocol-card {
+            background: var(--bg); border: 1px solid var(--border);
+            border-radius: 12px; padding: 1.2rem; margin-bottom: 1rem;
+            transition: border-color 0.2s;
+        }
+        .protocol-card:hover { border-color: var(--accent); }
+
+        .protocol-header {
+            display: flex; justify-content: space-between; align-items: flex-start;
+            margin-bottom: 0.8rem;
+        }
+        .protocol-title { font-size: 1rem; font-weight: 600; }
+        .protocol-meta {
+            font-size: 0.8rem; color: var(--muted); margin-top: 0.2rem;
+        }
+
+        .protocol-params {
+            display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+            gap: 0.5rem; margin-bottom: 0.8rem;
+        }
+        .param-item {
+            background: var(--surface); border-radius: 8px; padding: 0.5rem;
+            text-align: center;
+        }
+        .param-value { font-size: 1.1rem; font-weight: 700; color: var(--accent); }
+        .param-label {
+            font-size: 0.7rem; color: var(--muted); text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .outcome-bar {
+            display: flex; gap: 0.5rem; align-items: center;
+            margin-bottom: 0.5rem;
+        }
+        .outcome-label { font-size: 0.8rem; color: var(--muted); min-width: 80px; }
+        .outcome-track {
+            flex: 1; height: 8px; background: var(--border); border-radius: 4px;
+            overflow: hidden;
+        }
+        .outcome-fill { height: 100%; border-radius: 4px; transition: width 0.3s; }
+        .outcome-value { font-size: 0.85rem; font-weight: 600; min-width: 50px; text-align: right; }
+
+        .compare-table {
+            width: 100%; border-collapse: collapse; font-size: 0.9rem;
+        }
+        .compare-table th, .compare-table td {
+            padding: 0.6rem 0.8rem; text-align: left;
+            border-bottom: 1px solid var(--border);
+        }
+        .compare-table th { color: var(--muted); font-weight: 500; }
+        .compare-table .best { color: var(--success); font-weight: 600; }
+        .compare-table .worst { color: var(--error); }
+
+        .empty-state {
+            text-align: center; padding: 3rem 1rem; color: var(--muted);
+        }
+        .empty-state .icon { font-size: 3rem; margin-bottom: 1rem; }
+
+        .stats-row {
+            display: flex; gap: 1rem; margin-bottom: 1.5rem;
+            flex-wrap: wrap; justify-content: center;
+        }
+        .stat-pill {
+            background: var(--surface); border: 1px solid var(--border);
+            border-radius: 12px; padding: 0.8rem 1.2rem; text-align: center;
+        }
+        .stat-pill .value { font-size: 1.3rem; font-weight: 700; color: var(--accent); }
+        .stat-pill .label {
+            font-size: 0.7rem; color: var(--muted); text-transform: uppercase;
+            letter-spacing: 0.05em; margin-top: 0.2rem;
+        }
+
+        .hidden { display: none !important; }
+
+        @media (max-width: 600px) {
+            .form-row { grid-template-columns: 1fr; }
+            .protocol-params { grid-template-columns: repeat(2, 1fr); }
+        }
+    </style>
+</head>
+<body>
+
+<header>
+    <h1>📋 Protocol Library</h1>
+    <p>Save, browse, and compare bioprinting protocols with their outcomes</p>
+</header>
+
+<nav>
+    <a href="index.html">Query Tool</a>
+    <a href="explorer.html">Data Explorer</a>
+    <a href="table.html">Data Table</a>
+    <a href="compare.html">Compare</a>
+    <a href="quality.html">🏅 Quality</a>
+    <a href="anomaly.html">🔍 Anomaly</a>
+    <a href="trends.html">Trends</a>
+    <a href="optimizer.html">🎯 Optimizer</a>
+    <a href="cluster.html">🔬 Clusters</a>
+    <a href="correlation.html">📊 Correlation</a>
+    <a href="spc.html">📈 SPC</a>
+    <a href="batch.html">🗓️ Batch Planner</a>
+    <a href="calculator.html">🧮 Calculator</a>
+    <a href="doe.html">🔬 DOE Analyzer</a>
+    <a href="protocol.html" class="active">📋 Protocol Library</a>
+    <a href="guide.html">📖 Guide</a>
+    <a href="api.html">⚙️ API</a>
+    <a href="architecture.html">🏗️ Architecture</a>
+</nav>
+
+<div class="container">
+    <div id="stats-row" class="stats-row"></div>
+
+    <div class="toolbar">
+        <input type="text" id="search" placeholder="Search protocols by name, tag, or notes..." />
+        <select id="sort-by">
+            <option value="newest">Newest First</option>
+            <option value="oldest">Oldest First</option>
+            <option value="name">Name A-Z</option>
+            <option value="viability">Best Viability</option>
+            <option value="elasticity">Best Elasticity</option>
+        </select>
+        <select id="filter-tag">
+            <option value="">All Tags</option>
+        </select>
+        <button class="btn btn-primary" onclick="showCreateForm()">+ New Protocol</button>
+    </div>
+
+    <div id="create-form" class="card hidden">
+        <h2 id="form-title">Create Protocol</h2>
+        <input type="hidden" id="edit-id" value="" />
+
+        <div class="form-row">
+            <div class="form-group">
+                <label for="proto-name">Protocol Name *</label>
+                <input type="text" id="proto-name" placeholder="e.g., GelMA 5% Standard" required />
+            </div>
+            <div class="form-group">
+                <label for="proto-tags">Tags (comma-separated)</label>
+                <input type="text" id="proto-tags" placeholder="e.g., gelma, cartilage, high-viability" />
+            </div>
+        </div>
+
+        <div class="form-row">
+            <div class="form-group">
+                <label for="proto-wellplate">Wellplate</label>
+                <select id="proto-wellplate">
+                    <option value="6">6-well</option>
+                    <option value="12">12-well</option>
+                    <option value="24" selected>24-well</option>
+                    <option value="48">48-well</option>
+                    <option value="96">96-well</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="proto-layer-height">Layer Height (mm)</label>
+                <input type="number" id="proto-layer-height" value="0.8" step="0.1" min="0.1" max="5.0" />
+            </div>
+        </div>
+
+        <div class="form-row">
+            <div class="form-group">
+                <label for="proto-layer-num">Layer Count</label>
+                <input type="number" id="proto-layer-num" value="10" min="1" max="200" />
+            </div>
+            <div class="form-group">
+                <label for="proto-extruder1">Extruder 1 Pressure</label>
+                <input type="number" id="proto-extruder1" value="30" step="0.5" min="0" max="100" />
+            </div>
+        </div>
+
+        <div class="form-row">
+            <div class="form-group">
+                <label for="proto-extruder2">Extruder 2 Pressure</label>
+                <input type="number" id="proto-extruder2" value="30" step="0.5" min="0" max="100" />
+            </div>
+            <div class="form-group">
+                <label for="proto-cl-duration">CL Duration (ms)</label>
+                <input type="number" id="proto-cl-duration" value="5000" min="0" max="60000" />
+            </div>
+        </div>
+
+        <div class="form-row">
+            <div class="form-group">
+                <label for="proto-cl-intensity">CL Intensity (%)</label>
+                <input type="number" id="proto-cl-intensity" value="50" min="0" max="100" />
+            </div>
+            <div class="form-group">
+                <label for="proto-live-pct">Observed Live Cell %</label>
+                <input type="number" id="proto-live-pct" value="" step="0.1" min="0" max="100"
+                       placeholder="Optional — from experiment" />
+            </div>
+        </div>
+
+        <div class="form-row">
+            <div class="form-group">
+                <label for="proto-dead-pct">Observed Dead Cell %</label>
+                <input type="number" id="proto-dead-pct" value="" step="0.1" min="0" max="100"
+                       placeholder="Optional" />
+            </div>
+            <div class="form-group">
+                <label for="proto-elasticity">Observed Elasticity (kPa)</label>
+                <input type="number" id="proto-elasticity" value="" step="0.1" min="0"
+                       placeholder="Optional" />
+            </div>
+        </div>
+
+        <div class="form-group full" style="margin-bottom:1rem;">
+            <label for="proto-notes">Notes</label>
+            <textarea id="proto-notes" placeholder="Any observations, modifications, or tips..."></textarea>
+        </div>
+
+        <div class="btn-group">
+            <button class="btn btn-primary" onclick="saveProtocol()">Save Protocol</button>
+            <button class="btn btn-secondary" onclick="hideCreateForm()">Cancel</button>
+        </div>
+    </div>
+
+    <div id="compare-panel" class="card hidden">
+        <h2>Compare Protocols</h2>
+        <div id="compare-content"></div>
+        <div class="btn-group" style="margin-top:1rem;">
+            <button class="btn btn-secondary" onclick="clearCompare()">Clear Selection</button>
+            <button class="btn btn-secondary" onclick="exportCompareCSV()">Export CSV</button>
+        </div>
+    </div>
+
+    <div id="protocol-list"></div>
+</div>
+
+<script>
+const STORAGE_KEY = 'biobots_protocols';
+
+function loadProtocols() {
+    try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        return raw ? JSON.parse(raw) : [];
+    } catch { return []; }
+}
+
+function saveProtocols(protocols) {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(protocols));
+}
+
+function generateId() {
+    return 'p_' + Date.now().toString(36) + '_' + Math.random().toString(36).substr(2, 5);
+}
+
+const _esc = document.createElement('div');
+function escapeHtml(str) {
+    if (str == null) return '';
+    _esc.textContent = String(str);
+    return _esc.innerHTML;
+}
+
+let compareSet = new Set();
+
+function updateStats() {
+    const protocols = loadProtocols();
+    const total = protocols.length;
+    const withOutcomes = protocols.filter(p => p.livePercent != null).length;
+    const tags = new Set();
+    protocols.forEach(p => (p.tags || []).forEach(t => tags.add(t)));
+
+    let avgViability = '-';
+    if (withOutcomes > 0) {
+        const sum = protocols.reduce((s, p) => s + (p.livePercent || 0), 0);
+        avgViability = (sum / withOutcomes).toFixed(1) + '%';
+    }
+
+    document.getElementById('stats-row').innerHTML = [
+        statPill(total, 'Protocols'),
+        statPill(withOutcomes, 'With Outcomes'),
+        statPill(tags.size, 'Tags'),
+        statPill(avgViability, 'Avg Viability'),
+    ].join('');
+}
+
+function statPill(value, label) {
+    return '<div class="stat-pill"><div class="value">' + escapeHtml(String(value)) +
+           '</div><div class="label">' + escapeHtml(label) + '</div></div>';
+}
+
+function updateTagFilter() {
+    const protocols = loadProtocols();
+    const tags = new Set();
+    protocols.forEach(p => (p.tags || []).forEach(t => tags.add(t)));
+    const select = document.getElementById('filter-tag');
+    const current = select.value;
+    select.innerHTML = '<option value="">All Tags</option>';
+    Array.from(tags).sort().forEach(t => {
+        const opt = document.createElement('option');
+        opt.value = t;
+        opt.textContent = t;
+        if (t === current) opt.selected = true;
+        select.appendChild(opt);
+    });
+}
+
+function renderProtocols() {
+    const protocols = loadProtocols();
+    const search = document.getElementById('search').value.toLowerCase();
+    const sortBy = document.getElementById('sort-by').value;
+    const filterTag = document.getElementById('filter-tag').value;
+
+    let filtered = protocols.filter(p => {
+        if (filterTag && !(p.tags || []).includes(filterTag)) return false;
+        if (search) {
+            const haystack = [p.name, p.notes || '', ...(p.tags || [])].join(' ').toLowerCase();
+            return haystack.includes(search);
+        }
+        return true;
+    });
+
+    filtered.sort((a, b) => {
+        switch (sortBy) {
+            case 'oldest': return (a.createdAt || 0) - (b.createdAt || 0);
+            case 'name': return (a.name || '').localeCompare(b.name || '');
+            case 'viability': return (b.livePercent || 0) - (a.livePercent || 0);
+            case 'elasticity': return (b.elasticity || 0) - (a.elasticity || 0);
+            default: return (b.createdAt || 0) - (a.createdAt || 0);
+        }
+    });
+
+    updateStats();
+    updateTagFilter();
+
+    const container = document.getElementById('protocol-list');
+    if (filtered.length === 0) {
+        container.innerHTML = '<div class="empty-state"><div class="icon">📋</div>' +
+            '<p>' + (protocols.length === 0
+                ? 'No protocols yet. Click "+ New Protocol" to save your first bioprinting protocol.'
+                : 'No protocols match your search.') + '</p></div>';
+        return;
+    }
+
+    container.innerHTML = filtered.map(renderProtocolCard).join('');
+    updateComparePanel();
+}
+
+function renderProtocolCard(p) {
+    const isCompared = compareSet.has(p.id);
+    const date = p.createdAt ? new Date(p.createdAt).toLocaleDateString() : 'Unknown';
+    const tags = (p.tags || []).map(t => {
+        const cls = t.includes('bio') ? 'tag-bio'
+            : t.includes('hydrogel') || t.includes('gel') ? 'tag-hydrogel'
+            : t.includes('scaffold') ? 'tag-scaffold' : 'tag-custom';
+        return '<span class="tag ' + cls + '">' + escapeHtml(t) + '</span>';
+    }).join('');
+
+    let outcomes = '';
+    if (p.livePercent != null) {
+        outcomes += outcomeBar('Live %', p.livePercent, 100, 'var(--success)');
+    }
+    if (p.deadPercent != null) {
+        outcomes += outcomeBar('Dead %', p.deadPercent, 100, 'var(--error)');
+    }
+    if (p.elasticity != null) {
+        outcomes += outcomeBar('Elasticity', p.elasticity, 200, 'var(--accent)');
+    }
+
+    return '<div class="protocol-card">' +
+        '<div class="protocol-header">' +
+            '<div>' +
+                '<div class="protocol-title">' + escapeHtml(p.name) + '</div>' +
+                '<div class="protocol-meta">' + date + ' &middot; ' + escapeHtml(p.wellplate || '24') + '-well' +
+                (tags ? ' &middot; ' + tags : '') + '</div>' +
+            '</div>' +
+            '<div class="btn-group">' +
+                '<button class="btn btn-secondary btn-sm" onclick="toggleCompare(\'' + p.id + '\')">' +
+                    (isCompared ? '✓ Comparing' : 'Compare') + '</button>' +
+                '<button class="btn btn-secondary btn-sm" onclick="editProtocol(\'' + p.id + '\')">Edit</button>' +
+                '<button class="btn btn-danger btn-sm" onclick="deleteProtocol(\'' + p.id + '\')">Delete</button>' +
+            '</div>' +
+        '</div>' +
+        '<div class="protocol-params">' +
+            paramItem(p.layerHeight, 'Layer H (mm)') +
+            paramItem(p.layerNum, 'Layers') +
+            paramItem(p.extruder1, 'Ext 1') +
+            paramItem(p.extruder2, 'Ext 2') +
+            paramItem(p.clDuration, 'CL (ms)') +
+            paramItem(p.clIntensity, 'CL %') +
+        '</div>' +
+        outcomes +
+        (p.notes ? '<div style="font-size:0.85rem;color:var(--muted);margin-top:0.5rem;">' +
+            escapeHtml(p.notes) + '</div>' : '') +
+    '</div>';
+}
+
+function paramItem(value, label) {
+    const display = value != null ? String(value) : '-';
+    return '<div class="param-item"><div class="param-value">' + escapeHtml(display) +
+           '</div><div class="param-label">' + escapeHtml(label) + '</div></div>';
+}
+
+function outcomeBar(label, value, max, color) {
+    const pct = Math.min(100, (value / max) * 100);
+    return '<div class="outcome-bar">' +
+        '<span class="outcome-label">' + escapeHtml(label) + '</span>' +
+        '<div class="outcome-track"><div class="outcome-fill" style="width:' +
+            pct.toFixed(1) + '%;background:' + color + ';"></div></div>' +
+        '<span class="outcome-value" style="color:' + color + ';">' +
+            (typeof value === 'number' ? value.toFixed(1) : '-') + '</span>' +
+    '</div>';
+}
+
+function showCreateForm() {
+    document.getElementById('form-title').textContent = 'Create Protocol';
+    document.getElementById('edit-id').value = '';
+    clearFormFields();
+    document.getElementById('create-form').classList.remove('hidden');
+    document.getElementById('proto-name').focus();
+}
+
+function hideCreateForm() {
+    document.getElementById('create-form').classList.add('hidden');
+    clearFormFields();
+}
+
+function clearFormFields() {
+    document.getElementById('proto-name').value = '';
+    document.getElementById('proto-tags').value = '';
+    document.getElementById('proto-wellplate').value = '24';
+    document.getElementById('proto-layer-height').value = '0.8';
+    document.getElementById('proto-layer-num').value = '10';
+    document.getElementById('proto-extruder1').value = '30';
+    document.getElementById('proto-extruder2').value = '30';
+    document.getElementById('proto-cl-duration').value = '5000';
+    document.getElementById('proto-cl-intensity').value = '50';
+    document.getElementById('proto-live-pct').value = '';
+    document.getElementById('proto-dead-pct').value = '';
+    document.getElementById('proto-elasticity').value = '';
+    document.getElementById('proto-notes').value = '';
+}
+
+function saveProtocol() {
+    const name = document.getElementById('proto-name').value.trim();
+    if (!name) { alert('Protocol name is required.'); return; }
+
+    const protocols = loadProtocols();
+    const editId = document.getElementById('edit-id').value;
+
+    const protocol = {
+        id: editId || generateId(),
+        name: name,
+        tags: document.getElementById('proto-tags').value
+            .split(',').map(t => t.trim().toLowerCase()).filter(Boolean),
+        wellplate: document.getElementById('proto-wellplate').value,
+        layerHeight: parseFloat(document.getElementById('proto-layer-height').value) || null,
+        layerNum: parseInt(document.getElementById('proto-layer-num').value, 10) || null,
+        extruder1: parseFloat(document.getElementById('proto-extruder1').value) || null,
+        extruder2: parseFloat(document.getElementById('proto-extruder2').value) || null,
+        clDuration: parseInt(document.getElementById('proto-cl-duration').value, 10) || null,
+        clIntensity: parseInt(document.getElementById('proto-cl-intensity').value, 10) || null,
+        livePercent: parseNum('proto-live-pct'),
+        deadPercent: parseNum('proto-dead-pct'),
+        elasticity: parseNum('proto-elasticity'),
+        notes: document.getElementById('proto-notes').value.trim() || null,
+        createdAt: editId
+            ? (protocols.find(p => p.id === editId) || {}).createdAt || Date.now()
+            : Date.now(),
+        updatedAt: Date.now(),
+    };
+
+    if (editId) {
+        const idx = protocols.findIndex(p => p.id === editId);
+        if (idx >= 0) protocols[idx] = protocol;
+        else protocols.unshift(protocol);
+    } else {
+        protocols.unshift(protocol);
+    }
+
+    saveProtocols(protocols);
+    hideCreateForm();
+    renderProtocols();
+}
+
+function parseNum(elementId) {
+    const val = document.getElementById(elementId).value.trim();
+    if (val === '') return null;
+    const n = parseFloat(val);
+    return isNaN(n) ? null : n;
+}
+
+function editProtocol(id) {
+    const protocols = loadProtocols();
+    const p = protocols.find(x => x.id === id);
+    if (!p) return;
+
+    document.getElementById('form-title').textContent = 'Edit Protocol';
+    document.getElementById('edit-id').value = id;
+    document.getElementById('proto-name').value = p.name || '';
+    document.getElementById('proto-tags').value = (p.tags || []).join(', ');
+    document.getElementById('proto-wellplate').value = p.wellplate || '24';
+    document.getElementById('proto-layer-height').value = p.layerHeight || '0.8';
+    document.getElementById('proto-layer-num').value = p.layerNum || '10';
+    document.getElementById('proto-extruder1').value = p.extruder1 || '30';
+    document.getElementById('proto-extruder2').value = p.extruder2 || '30';
+    document.getElementById('proto-cl-duration').value = p.clDuration || '5000';
+    document.getElementById('proto-cl-intensity').value = p.clIntensity || '50';
+    document.getElementById('proto-live-pct').value = p.livePercent != null ? p.livePercent : '';
+    document.getElementById('proto-dead-pct').value = p.deadPercent != null ? p.deadPercent : '';
+    document.getElementById('proto-elasticity').value = p.elasticity != null ? p.elasticity : '';
+    document.getElementById('proto-notes').value = p.notes || '';
+
+    document.getElementById('create-form').classList.remove('hidden');
+    document.getElementById('proto-name').focus();
+}
+
+function deleteProtocol(id) {
+    if (!confirm('Delete this protocol?')) return;
+    const protocols = loadProtocols().filter(p => p.id !== id);
+    saveProtocols(protocols);
+    compareSet.delete(id);
+    renderProtocols();
+}
+
+function toggleCompare(id) {
+    if (compareSet.has(id)) compareSet.delete(id);
+    else if (compareSet.size < 5) compareSet.add(id);
+    else { alert('Max 5 protocols for comparison.'); return; }
+    renderProtocols();
+}
+
+function clearCompare() {
+    compareSet.clear();
+    renderProtocols();
+}
+
+function updateComparePanel() {
+    const panel = document.getElementById('compare-panel');
+    if (compareSet.size < 2) {
+        panel.classList.add('hidden');
+        return;
+    }
+
+    panel.classList.remove('hidden');
+    const protocols = loadProtocols().filter(p => compareSet.has(p.id));
+    const params = ['layerHeight', 'layerNum', 'extruder1', 'extruder2',
+                    'clDuration', 'clIntensity', 'livePercent', 'deadPercent', 'elasticity'];
+    const labels = {
+        layerHeight: 'Layer Height (mm)', layerNum: 'Layer Count',
+        extruder1: 'Extruder 1', extruder2: 'Extruder 2',
+        clDuration: 'CL Duration (ms)', clIntensity: 'CL Intensity (%)',
+        livePercent: 'Live Cell %', deadPercent: 'Dead Cell %', elasticity: 'Elasticity (kPa)'
+    };
+    const higherBetter = { livePercent: true, elasticity: true, deadPercent: false };
+
+    let html = '<table class="compare-table"><thead><tr><th>Parameter</th>';
+    protocols.forEach(p => { html += '<th>' + escapeHtml(p.name) + '</th>'; });
+    html += '</tr></thead><tbody>';
+
+    params.forEach(param => {
+        const values = protocols.map(p => p[param]);
+        const nums = values.filter(v => v != null);
+        let bestIdx = -1, worstIdx = -1;
+        if (nums.length >= 2 && param in higherBetter) {
+            const sorted = [...nums].sort((a, b) => a - b);
+            const best = higherBetter[param] ? sorted[sorted.length - 1] : sorted[0];
+            const worst = higherBetter[param] ? sorted[0] : sorted[sorted.length - 1];
+            bestIdx = values.indexOf(best);
+            worstIdx = values.indexOf(worst);
+        }
+
+        html += '<tr><td>' + escapeHtml(labels[param] || param) + '</td>';
+        values.forEach((v, i) => {
+            const cls = i === bestIdx ? ' class="best"' : (i === worstIdx ? ' class="worst"' : '');
+            html += '<td' + cls + '>' + (v != null ? v : '-') + '</td>';
+        });
+        html += '</tr>';
+    });
+
+    html += '</tbody></table>';
+    document.getElementById('compare-content').innerHTML = html;
+}
+
+function exportCompareCSV() {
+    const protocols = loadProtocols().filter(p => compareSet.has(p.id));
+    if (protocols.length < 2) return;
+
+    const fields = ['name', 'wellplate', 'layerHeight', 'layerNum', 'extruder1', 'extruder2',
+                    'clDuration', 'clIntensity', 'livePercent', 'deadPercent', 'elasticity', 'notes'];
+    let csv = fields.join(',') + '\n';
+    protocols.forEach(p => {
+        csv += fields.map(f => {
+            const v = p[f];
+            if (v == null) return '';
+            const s = String(v);
+            return s.includes(',') || s.includes('"') || s.includes('\n')
+                ? '"' + s.replace(/"/g, '""') + '"' : s;
+        }).join(',') + '\n';
+    });
+
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'protocol-comparison.csv';
+    a.click();
+    URL.revokeObjectURL(a.href);
+}
+
+document.getElementById('search').addEventListener('input', renderProtocols);
+document.getElementById('sort-by').addEventListener('change', renderProtocols);
+document.getElementById('filter-tag').addEventListener('change', renderProtocols);
+
+renderProtocols();
+</script>
+
+</body>
+</html>
