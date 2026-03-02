@@ -6,8 +6,13 @@
  * recorded bioprints are a sample from a larger potential population.
  */
 
-/** Shared DOM element for HTML entity escaping. */
-const _escapeEl = document.createElement('div');
+/**
+ * Lazily-initialized DOM element for HTML entity escaping.
+ * Deferred creation avoids a crash when this file is loaded in
+ * non-browser contexts (Node.js tests, SSR).
+ * @private
+ */
+let _escapeEl = null;
 
 /**
  * Escape a string for safe HTML insertion (prevents XSS).
@@ -16,6 +21,7 @@ const _escapeEl = document.createElement('div');
  */
 function escapeHtml(str) {
     if (str == null) return '';
+    if (!_escapeEl) _escapeEl = document.createElement('div');
     _escapeEl.textContent = String(str);
     return _escapeEl.innerHTML;
 }
@@ -68,6 +74,27 @@ function formatNum(n) {
 }
 
 /**
+ * Compute a percentile value from a pre-sorted array using linear
+ * interpolation.  Matches the backend (PrintsController.Percentile)
+ * so the dashboard and API return identical quartile / median values.
+ *
+ * @param {number[]} sorted - Ascending-sorted numeric array.
+ * @param {number} p - Percentile in [0, 1].
+ * @returns {number}
+ */
+function percentile(sorted, p) {
+    const n = sorted.length;
+    if (n === 0) return 0;
+    if (n === 1) return sorted[0];
+    const rank = p * (n - 1);
+    const lower = Math.floor(rank);
+    const upper = lower + 1;
+    if (upper >= n) return sorted[n - 1];
+    const frac = rank - lower;
+    return sorted[lower] + frac * (sorted[upper] - sorted[lower]);
+}
+
+/**
  * Compute descriptive statistics for an array of numeric values.
  * Uses sample standard deviation (n-1) since bioprint data is a sample.
  *
@@ -97,10 +124,8 @@ function computeStats(values) {
     // Sort in-place (avoids cloning an array that may have 300K+ elements)
     values.sort((a, b) => a - b);
 
-    const q1 = values[Math.floor(n * 0.25)];
-    const q3 = values[Math.floor(n * 0.75)];
-    const median = n % 2 === 0
-        ? (values[n / 2 - 1] + values[n / 2]) / 2
-        : values[Math.floor(n / 2)];
+    const q1 = percentile(values, 0.25);
+    const q3 = percentile(values, 0.75);
+    const median = percentile(values, 0.50);
     return { mean, std, q1, q3, iqr: q3 - q1, median };
 }
