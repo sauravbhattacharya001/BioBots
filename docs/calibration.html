@@ -1,0 +1,1119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>BioBots 1 — Calibration Wizard</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧬</text></svg>">
+    <style>
+        :root {
+            --bg: #0f172a;
+            --surface: #1e293b;
+            --border: #334155;
+            --text: #e2e8f0;
+            --muted: #94a3b8;
+            --accent: #38bdf8;
+            --accent-hover: #7dd3fc;
+            --success: #4ade80;
+            --error: #f87171;
+            --warning: #fbbf24;
+            --purple: #a78bfa;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            padding: 2rem 1rem;
+        }
+        .container { max-width: 1000px; margin: 0 auto; }
+        header { text-align: center; margin-bottom: 2rem; }
+        header h1 {
+            font-size: 2rem; font-weight: 700;
+            background: linear-gradient(135deg, var(--accent), var(--success));
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+        }
+        header p { color: var(--muted); margin-top: 0.5rem; }
+
+        .nav { display: flex; justify-content: center; gap: 0.5rem; margin-bottom: 2rem; flex-wrap: wrap; }
+        .nav a {
+            color: var(--muted); padding: 0.5rem 1rem; border-radius: 8px;
+            text-decoration: none; font-size: 0.9rem; transition: all 0.2s;
+        }
+        .nav a:hover { color: var(--accent); }
+        .nav a.active { color: var(--accent); background: var(--surface); border: 1px solid var(--border); }
+
+        /* Progress bar */
+        .progress-bar {
+            display: flex; gap: 0; margin-bottom: 2rem;
+            background: var(--surface); border-radius: 12px; overflow: hidden;
+            border: 1px solid var(--border);
+        }
+        .progress-step {
+            flex: 1; padding: 1rem; text-align: center; cursor: pointer;
+            transition: all 0.3s; position: relative; font-size: 0.85rem;
+        }
+        .progress-step .step-num {
+            display: inline-block; width: 24px; height: 24px; line-height: 24px;
+            border-radius: 50%; background: var(--border); color: var(--muted);
+            font-size: 0.75rem; font-weight: 700; margin-bottom: 0.25rem;
+        }
+        .progress-step .step-label { color: var(--muted); display: block; font-size: 0.75rem; }
+        .progress-step.active { background: rgba(56,189,248,0.1); }
+        .progress-step.active .step-num { background: var(--accent); color: var(--bg); }
+        .progress-step.active .step-label { color: var(--accent); }
+        .progress-step.done .step-num { background: var(--success); color: var(--bg); }
+        .progress-step.done .step-label { color: var(--success); }
+
+        /* Cards */
+        .card {
+            background: var(--surface); border: 1px solid var(--border);
+            border-radius: 12px; padding: 1.5rem; margin-bottom: 1.5rem;
+        }
+        .card h2 {
+            font-size: 1.25rem; margin-bottom: 1rem;
+            display: flex; align-items: center; gap: 0.5rem;
+        }
+        .card h3 { font-size: 1rem; margin-bottom: 0.75rem; color: var(--accent); }
+
+        /* Form elements */
+        label { display: block; font-size: 0.85rem; color: var(--muted); margin-bottom: 0.25rem; }
+        select, input[type="number"] {
+            width: 100%; padding: 0.6rem 0.75rem; background: var(--bg);
+            border: 1px solid var(--border); border-radius: 8px;
+            color: var(--text); font-size: 0.9rem; margin-bottom: 0.75rem;
+        }
+        select:focus, input:focus { outline: none; border-color: var(--accent); }
+
+        .radio-group { display: flex; gap: 1rem; margin-bottom: 1rem; flex-wrap: wrap; }
+        .radio-card {
+            flex: 1; min-width: 180px; padding: 1rem; background: var(--bg);
+            border: 2px solid var(--border); border-radius: 10px;
+            cursor: pointer; transition: all 0.2s; text-align: center;
+        }
+        .radio-card:hover { border-color: var(--accent); }
+        .radio-card.selected { border-color: var(--accent); background: rgba(56,189,248,0.08); }
+        .radio-card .rc-icon { font-size: 1.5rem; margin-bottom: 0.5rem; }
+        .radio-card .rc-title { font-weight: 600; font-size: 0.95rem; }
+        .radio-card .rc-desc { font-size: 0.75rem; color: var(--muted); margin-top: 0.25rem; }
+
+        /* Buttons */
+        .btn {
+            padding: 0.7rem 1.5rem; border: none; border-radius: 8px;
+            font-size: 0.9rem; font-weight: 600; cursor: pointer; transition: all 0.2s;
+        }
+        .btn-primary { background: var(--accent); color: var(--bg); }
+        .btn-primary:hover { background: var(--accent-hover); }
+        .btn-secondary { background: var(--border); color: var(--text); }
+        .btn-secondary:hover { background: #475569; }
+        .btn-success { background: var(--success); color: var(--bg); }
+        .btn-success:hover { opacity: 0.9; }
+        .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+        .btn-row { display: flex; justify-content: space-between; margin-top: 1.5rem; }
+
+        /* Tables */
+        table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+        th, td { padding: 0.6rem 0.75rem; text-align: left; border-bottom: 1px solid var(--border); }
+        th { color: var(--accent); font-weight: 600; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; }
+        td { color: var(--text); }
+        tr:hover td { background: rgba(56,189,248,0.04); }
+
+        /* Range display */
+        .range-bar {
+            height: 8px; background: var(--border); border-radius: 4px;
+            position: relative; margin: 0.5rem 0;
+        }
+        .range-fill {
+            position: absolute; height: 100%; border-radius: 4px;
+            background: linear-gradient(90deg, var(--accent), var(--success));
+        }
+        .range-labels { display: flex; justify-content: space-between; font-size: 0.75rem; color: var(--muted); }
+
+        /* Metric cards grid */
+        .metrics-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; }
+        .metric-card {
+            background: var(--bg); border: 1px solid var(--border);
+            border-radius: 10px; padding: 1rem; text-align: center;
+        }
+        .metric-card .value { font-size: 1.5rem; font-weight: 700; color: var(--accent); }
+        .metric-card .label { font-size: 0.75rem; color: var(--muted); text-transform: uppercase; }
+        .metric-card .sub { font-size: 0.8rem; color: var(--muted); margin-top: 0.25rem; }
+
+        /* Calibration plan table inputs */
+        .plan-input {
+            width: 80px; padding: 0.4rem; background: var(--bg);
+            border: 1px solid var(--border); border-radius: 6px;
+            color: var(--text); font-size: 0.85rem; text-align: center;
+        }
+        .plan-input:focus { border-color: var(--accent); outline: none; }
+
+        .status-badge {
+            display: inline-block; padding: 0.15rem 0.5rem; border-radius: 4px;
+            font-size: 0.7rem; font-weight: 600; text-transform: uppercase;
+        }
+        .status-pending { background: rgba(251,191,36,0.15); color: var(--warning); }
+        .status-done { background: rgba(74,222,128,0.15); color: var(--success); }
+
+        /* Results */
+        .result-highlight {
+            background: rgba(74,222,128,0.08); border: 1px solid rgba(74,222,128,0.3);
+            border-radius: 10px; padding: 1.25rem; margin-bottom: 1rem;
+        }
+        .result-highlight h3 { color: var(--success); }
+        .confidence-bar {
+            height: 12px; background: var(--border); border-radius: 6px;
+            overflow: hidden; margin: 0.5rem 0;
+        }
+        .confidence-fill {
+            height: 100%; border-radius: 6px;
+            transition: width 0.5s ease;
+        }
+        .confidence-high { background: var(--success); }
+        .confidence-med { background: var(--warning); }
+        .confidence-low { background: var(--error); }
+
+        /* Canvas chart area */
+        canvas { width: 100%; max-height: 300px; }
+
+        .hidden { display: none; }
+        .tip { font-size: 0.8rem; color: var(--muted); font-style: italic; margin-top: 0.5rem; }
+
+        @media (max-width: 600px) {
+            .progress-step .step-label { font-size: 0.6rem; }
+            .radio-group { flex-direction: column; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🔧 Calibration Wizard</h1>
+            <p>Guided printer calibration — find optimal parameters step by step</p>
+        </header>
+
+        <nav class="nav">
+            <a href="index.html">Query Tool</a>
+            <a href="explorer.html">Data Explorer</a>
+            <a href="table.html">Data Table</a>
+            <a href="compare.html">Compare</a>
+            <a href="quality.html">🏆 Quality</a>
+            <a href="anomaly.html">🔍 Anomaly</a>
+            <a href="trends.html">Trends</a>
+            <a href="optimizer.html">⚡ Optimizer</a>
+            <a href="api.html">📡 API</a>
+            <a href="architecture.html">🏗️ Architecture</a>
+            <a href="cluster.html">🔬 Clusters</a>
+            <a href="batch.html">📋 Batch Planner</a>
+            <a href="guide.html">📖 Guide</a>
+            <a href="evolution.html">🧬 Evolution</a>
+            <a href="calibration.html" class="active">🔧 Calibration</a>
+        </nav>
+
+        <!-- Progress Bar -->
+        <div class="progress-bar" id="progressBar">
+            <div class="progress-step active" data-step="1">
+                <span class="step-num">1</span>
+                <span class="step-label">Objective</span>
+            </div>
+            <div class="progress-step" data-step="2">
+                <span class="step-num">2</span>
+                <span class="step-label">Analysis</span>
+            </div>
+            <div class="progress-step" data-step="3">
+                <span class="step-num">3</span>
+                <span class="step-label">Plan</span>
+            </div>
+            <div class="progress-step" data-step="4">
+                <span class="step-num">4</span>
+                <span class="step-label">Results</span>
+            </div>
+            <div class="progress-step" data-step="5">
+                <span class="step-num">5</span>
+                <span class="step-label">Settings</span>
+            </div>
+        </div>
+
+        <!-- ═══════════════════ STEP 1: OBJECTIVE ═══════════════════ -->
+        <div id="step1" class="step-panel">
+            <div class="card">
+                <h2>🎯 What do you want to optimize?</h2>
+                <p style="color:var(--muted); margin-bottom:1rem;">
+                    Select your primary calibration goal. The wizard will analyze existing
+                    print data and generate a calibration plan tailored to this objective.
+                </p>
+                <div class="radio-group" id="objectiveGroup">
+                    <div class="radio-card" data-value="livePercent">
+                        <div class="rc-icon">🟢</div>
+                        <div class="rc-title">Cell Viability</div>
+                        <div class="rc-desc">Maximize live cell percentage</div>
+                    </div>
+                    <div class="radio-card" data-value="elasticity">
+                        <div class="rc-icon">💎</div>
+                        <div class="rc-title">Structural Strength</div>
+                        <div class="rc-desc">Maximize elasticity (kPa)</div>
+                    </div>
+                    <div class="radio-card" data-value="balanced">
+                        <div class="rc-icon">⚖️</div>
+                        <div class="rc-title">Balanced</div>
+                        <div class="rc-desc">Good viability + strength</div>
+                    </div>
+                </div>
+
+                <h3>Wellplate Type</h3>
+                <select id="wellplateSelect">
+                    <option value="0">Any / All</option>
+                    <option value="6">6-well</option>
+                    <option value="12">12-well</option>
+                    <option value="24">24-well</option>
+                    <option value="48">48-well</option>
+                    <option value="96">96-well</option>
+                </select>
+
+                <div class="btn-row">
+                    <span></span>
+                    <button class="btn btn-primary" id="btn1Next" disabled>Analyze Data →</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ═══════════════════ STEP 2: ANALYSIS ═══════════════════ -->
+        <div id="step2" class="step-panel hidden">
+            <div class="card">
+                <h2>📊 Data Analysis</h2>
+                <p style="color:var(--muted); margin-bottom:1rem;">
+                    Based on <strong id="matchCount">-</strong> matching prints,
+                    here's what the data tells us about optimal parameter ranges.
+                </p>
+
+                <div class="metrics-grid" id="analysisMetrics"></div>
+
+                <h3 style="margin-top:1.5rem;">Parameter Ranges for Top Performers</h3>
+                <p class="tip">Top 20% of prints ranked by your objective metric</p>
+                <div id="paramRanges"></div>
+
+                <h3 style="margin-top:1.5rem;">Key Correlations</h3>
+                <div id="correlations"></div>
+
+                <div class="btn-row">
+                    <button class="btn btn-secondary" id="btn2Back">← Objective</button>
+                    <button class="btn btn-primary" id="btn2Next">Generate Plan →</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ═══════════════════ STEP 3: CALIBRATION PLAN ═══════════════════ -->
+        <div id="step3" class="step-panel hidden">
+            <div class="card">
+                <h2>📋 Calibration Plan</h2>
+                <p style="color:var(--muted); margin-bottom:1rem;">
+                    Run these test prints in order. Each systematically varies one parameter
+                    while holding others at their optimal baseline. Enter your results below.
+                </p>
+
+                <table id="planTable">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Parameter</th>
+                            <th>Ext 1</th>
+                            <th>Ext 2</th>
+                            <th>CL Dur (ms)</th>
+                            <th>CL Int (%)</th>
+                            <th>Layers</th>
+                            <th>Height (mm)</th>
+                            <th>Result</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody id="planBody"></tbody>
+                </table>
+
+                <p class="tip">
+                    💡 Enter the measured value (live cell % or elasticity kPa) for each
+                    test print. The wizard will identify the best setting for each parameter.
+                </p>
+
+                <div class="btn-row">
+                    <button class="btn btn-secondary" id="btn3Back">← Analysis</button>
+                    <button class="btn btn-success" id="btn3Next" disabled>Find Optimum →</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ═══════════════════ STEP 4: RESULTS ═══════════════════ -->
+        <div id="step4" class="step-panel hidden">
+            <div class="card">
+                <h2>📈 Calibration Results</h2>
+
+                <div class="result-highlight" id="bestResult"></div>
+
+                <h3>Parameter Response Curves</h3>
+                <p class="tip" style="margin-bottom:1rem;">
+                    Each chart shows how changing one parameter affected your target metric.
+                </p>
+                <div id="responseCharts"></div>
+
+                <h3 style="margin-top:1.5rem;">All Test Results Ranked</h3>
+                <table id="resultsTable">
+                    <thead>
+                        <tr>
+                            <th>Rank</th>
+                            <th>Test #</th>
+                            <th>Varied</th>
+                            <th>Result</th>
+                            <th>vs Baseline</th>
+                        </tr>
+                    </thead>
+                    <tbody id="resultsBody"></tbody>
+                </table>
+
+                <div class="btn-row">
+                    <button class="btn btn-secondary" id="btn4Back">← Plan</button>
+                    <button class="btn btn-primary" id="btn4Next">Final Settings →</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ═══════════════════ STEP 5: FINAL SETTINGS ═══════════════════ -->
+        <div id="step5" class="step-panel hidden">
+            <div class="card">
+                <h2>✅ Calibrated Settings</h2>
+                <p style="color:var(--muted); margin-bottom:1rem;">
+                    Your optimized printer configuration based on calibration data
+                    and historical performance.
+                </p>
+
+                <div class="result-highlight">
+                    <h3>🏆 Recommended Configuration</h3>
+                    <div class="metrics-grid" id="finalSettings"></div>
+                </div>
+
+                <h3>Confidence Assessment</h3>
+                <div id="confidenceSection"></div>
+
+                <h3 style="margin-top:1.5rem;">How These Compare to Historical Data</h3>
+                <div id="historicalComparison"></div>
+
+                <div class="btn-row">
+                    <button class="btn btn-secondary" id="btn5Back">← Results</button>
+                    <button class="btn btn-success" id="btnExport">📥 Export Settings</button>
+                    <button class="btn btn-primary" id="btnRestart">🔄 Start Over</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="shared/constants.js"></script>
+    <script src="shared/utils.js"></script>
+    <script src="shared/export.js"></script>
+    <script>
+    'use strict';
+
+    /* ═══════════════════════════════════════════════════════════
+       STATE
+    ═══════════════════════════════════════════════════════════ */
+    var printData = [];
+    var currentStep = 1;
+    var objective = null;       // 'livePercent' | 'elasticity' | 'balanced'
+    var wellplate = 0;          // 0 = any
+    var analysisResult = null;  // { baseline, topPerformers, ranges, correlations }
+    var calibrationPlan = [];   // [ { id, varyParam, ext1, ext2, clDur, clInt, layers, height, result } ]
+
+    // Save/restore wizard state from localStorage
+    var STORAGE_KEY = 'biobots_calibration';
+
+    function saveState() {
+        try {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify({
+                step: currentStep, objective: objective, wellplate: wellplate,
+                plan: calibrationPlan, ts: Date.now()
+            }));
+        } catch (e) { /* quota exceeded — ignore */ }
+    }
+
+    function restoreState() {
+        try {
+            var raw = localStorage.getItem(STORAGE_KEY);
+            if (!raw) return false;
+            var s = JSON.parse(raw);
+            // Expire after 7 days
+            if (Date.now() - s.ts > 7 * 24 * 60 * 60 * 1000) {
+                localStorage.removeItem(STORAGE_KEY);
+                return false;
+            }
+            objective = s.objective;
+            wellplate = s.wellplate || 0;
+            calibrationPlan = s.plan || [];
+            return s.step || 1;
+        } catch (e) { return false; }
+    }
+
+    /* ═══════════════════════════════════════════════════════════
+       NAVIGATION
+    ═══════════════════════════════════════════════════════════ */
+    function goToStep(n) {
+        if (n < 1 || n > 5) return;
+        currentStep = n;
+        for (var i = 1; i <= 5; i++) {
+            var panel = document.getElementById('step' + i);
+            var prog = document.querySelector('.progress-step[data-step="' + i + '"]');
+            panel.classList.toggle('hidden', i !== n);
+            prog.classList.remove('active', 'done');
+            if (i < n) prog.classList.add('done');
+            if (i === n) prog.classList.add('active');
+        }
+        saveState();
+    }
+
+    document.querySelectorAll('.progress-step').forEach(function(el) {
+        el.addEventListener('click', function() {
+            var target = parseInt(this.dataset.step);
+            // Only allow clicking completed or current steps
+            if (target <= currentStep) goToStep(target);
+        });
+    });
+
+    /* ═══════════════════════════════════════════════════════════
+       STEP 1 — OBJECTIVE SELECTION
+    ═══════════════════════════════════════════════════════════ */
+    document.querySelectorAll('#objectiveGroup .radio-card').forEach(function(card) {
+        card.addEventListener('click', function() {
+            document.querySelectorAll('#objectiveGroup .radio-card').forEach(function(c) {
+                c.classList.remove('selected');
+            });
+            this.classList.add('selected');
+            objective = this.dataset.value;
+            document.getElementById('btn1Next').disabled = false;
+        });
+    });
+
+    document.getElementById('wellplateSelect').addEventListener('change', function() {
+        wellplate = parseInt(this.value);
+    });
+
+    document.getElementById('btn1Next').addEventListener('click', function() {
+        if (!objective) return;
+        runAnalysis();
+        goToStep(2);
+    });
+
+    /* ═══════════════════════════════════════════════════════════
+       STEP 2 — DATA ANALYSIS
+    ═══════════════════════════════════════════════════════════ */
+    function getObjectiveValue(p) {
+        if (objective === 'balanced') {
+            // Geometric mean of normalized viability and elasticity
+            var v = p.print_data.livePercent;
+            var e = p.print_data.elasticity;
+            return Math.sqrt(Math.max(0, v) * Math.max(0, e));
+        }
+        return p.print_data[objective] || 0;
+    }
+
+    function getObjectiveLabel() {
+        if (objective === 'livePercent') return 'Live Cell %';
+        if (objective === 'elasticity') return 'Elasticity (kPa)';
+        return 'Balanced Score';
+    }
+
+    function getObjectiveUnit() {
+        if (objective === 'livePercent') return '%';
+        if (objective === 'elasticity') return 'kPa';
+        return '';
+    }
+
+    function filterPrints() {
+        return printData.filter(function(p) {
+            if (wellplate > 0 && p.print_info.wellplate !== wellplate) return false;
+            return true;
+        });
+    }
+
+    function runAnalysis() {
+        var prints = filterPrints();
+        document.getElementById('matchCount').textContent = prints.length.toLocaleString();
+
+        if (prints.length < 5) {
+            document.getElementById('analysisMetrics').innerHTML =
+                '<p style="color:var(--warning);">Not enough data for analysis (need at least 5 prints).</p>';
+            return;
+        }
+
+        // Sort by objective, take top 20%
+        var sorted = prints.slice().sort(function(a, b) {
+            return getObjectiveValue(b) - getObjectiveValue(a);
+        });
+        var topN = Math.max(5, Math.floor(sorted.length * 0.2));
+        var topPrints = sorted.slice(0, topN);
+        var allVals = sorted.map(getObjectiveValue);
+
+        // Compute stats for top performers
+        var topVals = topPrints.map(getObjectiveValue);
+        var allStats = computeStats(allVals.slice());
+        var topStats = computeStats(topVals.slice());
+
+        // Metric overview
+        var metricsHtml = '';
+        metricsHtml += metricCard(getObjectiveLabel(), formatNum(allStats.mean), 'All prints avg', getObjectiveUnit());
+        metricsHtml += metricCard(getObjectiveLabel(), formatNum(topStats.mean), 'Top 20% avg', getObjectiveUnit());
+        metricsHtml += metricCard('Improvement', '+' + formatNum(((topStats.mean - allStats.mean) / Math.max(allStats.mean, 0.001)) * 100) + '%', 'Top vs average', '');
+        metricsHtml += metricCard('Sample Size', topN.toString(), 'Top performers', 'prints');
+        document.getElementById('analysisMetrics').innerHTML = metricsHtml;
+
+        // Parameter ranges for top performers
+        var params = [
+            { key: 'ext1', label: 'Extruder 1', get: function(p) { return p.print_info.pressure.extruder1; } },
+            { key: 'ext2', label: 'Extruder 2', get: function(p) { return p.print_info.pressure.extruder2; } },
+            { key: 'clDur', label: 'CL Duration (ms)', get: function(p) { return p.print_info.crosslinking.cl_duration; } },
+            { key: 'clInt', label: 'CL Intensity (%)', get: function(p) { return p.print_info.crosslinking.cl_intensity; } },
+            { key: 'layers', label: 'Layer Count', get: function(p) { return p.print_info.resolution.layerNum; } },
+            { key: 'height', label: 'Layer Height (mm)', get: function(p) { return p.print_info.resolution.layerHeight; } }
+        ];
+
+        var rangesHtml = '';
+        var baseline = {};
+        params.forEach(function(param) {
+            var allParamVals = prints.map(param.get).filter(function(v) { return v != null && !isNaN(v); });
+            var topParamVals = topPrints.map(param.get).filter(function(v) { return v != null && !isNaN(v); });
+            if (topParamVals.length === 0) return;
+
+            var allMin = Math.min.apply(null, allParamVals);
+            var allMax = Math.max.apply(null, allParamVals);
+            var topSorted = topParamVals.slice().sort(function(a,b) { return a-b; });
+            var topMin = topSorted[Math.floor(topSorted.length * 0.1)];
+            var topMax = topSorted[Math.floor(topSorted.length * 0.9)];
+            var topMedian = topSorted[Math.floor(topSorted.length * 0.5)];
+
+            baseline[param.key] = topMedian;
+
+            var range = allMax - allMin || 1;
+            var leftPct = ((topMin - allMin) / range * 100).toFixed(1);
+            var widthPct = ((topMax - topMin) / range * 100).toFixed(1);
+
+            rangesHtml += '<div style="margin-bottom:1rem;">';
+            rangesHtml += '<div style="display:flex;justify-content:space-between;"><strong>' + param.label + '</strong>';
+            rangesHtml += '<span style="color:var(--accent);">Optimal: ' + formatNum(topMedian) + '</span></div>';
+            rangesHtml += '<div class="range-bar"><div class="range-fill" style="left:' + leftPct + '%;width:' + widthPct + '%;"></div></div>';
+            rangesHtml += '<div class="range-labels"><span>' + formatNum(allMin) + '</span><span>Range: ' + formatNum(topMin) + ' – ' + formatNum(topMax) + '</span><span>' + formatNum(allMax) + '</span></div>';
+            rangesHtml += '</div>';
+        });
+        document.getElementById('paramRanges').innerHTML = rangesHtml;
+
+        // Correlations with objective
+        var corrsHtml = '<table><thead><tr><th>Parameter</th><th>Correlation</th><th>Strength</th><th>Direction</th></tr></thead><tbody>';
+        params.forEach(function(param) {
+            var pairs = prints.map(function(p) {
+                return { x: param.get(p), y: getObjectiveValue(p) };
+            }).filter(function(pair) { return pair.x != null && !isNaN(pair.x) && pair.y != null && !isNaN(pair.y); });
+            if (pairs.length < 10) return;
+
+            var r = pearsonR(pairs);
+            var absR = Math.abs(r);
+            var strength = absR > 0.7 ? 'Strong' : absR > 0.3 ? 'Moderate' : 'Weak';
+            var color = absR > 0.7 ? 'var(--success)' : absR > 0.3 ? 'var(--warning)' : 'var(--muted)';
+            var dir = r > 0 ? '↑ Higher is better' : '↓ Lower is better';
+
+            corrsHtml += '<tr><td>' + param.label + '</td>';
+            corrsHtml += '<td style="color:' + color + ';">' + r.toFixed(3) + '</td>';
+            corrsHtml += '<td style="color:' + color + ';">' + strength + '</td>';
+            corrsHtml += '<td>' + dir + '</td></tr>';
+        });
+        corrsHtml += '</tbody></table>';
+        document.getElementById('correlations').innerHTML = corrsHtml;
+
+        analysisResult = { baseline: baseline, topPrints: topPrints, allStats: allStats, topStats: topStats };
+    }
+
+    function pearsonR(pairs) {
+        var n = pairs.length;
+        var sumX = 0, sumY = 0, sumXY = 0, sumX2 = 0, sumY2 = 0;
+        for (var i = 0; i < n; i++) {
+            sumX += pairs[i].x;
+            sumY += pairs[i].y;
+            sumXY += pairs[i].x * pairs[i].y;
+            sumX2 += pairs[i].x * pairs[i].x;
+            sumY2 += pairs[i].y * pairs[i].y;
+        }
+        var denom = Math.sqrt((n * sumX2 - sumX * sumX) * (n * sumY2 - sumY * sumY));
+        if (denom === 0) return 0;
+        return (n * sumXY - sumX * sumY) / denom;
+    }
+
+    function metricCard(label, value, sub, unit) {
+        return '<div class="metric-card"><div class="value">' + value +
+               (unit ? '<span style="font-size:0.7em;color:var(--muted);"> ' + unit + '</span>' : '') +
+               '</div><div class="label">' + label + '</div>' +
+               (sub ? '<div class="sub">' + sub + '</div>' : '') + '</div>';
+    }
+
+    document.getElementById('btn2Back').addEventListener('click', function() { goToStep(1); });
+    document.getElementById('btn2Next').addEventListener('click', function() {
+        generatePlan();
+        goToStep(3);
+    });
+
+    /* ═══════════════════════════════════════════════════════════
+       STEP 3 — CALIBRATION PLAN
+    ═══════════════════════════════════════════════════════════ */
+    function generatePlan() {
+        if (!analysisResult) return;
+        var b = analysisResult.baseline;
+
+        // Generate test prints that vary one parameter at a time
+        // 3 levels per parameter: low, baseline, high
+        var paramDefs = [
+            { key: 'ext1', label: 'Extruder 1', field: 'ext1' },
+            { key: 'ext2', label: 'Extruder 2', field: 'ext2' },
+            { key: 'clDur', label: 'CL Duration', field: 'clDur' },
+            { key: 'clInt', label: 'CL Intensity', field: 'clInt' },
+            { key: 'layers', label: 'Layer Count', field: 'layers' },
+            { key: 'height', label: 'Layer Height', field: 'height' }
+        ];
+
+        calibrationPlan = [];
+        var id = 1;
+
+        // First: baseline test
+        calibrationPlan.push({
+            id: id++, varyParam: 'Baseline',
+            ext1: round2(b.ext1), ext2: round2(b.ext2),
+            clDur: Math.round(b.clDur), clInt: Math.round(b.clInt),
+            layers: Math.round(b.layers), height: round2(b.height),
+            result: null
+        });
+
+        // For each parameter, test ±20% from baseline
+        paramDefs.forEach(function(param) {
+            var base = b[param.key];
+            if (base == null || isNaN(base)) return;
+
+            var low = param.key === 'layers' ? Math.max(1, Math.round(base * 0.7)) : round2(base * 0.7);
+            var high = param.key === 'layers' ? Math.round(base * 1.3) : round2(base * 1.3);
+
+            // Skip if low == high (no variation possible)
+            if (low === high) return;
+
+            // Low variant
+            var lowTest = {
+                id: id++, varyParam: param.label + ' ↓',
+                ext1: round2(b.ext1), ext2: round2(b.ext2),
+                clDur: Math.round(b.clDur), clInt: Math.round(b.clInt),
+                layers: Math.round(b.layers), height: round2(b.height),
+                result: null
+            };
+            lowTest[param.field] = low;
+            calibrationPlan.push(lowTest);
+
+            // High variant
+            var highTest = {
+                id: id++, varyParam: param.label + ' ↑',
+                ext1: round2(b.ext1), ext2: round2(b.ext2),
+                clDur: Math.round(b.clDur), clInt: Math.round(b.clInt),
+                layers: Math.round(b.layers), height: round2(b.height),
+                result: null
+            };
+            highTest[param.field] = high;
+            calibrationPlan.push(highTest);
+        });
+
+        renderPlan();
+    }
+
+    function round2(n) {
+        return Math.round(n * 100) / 100;
+    }
+
+    function renderPlan() {
+        var tbody = document.getElementById('planBody');
+        tbody.innerHTML = '';
+        var filledCount = 0;
+
+        calibrationPlan.forEach(function(test, idx) {
+            var tr = document.createElement('tr');
+            var hasResult = test.result != null && test.result !== '';
+            if (hasResult) filledCount++;
+
+            tr.innerHTML =
+                '<td>' + test.id + '</td>' +
+                '<td><strong>' + test.varyParam + '</strong></td>' +
+                '<td>' + test.ext1 + '</td>' +
+                '<td>' + test.ext2 + '</td>' +
+                '<td>' + test.clDur + '</td>' +
+                '<td>' + test.clInt + '</td>' +
+                '<td>' + test.layers + '</td>' +
+                '<td>' + test.height + '</td>' +
+                '<td><input class="plan-input" type="number" step="0.01" placeholder="' +
+                    getObjectiveUnit() + '" value="' + (test.result != null ? test.result : '') +
+                    '" data-idx="' + idx + '"></td>' +
+                '<td><span class="status-badge ' + (hasResult ? 'status-done' : 'status-pending') + '">' +
+                    (hasResult ? 'Done' : 'Pending') + '</span></td>';
+            tbody.appendChild(tr);
+        });
+
+        // Enable next button if at least baseline + 2 tests have results
+        document.getElementById('btn3Next').disabled = filledCount < 3;
+
+        // Attach input listeners
+        tbody.querySelectorAll('.plan-input').forEach(function(input) {
+            input.addEventListener('change', function() {
+                var idx = parseInt(this.dataset.idx);
+                var val = parseFloat(this.value);
+                calibrationPlan[idx].result = isNaN(val) ? null : val;
+                renderPlan();
+                saveState();
+            });
+        });
+    }
+
+    document.getElementById('btn3Back').addEventListener('click', function() { goToStep(2); });
+    document.getElementById('btn3Next').addEventListener('click', function() {
+        analyzeResults();
+        goToStep(4);
+    });
+
+    /* ═══════════════════════════════════════════════════════════
+       STEP 4 — RESULTS ANALYSIS
+    ═══════════════════════════════════════════════════════════ */
+    function analyzeResults() {
+        var completed = calibrationPlan.filter(function(t) { return t.result != null; });
+        if (completed.length === 0) return;
+
+        // Sort by result (descending = best first)
+        var ranked = completed.slice().sort(function(a, b) { return b.result - a.result; });
+        var best = ranked[0];
+        var baselineTest = calibrationPlan[0];
+        var baselineResult = baselineTest.result;
+
+        // Best result card
+        var bestHtml = '<h3>🏆 Best Test: #' + best.id + ' (' + best.varyParam + ')</h3>';
+        bestHtml += '<div class="metrics-grid" style="margin-top:1rem;">';
+        bestHtml += metricCard(getObjectiveLabel(), formatNum(best.result), '', getObjectiveUnit());
+        if (baselineResult != null && baselineResult > 0) {
+            var imp = ((best.result - baselineResult) / baselineResult * 100);
+            bestHtml += metricCard('vs Baseline', (imp >= 0 ? '+' : '') + formatNum(imp) + '%',
+                'Baseline: ' + formatNum(baselineResult), '');
+        }
+        bestHtml += metricCard('Tests Run', completed.length.toString(), 'of ' + calibrationPlan.length + ' planned', '');
+        bestHtml += '</div>';
+        document.getElementById('bestResult').innerHTML = bestHtml;
+
+        // Response curves — group by parameter type
+        var chartsDiv = document.getElementById('responseCharts');
+        chartsDiv.innerHTML = '';
+
+        var paramGroups = {};
+        completed.forEach(function(t) {
+            var paramName = t.varyParam.replace(/ [↑↓]$/, '').trim();
+            if (paramName === 'Baseline') paramName = '_baseline';
+            if (!paramGroups[paramName]) paramGroups[paramName] = [];
+            paramGroups[paramName].push(t);
+        });
+
+        // For each parameter that was tested, draw a mini canvas chart
+        var paramFieldMap = {
+            'Extruder 1': 'ext1', 'Extruder 2': 'ext2',
+            'CL Duration': 'clDur', 'CL Intensity': 'clInt',
+            'Layer Count': 'layers', 'Layer Height': 'height'
+        };
+
+        Object.keys(paramGroups).forEach(function(paramName) {
+            if (paramName === '_baseline') return;
+            var tests = paramGroups[paramName];
+            // Add baseline
+            if (baselineTest.result != null) tests.push(baselineTest);
+
+            var field = paramFieldMap[paramName];
+            if (!field) return;
+
+            // Sort by parameter value
+            tests.sort(function(a, b) { return a[field] - b[field]; });
+
+            var wrapper = document.createElement('div');
+            wrapper.style.cssText = 'margin-bottom:1.5rem;';
+            wrapper.innerHTML = '<h3 style="font-size:0.9rem;margin-bottom:0.5rem;">' + paramName + '</h3>';
+
+            var canvas = document.createElement('canvas');
+            canvas.width = 400;
+            canvas.height = 150;
+            canvas.style.cssText = 'width:100%;max-height:150px;background:var(--bg);border-radius:8px;border:1px solid var(--border);';
+            wrapper.appendChild(canvas);
+            chartsDiv.appendChild(wrapper);
+
+            drawResponseChart(canvas, tests, field, paramName);
+        });
+
+        // Ranked results table
+        var rBody = document.getElementById('resultsBody');
+        rBody.innerHTML = '';
+        ranked.forEach(function(t, i) {
+            var delta = baselineResult != null && baselineResult > 0
+                ? ((t.result - baselineResult) / baselineResult * 100) : null;
+            var deltaStr = delta != null ? (delta >= 0 ? '+' : '') + formatNum(delta) + '%' : '-';
+            var deltaColor = delta != null ? (delta >= 0 ? 'var(--success)' : 'var(--error)') : 'var(--muted)';
+
+            var tr = document.createElement('tr');
+            tr.innerHTML = '<td>' + (i + 1) + '</td><td>#' + t.id + '</td>' +
+                '<td>' + t.varyParam + '</td>' +
+                '<td>' + formatNum(t.result) + ' ' + getObjectiveUnit() + '</td>' +
+                '<td style="color:' + deltaColor + ';">' + deltaStr + '</td>';
+            rBody.appendChild(tr);
+        });
+    }
+
+    function drawResponseChart(canvas, tests, field, label) {
+        var ctx = canvas.getContext('2d');
+        var w = canvas.width, h = canvas.height;
+        var pad = { top: 15, right: 20, bottom: 25, left: 50 };
+
+        ctx.fillStyle = '#0f172a';
+        ctx.fillRect(0, 0, w, h);
+
+        if (tests.length < 2) {
+            ctx.fillStyle = '#94a3b8';
+            ctx.font = '12px sans-serif';
+            ctx.fillText('Need 2+ data points', w / 2 - 50, h / 2);
+            return;
+        }
+
+        var xVals = tests.map(function(t) { return t[field]; });
+        var yVals = tests.map(function(t) { return t.result; });
+        var xMin = Math.min.apply(null, xVals), xMax = Math.max.apply(null, xVals);
+        var yMin = Math.min.apply(null, yVals), yMax = Math.max.apply(null, yVals);
+
+        // Add 10% padding
+        var xRange = xMax - xMin || 1;
+        var yRange = yMax - yMin || 1;
+        xMin -= xRange * 0.1; xMax += xRange * 0.1;
+        yMin -= yRange * 0.1; yMax += yRange * 0.1;
+
+        function tx(v) { return pad.left + (v - xMin) / (xMax - xMin) * (w - pad.left - pad.right); }
+        function ty(v) { return h - pad.bottom - (v - yMin) / (yMax - yMin) * (h - pad.top - pad.bottom); }
+
+        // Grid lines
+        ctx.strokeStyle = '#334155';
+        ctx.lineWidth = 0.5;
+        for (var i = 0; i < 4; i++) {
+            var gy = pad.top + i * (h - pad.top - pad.bottom) / 3;
+            ctx.beginPath(); ctx.moveTo(pad.left, gy); ctx.lineTo(w - pad.right, gy); ctx.stroke();
+        }
+
+        // Line
+        ctx.strokeStyle = '#38bdf8';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        tests.forEach(function(t, i) {
+            var x = tx(t[field]), y = ty(t.result);
+            if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+        });
+        ctx.stroke();
+
+        // Points
+        tests.forEach(function(t) {
+            var x = tx(t[field]), y = ty(t.result);
+            var isBest = t.result === Math.max.apply(null, yVals);
+            ctx.beginPath();
+            ctx.arc(x, y, isBest ? 5 : 3, 0, Math.PI * 2);
+            ctx.fillStyle = isBest ? '#4ade80' : '#38bdf8';
+            ctx.fill();
+        });
+
+        // Axis labels
+        ctx.fillStyle = '#94a3b8';
+        ctx.font = '10px sans-serif';
+        ctx.fillText(formatNum(xVals[0]), pad.left, h - 5);
+        ctx.textAlign = 'right';
+        ctx.fillText(formatNum(xVals[xVals.length - 1]), w - pad.right, h - 5);
+        ctx.textAlign = 'left';
+        ctx.fillText(formatNum(yMax), 2, pad.top + 10);
+        ctx.fillText(formatNum(yMin), 2, h - pad.bottom - 2);
+    }
+
+    document.getElementById('btn4Back').addEventListener('click', function() { goToStep(3); });
+    document.getElementById('btn4Next').addEventListener('click', function() {
+        generateFinalSettings();
+        goToStep(5);
+    });
+
+    /* ═══════════════════════════════════════════════════════════
+       STEP 5 — FINAL SETTINGS
+    ═══════════════════════════════════════════════════════════ */
+    function generateFinalSettings() {
+        var completed = calibrationPlan.filter(function(t) { return t.result != null; });
+        if (completed.length === 0) return;
+
+        var best = completed.slice().sort(function(a, b) { return b.result - a.result; })[0];
+
+        // Build final recommended settings from the best test
+        var settingsHtml = '';
+        settingsHtml += metricCard('Extruder 1', formatNum(best.ext1), 'Pressure', '');
+        settingsHtml += metricCard('Extruder 2', formatNum(best.ext2), 'Pressure', '');
+        settingsHtml += metricCard('CL Duration', best.clDur.toString(), 'Crosslinking', 'ms');
+        settingsHtml += metricCard('CL Intensity', best.clInt.toString(), 'Crosslinking', '%');
+        settingsHtml += metricCard('Layers', best.layers.toString(), 'Resolution', '');
+        settingsHtml += metricCard('Layer Height', formatNum(best.height), 'Resolution', 'mm');
+        document.getElementById('finalSettings').innerHTML = settingsHtml;
+
+        // Confidence assessment
+        var confHtml = '';
+        var dataPoints = completed.length;
+        var confidence = Math.min(100, Math.round(dataPoints / calibrationPlan.length * 100));
+        var confClass = confidence >= 70 ? 'confidence-high' : confidence >= 40 ? 'confidence-med' : 'confidence-low';
+        var confLabel = confidence >= 70 ? 'High' : confidence >= 40 ? 'Moderate' : 'Low';
+
+        confHtml += '<div style="margin-bottom:1rem;">';
+        confHtml += '<div style="display:flex;justify-content:space-between;margin-bottom:0.25rem;">';
+        confHtml += '<span>Overall Confidence</span>';
+        confHtml += '<span style="color:var(--accent);">' + confLabel + ' (' + confidence + '%)</span></div>';
+        confHtml += '<div class="confidence-bar"><div class="confidence-fill ' + confClass + '" style="width:' + confidence + '%;"></div></div>';
+        confHtml += '<p class="tip">' + dataPoints + ' of ' + calibrationPlan.length + ' planned tests completed</p>';
+        confHtml += '</div>';
+
+        // Per-parameter confidence
+        var paramFieldMap = {
+            'Extruder 1': 'ext1', 'Extruder 2': 'ext2',
+            'CL Duration': 'clDur', 'CL Intensity': 'clInt',
+            'Layer Count': 'layers', 'Layer Height': 'height'
+        };
+        Object.keys(paramFieldMap).forEach(function(paramName) {
+            var tested = completed.filter(function(t) {
+                return t.varyParam.indexOf(paramName) !== -1 || t.varyParam === 'Baseline';
+            });
+            var pConf = Math.min(100, Math.round(tested.length / 3 * 100));
+            var pClass = pConf >= 70 ? 'confidence-high' : pConf >= 40 ? 'confidence-med' : 'confidence-low';
+            confHtml += '<div style="margin-bottom:0.5rem;">';
+            confHtml += '<div style="display:flex;justify-content:space-between;font-size:0.85rem;">';
+            confHtml += '<span>' + paramName + '</span><span>' + pConf + '%</span></div>';
+            confHtml += '<div class="confidence-bar" style="height:6px;"><div class="confidence-fill ' + pClass + '" style="width:' + pConf + '%;"></div></div>';
+            confHtml += '</div>';
+        });
+        document.getElementById('confidenceSection').innerHTML = confHtml;
+
+        // Historical comparison
+        renderHistoricalComparison(best);
+    }
+
+    function renderHistoricalComparison(best) {
+        var prints = filterPrints();
+        if (prints.length === 0) {
+            document.getElementById('historicalComparison').innerHTML = '<p class="tip">No historical data to compare.</p>';
+            return;
+        }
+
+        var allVals = prints.map(getObjectiveValue).sort(function(a,b) { return a-b; });
+        var predicted = best.result;
+
+        // Find percentile of best result in historical data
+        var belowCount = allVals.filter(function(v) { return v < predicted; }).length;
+        var percentile = Math.round(belowCount / allVals.length * 100);
+
+        var html = '<div class="result-highlight">';
+        html += '<div class="metrics-grid">';
+        html += metricCard('Your Result', formatNum(predicted), '', getObjectiveUnit());
+        html += metricCard('Percentile', percentile + 'th', 'vs all ' + prints.length + ' prints', '');
+        html += metricCard('Hist. Average', formatNum(allVals.reduce(function(a,b){return a+b;},0) / allVals.length), 'All prints', getObjectiveUnit());
+        html += metricCard('Hist. Best', formatNum(allVals[allVals.length - 1]), 'Top result ever', getObjectiveUnit());
+        html += '</div></div>';
+        document.getElementById('historicalComparison').innerHTML = html;
+    }
+
+    document.getElementById('btn5Back').addEventListener('click', function() { goToStep(4); });
+    document.getElementById('btnRestart').addEventListener('click', function() {
+        localStorage.removeItem(STORAGE_KEY);
+        objective = null;
+        wellplate = 0;
+        calibrationPlan = [];
+        analysisResult = null;
+        document.querySelectorAll('#objectiveGroup .radio-card').forEach(function(c) { c.classList.remove('selected'); });
+        document.getElementById('wellplateSelect').value = '0';
+        document.getElementById('btn1Next').disabled = true;
+        goToStep(1);
+    });
+
+    document.getElementById('btnExport').addEventListener('click', function() {
+        var completed = calibrationPlan.filter(function(t) { return t.result != null; });
+        var best = completed.slice().sort(function(a, b) { return b.result - a.result; })[0];
+        if (!best) return;
+
+        var exportData = {
+            calibration: {
+                objective: objective,
+                objectiveLabel: getObjectiveLabel(),
+                wellplate: wellplate || 'any',
+                timestamp: new Date().toISOString(),
+                testsCompleted: completed.length,
+                totalPlanned: calibrationPlan.length
+            },
+            recommendedSettings: {
+                extruder1: best.ext1,
+                extruder2: best.ext2,
+                crosslinking: {
+                    duration_ms: best.clDur,
+                    intensity_pct: best.clInt
+                },
+                resolution: {
+                    layers: best.layers,
+                    layerHeight_mm: best.height
+                }
+            },
+            bestResult: {
+                value: best.result,
+                unit: getObjectiveUnit(),
+                testId: best.id,
+                variation: best.varyParam
+            },
+            allResults: calibrationPlan.map(function(t) {
+                return {
+                    id: t.id,
+                    variation: t.varyParam,
+                    parameters: { ext1: t.ext1, ext2: t.ext2, clDur: t.clDur, clInt: t.clInt, layers: t.layers, height: t.height },
+                    result: t.result
+                };
+            })
+        };
+
+        var blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+        var url = URL.createObjectURL(blob);
+        var a = document.createElement('a');
+        a.href = url;
+        a.download = 'calibration-' + objective + '-' + new Date().toISOString().slice(0,10) + '.json';
+        a.click();
+        URL.revokeObjectURL(url);
+    });
+
+    /* ═══════════════════════════════════════════════════════════
+       INIT — Load data + restore state
+    ═══════════════════════════════════════════════════════════ */
+    fetch('bioprint-data.json')
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            printData = data.filter(function(p) {
+                return p.print_data && p.print_info && p.user_info &&
+                    p.print_info.crosslinking && p.print_info.pressure && p.print_info.resolution;
+            });
+
+            var savedStep = restoreState();
+            if (savedStep && savedStep > 1 && objective) {
+                // Restore UI state
+                var card = document.querySelector('#objectiveGroup .radio-card[data-value="' + objective + '"]');
+                if (card) card.classList.add('selected');
+                document.getElementById('wellplateSelect').value = wellplate.toString();
+                document.getElementById('btn1Next').disabled = false;
+
+                // Re-run analysis for steps 2+
+                runAnalysis();
+                if (savedStep >= 3 && calibrationPlan.length > 0) {
+                    renderPlan();
+                }
+                if (savedStep >= 4) analyzeResults();
+                if (savedStep >= 5) generateFinalSettings();
+
+                goToStep(savedStep);
+            }
+        })
+        .catch(function(err) {
+            console.error('Failed to load data:', err);
+        });
+    </script>
+</body>
+</html>
