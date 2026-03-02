@@ -148,19 +148,28 @@ class EvolutionTracker:
             self.traits = sorted(traits_dict.keys())
 
         snapshots = {}
-        for trait in self.traits:
-            values = []
-            for bot in bots:
-                if hasattr(bot, 'traits'):
-                    val = bot.traits.get(trait)
-                elif isinstance(bot, dict):
-                    val = bot.get('traits', {}).get(trait)
-                else:
-                    val = None
-                if val is not None:
-                    values.append(val)
 
-            snapshot = TraitSnapshot(trait, generation, values)
+        # Performance: single pass over bots to collect all trait values.
+        # Previous implementation iterated bots once per trait (O(traits × bots));
+        # this collects everything in O(bots + traits).
+        trait_values: dict[str, list] = {t: [] for t in self.traits}
+
+        for bot in bots:
+            # Detect accessor pattern once per bot (attribute vs dict)
+            if hasattr(bot, 'traits'):
+                bot_traits = bot.traits
+            elif isinstance(bot, dict):
+                bot_traits = bot.get('traits', {})
+            else:
+                continue
+
+            for trait in self.traits:
+                val = bot_traits.get(trait)
+                if val is not None:
+                    trait_values[trait].append(val)
+
+        for trait in self.traits:
+            snapshot = TraitSnapshot(trait, generation, trait_values[trait])
             snapshots[trait] = snapshot
 
             if trait not in self._history:
@@ -305,14 +314,15 @@ class EvolutionTracker:
         """Create a TraitSnapshot from bots without recording it."""
         values = []
         for bot in bots:
-            if hasattr(bot, 'traits'):
-                val = bot.traits.get(trait)
-            elif isinstance(bot, dict):
-                val = bot.get('traits', {}).get(trait)
-            else:
-                val = None
-            if val is not None:
-                values.append(val)
+            bot_traits = (
+                bot.traits if hasattr(bot, 'traits')
+                else bot.get('traits', {}) if isinstance(bot, dict)
+                else None
+            )
+            if bot_traits is not None:
+                val = bot_traits.get(trait)
+                if val is not None:
+                    values.append(val)
         return TraitSnapshot(trait, -1, values)
 
     def get_diversity_trend(self, trait: str) -> str:

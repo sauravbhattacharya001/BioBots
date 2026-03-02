@@ -11,6 +11,7 @@
   },
   "jest": {
     "testEnvironment": "jsdom",
+    "setupFiles": ["./jest.setup.js"],
     "collectCoverageFrom": [
       "Try/scripts/**/*.js",
       "!Try/scripts/ai.*.js"

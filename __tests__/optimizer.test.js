@@ -1,12 +1,12 @@
 /**
+ * @jest-environment jsdom
+ *
  * Tests for the BioBots Parameter Optimizer (docs/optimizer.html)
  *
  * Tests: data structures, utility functions, analysis engine,
  * DOM rendering, sort/rankings, recommendations.
  */
 
-const { describe, it, before } = require('node:test');
-const assert = require('node:assert/strict');
 const fs = require('fs');
 const path = require('path');
 const { JSDOM } = require('jsdom');
@@ -44,49 +44,49 @@ function getExports(dom) {
 
 describe('Optimizer: Data Structures', () => {
     let mod;
-    before(() => { mod = getExports(createDOM()); });
+    beforeAll(() => { mod = getExports(createDOM()); });
 
     it('PARAMS has 8 parameters', () => {
-        assert.equal(mod.PARAMS.length, 8);
+        expect(mod.PARAMS.length).toBe(8);
     });
 
     it('each param has required properties', () => {
         for (const p of mod.PARAMS) {
-            assert.ok(p.key, 'key missing');
-            assert.ok(p.label, 'label missing');
-            assert.ok(Array.isArray(p.path), 'path not array');
-            assert.ok(p.path.length >= 2, 'path too short');
-            assert.ok(p.color, 'color missing');
+            expect(p.key).toBeTruthy();
+            expect(p.label).toBeTruthy();
+            expect(Array.isArray(p.path)).toBeTruthy();
+            expect(p.path.length >= 2).toBeTruthy();
+            expect(p.color).toBeTruthy();
         }
     });
 
     it('param keys are unique', () => {
         const keys = mod.PARAMS.map(p => p.key);
-        assert.equal(new Set(keys).size, keys.length);
+        expect(new Set(keys).size).toBe(keys.length);
     });
 
     it('METRICS has 3 metrics', () => {
         const keys = Object.keys(mod.METRICS);
-        assert.equal(keys.length, 3);
-        assert.ok(mod.METRICS.livePercent);
-        assert.ok(mod.METRICS.elasticity);
-        assert.ok(mod.METRICS.deadPercent);
+        expect(keys.length).toBe(3);
+        expect(mod.METRICS.livePercent).toBeTruthy();
+        expect(mod.METRICS.elasticity).toBeTruthy();
+        expect(mod.METRICS.deadPercent).toBeTruthy();
     });
 
     it('livePercent and elasticity are higher=true', () => {
-        assert.equal(mod.METRICS.livePercent.higher, true);
-        assert.equal(mod.METRICS.elasticity.higher, true);
+        expect(mod.METRICS.livePercent.higher).toBe(true);
+        expect(mod.METRICS.elasticity.higher).toBe(true);
     });
 
     it('deadPercent is higher=false (minimize)', () => {
-        assert.equal(mod.METRICS.deadPercent.higher, false);
+        expect(mod.METRICS.deadPercent.higher).toBe(false);
     });
 
     it('each metric has label and path', () => {
         for (const k of Object.keys(mod.METRICS)) {
             const m = mod.METRICS[k];
-            assert.ok(m.label, 'label missing');
-            assert.ok(Array.isArray(m.path), 'path not array');
+            expect(m.label).toBeTruthy();
+            expect(Array.isArray(m.path)).toBeTruthy();
         }
     });
 });
@@ -95,86 +95,86 @@ describe('Optimizer: Data Structures', () => {
 
 describe('Optimizer: Utilities', () => {
     let mod;
-    before(() => { mod = getExports(createDOM()); });
+    beforeAll(() => { mod = getExports(createDOM()); });
 
     it('getNestedValue extracts deep values', () => {
         const obj = { a: { b: { c: 42 } } };
-        assert.equal(mod.getNestedValue(obj, ['a', 'b', 'c']), 42);
+        expect(mod.getNestedValue(obj, ['a', 'b', 'c'])).toBe(42);
     });
 
     it('getNestedValue returns null for missing paths', () => {
-        assert.equal(mod.getNestedValue({ a: 1 }, ['b', 'c']), null);
+        expect(mod.getNestedValue({ a: 1 }, ['b', 'c'])).toBe(null);
     });
 
     it('getNestedValue handles shallow paths', () => {
-        assert.equal(mod.getNestedValue({ x: 5 }, ['x']), 5);
+        expect(mod.getNestedValue({ x: 5 }, ['x'])).toBe(5);
     });
 
     it('round defaults to 2 decimal places', () => {
-        assert.equal(mod.round(3.14159), 3.14);
+        expect(mod.round(3.14159)).toBe(3.14);
     });
 
     it('round with custom decimal places', () => {
-        assert.equal(mod.round(3.14159, 3), 3.142);
-        assert.equal(mod.round(3.14159, 1), 3.1);
+        expect(mod.round(3.14159, 3)).toBe(3.142);
+        expect(mod.round(3.14159, 1)).toBe(3.1);
         // round(x, 0) falls back to default 2 since 0 is falsy
-        assert.equal(mod.round(3.14159, 0), 3.14);
+        expect(mod.round(3.14159, 0)).toBe(3.14);
     });
 
     it('mean computes correctly', () => {
-        assert.equal(mod.mean([2, 4, 6, 8, 10]), 6);
-        assert.equal(mod.mean([5]), 5);
+        expect(mod.mean([2, 4, 6, 8, 10])).toBe(6);
+        expect(mod.mean([5])).toBe(5);
     });
 
     it('stddev computes population std dev', () => {
         const sd = mod.stddev([2, 4, 4, 4, 5, 5, 7, 9]);
-        assert.ok(Math.abs(sd - 2.0) < 0.01);
+        expect(Math.abs(sd - 2.0) < 0.01).toBeTruthy();
     });
 
     it('stddev of identical values is 0', () => {
-        assert.equal(mod.stddev([5, 5, 5, 5]), 0);
+        expect(mod.stddev([5, 5, 5, 5])).toBe(0);
     });
 
     it('percentile returns correct values', () => {
         const arr = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
-        assert.equal(mod.percentile(arr, 0), 1);
-        assert.equal(mod.percentile(arr, 100), 10);
-        assert.equal(mod.percentile(arr, 50), 5.5);
+        expect(mod.percentile(arr, 0)).toBe(1);
+        expect(mod.percentile(arr, 100)).toBe(10);
+        expect(mod.percentile(arr, 50)).toBe(5.5);
     });
 
     it('percentile at 25 and 75', () => {
         const arr = [10, 20, 30, 40, 50, 60, 70, 80, 90, 100];
         const p25 = mod.percentile(arr, 25);
         const p75 = mod.percentile(arr, 75);
-        assert.ok(p25 >= 20 && p25 <= 35, `p25=${p25}`);
-        assert.ok(p75 >= 65 && p75 <= 80, `p75=${p75}`);
+        expect(p25 >= 20 && p25 <= 35).toBeTruthy();
+        expect(p75 >= 65 && p75 <= 80).toBeTruthy();
     });
 
     it('pearson returns 1 for perfect positive correlation', () => {
         const xs = [1, 2, 3, 4, 5];
         const ys = [2, 4, 6, 8, 10];
-        assert.ok(Math.abs(mod.pearson(xs, ys) - 1.0) < 0.001);
+        expect(Math.abs(mod.pearson(xs, ys) - 1.0) < 0.001).toBeTruthy();
     });
 
     it('pearson returns -1 for perfect negative correlation', () => {
         const xs = [1, 2, 3, 4, 5];
         const ys = [10, 8, 6, 4, 2];
-        assert.ok(Math.abs(mod.pearson(xs, ys) + 1.0) < 0.001);
+        expect(Math.abs(mod.pearson(xs, ys) + 1.0) < 0.001).toBeTruthy();
     });
 
     it('pearson returns ~0 for uncorrelated data', () => {
         const xs = [1, 2, 3, 4, 5, 6, 7, 8];
         const ys = [5, 3, 7, 2, 8, 1, 6, 4];
-        assert.ok(Math.abs(mod.pearson(xs, ys)) < 0.5);
+        expect(Math.abs(mod.pearson(xs, ys)) < 0.5).toBeTruthy();
     });
 
     it('pearson returns 0 for fewer than 3 points', () => {
-        assert.equal(mod.pearson([1, 2], [3, 4]), 0);
-        assert.equal(mod.pearson([1], [2]), 0);
+        expect(mod.pearson([1, 2], [3, 4])).toBe(0);
+        expect(mod.pearson([1], [2])).toBe(0);
     });
 
     it('sanitize escapes HTML', () => {
-        assert.equal(mod.sanitize('<script>alert(1)</script>'), '&lt;script&gt;alert(1)&lt;/script&gt;');
+        expect(mod.sanitize('<script>alert(1)</script>')).toBe('&lt;script&gt;alert(1)&lt;/script&gt;');
     });
 });
 
@@ -182,7 +182,7 @@ describe('Optimizer: Utilities', () => {
 
 describe('Optimizer: Analysis Engine', () => {
     let mod;
-    before(() => { mod = getExports(createDOM()); });
+    beforeAll(() => { mod = getExports(createDOM()); });
 
     // Create synthetic test data
     function makeData(n) {
@@ -213,66 +213,65 @@ describe('Optimizer: Analysis Engine', () => {
     it('analyze returns valid result structure', () => {
         const data = makeData(100);
         const result = mod.analyze(data, 'livePercent', 50, 20);
-        assert.ok(result);
-        assert.equal(result.metricKey, 'livePercent');
-        assert.equal(result.metricLabel, 'Live Cell %');
-        assert.equal(result.higher, true);
-        assert.equal(result.threshold, 50);
-        assert.equal(result.topPct, 20);
-        assert.equal(result.totalRecords, 100);
-        assert.equal(result.topCount, 20);
+        expect(result).toBeTruthy();
+        expect(result.metricKey).toBe('livePercent');
+        expect(result.metricLabel).toBe('Live Cell %');
+        expect(result.higher).toBe(true);
+        expect(result.threshold).toBe(50);
+        expect(result.topPct).toBe(20);
+        expect(result.totalRecords).toBe(100);
+        expect(result.topCount).toBe(20);
     });
 
     it('analyze with higher=true selects highest as top', () => {
         const data = makeData(100);
         const result = mod.analyze(data, 'livePercent', 50, 10);
-        assert.ok(result.topMean > result.metricMean, 'top mean should exceed overall mean');
+        expect(result.topMean > result.metricMean).toBeTruthy();
     });
 
     it('analyze with higher=false (deadPercent) selects lowest as top', () => {
         const data = makeData(100);
         const result = mod.analyze(data, 'deadPercent', 50, 10);
-        assert.ok(result.topMean < result.metricMean, `top ${result.topMean} should be < overall ${result.metricMean}`);
+        expect(result.topMean < result.metricMean).toBeTruthy();
     });
 
     it('analyze computes threshold percentage', () => {
         const data = makeData(100);
         const result = mod.analyze(data, 'livePercent', 50, 20);
-        assert.ok(result.thresholdPct >= 0 && result.thresholdPct <= 100);
-        assert.ok(result.thresholdCount >= 0 && result.thresholdCount <= 100);
+        expect(result.thresholdPct >= 0 && result.thresholdPct <= 100).toBeTruthy();
+        expect(result.thresholdCount >= 0 && result.thresholdCount <= 100).toBeTruthy();
     });
 
     it('analyze returns params sorted by impact', () => {
         const data = makeData(200);
         const result = mod.analyze(data, 'livePercent', 50, 20);
         for (let i = 1; i < result.params.length; i++) {
-            assert.ok(result.params[i].impact <= result.params[i - 1].impact,
-                `param ${i} impact ${result.params[i].impact} > prev ${result.params[i - 1].impact}`);
+            expect(result.params[i].impact <= result.params[i - 1].impact).toBeTruthy();
         }
     });
 
     it('analyze includes all 8 parameters', () => {
         const data = makeData(100);
         const result = mod.analyze(data, 'livePercent', 50, 20);
-        assert.equal(result.params.length, 8);
+        expect(result.params.length).toBe(8);
     });
 
     it('each param result has required fields', () => {
         const data = makeData(100);
         const result = mod.analyze(data, 'livePercent', 50, 20);
         for (const p of result.params) {
-            assert.ok('key' in p);
-            assert.ok('label' in p);
-            assert.ok('correlation' in p);
-            assert.ok('allMin' in p);
-            assert.ok('allMax' in p);
-            assert.ok('allMean' in p);
-            assert.ok('topMin' in p);
-            assert.ok('topMax' in p);
-            assert.ok('topMean' in p);
-            assert.ok('topP25' in p);
-            assert.ok('topP75' in p);
-            assert.ok('impact' in p);
+            expect('key' in p).toBeTruthy();
+            expect('label' in p).toBeTruthy();
+            expect('correlation' in p).toBeTruthy();
+            expect('allMin' in p).toBeTruthy();
+            expect('allMax' in p).toBeTruthy();
+            expect('allMean' in p).toBeTruthy();
+            expect('topMin' in p).toBeTruthy();
+            expect('topMax' in p).toBeTruthy();
+            expect('topMean' in p).toBeTruthy();
+            expect('topP25' in p).toBeTruthy();
+            expect('topP75' in p).toBeTruthy();
+            expect('impact' in p).toBeTruthy();
         }
     });
 
@@ -280,7 +279,7 @@ describe('Optimizer: Analysis Engine', () => {
         const data = makeData(200);
         const result = mod.analyze(data, 'livePercent', 50, 20);
         for (const p of result.params) {
-            assert.ok(p.correlation >= -1 && p.correlation <= 1, `${p.key} r=${p.correlation}`);
+            expect(p.correlation >= -1 && p.correlation <= 1).toBeTruthy();
         }
     });
 
@@ -288,7 +287,7 @@ describe('Optimizer: Analysis Engine', () => {
         const data = makeData(100);
         const result = mod.analyze(data, 'livePercent', 50, 20);
         for (const p of result.params) {
-            assert.ok(p.topP25 <= p.topP75, `${p.key}: P25=${p.topP25} > P75=${p.topP75}`);
+            expect(p.topP25 <= p.topP75).toBeTruthy();
         }
     });
 
@@ -296,36 +295,36 @@ describe('Optimizer: Analysis Engine', () => {
         const data = makeData(100);
         const result = mod.analyze(data, 'livePercent', 50, 20);
         for (const p of result.params) {
-            assert.ok(p.topMin >= p.allMin, `${p.key}: topMin=${p.topMin} < allMin=${p.allMin}`);
-            assert.ok(p.topMax <= p.allMax, `${p.key}: topMax=${p.topMax} > allMax=${p.allMax}`);
+            expect(p.topMin >= p.allMin).toBeTruthy();
+            expect(p.topMax <= p.allMax).toBeTruthy();
         }
     });
 
     it('analyze with 100% threshold on livePercent matches few', () => {
         const data = makeData(100);
         const result = mod.analyze(data, 'livePercent', 100, 20);
-        assert.ok(result.thresholdCount <= result.totalRecords * 0.05, 'very few should hit 100%');
+        expect(result.thresholdCount <= result.totalRecords * 0.05).toBeTruthy();
     });
 
     it('analyze with 0% threshold on livePercent matches all', () => {
         const data = makeData(100);
         const result = mod.analyze(data, 'livePercent', 0, 20);
-        assert.equal(result.thresholdCount, result.totalRecords);
+        expect(result.thresholdCount).toBe(result.totalRecords);
     });
 
     it('analyze elasticity works', () => {
         const data = makeData(100);
         const result = mod.analyze(data, 'elasticity', 50, 20);
-        assert.equal(result.metricKey, 'elasticity');
-        assert.equal(result.metricLabel, 'Elasticity');
-        assert.ok(result.topMean > 0);
+        expect(result.metricKey).toBe('elasticity');
+        expect(result.metricLabel).toBe('Elasticity');
+        expect(result.topMean > 0).toBeTruthy();
     });
 
     it('handles single record gracefully', () => {
         const data = makeData(1);
         const result = mod.analyze(data, 'livePercent', 0, 100);
-        assert.equal(result.totalRecords, 1);
-        assert.equal(result.topCount, 1);
+        expect(result.totalRecords).toBe(1);
+        expect(result.topCount).toBe(1);
     });
 });
 
@@ -333,76 +332,76 @@ describe('Optimizer: Analysis Engine', () => {
 
 describe('Optimizer: DOM Rendering', () => {
     let dom, doc;
-    before(() => { dom = createDOM(); doc = dom.window.document; });
+    beforeAll(() => { dom = createDOM(); doc = dom.window.document; });
 
     it('page title contains Parameter Optimizer', () => {
-        assert.ok(doc.title.includes('Parameter Optimizer'));
+        expect(doc.title.includes('Parameter Optimizer')).toBeTruthy();
     });
 
     it('has navigation links', () => {
         const nav = doc.querySelector('.nav');
-        assert.ok(nav);
+        expect(nav).toBeTruthy();
         const links = nav.querySelectorAll('a');
-        assert.ok(links.length >= 8);
+        expect(links.length >= 8).toBeTruthy();
     });
 
     it('optimizer nav link is active', () => {
         const active = doc.querySelector('.nav a.active');
-        assert.ok(active);
-        assert.ok(active.getAttribute('href').includes('optimizer'));
+        expect(active).toBeTruthy();
+        expect(active.getAttribute('href').includes('optimizer')).toBeTruthy();
     });
 
     it('has target metric select', () => {
         const select = doc.getElementById('targetMetric');
-        assert.ok(select);
-        assert.ok(select.querySelectorAll('option').length >= 3);
+        expect(select).toBeTruthy();
+        expect(select.querySelectorAll('option').length >= 3).toBeTruthy();
     });
 
     it('has threshold input', () => {
         const input = doc.getElementById('threshold');
-        assert.ok(input);
-        assert.equal(input.type, 'number');
-        assert.equal(input.value, '50');
+        expect(input).toBeTruthy();
+        expect(input.type).toBe('number');
+        expect(input.value).toBe('50');
     });
 
     it('has top percent select', () => {
         const select = doc.getElementById('topPercent');
-        assert.ok(select);
+        expect(select).toBeTruthy();
     });
 
     it('has optimize button', () => {
         const btn = doc.getElementById('optimizeBtn');
-        assert.ok(btn);
-        assert.ok(btn.textContent.includes('Optimize'));
+        expect(btn).toBeTruthy();
+        expect(btn.textContent.includes('Optimize')).toBeTruthy();
     });
 
     it('has reset button', () => {
         const btn = doc.getElementById('resetBtn');
-        assert.ok(btn);
+        expect(btn).toBeTruthy();
     });
 
     it('results container shows initial message', () => {
         const results = doc.getElementById('results');
-        assert.ok(results);
-        assert.ok(results.textContent.includes('Configure'));
+        expect(results).toBeTruthy();
+        expect(results.textContent.includes('Configure')).toBeTruthy();
     });
 
     it('has footer with source link', () => {
         const footer = doc.querySelector('.footer');
-        assert.ok(footer);
-        assert.ok(footer.textContent.includes('BioBots'));
+        expect(footer).toBeTruthy();
+        expect(footer.textContent.includes('BioBots')).toBeTruthy();
     });
 
     it('has lang=en', () => {
-        assert.equal(doc.documentElement.getAttribute('lang'), 'en');
+        expect(doc.documentElement.getAttribute('lang')).toBe('en');
     });
 
     it('has viewport meta', () => {
-        assert.ok(doc.querySelector('meta[name="viewport"]'));
+        expect(doc.querySelector('meta[name="viewport"]')).toBeTruthy();
     });
 
     it('has charset', () => {
-        assert.ok(doc.querySelector('meta[charset]'));
+        expect(doc.querySelector('meta[charset]')).toBeTruthy();
     });
 });
 
@@ -411,7 +410,7 @@ describe('Optimizer: DOM Rendering', () => {
 describe('Optimizer: Rendered Results', () => {
     let dom, doc, mod;
 
-    before(() => {
+    beforeAll(() => {
         dom = createDOM();
         doc = dom.window.document;
         mod = getExports(dom);
@@ -437,49 +436,49 @@ describe('Optimizer: Rendered Results', () => {
 
     it('renders overview cards', () => {
         const cards = doc.querySelectorAll('.card');
-        assert.ok(cards.length >= 4, `got ${cards.length} cards`);
+        expect(cards.length >= 4).toBeTruthy();
     });
 
     it('renders impact chart canvas', () => {
-        assert.ok(doc.getElementById('impactChart'));
+        expect(doc.getElementById('impactChart')).toBeTruthy();
     });
 
     it('renders correlation chart canvas', () => {
-        assert.ok(doc.getElementById('corrChart'));
+        expect(doc.getElementById('corrChart')).toBeTruthy();
     });
 
     it('renders parameter table', () => {
         const table = doc.querySelector('.param-table');
-        assert.ok(table);
+        expect(table).toBeTruthy();
         const rows = table.querySelectorAll('tbody tr');
-        assert.equal(rows.length, 8);
+        expect(rows.length).toBe(8);
     });
 
     it('table has optimal range column', () => {
         const headers = doc.querySelectorAll('.param-table th');
         const texts = Array.from(headers).map(h => h.textContent);
-        assert.ok(texts.some(t => t.includes('Optimal')));
+        expect(texts.some(t => t.includes('Optimal'))).toBeTruthy();
     });
 
     it('renders range bars', () => {
         const bars = doc.querySelectorAll('.range-bar');
-        assert.ok(bars.length >= 8, `got ${bars.length} range bars`);
+        expect(bars.length >= 8).toBeTruthy();
     });
 
     it('renders recommendation cards', () => {
         const recs = doc.querySelectorAll('.rec-card');
-        assert.ok(recs.length >= 2, `got ${recs.length} recs`);
+        expect(recs.length >= 2).toBeTruthy();
     });
 
     it('recommendation cards have impact badges', () => {
         const badges = doc.querySelectorAll('.impact-badge');
-        assert.ok(badges.length >= 2);
+        expect(badges.length >= 2).toBeTruthy();
     });
 
     it('overview cards contain key metrics', () => {
         const text = doc.querySelector('.cards').textContent;
-        assert.ok(text.includes('Total Records'));
-        assert.ok(text.includes('Top'));
+        expect(text.includes('Total Records')).toBeTruthy();
+        expect(text.includes('Top')).toBeTruthy();
     });
 });
 
@@ -487,22 +486,22 @@ describe('Optimizer: Rendered Results', () => {
 
 describe('Optimizer: HTML Structure', () => {
     it('has DOCTYPE', () => {
-        assert.match(HTML, /<!DOCTYPE html>/i);
+        expect(HTML).toMatch(/<!DOCTYPE html>/i);
     });
 
     it('has favicon', () => {
-        assert.match(HTML, /rel="icon"/);
+        expect(HTML).toMatch(/rel="icon"/);
     });
 
     it('has ARIA role on nav', () => {
         const dom = createDOM();
         const nav = dom.window.document.querySelector('[role="navigation"]');
-        assert.ok(nav);
+        expect(nav).toBeTruthy();
     });
 
     it('nav has aria-label', () => {
         const dom = createDOM();
         const nav = dom.window.document.querySelector('[aria-label]');
-        assert.ok(nav);
+        expect(nav).toBeTruthy();
     });
 });
