@@ -921,12 +921,7 @@
         ).join('');
     }
 
-    // ── Helpers ────────────────────────────────────────────
-    function formatNum(n) {
-        if (Math.abs(n) >= 1000) return escapeHtml(n.toLocaleString(undefined, { maximumFractionDigits: 1 }));
-        if (Number.isInteger(n)) return n.toString();
-        return n.toFixed(2);
-    }
+    // formatNum is provided by shared/utils.js
     </script>
 </body>
 </html>

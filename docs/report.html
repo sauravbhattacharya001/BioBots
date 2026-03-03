@@ -283,11 +283,6 @@
         .then(d => { DATA = d; applyFilters(); })
         .catch(() => showToast('Failed to load data'));
 
-    function getValue(p, key) {
-        const desc = METRIC_DESCRIPTORS.find(d => d.key === key);
-        return desc ? desc.get(p) : null;
-    }
-
     function applyFilters() {
         const wp = document.getElementById('filter-wellplate').value;
         const minVia = parseFloat(document.getElementById('filter-min-viability').value) || 0;

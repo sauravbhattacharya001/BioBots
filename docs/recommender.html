@@ -339,12 +339,6 @@
         return 'Low Confidence';
     }
 
-    function compatVerdict(avg) {
-        if (avg >= 80) return 'well-aligned';
-        if (avg >= 50) return 'could be adjusted';
-        return 'revising';
-    }
-
     function statusBadge(score) {
         if (score >= 80) return 'Good';
         if (score >= 50) return 'Fair';
@@ -355,11 +349,6 @@
         if (cv < 30) return 'Tight';
         if (cv < 60) return 'Moderate';
         return 'Wide';
-    }
-
-    function rangePosition(val, min, max) {
-        if (max === min) return 0;
-        return ((val - min) / (max - min)) * 100;
     }
 
     // ── Application logic ───────────────────────────────
