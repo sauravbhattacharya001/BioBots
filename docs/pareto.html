@@ -1,0 +1,579 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>BioBots 1 — Pareto Front Analyzer</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧬</text></svg>">
+    <style>
+        :root {
+            --bg: #0f172a;
+            --surface: #1e293b;
+            --border: #334155;
+            --text: #e2e8f0;
+            --muted: #94a3b8;
+            --accent: #38bdf8;
+            --accent-hover: #7dd3fc;
+            --success: #4ade80;
+            --error: #f87171;
+            --warning: #fbbf24;
+            --purple: #a78bfa;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            padding: 2rem 1rem;
+        }
+        .container { max-width: 1100px; margin: 0 auto; }
+        header { text-align: center; margin-bottom: 2rem; }
+        header h1 {
+            font-size: 2rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, var(--warning), var(--accent));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        header p { color: var(--muted); margin-top: 0.5rem; }
+        .nav {
+            display: flex;
+            justify-content: center;
+            gap: 0.5rem;
+            margin-bottom: 2rem;
+            flex-wrap: wrap;
+        }
+        .nav a {
+            color: var(--muted);
+            text-decoration: none;
+            padding: 0.5rem 1rem;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            transition: all 0.2s;
+        }
+        .nav a:hover { color: var(--accent); background: var(--surface); }
+        .nav a.active { color: var(--accent); background: var(--surface); border: 1px solid var(--border); }
+        .card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+        .card h2 {
+            font-size: 1.1rem;
+            margin-bottom: 1rem;
+            color: var(--muted);
+            font-weight: 500;
+        }
+        .controls {
+            display: flex;
+            gap: 1rem;
+            flex-wrap: wrap;
+            align-items: flex-end;
+            margin-bottom: 1.5rem;
+        }
+        .control-group { display: flex; flex-direction: column; gap: 0.3rem; }
+        .control-group label { font-size: 0.8rem; color: var(--muted); }
+        select, button {
+            background: var(--bg);
+            color: var(--text);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 0.5rem 0.75rem;
+            font-size: 0.9rem;
+            cursor: pointer;
+        }
+        select:focus, button:focus { outline: none; border-color: var(--accent); }
+        button {
+            background: var(--accent);
+            color: var(--bg);
+            font-weight: 600;
+            transition: background 0.2s;
+        }
+        button:hover { background: var(--accent-hover); }
+        .chart-container {
+            position: relative;
+            width: 100%;
+            aspect-ratio: 16 / 10;
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            overflow: hidden;
+        }
+        canvas { width: 100%; height: 100%; }
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 1rem;
+        }
+        .stat-card {
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 1rem;
+            text-align: center;
+        }
+        .stat-card .label { font-size: 0.75rem; color: var(--muted); margin-bottom: 0.25rem; }
+        .stat-card .value { font-size: 1.5rem; font-weight: 700; color: var(--accent); }
+        .stat-card .sub { font-size: 0.75rem; color: var(--muted); margin-top: 0.25rem; }
+        .pareto-table-wrap { overflow-x: auto; max-height: 400px; overflow-y: auto; }
+        table.pareto-tbl {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.85rem;
+        }
+        table.pareto-tbl th {
+            position: sticky;
+            top: 0;
+            background: var(--surface);
+            color: var(--muted);
+            padding: 0.5rem;
+            text-align: left;
+            border-bottom: 1px solid var(--border);
+            font-weight: 600;
+        }
+        table.pareto-tbl td {
+            padding: 0.5rem;
+            border-bottom: 1px solid var(--bg);
+        }
+        table.pareto-tbl tr:hover td { background: rgba(56,189,248,0.05); }
+        .dominated { color: var(--muted); }
+        .optimal { color: var(--success); font-weight: 600; }
+        .tooltip-box {
+            display: none;
+            position: fixed;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 0.75rem 1rem;
+            font-size: 0.85rem;
+            z-index: 100;
+            pointer-events: none;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.4);
+            max-width: 250px;
+        }
+        .dir-toggle { display: flex; gap: 0.5rem; align-items: center; }
+        .dir-toggle label { font-size: 0.8rem; color: var(--muted); cursor: pointer; }
+        .dir-toggle input[type=checkbox] { accent-color: var(--accent); }
+        footer {
+            margin-top: 3rem;
+            text-align: center;
+            color: var(--muted);
+            font-size: 0.8rem;
+        }
+        footer a { color: var(--accent); text-decoration: none; }
+        footer a:hover { text-decoration: underline; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>⚖️ Pareto Front Analyzer</h1>
+            <p>Multi-objective trade-off analysis — find optimal bioprinting parameter sets</p>
+        </header>
+
+        <div class="nav">
+            <a href="index.html">Query Tool</a>
+            <a href="explorer.html">Data Explorer</a>
+            <a href="table.html">Data Table</a>
+            <a href="compare.html">Compare</a>
+            <a href="quality.html">🎯 Quality</a>
+            <a href="anomaly.html">🔍 Anomaly</a>
+            <a href="trends.html">📈 Trends</a>
+            <a href="optimizer.html">⚙️ Optimizer</a>
+            <a href="cluster.html">🔗 Clusters</a>
+            <a href="correlation.html">🔗 Correlation</a>
+            <a href="pareto.html" class="active">⚖️ Pareto</a>
+            <a href="api.html">📡 API</a>
+        </div>
+
+        <div class="card">
+            <h2>Configure Objectives</h2>
+            <div class="controls">
+                <div class="control-group">
+                    <label>X-Axis Objective</label>
+                    <select id="xMetric"></select>
+                </div>
+                <div class="control-group">
+                    <label>&nbsp;</label>
+                    <div class="dir-toggle">
+                        <input type="checkbox" id="xMax" checked>
+                        <label for="xMax">Maximize X</label>
+                    </div>
+                </div>
+                <div class="control-group">
+                    <label>Y-Axis Objective</label>
+                    <select id="yMetric"></select>
+                </div>
+                <div class="control-group">
+                    <label>&nbsp;</label>
+                    <div class="dir-toggle">
+                        <input type="checkbox" id="yMax" checked>
+                        <label for="yMax">Maximize Y</label>
+                    </div>
+                </div>
+                <div class="control-group">
+                    <label>&nbsp;</label>
+                    <button id="analyzeBtn">Analyze</button>
+                </div>
+            </div>
+            <p style="font-size:0.8rem;color:var(--muted);">
+                Select two metrics and optimization direction. Pareto-optimal prints are those where
+                improving one objective requires worsening the other — the efficient frontier.
+            </p>
+        </div>
+
+        <div class="card">
+            <h2>Pareto Front Scatter Plot</h2>
+            <div class="chart-container">
+                <canvas id="chart"></canvas>
+            </div>
+            <div id="chartLegend" style="display:flex;justify-content:center;gap:2rem;margin-top:0.75rem;font-size:0.8rem;color:var(--muted);">
+                <span>🟢 Pareto-optimal &nbsp; ⚫ Dominated</span>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>Summary Statistics</h2>
+            <div class="stats-grid" id="statsGrid">
+                <div class="stat-card"><div class="label">—</div><div class="value">—</div></div>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>Pareto-Optimal Prints</h2>
+            <div class="pareto-table-wrap">
+                <table class="pareto-tbl" id="paretoTable">
+                    <thead><tr><th>#</th><th>X</th><th>Y</th><th>Wellplate</th><th>Layers</th></tr></thead>
+                    <tbody><tr><td colspan="5" style="color:var(--muted);text-align:center;">Click Analyze to start</td></tr></tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>Trade-off Insights</h2>
+            <ul id="insights" style="list-style:none;display:grid;gap:0.5rem;">
+                <li style="color:var(--muted);">Run the analysis to see insights</li>
+            </ul>
+        </div>
+
+        <div class="tooltip-box" id="tooltip"></div>
+
+        <footer>
+            <p>Built with 🧬 by <a href="https://github.com/sauravbhattacharya001">Saurav Bhattacharya</a></p>
+            <p><a href="https://github.com/sauravbhattacharya001/BioBots">View Source</a></p>
+        </footer>
+    </div>
+
+    <script>
+    'use strict';
+
+    const METRICS = [
+        { key: 'livePercent',  label: 'Cell Viability (%)',    get: p => p.print_data.livePercent },
+        { key: 'deadPercent',  label: 'Dead Cell (%)',         get: p => p.print_data.deadPercent },
+        { key: 'elasticity',   label: 'Elasticity',           get: p => p.print_data.elasticity },
+        { key: 'cl_duration',  label: 'Crosslink Duration',   get: p => p.print_info.crosslinking.cl_duration },
+        { key: 'cl_intensity', label: 'Crosslink Intensity',  get: p => p.print_info.crosslinking.cl_intensity },
+        { key: 'extruder1',    label: 'Extruder 1 Pressure',  get: p => p.print_info.pressure.extruder1 },
+        { key: 'extruder2',    label: 'Extruder 2 Pressure',  get: p => p.print_info.pressure.extruder2 },
+        { key: 'layerHeight',  label: 'Layer Height',         get: p => p.print_info.resolution.layerHeight },
+        { key: 'layerNum',     label: 'Layer Count',          get: p => p.print_info.resolution.layerNum },
+        { key: 'wellplate',    label: 'Wellplate Format',     get: p => p.print_info.wellplate },
+    ];
+
+    // Populate selects
+    const xSel = document.getElementById('xMetric');
+    const ySel = document.getElementById('yMetric');
+    METRICS.forEach((m, i) => {
+        xSel.add(new Option(m.label, i));
+        ySel.add(new Option(m.label, i));
+    });
+    // Default: X = Cell Viability, Y = Elasticity
+    xSel.value = 0;
+    ySel.value = 2;
+
+    // Pareto dominance
+    function computeParetoFront(points, xMax, yMax) {
+        const dominated = new Set();
+        for (let i = 0; i < points.length; i++) {
+            if (dominated.has(i)) continue;
+            for (let j = 0; j < points.length; j++) {
+                if (i === j || dominated.has(j)) continue;
+                const ix = points[i].x, iy = points[i].y;
+                const jx = points[j].x, jy = points[j].y;
+                const iBetterX = xMax ? ix >= jx : ix <= jx;
+                const iBetterY = yMax ? iy >= jy : iy <= jy;
+                const iStrictX = xMax ? ix > jx : ix < jx;
+                const iStrictY = yMax ? iy > jy : iy < jy;
+                if (iBetterX && iBetterY && (iStrictX || iStrictY)) {
+                    dominated.add(j);
+                }
+            }
+        }
+        return dominated;
+    }
+
+    function drawChart(points, dominated, xLabel, yLabel) {
+        const canvas = document.getElementById('chart');
+        const rect = canvas.parentElement.getBoundingClientRect();
+        const dpr = window.devicePixelRatio || 1;
+        canvas.width = rect.width * dpr;
+        canvas.height = rect.height * dpr;
+        const ctx = canvas.getContext('2d');
+        ctx.scale(dpr, dpr);
+        const w = rect.width, h = rect.height;
+
+        const pad = { top: 20, right: 30, bottom: 50, left: 70 };
+        const pw = w - pad.left - pad.right;
+        const ph = h - pad.top - pad.bottom;
+
+        const xs = points.map(p => p.x);
+        const ys = points.map(p => p.y);
+        const xMin = Math.min(...xs), xMax = Math.max(...xs);
+        const yMin = Math.min(...ys), yMax = Math.max(...ys);
+        const xRange = xMax - xMin || 1;
+        const yRange = yMax - yMin || 1;
+
+        function sx(v) { return pad.left + ((v - xMin) / xRange) * pw; }
+        function sy(v) { return pad.top + ph - ((v - yMin) / yRange) * ph; }
+
+        // Grid
+        ctx.strokeStyle = '#334155';
+        ctx.lineWidth = 0.5;
+        for (let i = 0; i <= 5; i++) {
+            const gy = pad.top + (ph / 5) * i;
+            ctx.beginPath(); ctx.moveTo(pad.left, gy); ctx.lineTo(pad.left + pw, gy); ctx.stroke();
+            const gx = pad.left + (pw / 5) * i;
+            ctx.beginPath(); ctx.moveTo(gx, pad.top); ctx.lineTo(gx, pad.top + ph); ctx.stroke();
+        }
+
+        // Axis labels
+        ctx.fillStyle = '#94a3b8';
+        ctx.font = '12px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText(xLabel, pad.left + pw / 2, h - 8);
+        ctx.save();
+        ctx.translate(14, pad.top + ph / 2);
+        ctx.rotate(-Math.PI / 2);
+        ctx.fillText(yLabel, 0, 0);
+        ctx.restore();
+
+        // Axis ticks
+        ctx.font = '10px sans-serif';
+        ctx.textAlign = 'center';
+        for (let i = 0; i <= 5; i++) {
+            const v = xMin + (xRange / 5) * i;
+            ctx.fillText(v.toFixed(1), sx(v), pad.top + ph + 18);
+        }
+        ctx.textAlign = 'right';
+        for (let i = 0; i <= 5; i++) {
+            const v = yMin + (yRange / 5) * i;
+            ctx.fillText(v.toFixed(1), pad.left - 8, sy(v) + 4);
+        }
+
+        // Dominated points
+        ctx.globalAlpha = 0.25;
+        for (let i = 0; i < points.length; i++) {
+            if (!dominated.has(i)) continue;
+            ctx.beginPath();
+            ctx.arc(sx(points[i].x), sy(points[i].y), 2.5, 0, Math.PI * 2);
+            ctx.fillStyle = '#64748b';
+            ctx.fill();
+        }
+
+        // Pareto points
+        ctx.globalAlpha = 1;
+        const frontPts = [];
+        for (let i = 0; i < points.length; i++) {
+            if (dominated.has(i)) continue;
+            frontPts.push(points[i]);
+            ctx.beginPath();
+            ctx.arc(sx(points[i].x), sy(points[i].y), 4, 0, Math.PI * 2);
+            ctx.fillStyle = '#4ade80';
+            ctx.fill();
+        }
+
+        // Connect front line
+        if (frontPts.length > 1) {
+            frontPts.sort((a, b) => a.x - b.x);
+            ctx.strokeStyle = '#4ade80';
+            ctx.lineWidth = 1.5;
+            ctx.globalAlpha = 0.6;
+            ctx.beginPath();
+            ctx.moveTo(sx(frontPts[0].x), sy(frontPts[0].y));
+            for (let i = 1; i < frontPts.length; i++) {
+                ctx.lineTo(sx(frontPts[i].x), sy(frontPts[i].y));
+            }
+            ctx.stroke();
+            ctx.globalAlpha = 1;
+        }
+
+        // Store for tooltip
+        canvas._points = points;
+        canvas._dominated = dominated;
+        canvas._sx = sx;
+        canvas._sy = sy;
+        canvas._xLabel = xLabel;
+        canvas._yLabel = yLabel;
+    }
+
+    // Tooltip on canvas
+    const tooltip = document.getElementById('tooltip');
+    document.getElementById('chart').addEventListener('mousemove', function(e) {
+        if (!this._points) return;
+        const rect = this.getBoundingClientRect();
+        const mx = e.clientX - rect.left;
+        const my = e.clientY - rect.top;
+        const scaleX = rect.width;
+        const scaleY = rect.height;
+
+        let closest = null, minDist = 20;
+        for (let i = 0; i < this._points.length; i++) {
+            const px = (this._sx(this._points[i].x) / (this.width / (window.devicePixelRatio || 1))) * scaleX;
+            const py = (this._sy(this._points[i].y) / (this.height / (window.devicePixelRatio || 1))) * scaleY;
+            const d = Math.sqrt((mx - px) ** 2 + (my - py) ** 2);
+            if (d < minDist) { minDist = d; closest = i; }
+        }
+        if (closest !== null) {
+            const p = this._points[closest];
+            const status = this._dominated.has(closest) ? '<span style="color:#f87171">Dominated</span>' : '<span style="color:#4ade80">Pareto-optimal</span>';
+            tooltip.innerHTML = `<div style="font-size:0.75rem;color:var(--muted);">Print #${p.idx + 1}</div>
+                <div style="margin-top:0.25rem;">${this._xLabel}: <b>${p.x.toFixed(2)}</b></div>
+                <div>${this._yLabel}: <b>${p.y.toFixed(2)}</b></div>
+                <div style="margin-top:0.25rem;">${status}</div>`;
+            tooltip.style.display = 'block';
+            tooltip.style.left = (e.clientX + 12) + 'px';
+            tooltip.style.top = (e.clientY + 12) + 'px';
+        } else {
+            tooltip.style.display = 'none';
+        }
+    });
+    document.getElementById('chart').addEventListener('mouseleave', () => {
+        tooltip.style.display = 'none';
+    });
+
+    let loadedData = null;
+
+    function analyze() {
+        if (!loadedData) return;
+        const xi = +xSel.value, yi = +ySel.value;
+        if (xi === yi) { alert('Select two different metrics.'); return; }
+        const xm = METRICS[xi], ym = METRICS[yi];
+        const xMaxDir = document.getElementById('xMax').checked;
+        const yMaxDir = document.getElementById('yMax').checked;
+
+        // Extract valid points
+        const points = [];
+        loadedData.forEach((rec, idx) => {
+            const xv = xm.get(rec), yv = ym.get(rec);
+            if (xv != null && !isNaN(xv) && yv != null && !isNaN(yv)) {
+                points.push({ x: xv, y: yv, idx, rec });
+            }
+        });
+
+        const dominated = computeParetoFront(points, xMaxDir, yMaxDir);
+        const frontSize = points.length - dominated.size;
+
+        // Draw chart
+        drawChart(points, dominated, xm.label, ym.label);
+
+        // Stats
+        const frontPts = points.filter((_, i) => !dominated.has(i));
+        const fxVals = frontPts.map(p => p.x);
+        const fyVals = frontPts.map(p => p.y);
+        const mean = arr => arr.reduce((a, b) => a + b, 0) / arr.length;
+        const spread = arr => Math.max(...arr) - Math.min(...arr);
+
+        document.getElementById('statsGrid').innerHTML = `
+            <div class="stat-card"><div class="label">Total Prints</div><div class="value">${points.length.toLocaleString()}</div></div>
+            <div class="stat-card"><div class="label">Pareto-Optimal</div><div class="value">${frontSize}</div><div class="sub">${(100 * frontSize / points.length).toFixed(1)}% of total</div></div>
+            <div class="stat-card"><div class="label">Dominated</div><div class="value">${dominated.size.toLocaleString()}</div></div>
+            <div class="stat-card"><div class="label">Front ${xm.label} Range</div><div class="value">${spread(fxVals).toFixed(2)}</div><div class="sub">${Math.min(...fxVals).toFixed(1)} – ${Math.max(...fxVals).toFixed(1)}</div></div>
+            <div class="stat-card"><div class="label">Front ${ym.label} Range</div><div class="value">${spread(fyVals).toFixed(2)}</div><div class="sub">${Math.min(...fyVals).toFixed(1)} – ${Math.max(...fyVals).toFixed(1)}</div></div>
+            <div class="stat-card"><div class="label">Avg ${xm.label} (Front)</div><div class="value">${mean(fxVals).toFixed(2)}</div></div>
+        `;
+
+        // Table
+        frontPts.sort((a, b) => a.x - b.x);
+        const tbody = frontPts.map((p, i) => `<tr>
+            <td class="optimal">${i + 1}</td>
+            <td>${p.x.toFixed(2)}</td>
+            <td>${p.y.toFixed(2)}</td>
+            <td>${p.rec.print_info.wellplate}</td>
+            <td>${p.rec.print_info.resolution.layerNum}</td>
+        </tr>`).join('');
+        document.querySelector('#paretoTable thead tr').innerHTML = `<th>#</th><th>${xm.label}</th><th>${ym.label}</th><th>Wellplate</th><th>Layers</th>`;
+        document.querySelector('#paretoTable tbody').innerHTML = tbody || '<tr><td colspan="5" style="color:var(--muted);">No Pareto-optimal points found</td></tr>';
+
+        // Insights
+        const insights = [];
+        const ratio = frontSize / points.length;
+        if (ratio < 0.01) {
+            insights.push(`Very tight front: only ${frontSize} prints (${(ratio * 100).toFixed(2)}%) are Pareto-optimal — strong trade-off between ${xm.label} and ${ym.label}.`);
+        } else if (ratio > 0.2) {
+            insights.push(`Loose front: ${(ratio * 100).toFixed(1)}% of prints are non-dominated — weak trade-off suggests these metrics may be somewhat independent.`);
+        } else {
+            insights.push(`${frontSize} Pareto-optimal prints (${(ratio * 100).toFixed(1)}%) define the efficient frontier.`);
+        }
+
+        // Correlation on front
+        if (frontPts.length >= 3) {
+            const n = frontPts.length;
+            let sx = 0, sy = 0, sxx = 0, syy = 0, sxy = 0;
+            frontPts.forEach(p => { sx += p.x; sy += p.y; sxx += p.x * p.x; syy += p.y * p.y; sxy += p.x * p.y; });
+            const num = n * sxy - sx * sy;
+            const den = Math.sqrt((n * sxx - sx * sx) * (n * syy - sy * sy));
+            const r = den === 0 ? 0 : num / den;
+            const dir = r > 0 ? 'positive' : 'negative';
+            insights.push(`Front correlation: r = ${r.toFixed(3)} (${dir}) — ${Math.abs(r) > 0.5 ? 'strong' : Math.abs(r) > 0.2 ? 'moderate' : 'weak'} relationship along the front.`);
+        }
+
+        // Best endpoints
+        if (frontPts.length >= 2) {
+            const bestX = xMaxDir ? frontPts[frontPts.length - 1] : frontPts[0];
+            const bestY = yMaxDir ? frontPts.reduce((a, b) => b.y > a.y ? b : a) : frontPts.reduce((a, b) => b.y < a.y ? b : a);
+            insights.push(`Best ${xm.label}: ${bestX.x.toFixed(2)} (${ym.label}: ${bestX.y.toFixed(2)}) — print #${bestX.idx + 1}.`);
+            insights.push(`Best ${ym.label}: ${bestY.y.toFixed(2)} (${xm.label}: ${bestY.x.toFixed(2)}) — print #${bestY.idx + 1}.`);
+        }
+
+        // Knee point (closest to ideal)
+        if (frontPts.length >= 3) {
+            const xNorm = xMaxDir ? Math.max(...fxVals) : Math.min(...fxVals);
+            const yNorm = yMaxDir ? Math.max(...fyVals) : Math.min(...fyVals);
+            const xSpread = spread(fxVals) || 1;
+            const ySpread = spread(fyVals) || 1;
+            let kneePt = frontPts[0], minDist = Infinity;
+            frontPts.forEach(p => {
+                const dx = (p.x - xNorm) / xSpread;
+                const dy = (p.y - yNorm) / ySpread;
+                const d = Math.sqrt(dx * dx + dy * dy);
+                if (d < minDist) { minDist = d; kneePt = p; }
+            });
+            insights.push(`🎯 Knee point (best compromise): print #${kneePt.idx + 1} — ${xm.label}: ${kneePt.x.toFixed(2)}, ${ym.label}: ${kneePt.y.toFixed(2)}.`);
+        }
+
+        document.getElementById('insights').innerHTML = insights.map(t =>
+            `<li style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:0.75rem 1rem;font-size:0.9rem;">${t}</li>`
+        ).join('');
+    }
+
+    document.getElementById('analyzeBtn').addEventListener('click', analyze);
+
+    // Load data
+    fetch('bioprint-data.json')
+        .then(r => r.json())
+        .then(data => {
+            loadedData = data;
+            // Auto-analyze on load
+            analyze();
+        })
+        .catch(err => {
+            document.getElementById('statsGrid').innerHTML =
+                `<div class="stat-card"><div class="value" style="color:var(--error);">Error: ${err.message}</div></div>`;
+        });
+    </script>
+</body>
+</html>
