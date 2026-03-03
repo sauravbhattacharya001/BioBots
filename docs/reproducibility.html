@@ -1,0 +1,726 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>BioBots 1 &mdash; Reproducibility Analyzer</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧬</text></svg>">
+    <style>
+        :root {
+            --bg: #0f172a;
+            --surface: #1e293b;
+            --border: #334155;
+            --text: #e2e8f0;
+            --muted: #94a3b8;
+            --accent: #38bdf8;
+            --accent-hover: #7dd3fc;
+            --success: #4ade80;
+            --error: #f87171;
+            --warning: #fbbf24;
+            --purple: #a78bfa;
+            --orange: #fb923c;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            padding: 2rem 1rem;
+        }
+        .container { max-width: 1100px; margin: 0 auto; }
+        header { text-align: center; margin-bottom: 2rem; }
+        header h1 {
+            font-size: 2rem; font-weight: 700;
+            background: linear-gradient(135deg, var(--success), var(--accent));
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+        }
+        header p { color: var(--muted); margin-top: 0.5rem; }
+        .nav { display: flex; justify-content: center; gap: 0.5rem; margin-bottom: 2rem; flex-wrap: wrap; }
+        .nav a { color: var(--muted); text-decoration: none; padding: 0.5rem 1rem; border-radius: 8px; font-size: 0.9rem; transition: all 0.2s; }
+        .nav a:hover { color: var(--accent); background: var(--surface); }
+        .nav a.active { color: var(--accent); background: var(--surface); border: 1px solid var(--border); }
+        .card { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 1.5rem; margin-bottom: 1.5rem; }
+        .card h2 { font-size: 1.1rem; margin-bottom: 1rem; color: var(--muted); font-weight: 500; }
+        .controls { display: flex; gap: 1rem; flex-wrap: wrap; align-items: flex-end; margin-bottom: 1.5rem; }
+        .control-group { display: flex; flex-direction: column; gap: 0.3rem; }
+        .control-group label { font-size: 0.8rem; color: var(--muted); }
+        select, button { padding: 0.5rem 1rem; border-radius: 8px; border: 1px solid var(--border); background: var(--bg); color: var(--text); font-size: 0.9rem; cursor: pointer; }
+        select:focus, button:focus { outline: 2px solid var(--accent); }
+        button.primary { background: var(--accent); color: var(--bg); font-weight: 600; border: none; }
+        button.primary:hover { background: var(--accent-hover); }
+        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem; margin-bottom: 1.5rem; }
+        .stat-card { background: var(--bg); border-radius: 12px; padding: 1rem; text-align: center; border: 1px solid var(--border); }
+        .stat-card .label { font-size: 0.75rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; }
+        .stat-card .value { font-size: 1.5rem; font-weight: 700; margin: 0.3rem 0; }
+        .stat-card .detail { font-size: 0.75rem; color: var(--muted); }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { padding: 0.6rem 0.8rem; text-align: left; border-bottom: 1px solid var(--border); font-size: 0.85rem; }
+        th { color: var(--muted); font-weight: 600; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; cursor: pointer; user-select: none; }
+        th:hover { color: var(--text); }
+        td { font-variant-numeric: tabular-nums; }
+        .cv-bar { display: inline-block; height: 8px; border-radius: 4px; vertical-align: middle; margin-right: 0.5rem; min-width: 4px; }
+        .grade-excellent { color: var(--success); }
+        .grade-good { color: var(--accent); }
+        .grade-fair { color: var(--warning); }
+        .grade-poor { color: var(--error); }
+        .badge { display: inline-block; padding: 0.15rem 0.5rem; border-radius: 999px; font-size: 0.7rem; font-weight: 600; }
+        .badge-excellent { background: rgba(74,222,128,0.15); color: var(--success); }
+        .badge-good { background: rgba(56,189,248,0.15); color: var(--accent); }
+        .badge-fair { background: rgba(251,191,36,0.15); color: var(--warning); }
+        .badge-poor { background: rgba(248,113,113,0.15); color: var(--error); }
+        canvas { width: 100%; height: 300px; }
+        .chart-row { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; }
+        @media (max-width: 768px) { .chart-row { grid-template-columns: 1fr; } }
+        footer { text-align: center; margin-top: 3rem; color: var(--muted); font-size: 0.8rem; }
+        footer a { color: var(--accent); text-decoration: none; }
+        .group-tag { display: inline-block; background: var(--bg); padding: 0.2rem 0.5rem; border-radius: 6px; font-size: 0.75rem; color: var(--muted); margin: 0.1rem; border: 1px solid var(--border); }
+        .outlier-row { background: rgba(248,113,113,0.08); }
+        #groupDetails { max-height: 400px; overflow-y: auto; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>&#x1F504; Reproducibility Analyzer</h1>
+            <p>Assess how consistently your bioprinting protocols produce results</p>
+        </header>
+
+        <div class="nav">
+            <a href="index.html">Query Tool</a>
+            <a href="explorer.html">Data Explorer</a>
+            <a href="table.html">Data Table</a>
+            <a href="compare.html">Compare</a>
+            <a href="quality.html">Quality</a>
+            <a href="anomaly.html">Anomaly</a>
+            <a href="trends.html">Trends</a>
+            <a href="spc.html">SPC</a>
+            <a href="reproducibility.html" class="active">Reproducibility</a>
+            <a href="correlation.html">Correlation</a>
+            <a href="api.html">API</a>
+        </div>
+
+        <div class="card">
+            <h2>Configuration</h2>
+            <div class="controls">
+                <div class="control-group">
+                    <label for="groupBy">Group By</label>
+                    <select id="groupBy">
+                        <option value="wellplate">Wellplate Type</option>
+                        <option value="cl_intensity">CL Intensity</option>
+                        <option value="cl_duration_bin">CL Duration (binned)</option>
+                        <option value="layerNum">Layer Count</option>
+                        <option value="layerHeight">Layer Height</option>
+                        <option value="wellplate+cl">Wellplate + CL Settings</option>
+                    </select>
+                </div>
+                <div class="control-group">
+                    <label for="minGroup">Min Group Size</label>
+                    <select id="minGroup">
+                        <option value="3">3</option>
+                        <option value="5" selected>5</option>
+                        <option value="10">10</option>
+                        <option value="20">20</option>
+                    </select>
+                </div>
+                <div class="control-group">
+                    <label for="outcomeMetric">Primary Outcome</label>
+                    <select id="outcomeMetric">
+                        <option value="livePercent" selected>Cell Viability (%)</option>
+                        <option value="deadPercent">Dead Cell (%)</option>
+                        <option value="elasticity">Elasticity (kPa)</option>
+                    </select>
+                </div>
+                <button class="primary" onclick="analyze()">Analyze</button>
+            </div>
+        </div>
+
+        <div id="results" style="display:none;">
+            <div class="stats-grid" id="summaryStats"></div>
+
+            <div class="card">
+                <h2>Per-Group Reproducibility</h2>
+                <div style="overflow-x:auto;">
+                    <table>
+                        <thead id="groupTableHead"></thead>
+                        <tbody id="groupTableBody"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="chart-row">
+                <div class="card">
+                    <h2>CV% by Group</h2>
+                    <canvas id="cvChart"></canvas>
+                </div>
+                <div class="card">
+                    <h2>Reproducibility Score Distribution</h2>
+                    <canvas id="scoreChart"></canvas>
+                </div>
+            </div>
+
+            <div class="card">
+                <h2>Metric-Level Analysis</h2>
+                <div style="overflow-x:auto;">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Metric</th>
+                                <th>Mean CV%</th>
+                                <th>Grade</th>
+                                <th>Most Reproducible Group</th>
+                                <th>Least Reproducible Group</th>
+                            </tr>
+                        </thead>
+                        <tbody id="metricTableBody"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="card">
+                <h2>Outlier Prints</h2>
+                <p style="color:var(--muted);font-size:0.8rem;margin-bottom:1rem;">
+                    Prints whose outcome deviates &gt;2 standard deviations from their group mean
+                </p>
+                <div id="outlierList"></div>
+            </div>
+        </div>
+
+        <footer>
+            <p>Built with &#x1F9EC; by <a href="https://github.com/sauravbhattacharya001">Saurav Bhattacharya</a></p>
+            <p><a href="https://github.com/sauravbhattacharya001/BioBots">View Source</a></p>
+        </footer>
+    </div>
+
+    <script src="shared/constants.js"></script>
+    <script src="shared/utils.js"></script>
+    <script>
+    'use strict';
+
+    var printData = [];
+
+    // ── Grouping Logic ──────────────────────────────────
+
+    function getGroupKey(record, groupBy) {
+        var info = record.print_info;
+        if (!info) return null;
+        switch (groupBy) {
+            case 'wellplate':
+                return 'WP-' + info.wellplate;
+            case 'cl_intensity':
+                return 'CL-' + (info.crosslinking ? info.crosslinking.cl_intensity : '?') + '%';
+            case 'cl_duration_bin': {
+                var dur = info.crosslinking ? info.crosslinking.cl_duration : 0;
+                if (dur < 5000) return 'CL <5s';
+                if (dur < 15000) return 'CL 5-15s';
+                if (dur < 30000) return 'CL 15-30s';
+                return 'CL >30s';
+            }
+            case 'layerNum':
+                return info.resolution ? info.resolution.layerNum + ' layers' : null;
+            case 'layerHeight':
+                return info.resolution ? info.resolution.layerHeight + 'mm' : null;
+            case 'wellplate+cl':
+                return 'WP-' + info.wellplate + ' / CL-' +
+                    (info.crosslinking ? info.crosslinking.cl_intensity : '?') + '%';
+            default:
+                return null;
+        }
+    }
+
+    function groupPrints(data, groupBy) {
+        var groups = {};
+        for (var i = 0; i < data.length; i++) {
+            var key = getGroupKey(data[i], groupBy);
+            if (key == null) continue;
+            if (!groups[key]) groups[key] = [];
+            groups[key].push(data[i]);
+        }
+        return groups;
+    }
+
+    // ── Statistical Functions ───────────────────────────
+
+    function mean(values) {
+        if (values.length === 0) return 0;
+        var sum = 0;
+        for (var i = 0; i < values.length; i++) sum += values[i];
+        return sum / values.length;
+    }
+
+    function stddev(values) {
+        if (values.length < 2) return 0;
+        var m = mean(values);
+        var sumSq = 0;
+        for (var i = 0; i < values.length; i++) {
+            var d = values[i] - m;
+            sumSq += d * d;
+        }
+        return Math.sqrt(sumSq / (values.length - 1));
+    }
+
+    function coefficientOfVariation(values) {
+        var m = mean(values);
+        if (Math.abs(m) < 0.0001) return 0;
+        return (stddev(values) / Math.abs(m)) * 100;
+    }
+
+    function cvGrade(cv) {
+        if (cv <= 10) return 'excellent';
+        if (cv <= 20) return 'good';
+        if (cv <= 30) return 'fair';
+        return 'poor';
+    }
+
+    function cvGradeLabel(cv) {
+        if (cv <= 10) return 'Excellent';
+        if (cv <= 20) return 'Good';
+        if (cv <= 30) return 'Fair';
+        return 'Poor';
+    }
+
+    function reproducibilityScore(cv) {
+        // Convert CV% to a 0-100 score (lower CV = higher score)
+        // CV=0 → 100, CV=50+ → 0
+        return Math.max(0, Math.min(100, 100 - cv * 2));
+    }
+
+    // ── Metric Extractors ───────────────────────────────
+
+    var OUTCOME_METRICS = [
+        { key: 'livePercent',  label: 'Cell Viability',   get: function(p) { return p.print_data.livePercent; } },
+        { key: 'deadPercent',  label: 'Dead Cell %',       get: function(p) { return p.print_data.deadPercent; } },
+        { key: 'elasticity',   label: 'Elasticity',        get: function(p) { return p.print_data.elasticity; } },
+    ];
+
+    function extractValues(prints, metricGet) {
+        var vals = [];
+        for (var i = 0; i < prints.length; i++) {
+            try {
+                var v = metricGet(prints[i]);
+                if (v != null && typeof v === 'number' && isFinite(v)) vals.push(v);
+            } catch (e) { /* skip */ }
+        }
+        return vals;
+    }
+
+    // ── Analysis ────────────────────────────────────────
+
+    function analyze() {
+        var groupBy = document.getElementById('groupBy').value;
+        var minGroup = parseInt(document.getElementById('minGroup').value, 10);
+        var outcomeKey = document.getElementById('outcomeMetric').value;
+
+        var groups = groupPrints(printData, groupBy);
+
+        // Filter by min group size
+        var validGroups = {};
+        var groupNames = Object.keys(groups);
+        for (var i = 0; i < groupNames.length; i++) {
+            if (groups[groupNames[i]].length >= minGroup) {
+                validGroups[groupNames[i]] = groups[groupNames[i]];
+            }
+        }
+
+        var names = Object.keys(validGroups);
+        if (names.length === 0) {
+            document.getElementById('results').style.display = 'none';
+            alert('No groups meet the minimum size requirement. Try lowering the minimum group size.');
+            return;
+        }
+
+        // Compute per-group statistics
+        var primaryMetric = OUTCOME_METRICS.find(function(m) { return m.key === outcomeKey; });
+        var groupStats = [];
+
+        for (var g = 0; g < names.length; g++) {
+            var name = names[g];
+            var prints = validGroups[name];
+            var values = extractValues(prints, primaryMetric.get);
+
+            var groupStat = {
+                name: name,
+                count: prints.length,
+                validCount: values.length,
+                mean: mean(values),
+                std: stddev(values),
+                cv: coefficientOfVariation(values),
+                min: values.length > 0 ? Math.min.apply(null, values) : 0,
+                max: values.length > 0 ? Math.max.apply(null, values) : 0,
+                score: reproducibilityScore(coefficientOfVariation(values)),
+                prints: prints,
+                values: values,
+            };
+
+            // Per-metric CVs
+            groupStat.metricCVs = {};
+            for (var m = 0; m < OUTCOME_METRICS.length; m++) {
+                var metric = OUTCOME_METRICS[m];
+                var mVals = extractValues(prints, metric.get);
+                groupStat.metricCVs[metric.key] = coefficientOfVariation(mVals);
+            }
+
+            groupStats.push(groupStat);
+        }
+
+        // Sort by CV (most reproducible first)
+        groupStats.sort(function(a, b) { return a.cv - b.cv; });
+
+        // Find outliers (>2 SD from group mean)
+        var outliers = [];
+        for (var o = 0; o < groupStats.length; o++) {
+            var gs = groupStats[o];
+            if (gs.std === 0) continue;
+            for (var p = 0; p < gs.prints.length; p++) {
+                var val;
+                try { val = primaryMetric.get(gs.prints[p]); } catch (e) { continue; }
+                if (val == null) continue;
+                var zScore = Math.abs(val - gs.mean) / gs.std;
+                if (zScore > 2) {
+                    outliers.push({
+                        group: gs.name,
+                        serial: gs.prints[p].user_info ? gs.prints[p].user_info.serial : '?',
+                        value: val,
+                        groupMean: gs.mean,
+                        zScore: zScore,
+                    });
+                }
+            }
+        }
+        outliers.sort(function(a, b) { return b.zScore - a.zScore; });
+
+        renderSummary(groupStats, outliers);
+        renderGroupTable(groupStats, primaryMetric);
+        drawCVChart(groupStats);
+        drawScoreChart(groupStats);
+        renderMetricTable(groupStats);
+        renderOutliers(outliers, primaryMetric);
+
+        document.getElementById('results').style.display = '';
+    }
+
+    // ── Rendering ───────────────────────────────────────
+
+    function renderSummary(groupStats, outliers) {
+        var allCVs = groupStats.map(function(g) { return g.cv; });
+        var avgCV = mean(allCVs);
+        var avgScore = mean(groupStats.map(function(g) { return g.score; }));
+        var bestGroup = groupStats[0];
+        var worstGroup = groupStats[groupStats.length - 1];
+        var totalPrints = groupStats.reduce(function(s, g) { return s + g.count; }, 0);
+
+        var grade = cvGrade(avgCV);
+        var scoreColor = grade === 'excellent' ? 'var(--success)' :
+                         grade === 'good' ? 'var(--accent)' :
+                         grade === 'fair' ? 'var(--warning)' : 'var(--error)';
+
+        document.getElementById('summaryStats').innerHTML =
+            '<div class="stat-card">' +
+                '<div class="label">Overall Score</div>' +
+                '<div class="value" style="color:' + scoreColor + ';">' + avgScore.toFixed(0) + '/100</div>' +
+                '<div class="detail"><span class="badge badge-' + grade + '">' + cvGradeLabel(avgCV) + '</span></div>' +
+            '</div>' +
+            '<div class="stat-card">' +
+                '<div class="label">Mean CV%</div>' +
+                '<div class="value">' + avgCV.toFixed(1) + '%</div>' +
+                '<div class="detail">Across ' + groupStats.length + ' groups</div>' +
+            '</div>' +
+            '<div class="stat-card">' +
+                '<div class="label">Most Reproducible</div>' +
+                '<div class="value grade-excellent" style="font-size:1rem;">' + escapeHtml(bestGroup.name) + '</div>' +
+                '<div class="detail">CV ' + bestGroup.cv.toFixed(1) + '%</div>' +
+            '</div>' +
+            '<div class="stat-card">' +
+                '<div class="label">Least Reproducible</div>' +
+                '<div class="value grade-poor" style="font-size:1rem;">' + escapeHtml(worstGroup.name) + '</div>' +
+                '<div class="detail">CV ' + worstGroup.cv.toFixed(1) + '%</div>' +
+            '</div>' +
+            '<div class="stat-card">' +
+                '<div class="label">Prints Analyzed</div>' +
+                '<div class="value">' + totalPrints + '</div>' +
+                '<div class="detail">' + outliers.length + ' outliers detected</div>' +
+            '</div>';
+    }
+
+    function renderGroupTable(groupStats, metric) {
+        document.getElementById('groupTableHead').innerHTML =
+            '<tr><th>Group</th><th>N</th><th>Mean</th><th>Std Dev</th>' +
+            '<th>CV%</th><th>Range</th><th>Score</th><th>Grade</th></tr>';
+
+        var html = '';
+        for (var i = 0; i < groupStats.length; i++) {
+            var g = groupStats[i];
+            var grade = cvGrade(g.cv);
+            var barWidth = Math.min(g.cv, 50) * 2; // max 100px
+            var barColor = grade === 'excellent' ? 'var(--success)' :
+                           grade === 'good' ? 'var(--accent)' :
+                           grade === 'fair' ? 'var(--warning)' : 'var(--error)';
+            html += '<tr>' +
+                '<td><strong>' + escapeHtml(g.name) + '</strong></td>' +
+                '<td>' + g.count + '</td>' +
+                '<td>' + g.mean.toFixed(2) + '</td>' +
+                '<td>' + g.std.toFixed(2) + '</td>' +
+                '<td><span class="cv-bar" style="width:' + barWidth + 'px;background:' + barColor + ';"></span>' + g.cv.toFixed(1) + '%</td>' +
+                '<td>' + g.min.toFixed(1) + ' \u2013 ' + g.max.toFixed(1) + '</td>' +
+                '<td style="font-weight:700;color:' + barColor + ';">' + g.score.toFixed(0) + '</td>' +
+                '<td><span class="badge badge-' + grade + '">' + cvGradeLabel(g.cv) + '</span></td>' +
+            '</tr>';
+        }
+        document.getElementById('groupTableBody').innerHTML = html;
+    }
+
+    function renderMetricTable(groupStats) {
+        var html = '';
+        for (var m = 0; m < OUTCOME_METRICS.length; m++) {
+            var metric = OUTCOME_METRICS[m];
+            var cvs = groupStats.map(function(g) { return g.metricCVs[metric.key]; });
+            var avgCV = mean(cvs);
+            var grade = cvGrade(avgCV);
+
+            var bestIdx = 0, worstIdx = 0;
+            for (var i = 1; i < cvs.length; i++) {
+                if (cvs[i] < cvs[bestIdx]) bestIdx = i;
+                if (cvs[i] > cvs[worstIdx]) worstIdx = i;
+            }
+
+            html += '<tr>' +
+                '<td><strong>' + metric.label + '</strong></td>' +
+                '<td class="grade-' + grade + '">' + avgCV.toFixed(1) + '%</td>' +
+                '<td><span class="badge badge-' + grade + '">' + cvGradeLabel(avgCV) + '</span></td>' +
+                '<td>' + escapeHtml(groupStats[bestIdx].name) + ' (' + cvs[bestIdx].toFixed(1) + '%)</td>' +
+                '<td>' + escapeHtml(groupStats[worstIdx].name) + ' (' + cvs[worstIdx].toFixed(1) + '%)</td>' +
+            '</tr>';
+        }
+        document.getElementById('metricTableBody').innerHTML = html;
+    }
+
+    function renderOutliers(outliers, metric) {
+        var el = document.getElementById('outlierList');
+        if (outliers.length === 0) {
+            el.innerHTML = '<p style="color:var(--muted);text-align:center;">No outliers detected (all prints within 2 SD of group mean)</p>';
+            return;
+        }
+
+        var html = '<table><thead><tr><th>Serial</th><th>Group</th><th>' +
+            metric.label + '</th><th>Group Mean</th><th>Z-Score</th></tr></thead><tbody>';
+
+        var maxShow = Math.min(outliers.length, 20);
+        for (var i = 0; i < maxShow; i++) {
+            var o = outliers[i];
+            html += '<tr class="outlier-row">' +
+                '<td>#' + o.serial + '</td>' +
+                '<td>' + escapeHtml(o.group) + '</td>' +
+                '<td>' + o.value.toFixed(2) + '</td>' +
+                '<td>' + o.groupMean.toFixed(2) + '</td>' +
+                '<td style="color:var(--error);font-weight:700;">' + o.zScore.toFixed(2) + '\u03C3</td>' +
+            '</tr>';
+        }
+        html += '</tbody></table>';
+        if (outliers.length > maxShow) {
+            html += '<p style="color:var(--muted);font-size:0.8rem;margin-top:0.5rem;">Showing top ' + maxShow + ' of ' + outliers.length + ' outliers</p>';
+        }
+        el.innerHTML = html;
+    }
+
+    // ── Charts ──────────────────────────────────────────
+
+    function setupCanvas(canvas, w, h) {
+        var dpr = window.devicePixelRatio || 1;
+        canvas.width = w * dpr;
+        canvas.height = h * dpr;
+        canvas.style.width = w + 'px';
+        canvas.style.height = h + 'px';
+        var ctx = canvas.getContext('2d');
+        ctx.scale(dpr, dpr);
+        return ctx;
+    }
+
+    function drawCVChart(groupStats) {
+        var canvas = document.getElementById('cvChart');
+        var W = canvas.parentElement.clientWidth - 48;
+        var H = 300;
+        var ctx = setupCanvas(canvas, W, H);
+        var pad = { top: 30, right: 20, bottom: 80, left: 60 };
+        var chartW = W - pad.left - pad.right;
+        var chartH = H - pad.top - pad.bottom;
+
+        ctx.clearRect(0, 0, W, H);
+
+        var n = groupStats.length;
+        if (n === 0) return;
+
+        var maxCV = Math.max.apply(null, groupStats.map(function(g) { return g.cv; }));
+        maxCV = Math.max(maxCV * 1.1, 10);
+        var barW = Math.min(40, (chartW - n * 4) / n);
+
+        // Grid lines
+        ctx.strokeStyle = '#334155';
+        ctx.lineWidth = 0.5;
+        for (var g = 0; g <= 4; g++) {
+            var gy = pad.top + chartH - (g / 4) * chartH;
+            ctx.beginPath(); ctx.moveTo(pad.left, gy); ctx.lineTo(pad.left + chartW, gy); ctx.stroke();
+            ctx.fillStyle = '#94a3b8';
+            ctx.font = '11px sans-serif';
+            ctx.textAlign = 'right';
+            ctx.fillText((maxCV * g / 4).toFixed(0) + '%', pad.left - 8, gy + 4);
+        }
+
+        // Threshold lines
+        var thresholds = [
+            { val: 10, color: 'rgba(74,222,128,0.3)', label: 'Excellent' },
+            { val: 20, color: 'rgba(56,189,248,0.3)', label: 'Good' },
+            { val: 30, color: 'rgba(251,191,36,0.3)', label: 'Fair' },
+        ];
+        for (var t = 0; t < thresholds.length; t++) {
+            if (thresholds[t].val <= maxCV) {
+                var ty = pad.top + chartH - (thresholds[t].val / maxCV) * chartH;
+                ctx.strokeStyle = thresholds[t].color;
+                ctx.lineWidth = 1;
+                ctx.setLineDash([4, 4]);
+                ctx.beginPath(); ctx.moveTo(pad.left, ty); ctx.lineTo(pad.left + chartW, ty); ctx.stroke();
+                ctx.setLineDash([]);
+            }
+        }
+
+        // Bars
+        for (var i = 0; i < n; i++) {
+            var gs = groupStats[i];
+            var x = pad.left + (i + 0.5) * (chartW / n) - barW / 2;
+            var barH = (gs.cv / maxCV) * chartH;
+            var y = pad.top + chartH - barH;
+
+            var grade = cvGrade(gs.cv);
+            var colors = { excellent: '#4ade80', good: '#38bdf8', fair: '#fbbf24', poor: '#f87171' };
+            ctx.fillStyle = colors[grade];
+            ctx.beginPath();
+            ctx.roundRect(x, y, barW, barH, [4, 4, 0, 0]);
+            ctx.fill();
+
+            // Label
+            ctx.fillStyle = '#94a3b8';
+            ctx.font = '10px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.save();
+            ctx.translate(x + barW / 2, pad.top + chartH + 12);
+            ctx.rotate(-Math.PI / 4);
+            ctx.fillText(gs.name.length > 15 ? gs.name.substring(0, 15) + '\u2026' : gs.name, 0, 0);
+            ctx.restore();
+
+            // Value on top
+            ctx.fillStyle = '#e2e8f0';
+            ctx.font = 'bold 10px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText(gs.cv.toFixed(1) + '%', x + barW / 2, y - 6);
+        }
+
+        // Axis label
+        ctx.fillStyle = '#94a3b8';
+        ctx.font = '12px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.save();
+        ctx.translate(14, pad.top + chartH / 2);
+        ctx.rotate(-Math.PI / 2);
+        ctx.fillText('Coefficient of Variation (%)', 0, 0);
+        ctx.restore();
+    }
+
+    function drawScoreChart(groupStats) {
+        var canvas = document.getElementById('scoreChart');
+        var W = canvas.parentElement.clientWidth - 48;
+        var H = 300;
+        var ctx = setupCanvas(canvas, W, H);
+        var pad = { top: 30, right: 20, bottom: 40, left: 60 };
+        var chartW = W - pad.left - pad.right;
+        var chartH = H - pad.top - pad.bottom;
+
+        ctx.clearRect(0, 0, W, H);
+
+        // Score distribution: bucket into 0-20, 20-40, 40-60, 60-80, 80-100
+        var buckets = [0, 0, 0, 0, 0];
+        var bucketLabels = ['0-20', '20-40', '40-60', '60-80', '80-100'];
+        var bucketColors = ['#f87171', '#fb923c', '#fbbf24', '#38bdf8', '#4ade80'];
+
+        for (var i = 0; i < groupStats.length; i++) {
+            var s = groupStats[i].score;
+            var idx = Math.min(4, Math.floor(s / 20));
+            buckets[idx]++;
+        }
+
+        var maxCount = Math.max.apply(null, buckets);
+        if (maxCount === 0) maxCount = 1;
+
+        var barW = (chartW - 6 * 10) / 5;
+
+        for (var b = 0; b < 5; b++) {
+            var x = pad.left + b * (barW + 10) + 5;
+            var barH = (buckets[b] / maxCount) * chartH;
+            var y = pad.top + chartH - barH;
+
+            ctx.fillStyle = bucketColors[b];
+            ctx.beginPath();
+            ctx.roundRect(x, y, barW, barH, [4, 4, 0, 0]);
+            ctx.fill();
+
+            // Count
+            if (buckets[b] > 0) {
+                ctx.fillStyle = '#e2e8f0';
+                ctx.font = 'bold 12px sans-serif';
+                ctx.textAlign = 'center';
+                ctx.fillText(buckets[b].toString(), x + barW / 2, y - 6);
+            }
+
+            // Label
+            ctx.fillStyle = '#94a3b8';
+            ctx.font = '11px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText(bucketLabels[b], x + barW / 2, pad.top + chartH + 16);
+        }
+
+        // Axis
+        ctx.fillStyle = '#94a3b8';
+        ctx.font = '12px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('Reproducibility Score', pad.left + chartW / 2, H - 4);
+        ctx.save();
+        ctx.translate(14, pad.top + chartH / 2);
+        ctx.rotate(-Math.PI / 2);
+        ctx.fillText('Number of Groups', 0, 0);
+        ctx.restore();
+    }
+
+    // ── Init ────────────────────────────────────────────
+
+    fetch('bioprint-data.json')
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            printData = data.filter(function(p) {
+                return p.print_data && p.print_info && p.user_info &&
+                       p.print_info.crosslinking && p.print_info.pressure &&
+                       p.print_info.resolution;
+            });
+            // Auto-analyze on load
+            analyze();
+        })
+        .catch(function(err) {
+            document.getElementById('results').innerHTML =
+                '<div class="card"><p style="color:var(--error);">Failed to load data: ' + err.message + '</p></div>';
+            document.getElementById('results').style.display = '';
+        });
+
+    // CommonJS export for testing
+    if (typeof module !== 'undefined' && module.exports) {
+        module.exports = {
+            getGroupKey: getGroupKey,
+            groupPrints: groupPrints,
+            mean: mean,
+            stddev: stddev,
+            coefficientOfVariation: coefficientOfVariation,
+            cvGrade: cvGrade,
+            cvGradeLabel: cvGradeLabel,
+            reproducibilityScore: reproducibilityScore,
+            extractValues: extractValues,
+        };
+    }
+    </script>
+</body>
+</html>
