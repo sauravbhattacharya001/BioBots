@@ -1,0 +1,956 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>BioBots 1 — Failure Mode Analysis</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧬</text></svg>">
+    <style>
+        :root {
+            --bg: #0f172a;
+            --surface: #1e293b;
+            --border: #334155;
+            --text: #e2e8f0;
+            --muted: #94a3b8;
+            --accent: #38bdf8;
+            --accent-hover: #7dd3fc;
+            --success: #4ade80;
+            --error: #f87171;
+            --warning: #fbbf24;
+            --purple: #a78bfa;
+            --orange: #fb923c;
+            --pink: #f472b6;
+            --teal: #2dd4bf;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            padding: 2rem 1rem;
+        }
+
+        .container { max-width: 1200px; margin: 0 auto; }
+
+        header { text-align: center; margin-bottom: 2rem; }
+
+        header h1 {
+            font-size: 2rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, var(--error), var(--orange));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        header p { color: var(--muted); margin-top: 0.5rem; }
+
+        .nav {
+            display: flex;
+            justify-content: center;
+            gap: 0.5rem;
+            margin-bottom: 2rem;
+            flex-wrap: wrap;
+        }
+
+        .nav a {
+            color: var(--muted);
+            text-decoration: none;
+            padding: 0.5rem 1rem;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            transition: all 0.2s;
+        }
+
+        .nav a:hover { color: var(--text); background: var(--surface); }
+        .nav a.active { color: var(--accent); background: var(--surface); border: 1px solid var(--border); }
+
+        .card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .card h2 {
+            font-size: 1.1rem;
+            margin-bottom: 1rem;
+            color: var(--muted);
+        }
+
+        .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1rem; }
+        .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; }
+
+        @media (max-width: 768px) {
+            .grid-2 { grid-template-columns: 1fr; }
+        }
+
+        .stat-card {
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 1.25rem;
+            text-align: center;
+        }
+
+        .stat-card .value {
+            font-size: 2rem;
+            font-weight: 700;
+            line-height: 1.2;
+        }
+
+        .stat-card .label {
+            font-size: 0.85rem;
+            color: var(--muted);
+            margin-top: 0.25rem;
+        }
+
+        .stat-card .sub {
+            font-size: 0.75rem;
+            color: var(--muted);
+            margin-top: 0.5rem;
+        }
+
+        canvas { width: 100% !important; }
+
+        .failure-list { list-style: none; }
+
+        .failure-item {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            padding: 0.75rem;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .failure-item:last-child { border-bottom: none; }
+
+        .failure-rank {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--muted);
+            min-width: 2rem;
+            text-align: center;
+        }
+
+        .failure-bar-bg {
+            flex: 1;
+            height: 28px;
+            background: var(--bg);
+            border-radius: 6px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .failure-bar {
+            height: 100%;
+            border-radius: 6px;
+            transition: width 0.6s ease;
+        }
+
+        .failure-bar-label {
+            position: absolute;
+            left: 0.75rem;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: var(--text);
+            white-space: nowrap;
+            text-shadow: 0 1px 2px rgba(0,0,0,0.5);
+        }
+
+        .failure-count {
+            min-width: 4rem;
+            text-align: right;
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
+
+        .failure-pct {
+            min-width: 4rem;
+            text-align: right;
+            color: var(--muted);
+            font-size: 0.85rem;
+        }
+
+        .rec-card {
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 1rem 1.25rem;
+            margin-bottom: 0.75rem;
+        }
+
+        .rec-card .rec-header {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .rec-card .rec-title {
+            font-weight: 600;
+            font-size: 0.95rem;
+        }
+
+        .rec-card .rec-desc {
+            font-size: 0.85rem;
+            color: var(--muted);
+            line-height: 1.5;
+        }
+
+        .severity-badge {
+            display: inline-block;
+            padding: 0.15rem 0.5rem;
+            border-radius: 4px;
+            font-size: 0.7rem;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+
+        .severity-critical { background: rgba(248,113,113,0.2); color: var(--error); }
+        .severity-major { background: rgba(251,191,36,0.2); color: var(--warning); }
+        .severity-minor { background: rgba(74,222,128,0.2); color: var(--success); }
+
+        .param-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.85rem;
+        }
+
+        .param-table th {
+            text-align: left;
+            padding: 0.5rem;
+            color: var(--muted);
+            border-bottom: 1px solid var(--border);
+            font-weight: 600;
+        }
+
+        .param-table td {
+            padding: 0.5rem;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .param-table tr:last-child td { border-bottom: none; }
+
+        .indicator {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            margin-right: 0.5rem;
+        }
+
+        .tabs {
+            display: flex;
+            gap: 0.25rem;
+            margin-bottom: 1rem;
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 0;
+        }
+
+        .tab {
+            padding: 0.5rem 1rem;
+            border: none;
+            background: none;
+            color: var(--muted);
+            cursor: pointer;
+            font-size: 0.9rem;
+            border-bottom: 2px solid transparent;
+            transition: all 0.2s;
+        }
+
+        .tab:hover { color: var(--text); }
+        .tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+
+        .loading {
+            text-align: center;
+            padding: 4rem;
+            color: var(--muted);
+        }
+
+        .loading::after {
+            content: '';
+            display: inline-block;
+            width: 1.5rem;
+            height: 1.5rem;
+            border: 2px solid var(--border);
+            border-top-color: var(--accent);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            margin-left: 0.75rem;
+            vertical-align: middle;
+        }
+
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        .cumulative-line {
+            stroke-dasharray: 5, 3;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>⚠️ Failure Mode Analysis</h1>
+            <p>Classify prints by failure type, identify root causes, and get actionable prevention recommendations</p>
+        </header>
+
+        <nav class="nav">
+            <a href="index.html">Home</a>
+            <a href="explorer.html">Explorer</a>
+            <a href="quality.html">Quality</a>
+            <a href="anomaly.html">Anomaly</a>
+            <a href="cluster.html">Clusters</a>
+            <a href="trends.html">Trends</a>
+            <a href="spc.html">SPC</a>
+            <a href="failure.html" class="active">Failure</a>
+        </nav>
+
+        <div id="app" class="loading">Loading bioprint data…</div>
+    </div>
+
+    <script src="shared/constants.js"></script>
+    <script src="shared/utils.js"></script>
+    <script>
+    /* ── Failure Mode Definitions ─────────────────────────────── */
+
+    /**
+     * Each failure mode defines:
+     *   id       — unique key
+     *   name     — human-readable label
+     *   emoji    — visual indicator
+     *   color    — bar/chart color
+     *   severity — critical | major | minor
+     *   test     — predicate: does this print exhibit this failure?
+     *   cause    — root cause description
+     *   fix      — prevention recommendation
+     *   params   — which parameters to check
+     */
+    const FAILURE_MODES = [
+        {
+            id: 'low_viability',
+            name: 'Low Cell Viability',
+            emoji: '💀',
+            color: '#f87171',
+            severity: 'critical',
+            test: p => p.print_data.livePercent < 15,
+            cause: 'Cell death due to excessive mechanical stress, suboptimal crosslinking, or incompatible pressure settings.',
+            fix: 'Reduce extruder pressure, optimize crosslinking duration (avoid >20,000 ms), and ensure bioink temperature is controlled.',
+            params: ['livePercent', 'extruder1', 'extruder2', 'cl_duration']
+        },
+        {
+            id: 'over_crosslinking',
+            name: 'Over-Crosslinking',
+            emoji: '🔥',
+            color: '#fb923c',
+            severity: 'major',
+            test: p => p.print_info.crosslinking.cl_enabled &&
+                       p.print_info.crosslinking.cl_duration > 25000 &&
+                       p.print_info.crosslinking.cl_intensity > 60,
+            cause: 'Excessive crosslinking damages cell membranes and reduces scaffold porosity, leading to poor nutrient diffusion.',
+            fix: 'Reduce crosslinking duration below 20,000 ms or intensity below 50%. Use stepwise crosslinking for thick constructs.',
+            params: ['cl_duration', 'cl_intensity', 'livePercent']
+        },
+        {
+            id: 'poor_elasticity',
+            name: 'Poor Mechanical Strength',
+            emoji: '🧊',
+            color: '#38bdf8',
+            severity: 'major',
+            test: p => p.print_data.elasticity < 20,
+            cause: 'Insufficient crosslinking or wrong bioink concentration produces weak scaffolds that collapse under their own weight.',
+            fix: 'Increase crosslinking intensity to 30-60%. Verify bioink hydrogel concentration (2-4% alginate). Consider multi-material support.',
+            params: ['elasticity', 'cl_intensity', 'cl_duration']
+        },
+        {
+            id: 'high_pressure',
+            name: 'Excessive Pressure',
+            emoji: '💥',
+            color: '#a78bfa',
+            severity: 'major',
+            test: p => p.print_info.pressure.extruder1 > 85 || p.print_info.pressure.extruder2 > 85,
+            cause: 'High extrusion pressure causes shear stress that damages cells and produces inconsistent line widths.',
+            fix: 'Use nozzles with larger inner diameter. Reduce flow rate. Optimize bioink viscosity with thixotropic agents.',
+            params: ['extruder1', 'extruder2', 'livePercent', 'elasticity']
+        },
+        {
+            id: 'resolution_issue',
+            name: 'Low Print Resolution',
+            emoji: '📐',
+            color: '#2dd4bf',
+            severity: 'minor',
+            test: p => p.print_info.resolution.layerHeight > 0.9 && p.print_info.resolution.layerNum < 10,
+            cause: 'Thick layers with few layer count produce coarse structures with poor z-axis fidelity.',
+            fix: 'Reduce layer height to 0.2-0.5 mm. Increase layer count for better structural detail. Calibrate z-axis stepper.',
+            params: ['layerHeight', 'layerNum']
+        },
+        {
+            id: 'pressure_imbalance',
+            name: 'Dual Extruder Imbalance',
+            emoji: '⚖️',
+            color: '#f472b6',
+            severity: 'minor',
+            test: p => {
+                const diff = Math.abs(p.print_info.pressure.extruder1 - p.print_info.pressure.extruder2);
+                return diff > 60;
+            },
+            cause: 'Large pressure difference between extruders causes uneven material deposition and layer adhesion problems.',
+            fix: 'Calibrate both extruders independently. Use pressure sensors to verify actual vs. commanded pressure. Match bioink viscosities.',
+            params: ['extruder1', 'extruder2']
+        },
+        {
+            id: 'no_crosslinking',
+            name: 'Missing Crosslinking',
+            emoji: '🚫',
+            color: '#fbbf24',
+            severity: 'critical',
+            test: p => !p.print_info.crosslinking.cl_enabled && p.print_data.elasticity < 30,
+            cause: 'Skipping crosslinking with low-viscosity bioinks produces scaffolds with no structural integrity.',
+            fix: 'Enable crosslinking for all tissue engineering prints. Use physical (ionic) crosslinking as backup for UV-sensitive cells.',
+            params: ['cl_duration', 'cl_intensity', 'elasticity']
+        },
+        {
+            id: 'cell_death_dominant',
+            name: 'Extreme Cell Death',
+            emoji: '☠️',
+            color: '#ef4444',
+            severity: 'critical',
+            test: p => p.print_data.deadPercent > 90,
+            cause: 'Near-total cell death indicating fundamental protocol failure — likely temperature, contamination, or material incompatibility.',
+            fix: 'Verify sterile technique. Check bioink temperature (37°C ± 1°C). Test cell-material compatibility before full prints. Reduce total print time.',
+            params: ['deadPercent', 'livePercent', 'cl_duration', 'extruder1']
+        }
+    ];
+
+    /* ── Analysis Engine ──────────────────────────────────────── */
+
+    function classifyPrints(data) {
+        const results = FAILURE_MODES.map(mode => ({
+            ...mode,
+            prints: data.filter(mode.test),
+            count: 0,
+            pct: 0
+        }));
+
+        results.forEach(r => {
+            r.count = r.prints.length;
+            r.pct = (r.count / data.length) * 100;
+        });
+
+        results.sort((a, b) => b.count - a.count);
+        return results;
+    }
+
+    function computeFailureStats(data, results) {
+        const totalPrints = data.length;
+        const failedPrints = new Set();
+        results.forEach(r => r.prints.forEach(p => failedPrints.add(p.user_info.serial)));
+        const uniqueFailures = failedPrints.size;
+
+        // Prints with multiple failures
+        const failureCounts = {};
+        results.forEach(r => {
+            r.prints.forEach(p => {
+                const id = p.user_info.serial;
+                failureCounts[id] = (failureCounts[id] || 0) + 1;
+            });
+        });
+        const multiFailure = Object.values(failureCounts).filter(c => c > 1).length;
+
+        // Severity breakdown
+        const bySeverity = { critical: 0, major: 0, minor: 0 };
+        results.forEach(r => {
+            if (r.count > 0) bySeverity[r.severity]++;
+        });
+
+        return {
+            totalPrints,
+            uniqueFailures,
+            failureRate: (uniqueFailures / totalPrints) * 100,
+            multiFailure,
+            multiFailureRate: totalPrints > 0 ? (multiFailure / totalPrints) * 100 : 0,
+            activeModes: results.filter(r => r.count > 0).length,
+            totalModes: results.length,
+            bySeverity
+        };
+    }
+
+    function parameterAnalysis(results) {
+        // For each active failure mode, compute parameter statistics
+        return results.filter(r => r.count > 0).map(r => {
+            const paramStats = {};
+            r.params.forEach(metric => {
+                const values = r.prints.map(p => getMetricValue(p, metric)).filter(v => v != null);
+                if (values.length > 0) {
+                    const sorted = [...values].sort((a, b) => a - b);
+                    paramStats[metric] = {
+                        mean: values.reduce((a, b) => a + b, 0) / values.length,
+                        min: sorted[0],
+                        max: sorted[sorted.length - 1],
+                        median: percentile(sorted, 0.5),
+                        label: metricLabels[metric] || metric
+                    };
+                }
+            });
+            return { mode: r, paramStats };
+        });
+    }
+
+    function coOccurrenceMatrix(data, results) {
+        const active = results.filter(r => r.count > 0);
+        const matrix = [];
+
+        for (let i = 0; i < active.length; i++) {
+            const row = [];
+            for (let j = 0; j < active.length; j++) {
+                if (i === j) {
+                    row.push(active[i].count);
+                } else {
+                    const overlap = active[i].prints.filter(p =>
+                        active[j].test(p)
+                    ).length;
+                    row.push(overlap);
+                }
+            }
+            matrix.push(row);
+        }
+
+        return { modes: active, matrix };
+    }
+
+    /* ── Rendering ────────────────────────────────────────────── */
+
+    function render(data) {
+        const results = classifyPrints(data);
+        const stats = computeFailureStats(data, results);
+        const paramData = parameterAnalysis(results);
+        const coOccurrence = coOccurrenceMatrix(data, results);
+
+        const app = document.getElementById('app');
+        app.className = '';
+        app.innerHTML = '';
+
+        // Summary stats
+        app.innerHTML += renderSummary(stats);
+
+        // Tabs
+        app.innerHTML += `
+            <div class="card">
+                <div class="tabs">
+                    <button class="tab active" onclick="switchTab(event, 'pareto')">Pareto Chart</button>
+                    <button class="tab" onclick="switchTab(event, 'breakdown')">Breakdown</button>
+                    <button class="tab" onclick="switchTab(event, 'parameters')">Root Causes</button>
+                    <button class="tab" onclick="switchTab(event, 'cooccurrence')">Co-occurrence</button>
+                    <button class="tab" onclick="switchTab(event, 'recommendations')">Recommendations</button>
+                </div>
+                <div id="tab-pareto" class="tab-content active"></div>
+                <div id="tab-breakdown" class="tab-content"></div>
+                <div id="tab-parameters" class="tab-content"></div>
+                <div id="tab-cooccurrence" class="tab-content"></div>
+                <div id="tab-recommendations" class="tab-content"></div>
+            </div>
+        `;
+
+        renderPareto(results, stats);
+        renderBreakdown(results);
+        renderParameters(paramData);
+        renderCoOccurrence(coOccurrence);
+        renderRecommendations(results, stats);
+    }
+
+    function renderSummary(stats) {
+        return `
+            <div class="grid" style="margin-bottom: 1.5rem;">
+                <div class="stat-card">
+                    <div class="value" style="color: var(--error);">${stats.failureRate.toFixed(1)}%</div>
+                    <div class="label">Failure Rate</div>
+                    <div class="sub">${stats.uniqueFailures.toLocaleString()} of ${stats.totalPrints.toLocaleString()} prints</div>
+                </div>
+                <div class="stat-card">
+                    <div class="value" style="color: var(--warning);">${stats.activeModes}</div>
+                    <div class="label">Active Failure Modes</div>
+                    <div class="sub">of ${stats.totalModes} defined modes</div>
+                </div>
+                <div class="stat-card">
+                    <div class="value" style="color: var(--orange);">${stats.multiFailureRate.toFixed(1)}%</div>
+                    <div class="label">Multi-Failure Rate</div>
+                    <div class="sub">${stats.multiFailure.toLocaleString()} prints with 2+ failures</div>
+                </div>
+                <div class="stat-card">
+                    <div class="value">
+                        <span style="color: var(--error);">${stats.bySeverity.critical}</span>
+                        <span style="color: var(--muted); font-size: 1rem;">/</span>
+                        <span style="color: var(--warning);">${stats.bySeverity.major}</span>
+                        <span style="color: var(--muted); font-size: 1rem;">/</span>
+                        <span style="color: var(--success);">${stats.bySeverity.minor}</span>
+                    </div>
+                    <div class="label">Severity Distribution</div>
+                    <div class="sub">Critical / Major / Minor</div>
+                </div>
+            </div>
+        `;
+    }
+
+    function renderPareto(results, stats) {
+        const container = document.getElementById('tab-pareto');
+        const active = results.filter(r => r.count > 0);
+        if (active.length === 0) {
+            container.innerHTML = '<p style="color: var(--muted); text-align: center; padding: 2rem;">No failures detected — all prints passed quality thresholds! 🎉</p>';
+            return;
+        }
+
+        container.innerHTML = `
+            <h2>Pareto Analysis — 80/20 Failure Distribution</h2>
+            <canvas id="paretoChart" height="300"></canvas>
+            <p style="color: var(--muted); font-size: 0.8rem; margin-top: 0.75rem; text-align: center;">
+                Bars show individual failure mode frequency. Dashed line shows cumulative percentage.
+                Focus on modes left of the 80% line for maximum impact.
+            </p>
+        `;
+
+        const canvas = document.getElementById('paretoChart');
+        const ctx = canvas.getContext('2d');
+        const dpr = window.devicePixelRatio || 1;
+        const rect = canvas.getBoundingClientRect();
+        canvas.width = rect.width * dpr;
+        canvas.height = 300 * dpr;
+        ctx.scale(dpr, dpr);
+
+        const W = rect.width;
+        const H = 300;
+        const pad = { top: 30, right: 60, bottom: 80, left: 60 };
+        const plotW = W - pad.left - pad.right;
+        const plotH = H - pad.top - pad.bottom;
+
+        const totalFailures = active.reduce((s, r) => s + r.count, 0);
+        const maxCount = active[0].count;
+
+        // Bars
+        const barW = Math.min(60, plotW / active.length - 8);
+        const gap = (plotW - barW * active.length) / (active.length + 1);
+
+        // Draw bars
+        let cumulative = 0;
+        const cumPoints = [];
+
+        active.forEach((r, i) => {
+            const x = pad.left + gap + i * (barW + gap);
+            const barH = (r.count / maxCount) * plotH;
+            const y = pad.top + plotH - barH;
+
+            ctx.fillStyle = r.color;
+            ctx.beginPath();
+            ctx.roundRect(x, y, barW, barH, [4, 4, 0, 0]);
+            ctx.fill();
+
+            // Count label
+            ctx.fillStyle = '#e2e8f0';
+            ctx.font = '11px system-ui';
+            ctx.textAlign = 'center';
+            ctx.fillText(r.count.toLocaleString(), x + barW / 2, y - 5);
+
+            // X-axis label
+            ctx.save();
+            ctx.translate(x + barW / 2, H - pad.bottom + 8);
+            ctx.rotate(-0.5);
+            ctx.fillStyle = '#94a3b8';
+            ctx.font = '10px system-ui';
+            ctx.textAlign = 'left';
+            ctx.fillText(r.emoji + ' ' + r.name, 0, 0);
+            ctx.restore();
+
+            // Cumulative
+            cumulative += r.count;
+            const cumPct = (cumulative / totalFailures) * 100;
+            const cumY = pad.top + plotH - (cumPct / 100) * plotH;
+            cumPoints.push({ x: x + barW / 2, y: cumY, pct: cumPct });
+        });
+
+        // Cumulative line
+        ctx.strokeStyle = '#38bdf8';
+        ctx.lineWidth = 2;
+        ctx.setLineDash([5, 3]);
+        ctx.beginPath();
+        cumPoints.forEach((pt, i) => {
+            if (i === 0) ctx.moveTo(pt.x, pt.y);
+            else ctx.lineTo(pt.x, pt.y);
+        });
+        ctx.stroke();
+        ctx.setLineDash([]);
+
+        // Cumulative dots + labels
+        cumPoints.forEach(pt => {
+            ctx.fillStyle = '#38bdf8';
+            ctx.beginPath();
+            ctx.arc(pt.x, pt.y, 3, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.fillStyle = '#94a3b8';
+            ctx.font = '10px system-ui';
+            ctx.textAlign = 'center';
+            ctx.fillText(pt.pct.toFixed(0) + '%', pt.x, pt.y - 8);
+        });
+
+        // 80% reference line
+        const y80 = pad.top + plotH - 0.8 * plotH;
+        ctx.strokeStyle = 'rgba(248,113,113,0.4)';
+        ctx.lineWidth = 1;
+        ctx.setLineDash([4, 4]);
+        ctx.beginPath();
+        ctx.moveTo(pad.left, y80);
+        ctx.lineTo(W - pad.right, y80);
+        ctx.stroke();
+        ctx.setLineDash([]);
+
+        ctx.fillStyle = 'rgba(248,113,113,0.6)';
+        ctx.font = '10px system-ui';
+        ctx.textAlign = 'right';
+        ctx.fillText('80%', pad.left - 5, y80 + 4);
+
+        // Y-axis
+        ctx.fillStyle = '#94a3b8';
+        ctx.font = '10px system-ui';
+        ctx.textAlign = 'right';
+        for (let i = 0; i <= 4; i++) {
+            const val = Math.round(maxCount * i / 4);
+            const y = pad.top + plotH - (i / 4) * plotH;
+            ctx.fillText(val.toLocaleString(), pad.left - 8, y + 4);
+        }
+
+        // Right Y-axis (cumulative %)
+        ctx.textAlign = 'left';
+        for (let i = 0; i <= 4; i++) {
+            const pct = i * 25;
+            const y = pad.top + plotH - (pct / 100) * plotH;
+            ctx.fillText(pct + '%', W - pad.right + 8, y + 4);
+        }
+    }
+
+    function renderBreakdown(results) {
+        const container = document.getElementById('tab-breakdown');
+        const active = results.filter(r => r.count > 0);
+        const maxCount = active.length > 0 ? active[0].count : 1;
+
+        let html = '<h2>Failure Mode Breakdown</h2><ul class="failure-list">';
+
+        active.forEach((r, i) => {
+            const barWidth = (r.count / maxCount) * 100;
+            html += `
+                <li class="failure-item">
+                    <span class="failure-rank">#${i + 1}</span>
+                    <span style="font-size: 1.5rem;">${r.emoji}</span>
+                    <div class="failure-bar-bg">
+                        <div class="failure-bar" style="width: ${barWidth}%; background: ${r.color};"></div>
+                        <span class="failure-bar-label">${escapeHtml(r.name)}</span>
+                    </div>
+                    <span class="failure-count" style="color: ${r.color};">${r.count.toLocaleString()}</span>
+                    <span class="failure-pct">${r.pct.toFixed(1)}%</span>
+                    <span class="severity-badge severity-${r.severity}">${r.severity}</span>
+                </li>
+            `;
+        });
+
+        if (active.length === 0) {
+            html += '<li style="text-align: center; padding: 2rem; color: var(--muted);">No failures detected 🎉</li>';
+        }
+
+        html += '</ul>';
+        container.innerHTML = html;
+    }
+
+    function renderParameters(paramData) {
+        const container = document.getElementById('tab-parameters');
+        let html = '<h2>Root Cause Analysis — Parameter Statistics for Failed Prints</h2>';
+
+        if (paramData.length === 0) {
+            html += '<p style="color: var(--muted); text-align: center; padding: 2rem;">No failures to analyze.</p>';
+            container.innerHTML = html;
+            return;
+        }
+
+        paramData.forEach(({ mode, paramStats }) => {
+            html += `
+                <div class="rec-card">
+                    <div class="rec-header">
+                        <span style="font-size: 1.25rem;">${mode.emoji}</span>
+                        <span class="rec-title">${escapeHtml(mode.name)}</span>
+                        <span class="severity-badge severity-${mode.severity}">${mode.severity}</span>
+                        <span style="color: var(--muted); font-size: 0.8rem; margin-left: auto;">${mode.count.toLocaleString()} prints affected</span>
+                    </div>
+                    <p class="rec-desc" style="margin-bottom: 0.75rem;"><strong>Cause:</strong> ${escapeHtml(mode.cause)}</p>
+                    <table class="param-table">
+                        <thead>
+                            <tr>
+                                <th>Parameter</th>
+                                <th>Mean</th>
+                                <th>Median</th>
+                                <th>Min</th>
+                                <th>Max</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+            `;
+
+            Object.entries(paramStats).forEach(([metric, s]) => {
+                html += `
+                    <tr>
+                        <td><span class="indicator" style="background: ${metricColors[metric] || 'var(--accent)'}"></span>${escapeHtml(s.label)}</td>
+                        <td>${formatNum(s.mean)}</td>
+                        <td>${formatNum(s.median)}</td>
+                        <td>${formatNum(s.min)}</td>
+                        <td>${formatNum(s.max)}</td>
+                    </tr>
+                `;
+            });
+
+            html += `
+                        </tbody>
+                    </table>
+                </div>
+            `;
+        });
+
+        container.innerHTML = html;
+    }
+
+    function renderCoOccurrence(coOccurrence) {
+        const container = document.getElementById('tab-cooccurrence');
+        const { modes, matrix } = coOccurrence;
+
+        let html = '<h2>Co-occurrence Matrix — Failure Mode Interactions</h2>';
+        html += '<p style="color: var(--muted); font-size: 0.85rem; margin-bottom: 1rem;">Shows how many prints exhibit both row and column failure modes simultaneously. Diagonal shows total count per mode.</p>';
+
+        if (modes.length === 0) {
+            html += '<p style="color: var(--muted); text-align: center; padding: 2rem;">No failures to compare.</p>';
+            container.innerHTML = html;
+            return;
+        }
+
+        html += '<div style="overflow-x: auto;"><table class="param-table">';
+        html += '<thead><tr><th></th>';
+        modes.forEach(m => {
+            html += `<th style="text-align: center; writing-mode: vertical-rl; transform: rotate(180deg); height: 100px; font-size: 0.75rem;">${m.emoji} ${escapeHtml(m.name)}</th>`;
+        });
+        html += '</tr></thead><tbody>';
+
+        matrix.forEach((row, i) => {
+            html += `<tr><td style="white-space: nowrap; font-weight: 600;">${modes[i].emoji} ${escapeHtml(modes[i].name)}</td>`;
+            row.forEach((val, j) => {
+                const isDiag = i === j;
+                const maxVal = Math.max(...matrix.flat().filter((_, idx) => {
+                    const r = Math.floor(idx / modes.length);
+                    const c = idx % modes.length;
+                    return r !== c;
+                }), 1);
+                const intensity = isDiag ? 0.15 : Math.min(0.8, (val / maxVal) * 0.8);
+                const color = isDiag ? 'var(--accent)' : (val > 0 ? `rgba(248,113,113,${intensity})` : 'transparent');
+                html += `<td style="text-align: center; background: ${color}; font-weight: ${isDiag ? '700' : '400'}; font-size: 0.85rem;">${val > 0 ? val.toLocaleString() : '—'}</td>`;
+            });
+            html += '</tr>';
+        });
+
+        html += '</tbody></table></div>';
+        container.innerHTML = html;
+    }
+
+    function renderRecommendations(results, stats) {
+        const container = document.getElementById('tab-recommendations');
+        const active = results.filter(r => r.count > 0);
+
+        let html = '<h2>Prevention Recommendations</h2>';
+
+        // Overall assessment
+        let assessment, assessColor;
+        if (stats.failureRate < 20) {
+            assessment = 'Low failure rate — your protocol is performing well. Focus on eliminating the remaining failure modes below.';
+            assessColor = 'var(--success)';
+        } else if (stats.failureRate < 50) {
+            assessment = 'Moderate failure rate — there are clear opportunities to improve yield by addressing top failure modes.';
+            assessColor = 'var(--warning)';
+        } else {
+            assessment = 'High failure rate — protocol optimization is urgently needed. Address critical failure modes first.';
+            assessColor = 'var(--error)';
+        }
+
+        html += `
+            <div class="rec-card" style="border-left: 3px solid ${assessColor};">
+                <div class="rec-header">
+                    <span style="font-size: 1.25rem;">📋</span>
+                    <span class="rec-title">Overall Assessment</span>
+                </div>
+                <p class="rec-desc">${escapeHtml(assessment)}</p>
+            </div>
+        `;
+
+        // Sort by severity then count
+        const severityOrder = { critical: 0, major: 1, minor: 2 };
+        const sorted = [...active].sort((a, b) => {
+            const sDiff = severityOrder[a.severity] - severityOrder[b.severity];
+            return sDiff !== 0 ? sDiff : b.count - a.count;
+        });
+
+        sorted.forEach((r, i) => {
+            const impact = r.pct > 20 ? 'High Impact' : r.pct > 5 ? 'Medium Impact' : 'Low Impact';
+            const impactColor = r.pct > 20 ? 'var(--error)' : r.pct > 5 ? 'var(--warning)' : 'var(--success)';
+
+            html += `
+                <div class="rec-card">
+                    <div class="rec-header">
+                        <span style="font-size: 1.25rem;">${r.emoji}</span>
+                        <span class="rec-title">${escapeHtml(r.name)}</span>
+                        <span class="severity-badge severity-${r.severity}">${r.severity}</span>
+                        <span style="color: ${impactColor}; font-size: 0.8rem; margin-left: 0.5rem; font-weight: 600;">${impact} (${r.pct.toFixed(1)}%)</span>
+                    </div>
+                    <p class="rec-desc"><strong>Root cause:</strong> ${escapeHtml(r.cause)}</p>
+                    <p class="rec-desc" style="margin-top: 0.5rem;"><strong>🔧 Fix:</strong> ${escapeHtml(r.fix)}</p>
+                </div>
+            `;
+        });
+
+        // Summary table
+        if (active.length > 0) {
+            html += `
+                <div style="margin-top: 1rem; padding: 1rem; background: var(--bg); border-radius: 12px; border: 1px solid var(--border);">
+                    <p style="color: var(--muted); font-size: 0.85rem;">
+                        <strong>Priority order:</strong> Address
+                        ${sorted.slice(0, 3).map(r => r.emoji + ' ' + r.name).join(' → ')}
+                        first for maximum yield improvement.
+                        ${stats.multiFailure > 0 ? `Note: ${stats.multiFailure.toLocaleString()} prints have overlapping failures — fixing one mode may resolve others.` : ''}
+                    </p>
+                </div>
+            `;
+        }
+
+        container.innerHTML = html;
+    }
+
+    /* ── Tab switching ────────────────────────────────────────── */
+
+    function switchTab(event, tabId) {
+        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+        document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+        event.target.classList.add('active');
+        document.getElementById('tab-' + tabId).classList.add('active');
+    }
+
+    /* ── Init ─────────────────────────────────────────────────── */
+
+    fetch('bioprint-data.json')
+        .then(r => r.json())
+        .then(render)
+        .catch(err => {
+            document.getElementById('app').innerHTML =
+                '<p style="color: var(--error); text-align: center; padding: 2rem;">Failed to load data: ' + escapeHtml(err.message) + '</p>';
+        });
+    </script>
+</body>
+</html>
