@@ -53,6 +53,7 @@ All analysis tools are deployed on GitHub Pages:
 | [📈 Trend Analysis](https://sauravbhattacharya001.github.io/BioBots/trends.html) | Metric trends, moving averages, correlations |
 | [📋 Data Table](https://sauravbhattacharya001.github.io/BioBots/table.html) | Searchable, sortable, filterable data browser |
 | [🧫 Wellplate Analyzer](https://sauravbhattacharya001.github.io/BioBots/wellplate.html) | Performance breakdown by wellplate format |
+| [📋 Print Report](https://sauravbhattacharya001.github.io/BioBots/report.html) | Generate formatted, printable lab reports |
 
 ## 🏗️ Architecture
 

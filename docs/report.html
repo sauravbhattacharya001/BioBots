@@ -1,0 +1,515 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>BioBots 1 — Print Report Generator</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧬</text></svg>">
+    <script src="shared/constants.js"></script>
+    <style>
+        :root {
+            --bg: #0f172a;
+            --surface: #1e293b;
+            --border: #334155;
+            --text: #e2e8f0;
+            --muted: #94a3b8;
+            --accent: #38bdf8;
+            --accent-hover: #7dd3fc;
+            --success: #4ade80;
+            --error: #f87171;
+            --warning: #fbbf24;
+            --purple: #a78bfa;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            padding: 2rem 1rem;
+        }
+        .container { max-width: 1200px; margin: 0 auto; }
+        header { text-align: center; margin-bottom: 2rem; }
+        header h1 {
+            font-size: 2rem; font-weight: 700;
+            background: linear-gradient(135deg, var(--accent), var(--purple));
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+        }
+        header p { color: var(--muted); margin-top: 0.5rem; }
+
+        .nav { display: flex; justify-content: center; gap: 0.5rem; margin-bottom: 2rem; flex-wrap: wrap; }
+        .nav a {
+            color: var(--muted); padding: 0.5rem 1rem; border-radius: 8px;
+            text-decoration: none; font-size: 0.9rem; transition: all 0.2s;
+        }
+        .nav a:hover { color: var(--accent); }
+        .nav a.active {
+            color: var(--accent); background: var(--surface);
+            border: 1px solid var(--border);
+        }
+
+        .card {
+            background: var(--surface); border: 1px solid var(--border);
+            border-radius: 12px; padding: 1.5rem; margin-bottom: 1.5rem;
+        }
+        .card h2 { font-size: 1.1rem; margin-bottom: 1rem; }
+
+        .controls { display: flex; gap: 1rem; flex-wrap: wrap; align-items: end; }
+        .control-group { display: flex; flex-direction: column; gap: 0.3rem; }
+        .control-group label { font-size: 0.8rem; color: var(--muted); font-weight: 500; }
+        .control-group input, .control-group select {
+            background: var(--bg); border: 1px solid var(--border);
+            color: var(--text); padding: 0.4rem 0.7rem; border-radius: 6px;
+            font-size: 0.85rem; font-family: inherit;
+        }
+        .control-group input:focus, .control-group select:focus {
+            outline: none; border-color: var(--accent);
+        }
+        .btn {
+            padding: 0.5rem 1.2rem; border-radius: 8px; border: none;
+            font-family: inherit; font-size: 0.85rem; font-weight: 600;
+            cursor: pointer; transition: all 0.2s;
+        }
+        .btn-primary { background: var(--accent); color: #0f172a; }
+        .btn-primary:hover { background: var(--accent-hover); }
+        .btn-outline { background: none; border: 1px solid var(--border); color: var(--muted); }
+        .btn-outline:hover { border-color: var(--accent); color: var(--accent); }
+        .btn-success { background: var(--success); color: #0f172a; }
+        .btn-success:hover { opacity: 0.9; }
+
+        /* Print selector */
+        .print-grid {
+            display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+            gap: 0.5rem; max-height: 300px; overflow-y: auto; padding: 0.5rem;
+        }
+        .print-chip {
+            padding: 0.4rem 0.6rem; border-radius: 6px; font-size: 0.8rem;
+            border: 1px solid var(--border); cursor: pointer; text-align: center;
+            transition: all 0.2s; background: var(--bg); user-select: none;
+        }
+        .print-chip:hover { border-color: var(--accent); }
+        .print-chip.selected {
+            background: rgba(56, 189, 248, 0.15); border-color: var(--accent); color: var(--accent);
+        }
+        .print-chip .viability {
+            font-size: 0.7rem; color: var(--muted); margin-top: 0.2rem;
+        }
+
+        /* Selection info */
+        .selection-bar {
+            display: flex; justify-content: space-between; align-items: center;
+            margin: 1rem 0; padding: 0.75rem 1rem; background: var(--bg);
+            border-radius: 8px; border: 1px solid var(--border);
+        }
+        .selection-bar span { font-size: 0.85rem; color: var(--muted); }
+        .selection-bar .count { color: var(--accent); font-weight: 600; }
+
+        /* Report area */
+        #report-area { display: none; }
+
+        .report {
+            background: white; color: #1a1a1a; border-radius: 12px;
+            padding: 2.5rem; font-family: Georgia, 'Times New Roman', serif;
+        }
+        .report-header {
+            text-align: center; border-bottom: 2px solid #333;
+            padding-bottom: 1rem; margin-bottom: 1.5rem;
+        }
+        .report-header h1 { font-size: 1.6rem; color: #111; margin-bottom: 0.3rem; }
+        .report-header .subtitle { color: #666; font-size: 0.9rem; }
+        .report-header .meta { color: #888; font-size: 0.8rem; margin-top: 0.5rem; }
+
+        .report-summary {
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            gap: 1rem; margin-bottom: 1.5rem; padding: 1rem;
+            background: #f8f9fa; border-radius: 8px;
+        }
+        .summary-stat { text-align: center; }
+        .summary-stat .value { font-size: 1.4rem; font-weight: 700; color: #2563eb; }
+        .summary-stat .label { font-size: 0.75rem; color: #666; text-transform: uppercase; letter-spacing: 0.5px; }
+
+        .print-section {
+            page-break-inside: avoid; border: 1px solid #ddd;
+            border-radius: 8px; padding: 1.25rem; margin-bottom: 1rem;
+        }
+        .print-section h3 {
+            font-size: 1rem; color: #333; margin-bottom: 0.75rem;
+            padding-bottom: 0.5rem; border-bottom: 1px solid #eee;
+        }
+        .print-section .grade {
+            display: inline-block; padding: 0.2rem 0.6rem; border-radius: 4px;
+            font-size: 0.75rem; font-weight: 700; margin-left: 0.5rem;
+            font-family: -apple-system, sans-serif;
+        }
+        .grade-a { background: #dcfce7; color: #166534; }
+        .grade-b { background: #dbeafe; color: #1e40af; }
+        .grade-c { background: #fef9c3; color: #854d0e; }
+        .grade-d { background: #fee2e2; color: #991b1b; }
+
+        .metric-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+        .metric-table th, .metric-table td {
+            text-align: left; padding: 0.4rem 0.6rem; border-bottom: 1px solid #eee;
+        }
+        .metric-table th { color: #666; font-weight: 600; font-size: 0.75rem; text-transform: uppercase; }
+        .metric-table .bar-cell { width: 120px; }
+        .metric-bar {
+            height: 8px; border-radius: 4px; background: #e5e7eb;
+        }
+        .metric-bar-fill { height: 100%; border-radius: 4px; }
+
+        .report-footer {
+            text-align: center; margin-top: 1.5rem; padding-top: 1rem;
+            border-top: 1px solid #ddd; color: #999; font-size: 0.75rem;
+        }
+
+        /* Print styles */
+        @media print {
+            body { background: white; padding: 0; }
+            .container > *:not(#report-area) { display: none !important; }
+            #report-area { display: block !important; }
+            .report { box-shadow: none; padding: 1rem; }
+            .no-print { display: none !important; }
+        }
+
+        /* Filters */
+        .filter-row { display: flex; gap: 0.75rem; flex-wrap: wrap; margin-bottom: 0.75rem; }
+        .tag { display: inline-block; padding: 0.25rem 0.6rem; border-radius: 12px; font-size: 0.75rem;
+            background: var(--bg); border: 1px solid var(--border); color: var(--muted); cursor: pointer; }
+        .tag.active { background: rgba(56,189,248,0.15); border-color: var(--accent); color: var(--accent); }
+
+        .toast {
+            position: fixed; bottom: 2rem; right: 2rem; background: var(--success);
+            color: #0f172a; padding: 0.75rem 1.25rem; border-radius: 8px;
+            font-weight: 600; font-size: 0.85rem; opacity: 0; transition: opacity 0.3s;
+            z-index: 100;
+        }
+        .toast.show { opacity: 1; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>📋 Print Report Generator</h1>
+            <p>Select prints and generate formatted lab reports for documentation</p>
+        </header>
+
+        <div class="nav">
+            <a href="index.html">Query Tool</a>
+            <a href="explorer.html">📊 Data Explorer</a>
+            <a href="table.html">Data Table</a>
+            <a href="compare.html">Compare</a>
+            <a href="quality.html">🎯 Quality</a>
+            <a href="anomaly.html">🔍 Anomaly</a>
+            <a href="trends.html">Trends</a>
+            <a href="optimizer.html">⚙️ Optimizer</a>
+            <a href="api.html">📡 API</a>
+            <a href="architecture.html">🏗️ Architecture</a>
+            <a href="cluster.html">🔗 Clusters</a>
+            <a href="batch.html">🧪 Batch Planner</a>
+            <a href="guide.html">📖 Guide</a>
+            <a href="report.html" class="active">📋 Report</a>
+        </div>
+
+        <!-- Controls -->
+        <div class="card">
+            <h2>🔍 Filter & Select Prints</h2>
+            <div class="filter-row">
+                <div class="control-group">
+                    <label>Wellplate</label>
+                    <select id="filter-wellplate" onchange="applyFilters()">
+                        <option value="all">All</option>
+                        <option value="6">6-well</option>
+                        <option value="12">12-well</option>
+                        <option value="24">24-well</option>
+                        <option value="96">96-well</option>
+                    </select>
+                </div>
+                <div class="control-group">
+                    <label>Min Live Cell %</label>
+                    <input type="number" id="filter-min-viability" min="0" max="100" value="0" onchange="applyFilters()" style="width:80px">
+                </div>
+                <div class="control-group">
+                    <label>Sort By</label>
+                    <select id="sort-by" onchange="applyFilters()">
+                        <option value="serial">Serial #</option>
+                        <option value="livePercent">Live Cell % ↓</option>
+                        <option value="elasticity">Elasticity ↓</option>
+                        <option value="deadPercent">Dead Cell % ↑</option>
+                    </select>
+                </div>
+                <button class="btn btn-outline" onclick="selectAll()">Select All</button>
+                <button class="btn btn-outline" onclick="clearSelection()">Clear</button>
+                <button class="btn btn-outline" onclick="selectTop10()">Top 10 by Viability</button>
+            </div>
+
+            <div class="selection-bar">
+                <span><span class="count" id="sel-count">0</span> prints selected</span>
+                <div style="display:flex;gap:0.5rem">
+                    <div class="control-group" style="flex-direction:row;align-items:center;gap:0.5rem">
+                        <label>Report Title:</label>
+                        <input type="text" id="report-title" value="Bioprinting Run Report" style="width:220px">
+                    </div>
+                    <div class="control-group" style="flex-direction:row;align-items:center;gap:0.5rem">
+                        <label>Author:</label>
+                        <input type="text" id="report-author" value="" placeholder="Optional" style="width:140px">
+                    </div>
+                </div>
+            </div>
+
+            <div class="print-grid" id="print-grid"></div>
+        </div>
+
+        <!-- Action buttons -->
+        <div style="display:flex;gap:0.75rem;margin-bottom:1.5rem" class="no-print">
+            <button class="btn btn-primary" onclick="generateReport()">📋 Generate Report</button>
+            <button class="btn btn-success" onclick="printReport()">🖨️ Print / Save PDF</button>
+            <button class="btn btn-outline" onclick="copyReportText()">📄 Copy as Text</button>
+        </div>
+
+        <!-- Report output -->
+        <div id="report-area"></div>
+    </div>
+
+    <div class="toast" id="toast"></div>
+
+    <script>
+    let DATA = [];
+    let filteredData = [];
+    let selected = new Set();
+
+    // Load data
+    fetch('bioprint-data.json')
+        .then(r => r.json())
+        .then(d => { DATA = d; applyFilters(); })
+        .catch(() => showToast('Failed to load data'));
+
+    function getValue(p, key) {
+        const desc = METRIC_DESCRIPTORS.find(d => d.key === key);
+        return desc ? desc.get(p) : null;
+    }
+
+    function applyFilters() {
+        const wp = document.getElementById('filter-wellplate').value;
+        const minVia = parseFloat(document.getElementById('filter-min-viability').value) || 0;
+        const sortBy = document.getElementById('sort-by').value;
+
+        filteredData = DATA.filter(p => {
+            if (wp !== 'all' && p.print_info.wellplate !== parseInt(wp)) return false;
+            if (p.print_data.livePercent < minVia) return false;
+            return true;
+        });
+
+        if (sortBy === 'livePercent') filteredData.sort((a, b) => b.print_data.livePercent - a.print_data.livePercent);
+        else if (sortBy === 'elasticity') filteredData.sort((a, b) => b.print_data.elasticity - a.print_data.elasticity);
+        else if (sortBy === 'deadPercent') filteredData.sort((a, b) => a.print_data.deadPercent - b.print_data.deadPercent);
+        else filteredData.sort((a, b) => a.user_info.serial - b.user_info.serial);
+
+        renderGrid();
+    }
+
+    function renderGrid() {
+        const grid = document.getElementById('print-grid');
+        grid.innerHTML = filteredData.map(p => {
+            const s = p.user_info.serial;
+            const sel = selected.has(s) ? 'selected' : '';
+            return `<div class="print-chip ${sel}" onclick="togglePrint(${s})" data-serial="${s}">
+                Print #${s}
+                <div class="viability">${p.print_data.livePercent.toFixed(1)}% live</div>
+            </div>`;
+        }).join('');
+        document.getElementById('sel-count').textContent = selected.size;
+    }
+
+    function togglePrint(serial) {
+        if (selected.has(serial)) selected.delete(serial);
+        else selected.add(serial);
+        renderGrid();
+    }
+
+    function selectAll() {
+        filteredData.forEach(p => selected.add(p.user_info.serial));
+        renderGrid();
+    }
+
+    function clearSelection() {
+        selected.clear();
+        renderGrid();
+    }
+
+    function selectTop10() {
+        clearSelection();
+        const sorted = [...DATA].sort((a, b) => b.print_data.livePercent - a.print_data.livePercent);
+        sorted.slice(0, 10).forEach(p => selected.add(p.user_info.serial));
+        applyFilters();
+    }
+
+    function gradeViability(live) {
+        if (live >= 70) return { grade: 'A', cls: 'grade-a', text: 'Excellent' };
+        if (live >= 50) return { grade: 'B', cls: 'grade-b', text: 'Good' };
+        if (live >= 30) return { grade: 'C', cls: 'grade-c', text: 'Fair' };
+        return { grade: 'D', cls: 'grade-d', text: 'Poor' };
+    }
+
+    function metricBar(value, min, max, color) {
+        const pct = Math.min(100, Math.max(0, ((value - min) / (max - min)) * 100));
+        return `<div class="metric-bar"><div class="metric-bar-fill" style="width:${pct}%;background:${color}"></div></div>`;
+    }
+
+    function computeStats(prints) {
+        const live = prints.map(p => p.print_data.livePercent);
+        const dead = prints.map(p => p.print_data.deadPercent);
+        const elas = prints.map(p => p.print_data.elasticity);
+        const avg = arr => arr.reduce((a, b) => a + b, 0) / arr.length;
+        const max = arr => Math.max(...arr);
+        const min = arr => Math.min(...arr);
+        return {
+            count: prints.length,
+            avgLive: avg(live), maxLive: max(live), minLive: min(live),
+            avgDead: avg(dead),
+            avgElasticity: avg(elas), maxElasticity: max(elas),
+            wellplates: [...new Set(prints.map(p => p.print_info.wellplate))].sort((a,b) => a-b),
+        };
+    }
+
+    function generateReport() {
+        if (selected.size === 0) { showToast('Select at least one print'); return; }
+
+        const prints = DATA.filter(p => selected.has(p.user_info.serial))
+            .sort((a, b) => a.user_info.serial - b.user_info.serial);
+        const stats = computeStats(prints);
+        const title = document.getElementById('report-title').value || 'Bioprinting Run Report';
+        const author = document.getElementById('report-author').value;
+        const now = new Date();
+
+        // Compute global ranges for bars
+        const ranges = {};
+        METRIC_DESCRIPTORS.forEach(d => {
+            const vals = prints.map(p => d.get(p)).filter(v => v != null);
+            ranges[d.key] = { min: Math.min(...vals), max: Math.max(...vals) };
+        });
+
+        let html = `<div class="report">
+            <div class="report-header">
+                <h1>${escHtml(title)}</h1>
+                <div class="subtitle">BioBot 1 — Bioprinting Analysis Report</div>
+                <div class="meta">
+                    Generated: ${now.toLocaleDateString('en-US', { year:'numeric', month:'long', day:'numeric' })}
+                    at ${now.toLocaleTimeString('en-US', { hour:'2-digit', minute:'2-digit' })}
+                    ${author ? ' · Author: ' + escHtml(author) : ''}
+                    · ${stats.count} print${stats.count > 1 ? 's' : ''} analyzed
+                </div>
+            </div>
+
+            <div class="report-summary">
+                <div class="summary-stat">
+                    <div class="value">${stats.count}</div>
+                    <div class="label">Prints</div>
+                </div>
+                <div class="summary-stat">
+                    <div class="value">${stats.avgLive.toFixed(1)}%</div>
+                    <div class="label">Avg Live Cell</div>
+                </div>
+                <div class="summary-stat">
+                    <div class="value">${stats.maxLive.toFixed(1)}%</div>
+                    <div class="label">Best Viability</div>
+                </div>
+                <div class="summary-stat">
+                    <div class="value">${stats.avgElasticity.toFixed(1)}</div>
+                    <div class="label">Avg Elasticity (kPa)</div>
+                </div>
+                <div class="summary-stat">
+                    <div class="value">${stats.wellplates.join(', ')}</div>
+                    <div class="label">Wellplate Formats</div>
+                </div>
+            </div>`;
+
+        // Individual print sections
+        prints.forEach(p => {
+            const g = gradeViability(p.print_data.livePercent);
+            html += `<div class="print-section">
+                <h3>Print #${p.user_info.serial} <span class="grade ${g.cls}">${g.grade} — ${g.text}</span></h3>
+                <table class="metric-table">
+                    <tr><th>Metric</th><th>Value</th><th class="bar-cell">Range</th></tr>`;
+
+            METRIC_DESCRIPTORS.forEach(d => {
+                const v = d.get(p);
+                if (v == null) return;
+                const r = ranges[d.key];
+                const color = metricColors[d.key] || '#6366f1';
+                html += `<tr>
+                    <td>${d.label}</td>
+                    <td>${typeof v === 'number' ? v.toFixed(2) : v}${d.unit ? ' ' + d.unit : ''}</td>
+                    <td class="bar-cell">${r.max > r.min ? metricBar(v, r.min, r.max, color) : '—'}</td>
+                </tr>`;
+            });
+
+            html += `</table>
+                <div style="margin-top:0.5rem;font-size:0.8rem;color:#888">
+                    Input: ${p.print_info.files.input} · Output: ${p.print_info.files.output}
+                    · Crosslinking: ${p.print_info.crosslinking.cl_enabled ? 'On' : 'Off'}
+                </div>
+            </div>`;
+        });
+
+        html += `<div class="report-footer">
+            BioBots Tool — Print Report Generator · github.com/sauravbhattacharya001/BioBots
+        </div></div>`;
+
+        const area = document.getElementById('report-area');
+        area.style.display = 'block';
+        area.innerHTML = html;
+        area.scrollIntoView({ behavior: 'smooth' });
+        showToast('Report generated!');
+    }
+
+    function printReport() {
+        if (!document.getElementById('report-area').innerHTML) {
+            generateReport();
+            if (!document.getElementById('report-area').innerHTML) return;
+        }
+        window.print();
+    }
+
+    function copyReportText() {
+        if (selected.size === 0) { showToast('Select at least one print'); return; }
+        const prints = DATA.filter(p => selected.has(p.user_info.serial))
+            .sort((a, b) => a.user_info.serial - b.user_info.serial);
+        const title = document.getElementById('report-title').value || 'Bioprinting Run Report';
+
+        let text = `${title}\n${'='.repeat(title.length)}\nGenerated: ${new Date().toISOString()}\nPrints: ${prints.length}\n\n`;
+
+        const stats = computeStats(prints);
+        text += `SUMMARY\n-------\nAvg Live Cell: ${stats.avgLive.toFixed(1)}%\nBest Viability: ${stats.maxLive.toFixed(1)}%\nAvg Elasticity: ${stats.avgElasticity.toFixed(1)} kPa\nWellplates: ${stats.wellplates.join(', ')}\n\n`;
+
+        prints.forEach(p => {
+            const g = gradeViability(p.print_data.livePercent);
+            text += `PRINT #${p.user_info.serial} [${g.grade} — ${g.text}]\n`;
+            METRIC_DESCRIPTORS.forEach(d => {
+                const v = d.get(p);
+                if (v == null) return;
+                text += `  ${d.label}: ${typeof v === 'number' ? v.toFixed(2) : v}${d.unit ? ' ' + d.unit : ''}\n`;
+            });
+            text += `  Files: ${p.print_info.files.input} → ${p.print_info.files.output}\n\n`;
+        });
+
+        navigator.clipboard.writeText(text).then(
+            () => showToast('Copied to clipboard!'),
+            () => showToast('Copy failed')
+        );
+    }
+
+    function escHtml(s) {
+        const d = document.createElement('div');
+        d.textContent = s;
+        return d.innerHTML;
+    }
+
+    function showToast(msg) {
+        const t = document.getElementById('toast');
+        t.textContent = msg;
+        t.classList.add('show');
+        setTimeout(() => t.classList.remove('show'), 2000);
+    }
+    </script>
+</body>
+</html>
