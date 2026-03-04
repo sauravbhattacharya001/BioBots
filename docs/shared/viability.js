@@ -729,6 +729,32 @@ function createViabilityEstimator() {
         var p50Min = 50, p50Max = 300;
         var ec50Min = 5000, ec50Max = 50000;
 
+        // Pre-extract valid record params once instead of re-parsing in
+        // every batchAnalyze() call. For a 5-step grid this eliminates
+        // 35 redundant iterations over the full print dataset.
+        var preExtracted = [];
+        for (var ri = 0; ri < printData.length; ri++) {
+            var record = printData[ri];
+            if (!record || !record.print_data || !record.print_info) continue;
+            preExtracted.push({
+                params: {
+                    pressure: Math.max(
+                        record.print_info.pressure ? record.print_info.pressure.extruder1 || 0 : 0,
+                        record.print_info.pressure ? record.print_info.pressure.extruder2 || 0 : 0
+                    ),
+                    crosslinkDuration: (record.print_info.crosslinking && record.print_info.crosslinking.cl_duration) || 0,
+                    crosslinkIntensity: (record.print_info.crosslinking && record.print_info.crosslinking.cl_intensity) || 0,
+                    layerHeight: (record.print_info.resolution && record.print_info.resolution.layerHeight) || 0.4,
+                    nozzleDiameter: 0.4,
+                },
+                actual: record.print_data.livePercent || 0,
+            });
+        }
+
+        if (preExtracted.length < 5) {
+            throw new Error('Need at least 5 valid records for calibration');
+        }
+
         var bestRmse = Infinity;
         var bestParams = null;
 
@@ -746,20 +772,58 @@ function createViabilityEstimator() {
                     duration: DEFAULT_PARAMS.duration,
                 };
 
-                try {
-                    var batch = batchAnalyze(printData, testModelParams);
-                    if (batch.accuracy.rmse < bestRmse) {
-                        bestRmse = batch.accuracy.rmse;
-                        bestParams = {
-                            p50: p50,
-                            ec50: ec50,
-                            rmse: batch.accuracy.rmse,
-                            mae: batch.accuracy.mae,
-                            correlation: batch.accuracy.correlation,
-                        };
+                // Evaluate directly against pre-extracted params
+                var sumSquaredError = 0;
+                var sumAbsError = 0;
+                var totalPredicted = 0;
+                var totalActual = 0;
+                var count = 0;
+                var valid = true;
+
+                for (var xi = 0; xi < preExtracted.length; xi++) {
+                    try {
+                        var est = estimate(preExtracted[xi].params, testModelParams);
+                        var error = est.viabilityPercent - preExtracted[xi].actual;
+                        sumSquaredError += error * error;
+                        sumAbsError += Math.abs(error);
+                        totalPredicted += est.viabilityPercent;
+                        totalActual += preExtracted[xi].actual;
+                        count++;
+                    } catch (e) {
+                        // Skip records that fail estimation
                     }
-                } catch (e) {
-                    // Skip invalid combinations
+                }
+
+                if (count === 0) continue;
+
+                var rmse = Math.sqrt(sumSquaredError / count);
+                if (rmse < bestRmse) {
+                    var meanP = totalPredicted / count;
+                    var meanA = totalActual / count;
+                    var mae = sumAbsError / count;
+
+                    // Compute correlation
+                    var sXY = 0, sX2 = 0, sY2 = 0;
+                    for (var ci = 0; ci < preExtracted.length; ci++) {
+                        try {
+                            var e2 = estimate(preExtracted[ci].params, testModelParams);
+                            var dx = e2.viabilityPercent - meanP;
+                            var dy = preExtracted[ci].actual - meanA;
+                            sXY += dx * dy;
+                            sX2 += dx * dx;
+                            sY2 += dy * dy;
+                        } catch (e) { /* skip */ }
+                    }
+                    var corr = (sX2 > 0 && sY2 > 0) ? sXY / Math.sqrt(sX2 * sY2) : 0;
+
+                    bestRmse = rmse;
+                    bestParams = {
+                        p50: p50,
+                        ec50: ec50,
+                        rmse: Math.round(rmse * 100) / 100,
+                        mae: Math.round(mae * 100) / 100,
+                        correlation: Math.round(corr * 10000) / 10000,
+                    };
                 }
             }
         }
