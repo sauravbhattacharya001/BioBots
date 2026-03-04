@@ -443,6 +443,7 @@
 
     <script src="shared/constants.js"></script>
     <script src="shared/utils.js"></script>
+    <script src="shared/data-loader.js"></script>
     <script>
     'use strict';
 
@@ -1012,13 +1013,9 @@
     window.addEventListener('resize', drawTrendChart);
 
     // Load data
-    fetch('bioprint-data.json')
-        .then(r => r.json())
-        .then(data => {
-            printData = data.filter(p =>
-                p.print_data && p.print_info && p.user_info &&
-                p.print_info.crosslinking && p.print_info.pressure && p.print_info.resolution
-            );
+    loadBioprintData({ validate: true })
+        .then(function (data) {
+            printData = data;
             refresh();
         })
         .catch(err => {

@@ -534,5 +534,58 @@ describe('createDataExporter', () => {
         test('MAX_FILENAME_LENGTH is 200', () => {
             expect(exporter.MAX_FILENAME_LENGTH).toBe(200);
         });
+
+        // ── CSV Formula Injection Defense ────────────────────────────
+        describe('CSV formula injection defense', () => {
+            test('prefixes = with single-quote to prevent formula execution', () => {
+                expect(exporter.escapeCSVValue('=SUM(A1:A10)')).toBe("'=SUM(A1:A10)");
+            });
+
+            test('prefixes + with single-quote', () => {
+                expect(exporter.escapeCSVValue('+cmd|calc')).toBe("'+cmd|calc");
+            });
+
+            test('prefixes - with single-quote', () => {
+                expect(exporter.escapeCSVValue('-1+2')).toBe("'-1+2");
+            });
+
+            test('prefixes @ with single-quote', () => {
+                expect(exporter.escapeCSVValue('@SUM(A1)')).toBe("'@SUM(A1)");
+            });
+
+            test('prefixes tab character with single-quote', () => {
+                var result = exporter.escapeCSVValue('\t=calc');
+                // Tab is a formula trigger → prefixed with '
+                expect(result).toBe("'\t=calc");
+            });
+
+            test('prefixes \\r with single-quote and wraps in quotes', () => {
+                var result = exporter.escapeCSVValue('\r=dangerous');
+                // \r prefix → prefixed with ', then contains \r → quoted
+                expect(result).toBe('"\'\r=dangerous"');
+            });
+
+            test('does not prefix safe strings', () => {
+                expect(exporter.escapeCSVValue('Hello World')).toBe('Hello World');
+                expect(exporter.escapeCSVValue('42')).toBe('42');
+                expect(exporter.escapeCSVValue('Cell Line A')).toBe('Cell Line A');
+            });
+
+            test('HYPERLINK injection is neutralized', () => {
+                var result = exporter.escapeCSVValue('=HYPERLINK("http://evil.com","click")');
+                // = prefix → prefixed with ', then contains " → quoted
+                // The important thing: it won't execute as formula in Excel
+                expect(result).toContain("'=HYPERLINK");
+            });
+
+            test('formula injection in full CSV export', () => {
+                var data = [{ name: '=cmd|calc', value: 10 }];
+                var cols = [{ key: 'name' }, { key: 'value' }];
+                var csv = exporter.toCSV(data, cols, { includeBOM: false });
+                var lines = csv.split('\r\n');
+                // Name field should be prefixed, not treated as formula
+                expect(lines[1]).toBe("'=cmd|calc,10");
+            });
+        });
     });
 });

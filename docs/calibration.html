@@ -406,6 +406,7 @@
 
     <script src="shared/constants.js"></script>
     <script src="shared/utils.js"></script>
+    <script src="shared/data-loader.js"></script>
     <script src="shared/export.js"></script>
     <script>
     'use strict';
@@ -1084,13 +1085,9 @@
     /* ═══════════════════════════════════════════════════════════
        INIT — Load data + restore state
     ═══════════════════════════════════════════════════════════ */
-    fetch('bioprint-data.json')
-        .then(function(r) { return r.json(); })
+    loadBioprintData({ validate: true })
         .then(function(data) {
-            printData = data.filter(function(p) {
-                return p.print_data && p.print_info && p.user_info &&
-                    p.print_info.crosslinking && p.print_info.pressure && p.print_info.resolution;
-            });
+            printData = data;
 
             var savedStep = restoreState();
             if (savedStep && savedStep > 1 && objective) {

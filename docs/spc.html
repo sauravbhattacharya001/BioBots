@@ -246,6 +246,7 @@
 
     <script src="shared/constants.js"></script>
     <script src="shared/utils.js"></script>
+    <script src="shared/data-loader.js"></script>
     <script>
     /* ===== SPC Constants (A2, D3, D4 for subgroup sizes 2-25) ===== */
     var SPC_A2 = { 2:1.880, 3:1.023, 4:0.729, 5:0.577, 6:0.483, 7:0.419, 8:0.373, 9:0.337, 10:0.308,
@@ -741,13 +742,9 @@
     window.addEventListener('resize', function() { if (printData.length) refresh(); });
 
     // Load data
-    fetch('bioprint-data.json')
-        .then(function(r) { return r.json(); })
+    loadBioprintData({ validate: true })
         .then(function(data) {
-            printData = data.filter(function(p) {
-                return p.print_data && p.print_info && p.user_info &&
-                    p.print_info.crosslinking && p.print_info.pressure && p.print_info.resolution;
-            });
+            printData = data;
             refresh();
         })
         .catch(function(err) {

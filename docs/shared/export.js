@@ -30,6 +30,18 @@ function createDataExporter() {
     function escapeCSVValue(value) {
         if (value == null) return '';
         var str = String(value);
+
+        // CSV formula injection defense: if the string starts with a
+        // character that spreadsheet applications (Excel, Google Sheets,
+        // LibreOffice Calc) interpret as a formula or special command,
+        // prefix with a single-quote to force text mode.  The dangerous
+        // leader set is: = + - @ \t \r  (OWASP recommendation).
+        var firstChar = str.charAt(0);
+        if (firstChar === '=' || firstChar === '+' || firstChar === '-' ||
+            firstChar === '@' || firstChar === '\t' || firstChar === '\r') {
+            str = "'" + str;
+        }
+
         // Must quote if contains comma, double-quote, newline, or leading/trailing whitespace
         if (str.indexOf(',') !== -1 || str.indexOf('"') !== -1 || 
             str.indexOf('\n') !== -1 || str.indexOf('\r') !== -1 ||
