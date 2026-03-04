@@ -108,9 +108,13 @@ function createGCodeAnalyzer() {
         var currentLayer = 0;
         var lastLayerZ = 0;
 
-        // Feedrate tracking
-        var feedrates = [];
-        var printFeedrates = [];
+        // Feedrate tracking — use O(1) running accumulators instead of
+        // collecting every feedrate into an array. For large GCode files
+        // (500K+ lines), the old approach allocated two unbounded arrays
+        // that grew with every G0/G1 command, wasting significant memory
+        // and forcing a full O(n) scan in computeFeedrateStats().
+        var feedrateAcc = { min: Infinity, max: -Infinity, sum: 0, count: 0 };
+        var printFeedrateAcc = { min: Infinity, max: -Infinity, sum: 0, count: 0 };
 
         // Track whether a comment set the layer to avoid double-counting
         var layerSetByComment = false;
@@ -201,7 +205,7 @@ function createGCodeAnalyzer() {
 
                 if ('F' in p) {
                     feedrate = p.F;
-                    feedrates.push(feedrate);
+                    updateAcc(feedrateAcc, feedrate);
                 }
 
                 // Detect layer change by Z movement.
@@ -232,7 +236,7 @@ function createGCodeAnalyzer() {
                     // Extruding move
                     totalExtrusionLength += eDelta;
                     totalPrintDist += moveDist;
-                    printFeedrates.push(feedrate);
+                    updateAcc(printFeedrateAcc, feedrate);
                     layer.extrusionLength += eDelta;
                     layer.printDist += moveDist;
                     updateBounds(newX, newY, newZ);
@@ -301,8 +305,8 @@ function createGCodeAnalyzer() {
             }
         }
 
-        // Compute feedrate stats
-        var feedrateStats = computeFeedrateStats(printFeedrates.length > 0 ? printFeedrates : feedrates);
+        // Compute feedrate stats from running accumulators (O(1) instead of O(n))
+        var feedrateStats = accToStats(printFeedrateAcc.count > 0 ? printFeedrateAcc : feedrateAcc);
 
         // Compute extrusion volume (mm³) from filament length
         var extrusionVolumeMm3 = totalExtrusionLength * filamentArea;
@@ -366,7 +370,36 @@ function createGCodeAnalyzer() {
     }
 
     /**
+     * Update a running feedrate accumulator with a new value.
+     * Maintains min, max, sum, and count in O(1) per call.
+     * @private
+     */
+    function updateAcc(acc, value) {
+        if (value < acc.min) acc.min = value;
+        if (value > acc.max) acc.max = value;
+        acc.sum += value;
+        acc.count++;
+    }
+
+    /**
+     * Convert a running accumulator to a stats object.
+     * @private
+     */
+    function accToStats(acc) {
+        if (acc.count === 0) {
+            return { min: 0, max: 0, avg: 0, count: 0 };
+        }
+        return {
+            min: round2(acc.min),
+            max: round2(acc.max),
+            avg: round2(acc.sum / acc.count),
+            count: acc.count
+        };
+    }
+
+    /**
      * Compute feedrate statistics from an array of feedrate values.
+     * Kept for backward compatibility; internal code now uses accumulators.
      * @private
      */
     function computeFeedrateStats(rates) {
