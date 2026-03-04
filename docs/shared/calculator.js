@@ -21,11 +21,38 @@ function createMaterialCalculator() {
         96: { wells: 96, diameter: 6.35, area: 31.7 }
     };
 
+    /**
+     * Compute the bioink volume for a single layer in one well.
+     *
+     * @param {number} wellArea   Well area in mm² (from WELLPLATE_SPECS)
+     * @param {number} layerHeight Layer height in mm
+     * @returns {number} Volume in mm³ (µL ÷ 1000), or 0 if inputs are invalid
+     */
     function volumePerLayer(wellArea, layerHeight) {
         if (!wellArea || wellArea <= 0 || !layerHeight || layerHeight <= 0) return 0;
         return wellArea * layerHeight;
     }
 
+    /**
+     * Calculate total material usage for a bioprinting job.
+     *
+     * Accounts for wellplate geometry, layer count, infill density,
+     * and waste factor to produce volume, mass, and cost estimates.
+     *
+     * @param {Object} params Print parameters
+     * @param {number} params.wellplate Wellplate size (6, 12, 24, 48, or 96)
+     * @param {number} params.layerHeight Layer height in mm (max 5)
+     * @param {number} params.layerNum Number of layers (max 500)
+     * @param {number} [params.wellCount] Wells to print (defaults to full plate)
+     * @param {number} [params.infillPercent=100] Infill density 0-100%
+     * @param {number} [params.wastePercent=15] Expected waste 0-100%
+     * @param {string} [params.materialKey='custom'] Material profile key
+     * @param {number} [params.customDensity] Override material density (g/mL)
+     * @param {number} [params.customCost] Override cost per mL
+     * @returns {Object} Usage report with volumePerWellUl, totalVolumeMl,
+     *   totalMassG, estimatedCost, and print geometry details
+     * @throws {Error} If parameters are missing or out of range
+     */
     function calculateUsage(params) {
         if (!params || typeof params !== 'object') {
             throw new Error('Parameters must be an object');
@@ -89,6 +116,20 @@ function createMaterialCalculator() {
         };
     }
 
+    /**
+     * Estimate total print duration including crosslinking pauses.
+     *
+     * Travel distance is approximated from well perimeter × layers × infill.
+     * Crosslinking time (UV/photo curing) is added per-layer per-well.
+     *
+     * @param {Object} params Print parameters (same as calculateUsage, plus below)
+     * @param {number} [params.extruderSpeed=5] Extruder speed in mm/s
+     * @param {number} [params.clDuration=0] Crosslinking duration per layer in seconds
+     * @returns {Object} Duration report with printTimeMinutes,
+     *   crosslinkingTimeMinutes, totalTimeMinutes, totalTimeFormatted,
+     *   and travelDistanceMm
+     * @throws {Error} If speed is non-positive
+     */
     function estimateDuration(params) {
         var usage = calculateUsage(params);
         var speed = params.extruderSpeed || 5;
@@ -113,14 +154,38 @@ function createMaterialCalculator() {
         };
     }
 
+    /**
+     * Return a deep copy of all built-in material profiles.
+     *
+     * @returns {Object.<string, {name: string, density: number, costPerMl: number, viscosity: string}>}
+     *   Material profiles keyed by slug (e.g. 'gelatin-methacrylate')
+     */
     function getMaterials() {
         return JSON.parse(JSON.stringify(MATERIAL_PROFILES));
     }
 
+    /**
+     * Return a deep copy of all wellplate specifications.
+     *
+     * @returns {Object.<number, {wells: number, diameter: number, area: number}>}
+     *   Wellplate specs keyed by well count (6, 12, 24, 48, 96)
+     */
     function getWellplates() {
         return JSON.parse(JSON.stringify(WELLPLATE_SPECS));
     }
 
+    /**
+     * Compare multiple print configurations side by side.
+     *
+     * Runs calculateUsage and estimateDuration for each config.
+     * Failed configs are reported with their error message rather
+     * than throwing, so one bad config doesn't block the rest.
+     *
+     * @param {Object[]} configs Array of parameter objects (max 10)
+     * @returns {Array<{index: number, success: boolean, usage?: Object, duration?: Object, error?: string}>}
+     *   Per-config results with usage and duration if successful
+     * @throws {Error} If configs is not a non-empty array or exceeds 10
+     */
     function compareConfigs(configs) {
         if (!Array.isArray(configs) || configs.length === 0) {
             throw new Error('Configs must be a non-empty array');
@@ -139,11 +204,28 @@ function createMaterialCalculator() {
         });
     }
 
+    /**
+     * Round a number to a fixed number of decimal places.
+     *
+     * @param {number} val      Value to round
+     * @param {number} decimals Number of decimal places
+     * @returns {number} Rounded value
+     */
     function round(val, decimals) {
         var factor = Math.pow(10, decimals);
         return Math.round(val * factor) / factor;
     }
 
+    /**
+     * Format a duration in minutes to a human-readable string.
+     *
+     * Under 1 minute: returns seconds (e.g. "45s").
+     * Under 1 hour: returns minutes (e.g. "12min").
+     * Otherwise: hours and minutes (e.g. "2h 30min").
+     *
+     * @param {number} minutes Duration in fractional minutes
+     * @returns {string} Human-readable duration
+     */
     function formatDuration(minutes) {
         if (minutes < 1) return Math.round(minutes * 60) + 's';
         var h = Math.floor(minutes / 60);
@@ -169,3 +251,4 @@ function createMaterialCalculator() {
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = { createMaterialCalculator: createMaterialCalculator };
 }
+
