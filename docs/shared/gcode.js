@@ -112,6 +112,9 @@ function createGCodeAnalyzer() {
         var feedrates = [];
         var printFeedrates = [];
 
+        // Track whether a comment set the layer to avoid double-counting
+        var layerSetByComment = false;
+
         // Layer tracking: layerIdx → { z, extrusionLength, printDist, travelDist, timeMin, moves }
         var layers = {};
 
@@ -163,12 +166,15 @@ function createGCodeAnalyzer() {
             var p = parsed.params;
 
             // Check for layer change comments (common slicer patterns)
+            layerSetByComment = false; // Reset per-line
+
             if (parsed.comment) {
                 var lcComment = parsed.comment.toLowerCase();
                 if (lcComment.indexOf('layer') >= 0) {
                     var layerMatch = parsed.comment.match(/layer\s*[:=]?\s*(\d+)/i);
                     if (layerMatch) {
                         currentLayer = parseInt(layerMatch[1], 10);
+                        layerSetByComment = true;
                     }
                 }
             }
@@ -198,10 +204,15 @@ function createGCodeAnalyzer() {
                     feedrates.push(feedrate);
                 }
 
-                // Detect layer change by Z movement
+                // Detect layer change by Z movement.
+                // Skip if a comment already set the layer for this line
+                // to avoid double-counting (fixes #23).
                 if (newZ !== pos.z && newZ > lastLayerZ) {
-                    currentLayer++;
+                    if (!layerSetByComment) {
+                        currentLayer++;
+                    }
                     lastLayerZ = newZ;
+                    layerSetByComment = false;
                 }
 
                 var moveDist = dist3d(pos.x, pos.y, pos.z, newX, newY, newZ);
