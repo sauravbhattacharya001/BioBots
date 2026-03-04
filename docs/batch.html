@@ -132,6 +132,10 @@
                     <input type="number" id="run-pressure" value="38" min="1" max="100" />
                 </div>
                 <div class="form-group">
+                    <label for="run-crosslink">Crosslink Duration (s/layer)</label>
+                    <input type="number" id="run-crosslink" value="0" min="0" max="300" step="1" />
+                </div>
+                <div class="form-group">
                     <label for="run-priority">Priority</label>
                     <select id="run-priority">
                         <option value="high">High</option>
@@ -204,9 +208,12 @@
             return { totalMl: totalMl, perWellUl: (volumePerWell / 1000) * 1000 };
         }
 
-        function estimateTime(wells, layers, layerHeight) {
-            // Rough estimate: 2 seconds per layer per well + 5s setup per well
+        function estimateTime(wells, layers, layerHeight, clDuration) {
+            // 2 seconds per layer per well + 5s setup per well + crosslinking pauses
             var printSec = wells * layers * 2 + wells * 5;
+            if (clDuration > 0) {
+                printSec += clDuration * layers * wells;
+            }
             return printSec;
         }
 
@@ -230,6 +237,7 @@
                 layers: parseInt(document.getElementById('run-layers').value),
                 layerHeight: parseFloat(document.getElementById('run-height').value),
                 pressure: parseFloat(document.getElementById('run-pressure').value),
+                crosslink: parseFloat(document.getElementById('run-crosslink').value) || 0,
                 priority: document.getElementById('run-priority').value,
                 notes: document.getElementById('run-notes').value.trim()
             };
@@ -284,7 +292,7 @@
             var rows = [headers.join(',')];
             runs.forEach(function(r, i) {
                 var vol = estimateVolume(r.wellplate, r.wells, r.layers, r.layerHeight);
-                var time = estimateTime(r.wells, r.layers, r.layerHeight);
+                var time = estimateTime(r.wells, r.layers, r.layerHeight, r.crosslink);
                 var row = [
                     i + 1, '"' + r.name.replace(/"/g, '""') + '"', r.priority,
                     r.wellplate + '-well', r.wells, r.layers, r.layerHeight, r.pressure,
@@ -317,7 +325,7 @@
             runs.forEach(function(r) {
                 var vol = estimateVolume(r.wellplate, r.wells, r.layers, r.layerHeight);
                 totalVol += vol.totalMl;
-                totalTime += estimateTime(r.wells, r.layers, r.layerHeight);
+                totalTime += estimateTime(r.wells, r.layers, r.layerHeight, r.crosslink);
                 totalWells += r.wells;
             });
             document.getElementById('summary').innerHTML =
@@ -330,7 +338,7 @@
             var html = '<table><thead><tr><th>#</th><th>Name</th><th>Priority</th><th>Plate</th><th>Wells</th><th>Layers</th><th>Height</th><th>Pressure</th><th>Volume</th><th>Time</th><th>Notes</th><th></th></tr></thead><tbody>';
             runs.forEach(function(r, i) {
                 var vol = estimateVolume(r.wellplate, r.wells, r.layers, r.layerHeight);
-                var time = estimateTime(r.wells, r.layers, r.layerHeight);
+                var time = estimateTime(r.wells, r.layers, r.layerHeight, r.crosslink);
                 var tagClass = r.priority === 'high' ? 'tag-high' : r.priority === 'medium' ? 'tag-medium' : 'tag-low';
                 html += '<tr>' +
                     '<td>' + (i + 1) + '</td>' +
