@@ -419,4 +419,68 @@ describe('costEstimator', () => {
       expect(result.breakdown.materials.total).toBeCloseTo(expected, 1);
     });
   });
+
+  describe('cartridge auto-detection', () => {
+    test('selects cartridge based on largest single bioink, not total volume', () => {
+      // Two bioinks: 4mL each = 8mL total, but each fits in 5mL cartridge
+      const result = estimator.estimate({
+        printTimeMin: 30,
+        bioinks: [
+          { name: 'GelMA 5%', volumeMl: 4.0 },
+          { name: 'Alginate 2%', volumeMl: 4.0 },
+        ],
+      });
+      const cartridges = result.breakdown.consumables.items.filter(
+        function(i) { return i.key.startsWith('cartridge_'); }
+      );
+      expect(cartridges.length).toBe(1);
+      // Max single volume is 4mL (>3), so cartridge_5ml
+      expect(cartridges[0].key).toBe('cartridge_5ml');
+      expect(cartridges[0].quantity).toBe(2); // one per bioink
+    });
+
+    test('selects 10mL cartridge for large single bioink volume', () => {
+      const result = estimator.estimate({
+        printTimeMin: 30,
+        bioinks: [
+          { name: 'GelMA 5%', volumeMl: 8.0 },
+          { name: 'Alginate 2%', volumeMl: 1.0 },
+        ],
+      });
+      const cartridges = result.breakdown.consumables.items.filter(
+        function(i) { return i.key.startsWith('cartridge_'); }
+      );
+      // Max single volume is 8mL (>5), so cartridge_10ml
+      expect(cartridges[0].key).toBe('cartridge_10ml');
+    });
+
+    test('selects 30mL cartridge for very large single bioink volume', () => {
+      const result = estimator.estimate({
+        printTimeMin: 30,
+        bioinks: [
+          { name: 'GelMA 5%', volumeMl: 15.0 },
+        ],
+      });
+      const cartridges = result.breakdown.consumables.items.filter(
+        function(i) { return i.key.startsWith('cartridge_'); }
+      );
+      // Max single volume is 15mL (>10), so cartridge_30ml
+      expect(cartridges[0].key).toBe('cartridge_30ml');
+    });
+
+    test('selects 3mL cartridge for small volumes', () => {
+      const result = estimator.estimate({
+        printTimeMin: 30,
+        bioinks: [
+          { name: 'GelMA 5%', volumeMl: 1.5 },
+          { name: 'Alginate 2%', volumeMl: 2.0 },
+        ],
+      });
+      const cartridges = result.breakdown.consumables.items.filter(
+        function(i) { return i.key.startsWith('cartridge_'); }
+      );
+      // Max single volume is 2mL (<=3), so cartridge_3ml
+      expect(cartridges[0].key).toBe('cartridge_3ml');
+    });
+  });
 });

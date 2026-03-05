@@ -293,12 +293,17 @@ function createCostEstimator(options) {
     }
 
     if (params.bioinks && params.bioinks.length > 0) {
-      const totalVol = params.bioinks.reduce(function(s, b) {
-        return s + (b.volumeMl || 0);
-      }, 0);
-      let cartKey = 'cartridge_3ml';
-      if (totalVol > 5) cartKey = 'cartridge_10ml';
-      else if (totalVol > 3) cartKey = 'cartridge_5ml';
+      // Select cartridge size based on the largest single bioink volume,
+      // since each bioink gets its own cartridge.
+      var maxVol = 0;
+      for (var bi = 0; bi < params.bioinks.length; bi++) {
+        var v = params.bioinks[bi].volumeMl || 0;
+        if (v > maxVol) maxVol = v;
+      }
+      var cartKey = 'cartridge_3ml';
+      if (maxVol > 10) cartKey = 'cartridge_30ml';
+      else if (maxVol > 5) cartKey = 'cartridge_10ml';
+      else if (maxVol > 3) cartKey = 'cartridge_5ml';
       consumables.push({ key: cartKey, quantity: params.bioinks.length });
     }
 
