@@ -319,6 +319,21 @@ function createNozzlePlanner(userConfig) {
             );
         }
 
+        // No temperature change — skip transition entirely to avoid
+        // phantom dwell time inflating print estimates (fixes #24).
+        if (delta === 0) {
+            return {
+                fromTemp: fromTemp,
+                toTemp: toTemp,
+                delta: 0,
+                direction: 'none',
+                transitionTime: 0,
+                dwellTime: 0,
+                totalTime: 0,
+                riskLevel: 'low'
+            };
+        }
+
         var transitionTime = delta / config.tempTransitionRate;
         var dwellTime = Math.max(2, transitionTime * 0.1);
 

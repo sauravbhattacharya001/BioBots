@@ -234,6 +234,9 @@ describe('createNozzlePlanner', () => {
             expect(result.delta).toBe(0);
             expect(result.direction).toBe('none');
             expect(result.transitionTime).toBe(0);
+            expect(result.dwellTime).toBe(0);
+            expect(result.totalTime).toBe(0);
+            expect(result.riskLevel).toBe('low');
         });
 
         test('flags high risk for large delta', () => {
