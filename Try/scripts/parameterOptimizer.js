@@ -226,6 +226,7 @@ function createParameterOptimizer(config = {}) {
       totalEvaluated: results.length,
       best: results[0] || null,
       top5: results.slice(0, 5),
+      _allResults: results, // retained for Pareto extraction in fullOptimize
     };
     history.push(record);
     return record;
@@ -315,6 +316,8 @@ function createParameterOptimizer(config = {}) {
 
   /**
    * Run full optimization: grid search + sensitivity + Pareto.
+   * Uses cached grid results from gridSearch instead of recomputing
+   * the entire parameter space a second time (O(N) saved).
    */
   function fullOptimize(options = {}) {
     const steps = options.steps || 5;
@@ -326,34 +329,14 @@ function createParameterOptimizer(config = {}) {
 
     const sensitivity = sensitivityAnalysis(best.params, { delta: options.delta || 0.1 });
 
-    // Rebuild evaluations for Pareto (use top results to keep it manageable)
-    const topN = search.totalEvaluated > 200 ? 200 : search.totalEvaluated;
-    // Re-run grid to get full results for Pareto
-    const allResults = [];
-    const freeParams = Object.keys(PARAMETER_DEFS).filter(k => !(k in fixed));
-    const axes = {};
-    for (const k of freeParams) {
-      const c = constraints[k];
-      axes[k] = [];
-      for (let i = 0; i < steps; i++) {
-        axes[k].push(c.min + (c.max - c.min) * i / (steps - 1));
-      }
-    }
-    const combo = { ...fixed };
-    function recurse(idx) {
-      if (idx >= freeParams.length) {
-        allResults.push(evaluate({ ...combo }));
-        return;
-      }
-      const key = freeParams[idx];
-      for (const val of axes[key]) {
-        combo[key] = val;
-        recurse(idx + 1);
-      }
-    }
-    recurse(0);
-
+    // Reuse cached results from gridSearch instead of re-running the
+    // entire grid enumeration (previously duplicated all evaluations).
+    const allResults = search._allResults || [];
     const pareto = paretoFront(allResults, options.paretoObj1 || 'viability', options.paretoObj2 || 'throughput');
+
+    // Drop the cached reference from the returned record to avoid
+    // holding large arrays in long-lived history entries.
+    delete search._allResults;
 
     return { search, sensitivity, pareto };
   }
