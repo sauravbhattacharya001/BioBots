@@ -1,7 +1,7 @@
 'use strict';
 
 const assert = require('assert');
-const { createSessionLogger } = require('../Try/scripts/sessionLogger');
+const { createSessionLogger, csvSafe } = require('../Try/scripts/sessionLogger');
 
 describe('Print Session Logger', () => {
 
@@ -401,6 +401,55 @@ describe('Print Session Logger', () => {
         it('exposes SEVERITIES', () => {
             assert.ok(logger.SEVERITIES.DEBUG);
             assert.ok(logger.SEVERITIES.CRITICAL);
+        });
+    });
+
+    describe('CSV formula injection defense', () => {
+        it('prefixes formula-dangerous leaders with single-quote', () => {
+            assert.strictEqual(csvSafe('=SUM(A1:A10)'), "'=SUM(A1:A10)");
+            assert.strictEqual(csvSafe('+cmd|calc'), "'+cmd|calc");
+            assert.strictEqual(csvSafe('-1+1'), "'-1+1");
+            assert.strictEqual(csvSafe('@SUM(A1)'), "'@SUM(A1)");
+        });
+
+        it('wraps values with commas in double-quotes', () => {
+            assert.strictEqual(csvSafe('hello, world'), '"hello, world"');
+        });
+
+        it('escapes internal double-quotes with RFC-4180 doubling', () => {
+            assert.strictEqual(csvSafe('say "hello"'), '"say ""hello"""');
+        });
+
+        it('returns empty string for null/undefined', () => {
+            assert.strictEqual(csvSafe(null), '');
+            assert.strictEqual(csvSafe(undefined), '');
+        });
+
+        it('passes through safe strings unchanged', () => {
+            assert.strictEqual(csvSafe('Nozzle primed'), 'Nozzle primed');
+            assert.strictEqual(csvSafe('Layer 5 complete'), 'Layer 5 complete');
+        });
+
+        it('handles tab and carriage-return leaders', () => {
+            // Tab: prefixed with single-quote, no additional quoting needed
+            assert.strictEqual(csvSafe('\tcmd'), "'\tcmd");
+            // CR: prefixed with single-quote AND RFC-4180 quoted (contains \r)
+            const crResult = csvSafe('\rcmd');
+            assert.ok(crResult.includes("'"), 'CR-led value should have formula-defense prefix');
+            assert.ok(crResult.startsWith('"'), 'CR-containing value should be RFC-4180 quoted');
+        });
+
+        it('CSV export uses safe encoding for messages', () => {
+            const session = logger.startSession({ printJobId: 'csv-sec' });
+            session.log('SYSTEM', 'INFO', '=HYPERLINK("http://evil.com","Click")');
+            session.end('completed');
+            const csv = session.export('csv');
+            const lines = csv.split('\n');
+            // Find the line containing our injected message (not the auto-generated events)
+            const formulaLine = lines.find(l => l.includes('HYPERLINK'));
+            assert.ok(formulaLine, 'CSV should contain a line with the HYPERLINK message');
+            // The message should have been prefixed with single-quote to neutralize the formula
+            assert.ok(formulaLine.includes("'=HYPERLINK"), 'Formula leader must be neutralized');
         });
     });
 });

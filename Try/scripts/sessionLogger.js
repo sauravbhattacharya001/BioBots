@@ -1,6 +1,38 @@
 'use strict';
 
 /**
+ * Escape a value for safe inclusion in a CSV cell.
+ *
+ * Defends against CSV formula injection (OWASP CWE-1236): if the string
+ * starts with =, +, -, @, \t, or \r, a leading single-quote forces text
+ * mode in Excel, Google Sheets, and LibreOffice Calc. The value is then
+ * RFC-4180 quoted if it contains commas, double-quotes, or newlines.
+ *
+ * @param {*} value - Value to escape (coerced to string).
+ * @returns {string} Safe, properly-quoted CSV cell value.
+ */
+function csvSafe(value) {
+    if (value == null) return '';
+    var str = String(value);
+
+    // Formula injection defense (OWASP dangerous leader set)
+    var first = str.charAt(0);
+    if (first === '=' || first === '+' || first === '-' ||
+        first === '@' || first === '\t' || first === '\r') {
+        str = "'" + str;
+    }
+
+    // RFC-4180: quote if contains delimiter, double-quote, or newline
+    if (str.indexOf(',') !== -1 || str.indexOf('"') !== -1 ||
+        str.indexOf('\n') !== -1 || str.indexOf('\r') !== -1 ||
+        str !== str.trim()) {
+        return '"' + str.replace(/"/g, '""') + '"';
+    }
+
+    return str;
+}
+
+/**
  * Print Session Logger for BioBots
  *
  * Centralized event logging for bioprinting sessions. Records timestamped
@@ -420,7 +452,7 @@ function createSessionLogger(options) {
             if (format === 'csv') {
                 var lines = ['id,timestamp,elapsed_ms,category,severity,layer,message'];
                 events.forEach(function (e) {
-                    var msg = '"' + (e.message || '').replace(/"/g, '""') + '"';
+                    var msg = csvSafe(e.message || '');
                     lines.push([e.id, e.timestamp, e.elapsed, e.category, e.severity, e.layer, msg].join(','));
                 });
                 return lines.join('\n');
@@ -564,5 +596,5 @@ function createSessionLogger(options) {
 }
 
 if (typeof module !== 'undefined' && module.exports) {
-    module.exports = { createSessionLogger: createSessionLogger };
+    module.exports = { createSessionLogger: createSessionLogger, csvSafe: csvSafe };
 }
