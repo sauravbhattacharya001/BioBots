@@ -7,6 +7,8 @@
  * optimizes channel geometry for printability.
  */
 
+const { mean: _mean } = require('./scriptUtils');
+
 // ── Constants ──────────────────────────────────────────────────────
 const OXYGEN_DIFFUSION_COEFF = 2.0e-9;       // m²/s in hydrogel (~2×10⁻⁹)
 const OXYGEN_CONSUMPTION_RATE = 1.5e-8;       // mol/m³/s typical cell consumption
@@ -481,7 +483,7 @@ function assessPrintability(networkConfig) {
   }
 
   const composite = Math.round(
-    Object.values(scores).reduce((a, b) => a + b, 0) / Object.keys(scores).length
+    _mean(Object.values(scores))
   );
 
   let printMethod;
@@ -702,7 +704,7 @@ function analyzeFlowDistribution(tree, totalFlowUlMin = 10) {
   }
   collectLeaves(tree);
 
-  const meanLeafFlow = leafFlows.reduce((a, b) => a + b, 0) / leafFlows.length;
+  const meanLeafFlow = _mean(leafFlows);
   const stdDev = Math.sqrt(leafFlows.reduce((s, f) => s + (f - meanLeafFlow) ** 2, 0) / leafFlows.length);
   const cv = meanLeafFlow > 0 ? stdDev / meanLeafFlow : 0;
 
