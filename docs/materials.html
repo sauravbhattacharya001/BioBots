@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Material Database — BioBots Analytics</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧬</text></svg>">
+    <style>
+        :root {
+            --bg: #0f172a;
+            --surface: #1e293b;
+            --border: #334155;
+            --text: #e2e8f0;
+            --muted: #94a3b8;
+            --accent: #38bdf8;
+            --accent-hover: #7dd3fc;
+            --success: #4ade80;
+            --warning: #fbbf24;
+            --error: #f87171;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            padding: 2rem 1rem;
+        }
+        header { text-align: center; margin-bottom: 2rem; }
+        header h1 {
+            font-size: 2rem; font-weight: 700;
+            background: linear-gradient(135deg, var(--accent), var(--success));
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+        }
+        header p { color: var(--muted); margin-top: 0.5rem; }
+        .back-link { display: inline-block; margin-bottom: 1rem; color: var(--accent); text-decoration: none; font-size: 0.9rem; }
+        .back-link:hover { color: var(--accent-hover); }
+
+        .controls {
+            max-width: 1200px; margin: 0 auto 1.5rem;
+            display: flex; gap: 1rem; flex-wrap: wrap; align-items: center;
+        }
+        .search-box {
+            flex: 1; min-width: 200px; background: var(--surface); border: 1px solid var(--border);
+            color: var(--text); padding: 0.7rem 1rem; border-radius: 8px; font-size: 0.95rem; outline: none;
+        }
+        .search-box:focus { border-color: var(--accent); }
+        .search-box::placeholder { color: var(--muted); }
+        .filter-btn {
+            background: var(--surface); border: 1px solid var(--border); color: var(--muted);
+            padding: 0.5rem 1rem; border-radius: 20px; font-size: 0.85rem; cursor: pointer; transition: all 0.2s;
+        }
+        .filter-btn:hover, .filter-btn.active { background: var(--accent); color: var(--bg); border-color: var(--accent); }
+
+        .stats-bar { display: flex; gap: 1rem; max-width: 1200px; margin: 0 auto 1.5rem; flex-wrap: wrap; }
+        .stat { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 0.7rem 1.2rem; text-align: center; }
+        .stat .val { font-size: 1.3rem; font-weight: 700; color: var(--accent); }
+        .stat .lbl { font-size: 0.7rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; }
+
+        .grid {
+            max-width: 1200px; margin: 0 auto;
+            display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 1rem;
+        }
+
+        .mat-card {
+            background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
+            padding: 1.5rem; transition: border-color 0.2s, transform 0.2s; cursor: pointer;
+        }
+        .mat-card:hover { border-color: var(--accent); transform: translateY(-2px); }
+        .mat-card .name { font-size: 1.1rem; font-weight: 600; margin-bottom: 0.3rem; }
+        .mat-card .category {
+            display: inline-block; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.05em;
+            padding: 0.2rem 0.6rem; border-radius: 12px; margin-bottom: 0.8rem;
+        }
+        .cat-hydrogel { background: rgba(56,189,248,0.15); color: var(--accent); }
+        .cat-bioink { background: rgba(74,222,128,0.15); color: var(--success); }
+        .cat-ceramic { background: rgba(251,191,36,0.15); color: var(--warning); }
+        .cat-polymer { background: rgba(248,113,113,0.15); color: var(--error); }
+        .cat-composite { background: rgba(168,85,247,0.15); color: #a855f7; }
+
+        .props { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem 1rem; margin-bottom: 0.8rem; }
+        .prop .label { font-size: 0.7rem; color: var(--muted); text-transform: uppercase; }
+        .prop .value { font-size: 0.9rem; font-weight: 500; }
+
+        .compat { display: flex; gap: 0.4rem; flex-wrap: wrap; margin-top: 0.5rem; }
+        .compat-tag {
+            font-size: 0.7rem; padding: 0.15rem 0.5rem; border-radius: 8px;
+            background: rgba(148,163,184,0.1); color: var(--muted); border: 1px solid var(--border);
+        }
+
+        .detail-overlay {
+            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(15,23,42,0.85); z-index: 100; justify-content: center; align-items: center; padding: 2rem;
+        }
+        .detail-overlay.open { display: flex; }
+        .detail-panel {
+            background: var(--surface); border: 1px solid var(--border); border-radius: 16px;
+            padding: 2rem; max-width: 700px; width: 100%; max-height: 90vh; overflow-y: auto; position: relative;
+        }
+        .detail-panel .close-btn {
+            position: absolute; top: 1rem; right: 1rem; background: none; border: none;
+            color: var(--muted); font-size: 1.5rem; cursor: pointer;
+        }
+        .detail-panel .close-btn:hover { color: var(--text); }
+        .detail-panel h2 { font-size: 1.4rem; margin-bottom: 0.5rem; }
+        .detail-section { margin-top: 1.2rem; }
+        .detail-section h3 { font-size: 0.85rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.5rem; }
+        .detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.6rem 1.5rem; }
+        .detail-grid .prop .value { font-size: 1rem; }
+        .detail-notes { color: var(--muted); font-size: 0.9rem; line-height: 1.5; margin-top: 0.5rem; }
+        .bar-container { height: 6px; background: var(--bg); border-radius: 3px; margin-top: 0.3rem; }
+        .bar-fill { height: 100%; border-radius: 3px; transition: width 0.3s; }
+
+        .no-results { text-align: center; color: var(--muted); padding: 3rem; font-size: 1.1rem; }
+
+        @media (max-width: 600px) {
+            .grid { grid-template-columns: 1fr; }
+            .detail-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <a href="index.html" class="back-link">← Back to Dashboard</a>
+    <header>
+        <h1>🧪 Material Database</h1>
+        <p>Searchable reference of bioprinting materials, properties, and recommended parameters</p>
+    </header>
+
+    <div class="controls" id="controls"></div>
+    <div class="stats-bar" id="statsBar"></div>
+    <div class="grid" id="grid"></div>
+    <div class="no-results" id="noResults" style="display:none">No materials match your search.</div>
+
+    <div class="detail-overlay" id="detailOverlay">
+        <div class="detail-panel" id="detailPanel">
+            <button class="close-btn" onclick="closeDetail()">&times;</button>
+            <div id="detailContent"></div>
+        </div>
+    </div>
+
+    <script>
+    const MATERIALS = [
+        {
+            name: "GelMA", fullName: "Gelatin Methacryloyl", category: "hydrogel",
+            viscosity: "0.05–2 Pa·s", crosslinking: "UV (365–405 nm)", temp: "20–37°C",
+            pressure: "5–40 kPa", nozzle: "22–27G", speed: "5–15 mm/s",
+            cellViability: 92, printability: 85, mechanicalStr: "1–50 kPa",
+            degradation: "2–8 weeks", biocompat: ["Chondrocytes", "MSCs", "Fibroblasts", "HUVECs"],
+            notes: "Gold standard for bioprinting. Tunable via degree of methacrylation (DoM). Requires photoinitiator (LAP or Irgacure 2959). Low DoM = softer gels, faster degradation."
+        },
+        {
+            name: "Alginate", fullName: "Sodium Alginate", category: "hydrogel",
+            viscosity: "0.1–5 Pa·s", crosslinking: "Ionic (CaCl₂)", temp: "20–37°C",
+            pressure: "10–60 kPa", nozzle: "20–25G", speed: "5–20 mm/s",
+            cellViability: 88, printability: 78, mechanicalStr: "5–100 kPa",
+            degradation: "Months (slow)", biocompat: ["Chondrocytes", "Hepatocytes", "Islet cells", "MSCs"],
+            notes: "Widely available and easy to crosslink. Poor cell adhesion without RGD modification. Best at 2-4% w/v. CaCl₂ concentration (50-200 mM) controls gel stiffness."
+        },
+        {
+            name: "Collagen Type I", fullName: "Collagen Type I", category: "bioink",
+            viscosity: "0.01–0.5 Pa·s", crosslinking: "Thermal (37°C)", temp: "4–10°C (pre-gel)",
+            pressure: "3–20 kPa", nozzle: "25–30G", speed: "2–8 mm/s",
+            cellViability: 95, printability: 55, mechanicalStr: "0.5–10 kPa",
+            degradation: "1–4 weeks", biocompat: ["Fibroblasts", "Keratinocytes", "Osteoblasts", "Neurons"],
+            notes: "Excellent biocompatibility as native ECM protein. Challenging to print due to low viscosity — often combined with other polymers. Keep on ice before printing."
+        },
+        {
+            name: "Hyaluronic Acid (HA)", fullName: "Hyaluronic Acid / Methacrylated HA", category: "hydrogel",
+            viscosity: "0.5–10 Pa·s", crosslinking: "UV or chemical", temp: "20–37°C",
+            pressure: "10–50 kPa", nozzle: "22–27G", speed: "5–12 mm/s",
+            cellViability: 90, printability: 72, mechanicalStr: "2–30 kPa",
+            degradation: "1–6 weeks", biocompat: ["MSCs", "Chondrocytes", "Neural progenitors"],
+            notes: "Native ECM component, great for cartilage and neural tissue. Methacrylation (MeHA) enables photo-crosslinking. Molecular weight affects both viscosity and bioactivity."
+        },
+        {
+            name: "PEGDA", fullName: "Poly(ethylene glycol) Diacrylate", category: "polymer",
+            viscosity: "0.01–0.2 Pa·s", crosslinking: "UV (365 nm)", temp: "20–25°C",
+            pressure: "5–25 kPa", nozzle: "25–30G", speed: "5–15 mm/s",
+            cellViability: 82, printability: 65, mechanicalStr: "10–500 kPa",
+            degradation: "Non-degradable (unless modified)", biocompat: ["Fibroblasts", "Chondrocytes"],
+            notes: "Highly tunable mechanical properties via MW and concentration. Bioinert — needs peptide functionalization (RGD) for cell attachment. Often blended with other materials."
+        },
+        {
+            name: "Fibrin", fullName: "Fibrinogen + Thrombin", category: "bioink",
+            viscosity: "0.01–0.1 Pa·s", crosslinking: "Enzymatic (thrombin)", temp: "20–37°C",
+            pressure: "2–15 kPa", nozzle: "25–30G", speed: "2–10 mm/s",
+            cellViability: 96, printability: 45, mechanicalStr: "0.1–5 kPa",
+            degradation: "3–14 days", biocompat: ["MSCs", "Keratinocytes", "Endothelial cells", "Neurons"],
+            notes: "Excellent for vascularization and wound healing. Very soft — best used with support materials. Rapid degradation; add aprotinin to slow. Often combined with alginate or gelatin."
+        },
+        {
+            name: "Silk Fibroin", fullName: "Silk Fibroin (Bombyx mori)", category: "bioink",
+            viscosity: "0.1–3 Pa·s", crosslinking: "Enzymatic / physical / UV", temp: "20–37°C",
+            pressure: "10–50 kPa", nozzle: "22–27G", speed: "3–12 mm/s",
+            cellViability: 87, printability: 70, mechanicalStr: "10–300 kPa",
+            degradation: "Weeks to months", biocompat: ["MSCs", "Fibroblasts", "Osteoblasts"],
+            notes: "Strong and slow-degrading. Beta-sheet formation controls mechanical properties. Can be processed into multiple forms. FDA-approved for some applications."
+        },
+        {
+            name: "PCL", fullName: "Polycaprolactone", category: "polymer",
+            viscosity: "Melt (60–90°C)", crosslinking: "Thermal (cooling)", temp: "60–90°C (extrusion)",
+            pressure: "200–800 kPa", nozzle: "18–22G", speed: "1–5 mm/s",
+            cellViability: 75, printability: 90, mechanicalStr: "1–100 MPa",
+            degradation: "1–2 years", biocompat: ["Osteoblasts", "Fibroblasts"],
+            notes: "Excellent structural scaffold material. High melting point means no cells during printing — seed afterward. Great for bone tissue engineering. FDA-approved."
+        },
+        {
+            name: "Matrigel", fullName: "Matrigel (Basement Membrane Extract)", category: "bioink",
+            viscosity: "0.01–0.1 Pa·s (4°C)", crosslinking: "Thermal (37°C)", temp: "4°C (must stay cold)",
+            pressure: "2–10 kPa", nozzle: "27–30G", speed: "2–6 mm/s",
+            cellViability: 94, printability: 40, mechanicalStr: "0.1–1 kPa",
+            degradation: "1–2 weeks", biocompat: ["Organoids", "Stem cells", "Epithelial cells", "Neurons"],
+            notes: "Derived from mouse sarcoma — batch variability is a concern. Gold standard for organoid culture. Must keep at 4°C until printing. Not suitable for clinical translation."
+        },
+        {
+            name: "Pluronic F-127", fullName: "Poloxamer 407", category: "hydrogel",
+            viscosity: "Thermoreversible", crosslinking: "Physical (>20°C gel)", temp: "4°C (sol) → 37°C (gel)",
+            pressure: "15–60 kPa", nozzle: "20–25G", speed: "10–30 mm/s",
+            cellViability: 60, printability: 95, mechanicalStr: "5–50 kPa",
+            degradation: "Reversible (dissolves <10°C)", biocompat: ["Fugitive ink only"],
+            notes: "Primarily used as a fugitive/sacrificial ink for creating vascular channels. Excellent printability but poor long-term cell support. Dissolves when cooled."
+        },
+        {
+            name: "Chitosan", fullName: "Chitosan (Deacetylated Chitin)", category: "hydrogel",
+            viscosity: "0.5–8 Pa·s", crosslinking: "Ionic / chemical (genipin)", temp: "20–37°C",
+            pressure: "20–80 kPa", nozzle: "20–25G", speed: "3–10 mm/s",
+            cellViability: 83, printability: 68, mechanicalStr: "5–80 kPa",
+            degradation: "2–8 weeks", biocompat: ["Fibroblasts", "Osteoblasts", "Chondrocytes"],
+            notes: "Antimicrobial properties — good for wound healing. pH-sensitive gelation. Degree of deacetylation affects properties. Often combined with HA or gelatin."
+        },
+        {
+            name: "dECM", fullName: "Decellularized Extracellular Matrix", category: "bioink",
+            viscosity: "0.05–1 Pa·s", crosslinking: "Thermal (37°C)", temp: "4–15°C",
+            pressure: "5–30 kPa", nozzle: "22–27G", speed: "3–10 mm/s",
+            cellViability: 93, printability: 60, mechanicalStr: "0.5–20 kPa",
+            degradation: "2–8 weeks", biocompat: ["Tissue-specific cells", "MSCs", "iPSCs"],
+            notes: "Tissue-specific biochemical cues. Source tissue (heart, liver, cartilage) determines composition. Pepsin digestion required. Pre-gel must stay cold. Most biomimetic option."
+        },
+        {
+            name: "Agarose", fullName: "Agarose", category: "hydrogel",
+            viscosity: "Thermoreversible", crosslinking: "Physical (cooling)", temp: "37–42°C (sol) → <25°C (gel)",
+            pressure: "15–60 kPa", nozzle: "20–25G", speed: "5–15 mm/s",
+            cellViability: 80, printability: 75, mechanicalStr: "10–200 kPa",
+            degradation: "Non-degradable (enzymatic only)", biocompat: ["Chondrocytes", "Neural cells"],
+            notes: "Good structural integrity. No cell adhesion — needs modification or blending. Concentration (0.5–3%) controls stiffness. Good for cartilage scaffolds."
+        },
+        {
+            name: "Gelatin", fullName: "Gelatin (Type A or B)", category: "hydrogel",
+            viscosity: "0.1–5 Pa·s", crosslinking: "Physical (cooling) / chemical (glutaraldehyde, genipin)", temp: "28–37°C",
+            pressure: "10–50 kPa", nozzle: "22–27G", speed: "5–15 mm/s",
+            cellViability: 90, printability: 80, mechanicalStr: "1–50 kPa",
+            degradation: "1–4 weeks", biocompat: ["Fibroblasts", "MSCs", "Keratinocytes", "Hepatocytes"],
+            notes: "Denatured collagen — retains RGD sites for cell adhesion. Temperature-sensitive: liquid above ~28°C, gel below. Cheap and versatile. Often used as a base for blends."
+        },
+        {
+            name: "Hydroxyapatite (HAp)", fullName: "Hydroxyapatite Composite Ink", category: "ceramic",
+            viscosity: "Paste (high)", crosslinking: "Sintering / chemical", temp: "20–25°C (extrusion)",
+            pressure: "200–600 kPa", nozzle: "18–22G", speed: "2–8 mm/s",
+            cellViability: 70, printability: 72, mechanicalStr: "0.5–5 MPa",
+            degradation: "Months to years", biocompat: ["Osteoblasts", "MSCs"],
+            notes: "Primary mineral component of bone. Usually mixed with a polymer binder (PCL, alginate) for printing. Sintering greatly increases strength but removes organics. Excellent osteoconduction."
+        },
+        {
+            name: "Gellan Gum", fullName: "Gellan Gum (low/high acyl)", category: "hydrogel",
+            viscosity: "0.1–2 Pa·s", crosslinking: "Ionic (Ca²⁺, Mg²⁺)", temp: "40–50°C → gel on cooling + ions",
+            pressure: "10–40 kPa", nozzle: "22–27G", speed: "5–12 mm/s",
+            cellViability: 85, printability: 73, mechanicalStr: "5–100 kPa",
+            degradation: "Weeks to months", biocompat: ["MSCs", "Chondrocytes", "Nucleus pulposus cells"],
+            notes: "FDA-approved food additive. Low acyl = firmer gels; high acyl = softer, more elastic. Good for cartilage and intervertebral disc. Can be modified with methacrylate groups."
+        }
+    ];
+
+    const CATEGORIES = [...new Set(MATERIALS.map(m => m.category))];
+    let activeFilter = null;
+    let searchQuery = "";
+
+    function init() {
+        renderControls();
+        renderStats();
+        renderGrid();
+    }
+
+    function renderControls() {
+        const c = document.getElementById("controls");
+        c.innerHTML = `
+            <input type="text" class="search-box" placeholder="Search materials, cell types, properties..." oninput="onSearch(this.value)">
+            <button class="filter-btn active" onclick="setFilter(null)">All</button>
+            ${CATEGORIES.map(cat => `<button class="filter-btn" onclick="setFilter('${cat}')">${cap(cat)}</button>`).join("")}
+        `;
+    }
+
+    function renderStats() {
+        const filtered = getFiltered();
+        const avgViability = filtered.length ? Math.round(filtered.reduce((s, m) => s + m.cellViability, 0) / filtered.length) : 0;
+        const avgPrint = filtered.length ? Math.round(filtered.reduce((s, m) => s + m.printability, 0) / filtered.length) : 0;
+        document.getElementById("statsBar").innerHTML = `
+            <div class="stat"><div class="val">${filtered.length}</div><div class="lbl">Materials</div></div>
+            <div class="stat"><div class="val">${CATEGORIES.length}</div><div class="lbl">Categories</div></div>
+            <div class="stat"><div class="val">${avgViability}%</div><div class="lbl">Avg Viability</div></div>
+            <div class="stat"><div class="val">${avgPrint}%</div><div class="lbl">Avg Printability</div></div>
+        `;
+    }
+
+    function getFiltered() {
+        return MATERIALS.filter(m => {
+            if (activeFilter && m.category !== activeFilter) return false;
+            if (searchQuery) {
+                const q = searchQuery.toLowerCase();
+                const haystack = [m.name, m.fullName, m.category, m.notes, ...m.biocompat].join(" ").toLowerCase();
+                return haystack.includes(q);
+            }
+            return true;
+        });
+    }
+
+    function renderGrid() {
+        const filtered = getFiltered();
+        const grid = document.getElementById("grid");
+        const noRes = document.getElementById("noResults");
+        if (!filtered.length) { grid.innerHTML = ""; noRes.style.display = "block"; return; }
+        noRes.style.display = "none";
+        grid.innerHTML = filtered.map((m, i) => `
+            <div class="mat-card" onclick="openDetail(${MATERIALS.indexOf(m)})">
+                <div class="name">${m.name}</div>
+                <span class="category cat-${m.category}">${m.category}</span>
+                <div class="props">
+                    <div class="prop"><div class="label">Crosslinking</div><div class="value">${m.crosslinking.split("(")[0].trim()}</div></div>
+                    <div class="prop"><div class="label">Nozzle</div><div class="value">${m.nozzle}</div></div>
+                    <div class="prop"><div class="label">Viability</div><div class="value">${viabilityBar(m.cellViability)}</div></div>
+                    <div class="prop"><div class="label">Printability</div><div class="value">${viabilityBar(m.printability)}</div></div>
+                </div>
+                <div class="compat">${m.biocompat.slice(0, 3).map(c => `<span class="compat-tag">${c}</span>`).join("")}${m.biocompat.length > 3 ? `<span class="compat-tag">+${m.biocompat.length - 3}</span>` : ""}</div>
+            </div>
+        `).join("");
+    }
+
+    function viabilityBar(pct) {
+        const color = pct >= 90 ? "var(--success)" : pct >= 75 ? "var(--accent)" : pct >= 60 ? "var(--warning)" : "var(--error)";
+        return `${pct}% <div class="bar-container"><div class="bar-fill" style="width:${pct}%;background:${color}"></div></div>`;
+    }
+
+    function openDetail(idx) {
+        const m = MATERIALS[idx];
+        document.getElementById("detailContent").innerHTML = `
+            <h2>${m.name}</h2>
+            <p style="color:var(--muted);margin-bottom:0.3rem">${m.fullName}</p>
+            <span class="category cat-${m.category}">${m.category}</span>
+            <div class="detail-section">
+                <h3>Print Parameters</h3>
+                <div class="detail-grid">
+                    <div class="prop"><div class="label">Temperature</div><div class="value">${m.temp}</div></div>
+                    <div class="prop"><div class="label">Pressure</div><div class="value">${m.pressure}</div></div>
+                    <div class="prop"><div class="label">Nozzle Gauge</div><div class="value">${m.nozzle}</div></div>
+                    <div class="prop"><div class="label">Print Speed</div><div class="value">${m.speed}</div></div>
+                    <div class="prop"><div class="label">Viscosity</div><div class="value">${m.viscosity}</div></div>
+                    <div class="prop"><div class="label">Crosslinking</div><div class="value">${m.crosslinking}</div></div>
+                </div>
+            </div>
+            <div class="detail-section">
+                <h3>Performance</h3>
+                <div class="detail-grid">
+                    <div class="prop"><div class="label">Cell Viability</div><div class="value">${viabilityBar(m.cellViability)}</div></div>
+                    <div class="prop"><div class="label">Printability</div><div class="value">${viabilityBar(m.printability)}</div></div>
+                    <div class="prop"><div class="label">Mechanical Strength</div><div class="value">${m.mechanicalStr}</div></div>
+                    <div class="prop"><div class="label">Degradation</div><div class="value">${m.degradation}</div></div>
+                </div>
+            </div>
+            <div class="detail-section">
+                <h3>Compatible Cell Types</h3>
+                <div class="compat">${m.biocompat.map(c => `<span class="compat-tag">${c}</span>`).join("")}</div>
+            </div>
+            <div class="detail-section">
+                <h3>Notes</h3>
+                <div class="detail-notes">${m.notes}</div>
+            </div>
+        `;
+        document.getElementById("detailOverlay").classList.add("open");
+    }
+
+    function closeDetail() { document.getElementById("detailOverlay").classList.remove("open"); }
+    document.getElementById("detailOverlay").addEventListener("click", e => { if (e.target === e.currentTarget) closeDetail(); });
+    document.addEventListener("keydown", e => { if (e.key === "Escape") closeDetail(); });
+
+    function setFilter(cat) {
+        activeFilter = cat;
+        document.querySelectorAll(".filter-btn").forEach(b => b.classList.remove("active"));
+        event.target.classList.add("active");
+        renderStats(); renderGrid();
+    }
+
+    function onSearch(val) { searchQuery = val; renderStats(); renderGrid(); }
+    function cap(s) { return s.charAt(0).toUpperCase() + s.slice(1); }
+
+    init();
+    </script>
+</body>
+</html>
