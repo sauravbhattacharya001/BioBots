@@ -1,3 +1,5 @@
+const { clamp } = require('./scriptUtils');
+
 /**
  * Print Parameter Optimizer
  *
@@ -88,7 +90,7 @@ function viabilityScore(params) {
   // Pressure penalty: high pressure damages cells
   const pressureScore = 1 - Math.pow(params.pressure / 300, 2);
 
-  return clamp(0.4 * shearScore + 0.35 * tempScore + 0.25 * Math.max(0, pressureScore));
+  return clamp(0.4 * shearScore + 0.35 * tempScore + 0.25 * Math.max(0, pressureScore), 0, 1);
 }
 
 /**
@@ -111,7 +113,7 @@ function structuralScore(params) {
   // Pressure: enough to extrude properly
   const pressureScore = 1 - Math.exp(-params.pressure / 40);
 
-  return clamp(0.3 * infillScore + 0.3 * ratioScore + 0.2 * speedScore + 0.2 * pressureScore);
+  return clamp(0.3 * infillScore + 0.3 * ratioScore + 0.2 * speedScore + 0.2 * pressureScore, 0, 1);
 }
 
 /**
@@ -127,7 +129,7 @@ function resolutionScore(params) {
   // Speed: slower = more precise deposition
   const speedScore = Math.exp(-params.speed / 20);
 
-  return clamp(0.4 * nozzleScore + 0.35 * layerScore + 0.25 * speedScore);
+  return clamp(0.4 * nozzleScore + 0.35 * layerScore + 0.25 * speedScore, 0, 1);
 }
 
 /**
@@ -138,11 +140,7 @@ function throughputScore(params) {
   const nozzleScore = (params.nozzleDiameter - 0.1) / 1.4;
   const layerScore = (params.layerHeight - 0.05) / 0.95;
 
-  return clamp(0.5 * speedScore + 0.25 * nozzleScore + 0.25 * layerScore);
-}
-
-function clamp(v, lo = 0, hi = 1) {
-  return Math.max(lo, Math.min(hi, v));
+  return clamp(0.5 * speedScore + 0.25 * nozzleScore + 0.25 * layerScore, 0, 1);
 }
 
 // ── Core optimizer ──────────────────────────────────────────────────

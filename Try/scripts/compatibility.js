@@ -1,5 +1,7 @@
 'use strict';
 
+const { clamp } = require('./scriptUtils');
+
 /**
  * Bioink Compatibility Matrix
  *
@@ -143,8 +145,6 @@ const BUILTIN_BIOINKS = {
 };
 
 // ── Scoring helpers ──
-
-function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
 
 /**
  * Score overlap of two ranges [a1,a2] and [b1,b2]. Returns 0-1.

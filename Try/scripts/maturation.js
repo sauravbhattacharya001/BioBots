@@ -1,5 +1,7 @@
 'use strict';
 
+const { validatePositive, validateNonNegative } = require('./scriptUtils');
+
 /**
  * Tissue Maturation Simulator
  *
@@ -163,18 +165,6 @@ const TISSUE_TARGETS = {
 };
 
 // ── Helper functions ──
-
-function validatePositive(val, name) {
-  if (typeof val !== 'number' || !isFinite(val) || val <= 0) {
-    throw new Error(`${name} must be a positive finite number, got ${val}`);
-  }
-}
-
-function validateNonNegative(val, name) {
-  if (typeof val !== 'number' || !isFinite(val) || val < 0) {
-    throw new Error(`${name} must be a non-negative finite number, got ${val}`);
-  }
-}
 
 function getCellProfile(cellType) {
   const p = CELL_PROFILES[cellType];

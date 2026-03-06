@@ -1,5 +1,7 @@
 'use strict';
 
+const { clamp, validatePositive, validateNonNegative } = require('./scriptUtils');
+
 /**
  * Scaffold Degradation Predictor
  *
@@ -169,21 +171,6 @@ const MATERIAL_PROFILES = {
 
 const R_GAS = 8.314e-3; // kJ/(mol·K)
 
-// ── Utility functions ──
-
-function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
-
-function validatePositive(val, name) {
-  if (typeof val !== 'number' || !isFinite(val) || val <= 0) {
-    throw new Error(`${name} must be a positive finite number, got ${val}`);
-  }
-}
-
-function validateNonNegative(val, name) {
-  if (typeof val !== 'number' || !isFinite(val) || val < 0) {
-    throw new Error(`${name} must be a non-negative finite number, got ${val}`);
-  }
-}
 
 function resolveProfile(materialOrName) {
   if (typeof materialOrName === 'string') {
