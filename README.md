@@ -36,7 +36,7 @@ The tool supports:
 - **Aggregation functions** — Maximum, Minimum, Average across all records
 - **11 queryable metrics** — From cell viability to extruder pressure
 - **File-watch caching** — Data reloads automatically when the JSON file changes (no restart needed)
-- **9 interactive analysis tools** — Explorer, Comparison, Quality Control, Anomaly Detection, Clustering, Optimization, Trend Analysis, Data Table, and Wellplate Analyzer — all running client-side with zero dependencies
+- **11 interactive analysis tools** — Explorer, Comparison, Quality Control, Anomaly Detection, Clustering, Optimization, Trend Analysis, Data Table, Wellplate Analyzer, Print Report, and Cost Estimator — all running client-side with zero dependencies
 
 ### 🌐 Live Demo
 
@@ -54,6 +54,7 @@ All analysis tools are deployed on GitHub Pages:
 | [📋 Data Table](https://sauravbhattacharya001.github.io/BioBots/table.html) | Searchable, sortable, filterable data browser |
 | [🧫 Wellplate Analyzer](https://sauravbhattacharya001.github.io/BioBots/wellplate.html) | Performance breakdown by wellplate format |
 | [📋 Print Report](https://sauravbhattacharya001.github.io/BioBots/report.html) | Generate formatted, printable lab reports |
+| [💰 Cost Estimator](https://sauravbhattacharya001.github.io/BioBots/cost.html) | Estimate per-print costs with materials, machine time, and batch scaling |
 
 ## 🏗️ Architecture
 

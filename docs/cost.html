@@ -1,0 +1,719 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>BioBots 1 — Cost Estimator</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧬</text></svg>">
+    <style>
+        :root {
+            --bg: #0f172a;
+            --surface: #1e293b;
+            --border: #334155;
+            --text: #e2e8f0;
+            --muted: #94a3b8;
+            --accent: #38bdf8;
+            --accent-hover: #7dd3fc;
+            --success: #4ade80;
+            --error: #f87171;
+            --warning: #fbbf24;
+            --purple: #a78bfa;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg); color: var(--text);
+            min-height: 100vh; padding: 2rem 1rem;
+        }
+        nav { display: flex; gap: 0.5rem; margin-bottom: 2rem; flex-wrap: wrap; justify-content: center; }
+        nav a { color: var(--muted); padding: 0.5rem 1rem; border-radius: 8px; text-decoration: none; font-size: 0.9rem; transition: all 0.2s; }
+        nav a:hover { color: var(--accent); background: var(--surface); }
+        nav a.active { color: var(--accent); background: var(--surface); border: 1px solid var(--border); }
+        header { text-align: center; margin-bottom: 2rem; }
+        header h1 {
+            font-size: 2rem; font-weight: 700;
+            background: linear-gradient(135deg, var(--accent), var(--purple));
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+        }
+        header p { color: var(--muted); margin-top: 0.5rem; }
+        .container { max-width: 1100px; margin: 0 auto; }
+        .card {
+            background: var(--surface); border: 1px solid var(--border);
+            border-radius: 12px; padding: 1.5rem; margin-bottom: 1.5rem;
+        }
+        .card h2 { font-size: 1.1rem; margin-bottom: 1rem; }
+        .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; }
+        @media (max-width: 768px) { .grid-2 { grid-template-columns: 1fr; } }
+        .form-row { display: flex; gap: 1rem; flex-wrap: wrap; margin-bottom: 0.75rem; }
+        .form-group { display: flex; flex-direction: column; gap: 0.3rem; flex: 1; min-width: 140px; }
+        .form-group label { font-size: 0.8rem; color: var(--muted); font-weight: 500; }
+        .form-group select, .form-group input {
+            background: var(--bg); color: var(--text); border: 1px solid var(--border);
+            border-radius: 8px; padding: 0.5rem 0.75rem; font-size: 0.9rem;
+        }
+        .form-group select:focus, .form-group input:focus { outline: none; border-color: var(--accent); }
+        .btn {
+            background: var(--accent); color: var(--bg); border: none;
+            padding: 0.6rem 1.5rem; border-radius: 8px; font-size: 0.9rem;
+            font-weight: 600; cursor: pointer; transition: background 0.2s;
+        }
+        .btn:hover { background: var(--accent-hover); }
+        .btn-sm { padding: 0.4rem 0.8rem; font-size: 0.8rem; }
+        .btn-outline {
+            background: transparent; color: var(--accent); border: 1px solid var(--accent);
+        }
+        .btn-outline:hover { background: var(--accent); color: var(--bg); }
+        .btn-danger { background: var(--error); }
+        .btn-danger:hover { opacity: 0.85; }
+        .actions { display: flex; gap: 0.5rem; margin-top: 1rem; flex-wrap: wrap; }
+
+        /* Material list */
+        .mat-list { list-style: none; margin-top: 0.5rem; }
+        .mat-list li {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 0.4rem 0.6rem; border-bottom: 1px solid var(--border); font-size: 0.85rem;
+        }
+        .mat-list li:last-child { border-bottom: none; }
+        .mat-list .remove-btn {
+            background: none; border: none; color: var(--error); cursor: pointer;
+            font-size: 1rem; padding: 0 0.3rem;
+        }
+
+        /* Results */
+        .total-box {
+            text-align: center; padding: 1.5rem;
+            background: linear-gradient(135deg, #1e3a5f, #1e293b);
+            border-radius: 12px; margin-bottom: 1.5rem;
+        }
+        .total-box .amount { font-size: 2.5rem; font-weight: 700; color: var(--accent); }
+        .total-box .per-layer { color: var(--muted); margin-top: 0.3rem; }
+
+        .breakdown-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem; margin-bottom: 1.5rem; }
+        .stat-card {
+            background: var(--bg); border: 1px solid var(--border);
+            border-radius: 10px; padding: 1rem; text-align: center;
+        }
+        .stat-card .label { font-size: 0.75rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; }
+        .stat-card .value { font-size: 1.3rem; font-weight: 700; margin-top: 0.3rem; }
+
+        /* Pie chart */
+        .chart-container { display: flex; justify-content: center; align-items: center; gap: 2rem; flex-wrap: wrap; }
+        .pie-wrap { position: relative; width: 220px; height: 220px; }
+        .pie-wrap canvas { width: 220px; height: 220px; }
+        .legend { list-style: none; font-size: 0.85rem; }
+        .legend li { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.4rem; }
+        .legend .swatch { width: 14px; height: 14px; border-radius: 3px; flex-shrink: 0; }
+
+        /* Detail table */
+        .detail-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; margin-top: 0.75rem; }
+        .detail-table th, .detail-table td { padding: 0.5rem 0.75rem; text-align: left; border-bottom: 1px solid var(--border); }
+        .detail-table th { color: var(--muted); font-weight: 500; font-size: 0.75rem; text-transform: uppercase; }
+        .detail-table td:last-child { text-align: right; font-family: 'SF Mono', monospace; }
+
+        /* Scale table */
+        .scale-row { display: flex; gap: 1rem; flex-wrap: wrap; margin-top: 0.75rem; }
+        .scale-card {
+            flex: 1; min-width: 100px; text-align: center;
+            background: var(--bg); border: 1px solid var(--border);
+            border-radius: 8px; padding: 0.75rem;
+        }
+        .scale-card .qty { font-size: 1.2rem; font-weight: 700; color: var(--accent); }
+        .scale-card .total { font-size: 0.9rem; margin-top: 0.2rem; }
+        .scale-card .per-unit { font-size: 0.75rem; color: var(--success); }
+
+        .hidden { display: none; }
+
+        @media print {
+            nav, .btn, .actions, header p { display: none; }
+            body { background: #fff; color: #000; padding: 1rem; }
+            .card { border-color: #ddd; }
+            .total-box { background: #f0f7ff; }
+            .total-box .amount { color: #0066cc; }
+            .stat-card { border-color: #ddd; }
+        }
+    </style>
+</head>
+<body>
+    <nav>
+        <a href="index.html">Query Tool</a>
+        <a href="explorer.html">Data Explorer</a>
+        <a href="table.html">Data Table</a>
+        <a href="compare.html">Compare</a>
+        <a href="quality.html">🔬 Quality</a>
+        <a href="anomaly.html">⚠️ Anomaly</a>
+        <a href="trends.html">Trends</a>
+        <a href="optimizer.html">⚡ Optimizer</a>
+        <a href="cluster.html">🔮 Clusters</a>
+        <a href="correlation.html">📊 Correlation</a>
+        <a href="calculator.html">🧮 Calculator</a>
+        <a href="batch.html">📋 Batch Planner</a>
+        <a href="cost.html" class="active">💰 Cost Estimator</a>
+        <a href="guide.html">📖 Guide</a>
+        <a href="api.html">🔌 API</a>
+        <a href="architecture.html">🏗️ Architecture</a>
+        <a href="evolution.html">🧬 Evolution</a>
+    </nav>
+
+    <header>
+        <h1>💰 Cost Estimator</h1>
+        <p>Estimate total bioprinting costs — materials, machine time, energy, consumables, and labor</p>
+    </header>
+
+    <div class="container">
+        <!-- Machine & Print Config -->
+        <div class="grid-2">
+            <div class="card">
+                <h2>🖨️ Print Configuration</h2>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Machine</label>
+                        <select id="machine">
+                            <option value="BioBots 1">BioBots 1 ($15/hr, 150W)</option>
+                            <option value="BioBots 2">BioBots 2 ($25/hr, 250W)</option>
+                            <option value="Cellink BIO X">Cellink BIO X ($35/hr, 300W)</option>
+                            <option value="Allevi 2">Allevi 2 ($20/hr, 180W)</option>
+                            <option value="Generic">Generic ($10/hr, 200W)</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Print Time (minutes)</label>
+                        <input type="number" id="printTime" value="45" min="1" max="1440">
+                    </div>
+                    <div class="form-group">
+                        <label>Layer Count</label>
+                        <input type="number" id="layerCount" value="20" min="1" max="500">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Needle Gauge</label>
+                        <select id="needleGauge">
+                            <option value="18">18G ($0.45)</option>
+                            <option value="20">20G ($0.45)</option>
+                            <option value="22" selected>22G ($0.50)</option>
+                            <option value="25">25G ($0.55)</option>
+                            <option value="27">27G ($0.65)</option>
+                            <option value="30">30G ($0.85)</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Substrate</label>
+                        <select id="substrate">
+                            <option value="">None</option>
+                            <option value="petri_35mm">35mm Petri ($0.85)</option>
+                            <option value="petri_60mm">60mm Petri ($1.10)</option>
+                            <option value="petri_100mm">100mm Petri ($1.50)</option>
+                            <option value="wellplate_6" selected>6-Well Plate ($3.20)</option>
+                            <option value="wellplate_12">12-Well Plate ($3.80)</option>
+                            <option value="wellplate_24">24-Well Plate ($4.20)</option>
+                            <option value="wellplate_96">96-Well Plate ($5.50)</option>
+                            <option value="glass_slide">Glass Slide ($0.60)</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Labor Role</label>
+                        <select id="laborRole">
+                            <option value="grad_student">Graduate Student ($25/hr)</option>
+                            <option value="technician" selected>Lab Technician ($35/hr)</option>
+                            <option value="postdoc">Postdoctoral Fellow ($45/hr)</option>
+                            <option value="researcher">Research Scientist ($55/hr)</option>
+                            <option value="pi">Principal Investigator ($85/hr)</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Post-Processing (min)</label>
+                        <input type="number" id="postProcessing" value="15" min="0" max="480">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Waste Factor</label>
+                        <select id="wasteFactor">
+                            <option value="1.05">5% (Expert)</option>
+                            <option value="1.10">10% (Experienced)</option>
+                            <option value="1.15" selected>15% (Standard)</option>
+                            <option value="1.25">25% (Learning)</option>
+                            <option value="1.40">40% (First Time)</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Energy Rate ($/kWh)</label>
+                        <input type="number" id="energyRate" value="0.12" min="0.01" max="1.00" step="0.01">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Bioinks & Crosslinkers -->
+            <div class="card">
+                <h2>🧪 Materials</h2>
+                <div class="form-row">
+                    <div class="form-group" style="flex:2">
+                        <label>Bioink</label>
+                        <select id="bioinkSelect">
+                            <option value="GelMA 5%">GelMA 5% ($12.50/mL)</option>
+                            <option value="GelMA 10%">GelMA 10% ($18.00/mL)</option>
+                            <option value="Alginate 2%">Alginate 2% ($3.20/mL)</option>
+                            <option value="Alginate 4%">Alginate 4% ($4.80/mL)</option>
+                            <option value="Collagen I">Collagen I ($45.00/mL)</option>
+                            <option value="Fibrin">Fibrin ($28.00/mL)</option>
+                            <option value="Hyaluronic Acid">Hyaluronic Acid ($35.00/mL)</option>
+                            <option value="PEGDA">PEGDA ($8.50/mL)</option>
+                            <option value="Matrigel">Matrigel ($85.00/mL)</option>
+                            <option value="Silk Fibroin">Silk Fibroin ($22.00/mL)</option>
+                            <option value="dECM">dECM ($95.00/mL)</option>
+                        </select>
+                    </div>
+                    <div class="form-group" style="flex:0.7">
+                        <label>Volume (mL)</label>
+                        <input type="number" id="bioinkVol" value="2.5" min="0.1" max="50" step="0.1">
+                    </div>
+                    <div class="form-group" style="flex:0.3; justify-content: flex-end;">
+                        <label>&nbsp;</label>
+                        <button class="btn btn-sm" onclick="addBioink()">+ Add</button>
+                    </div>
+                </div>
+                <ul class="mat-list" id="bioinkList"></ul>
+
+                <div style="margin-top:1rem; border-top:1px solid var(--border); padding-top:1rem;">
+                    <div class="form-row">
+                        <div class="form-group" style="flex:2">
+                            <label>Crosslinker</label>
+                            <select id="crosslinkerSelect">
+                                <option value="CaCl2 100mM">CaCl2 100mM ($0.15/mL)</option>
+                                <option value="LAP photoinitiator">LAP Photoinitiator ($5.00/mL)</option>
+                                <option value="Thrombin">Thrombin ($18.00/mL)</option>
+                                <option value="Genipin">Genipin ($12.00/mL)</option>
+                            </select>
+                        </div>
+                        <div class="form-group" style="flex:0.7">
+                            <label>Volume (mL)</label>
+                            <input type="number" id="crosslinkerVol" value="1.0" min="0.1" max="50" step="0.1">
+                        </div>
+                        <div class="form-group" style="flex:0.3; justify-content: flex-end;">
+                            <label>&nbsp;</label>
+                            <button class="btn btn-sm" onclick="addCrosslinker()">+ Add</button>
+                        </div>
+                    </div>
+                    <ul class="mat-list" id="crosslinkerList"></ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- Estimate Button -->
+        <div class="actions" style="justify-content:center; margin-bottom:1.5rem;">
+            <button class="btn" onclick="runEstimate()" style="padding:0.8rem 3rem; font-size:1rem;">
+                💰 Estimate Cost
+            </button>
+            <button class="btn btn-outline" onclick="resetForm()">Reset</button>
+        </div>
+
+        <!-- Results -->
+        <div id="results" class="hidden">
+            <div class="total-box">
+                <div class="amount" id="totalCost">$0.00</div>
+                <div class="per-layer" id="perLayer"></div>
+            </div>
+
+            <div class="breakdown-grid" id="breakdownCards"></div>
+
+            <div class="grid-2">
+                <div class="card">
+                    <h2>📊 Cost Breakdown</h2>
+                    <div class="chart-container">
+                        <div class="pie-wrap"><canvas id="pieChart" width="440" height="440"></canvas></div>
+                        <ul class="legend" id="pieLegend"></ul>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h2>📋 Line Items</h2>
+                    <table class="detail-table" id="detailTable">
+                        <thead><tr><th>Item</th><th>Detail</th><th>Cost</th></tr></thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Scale Estimates -->
+            <div class="card">
+                <h2>📈 Batch Scaling</h2>
+                <p style="color:var(--muted);font-size:0.85rem;margin-bottom:0.75rem;">
+                    Cost per unit decreases at scale as fixed setup labor is amortized.
+                </p>
+                <div class="scale-row" id="scaleCards"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+    'use strict';
+
+    // ── Material Price Databases (mirroring costEstimator.js) ───
+
+    var MATERIAL_PRICES = {
+        'GelMA 5%':12.50,'GelMA 10%':18.00,'Alginate 2%':3.20,'Alginate 4%':4.80,
+        'Collagen I':45.00,'Fibrin':28.00,'Hyaluronic Acid':35.00,'PEGDA':8.50,
+        'Matrigel':85.00,'Silk Fibroin':22.00,'dECM':95.00,'Pluronic F-127':2.80,
+        'CaCl2 100mM':0.15,'LAP photoinitiator':5.00,'Thrombin':18.00,'Genipin':12.00,
+        'DMEM':0.08,'RPMI-1640':0.09,'FBS':1.20
+    };
+
+    var CONSUMABLE_PRICES = {
+        'needle_18G':0.45,'needle_20G':0.45,'needle_22G':0.50,'needle_25G':0.55,
+        'needle_27G':0.65,'needle_30G':0.85,
+        'cartridge_3ml':2.50,'cartridge_5ml':3.00,'cartridge_10ml':3.80,'cartridge_30ml':5.50,
+        'petri_35mm':0.85,'petri_60mm':1.10,'petri_100mm':1.50,
+        'wellplate_6':3.20,'wellplate_12':3.80,'wellplate_24':4.20,'wellplate_96':5.50,
+        'glass_slide':0.60
+    };
+
+    var MACHINE_PROFILES = {
+        'BioBots 1':  {hourlyRate:15,powerWatts:150,warmupMin:10,cooldownMin:5},
+        'BioBots 2':  {hourlyRate:25,powerWatts:250,warmupMin:8,cooldownMin:5},
+        'Cellink BIO X':{hourlyRate:35,powerWatts:300,warmupMin:15,cooldownMin:10},
+        'Allevi 2':   {hourlyRate:20,powerWatts:180,warmupMin:12,cooldownMin:5},
+        'Generic':    {hourlyRate:10,powerWatts:200,warmupMin:10,cooldownMin:5}
+    };
+
+    var LABOR_RATES = {
+        'technician':35,'researcher':55,'postdoc':45,'grad_student':25,'pi':85
+    };
+
+    var CATEGORY_COLORS = {
+        materials:'#a78bfa', machineTime:'#38bdf8', energy:'#fbbf24',
+        consumables:'#4ade80', labor:'#fb923c'
+    };
+
+    // ── State ───────────────────────────────────────────────────
+
+    var bioinks = [];
+    var crosslinkers = [];
+
+    function addBioink() {
+        var name = document.getElementById('bioinkSelect').value;
+        var vol = parseFloat(document.getElementById('bioinkVol').value) || 0;
+        if (vol <= 0) return;
+        bioinks.push({name: name, volumeMl: vol});
+        renderBioinks();
+    }
+
+    function removeBioink(i) { bioinks.splice(i, 1); renderBioinks(); }
+
+    function renderBioinks() {
+        var ul = document.getElementById('bioinkList');
+        ul.innerHTML = '';
+        for (var i = 0; i < bioinks.length; i++) {
+            var b = bioinks[i];
+            var price = MATERIAL_PRICES[b.name] || 0;
+            var li = document.createElement('li');
+            li.innerHTML = '<span>' + esc(b.name) + ' — ' + b.volumeMl + ' mL</span>' +
+                '<span>$' + (b.volumeMl * price).toFixed(2) +
+                ' <button class="remove-btn" onclick="removeBioink(' + i + ')">✕</button></span>';
+            ul.appendChild(li);
+        }
+    }
+
+    function addCrosslinker() {
+        var name = document.getElementById('crosslinkerSelect').value;
+        var vol = parseFloat(document.getElementById('crosslinkerVol').value) || 0;
+        if (vol <= 0) return;
+        crosslinkers.push({name: name, volumeMl: vol});
+        renderCrosslinkers();
+    }
+
+    function removeCrosslinker(i) { crosslinkers.splice(i, 1); renderCrosslinkers(); }
+
+    function renderCrosslinkers() {
+        var ul = document.getElementById('crosslinkerList');
+        ul.innerHTML = '';
+        for (var i = 0; i < crosslinkers.length; i++) {
+            var c = crosslinkers[i];
+            var price = MATERIAL_PRICES[c.name] || 0;
+            var li = document.createElement('li');
+            li.innerHTML = '<span>' + esc(c.name) + ' — ' + c.volumeMl + ' mL</span>' +
+                '<span>$' + (c.volumeMl * price).toFixed(2) +
+                ' <button class="remove-btn" onclick="removeCrosslinker(' + i + ')">✕</button></span>';
+            ul.appendChild(li);
+        }
+    }
+
+    // ── Cost Engine (self-contained, mirrors costEstimator.js) ──
+
+    function computeCost() {
+        var machine = document.getElementById('machine').value;
+        var printTime = parseInt(document.getElementById('printTime').value) || 45;
+        var layerCount = parseInt(document.getElementById('layerCount').value) || 1;
+        var needleGauge = document.getElementById('needleGauge').value;
+        var substrate = document.getElementById('substrate').value;
+        var laborRole = document.getElementById('laborRole').value;
+        var postProcess = parseInt(document.getElementById('postProcessing').value) || 0;
+        var wasteFactor = parseFloat(document.getElementById('wasteFactor').value) || 1.15;
+        var energyRate = parseFloat(document.getElementById('energyRate').value) || 0.12;
+        var mp = MACHINE_PROFILES[machine] || MACHINE_PROFILES['Generic'];
+
+        // Materials
+        var matTotal = 0; var matItems = [];
+        for (var i = 0; i < bioinks.length; i++) {
+            var b = bioinks[i];
+            var ppm = MATERIAL_PRICES[b.name] || 0;
+            var cost = b.volumeMl * ppm * wasteFactor;
+            matTotal += cost;
+            matItems.push({name:b.name, detail:b.volumeMl+'mL × $'+ppm.toFixed(2)+'/mL × '+wasteFactor, cost:cost});
+        }
+        for (var j = 0; j < crosslinkers.length; j++) {
+            var c = crosslinkers[j];
+            var ppm2 = MATERIAL_PRICES[c.name] || 0;
+            var cost2 = c.volumeMl * ppm2 * wasteFactor;
+            matTotal += cost2;
+            matItems.push({name:c.name, detail:c.volumeMl+'mL × $'+ppm2.toFixed(2)+'/mL × '+wasteFactor, cost:cost2});
+        }
+
+        // Machine time
+        var totalMin = mp.warmupMin + printTime + mp.cooldownMin;
+        var machCost = (totalMin / 60) * mp.hourlyRate;
+        var machItems = [{name:machine, detail:totalMin+'min ('+mp.warmupMin+' warmup + '+printTime+' print + '+mp.cooldownMin+' cooldown) @ $'+mp.hourlyRate+'/hr', cost:machCost}];
+
+        // Energy
+        var energyMin = totalMin + postProcess;
+        var kWh = (mp.powerWatts / 1000) * (energyMin / 60);
+        var energyCost = kWh * energyRate;
+        var energyItems = [{name:'Electricity', detail:kWh.toFixed(3)+' kWh @ $'+energyRate.toFixed(2)+'/kWh ('+mp.powerWatts+'W × '+energyMin+'min)', cost:energyCost}];
+
+        // Consumables
+        var consTotal = 0; var consItems = [];
+        var needleKey = 'needle_' + needleGauge + 'G';
+        if (CONSUMABLE_PRICES[needleKey]) {
+            var np = CONSUMABLE_PRICES[needleKey];
+            consTotal += np;
+            consItems.push({name:needleGauge+'G Needle', detail:'1 × $'+np.toFixed(2), cost:np});
+        }
+        // Auto-detect cartridge
+        var maxVol = 0;
+        for (var k = 0; k < bioinks.length; k++) {
+            if (bioinks[k].volumeMl > maxVol) maxVol = bioinks[k].volumeMl;
+        }
+        var cartKey = 'cartridge_3ml';
+        if (maxVol > 10) cartKey = 'cartridge_30ml';
+        else if (maxVol > 5) cartKey = 'cartridge_10ml';
+        else if (maxVol > 3) cartKey = 'cartridge_5ml';
+        if (bioinks.length > 0) {
+            var cp = CONSUMABLE_PRICES[cartKey];
+            var cartCost = cp * bioinks.length;
+            consTotal += cartCost;
+            consItems.push({name:cartKey.replace('cartridge_','')+ ' Cartridge', detail:bioinks.length+' × $'+cp.toFixed(2), cost:cartCost});
+        }
+        if (substrate && CONSUMABLE_PRICES[substrate]) {
+            var sp = CONSUMABLE_PRICES[substrate];
+            consTotal += sp;
+            consItems.push({name:substrate.replace('_',' '), detail:'1 × $'+sp.toFixed(2), cost:sp});
+        }
+
+        // Labor
+        var laborRate = LABOR_RATES[laborRole] || 35;
+        var setupMin = (bioinks.length > 2) ? 30 : 15;
+        var monitorMin = Math.ceil(printTime * 0.1);
+        var totalLaborMin = setupMin + monitorMin + postProcess;
+        var laborCost = (totalLaborMin / 60) * laborRate;
+        var laborItems = [
+            {name:'Setup', detail:setupMin+'min @ $'+laborRate+'/hr', cost:(setupMin/60)*laborRate},
+            {name:'Monitoring', detail:monitorMin+'min @ $'+laborRate+'/hr', cost:(monitorMin/60)*laborRate}
+        ];
+        if (postProcess > 0) {
+            laborItems.push({name:'Post-Processing', detail:postProcess+'min @ $'+laborRate+'/hr', cost:(postProcess/60)*laborRate});
+        }
+
+        var total = matTotal + machCost + energyCost + consTotal + laborCost;
+
+        return {
+            total: r2(total),
+            costPerLayer: r2(total / layerCount),
+            layerCount: layerCount,
+            categories: {
+                materials:   {total:r2(matTotal), items:matItems, color:CATEGORY_COLORS.materials},
+                machineTime: {total:r2(machCost), items:machItems, color:CATEGORY_COLORS.machineTime},
+                energy:      {total:r2(energyCost), items:energyItems, color:CATEGORY_COLORS.energy},
+                consumables: {total:r2(consTotal), items:consItems, color:CATEGORY_COLORS.consumables},
+                labor:       {total:r2(laborCost), items:laborItems, color:CATEGORY_COLORS.labor}
+            },
+            // For scaling
+            _laborFixed: r2((setupMin/60)*laborRate),
+            _laborVariable: r2(laborCost - (setupMin/60)*laborRate)
+        };
+    }
+
+    function r2(n) { return Math.round(n * 100) / 100; }
+    function esc(s) { var d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+
+    // ── Rendering ───────────────────────────────────────────────
+
+    function runEstimate() {
+        if (bioinks.length === 0) {
+            alert('Add at least one bioink material.');
+            return;
+        }
+        var cost = computeCost();
+        document.getElementById('results').classList.remove('hidden');
+
+        // Total
+        document.getElementById('totalCost').textContent = '$' + cost.total.toFixed(2);
+        document.getElementById('perLayer').textContent =
+            '$' + cost.costPerLayer.toFixed(2) + ' per layer (' + cost.layerCount + ' layers)';
+
+        // Breakdown cards
+        var cats = cost.categories;
+        var catNames = ['materials','machineTime','energy','consumables','labor'];
+        var catLabels = {materials:'Materials',machineTime:'Machine Time',energy:'Energy',consumables:'Consumables',labor:'Labor'};
+        var cardsHtml = '';
+        for (var i = 0; i < catNames.length; i++) {
+            var c = cats[catNames[i]];
+            var pct = cost.total > 0 ? ((c.total / cost.total) * 100).toFixed(0) : 0;
+            cardsHtml += '<div class="stat-card"><div class="label">' + catLabels[catNames[i]] +
+                '</div><div class="value" style="color:' + c.color + '">$' + c.total.toFixed(2) +
+                '</div><div class="label">' + pct + '% of total</div></div>';
+        }
+        document.getElementById('breakdownCards').innerHTML = cardsHtml;
+
+        // Pie chart
+        drawPie(cost);
+
+        // Detail table
+        var tbody = document.getElementById('detailTable').querySelector('tbody');
+        tbody.innerHTML = '';
+        for (var ci = 0; ci < catNames.length; ci++) {
+            var cat = cats[catNames[ci]];
+            // Category header
+            var hdr = document.createElement('tr');
+            hdr.innerHTML = '<td colspan="2" style="color:'+cat.color+';font-weight:600;padding-top:0.8rem;">' +
+                catLabels[catNames[ci]] + '</td><td style="text-align:right;color:'+cat.color+';font-weight:600;padding-top:0.8rem;">$' + cat.total.toFixed(2) + '</td>';
+            tbody.appendChild(hdr);
+            for (var ii = 0; ii < cat.items.length; ii++) {
+                var item = cat.items[ii];
+                var tr = document.createElement('tr');
+                tr.innerHTML = '<td style="padding-left:1.5rem">' + esc(item.name) +
+                    '</td><td style="color:var(--muted);font-size:0.8rem;">' + esc(item.detail) +
+                    '</td><td>$' + item.cost.toFixed(2) + '</td>';
+                tbody.appendChild(tr);
+            }
+        }
+        // Total row
+        var totalRow = document.createElement('tr');
+        totalRow.innerHTML = '<td colspan="2" style="font-weight:700;padding-top:0.8rem;border-top:2px solid var(--accent);">Total</td>' +
+            '<td style="font-weight:700;text-align:right;padding-top:0.8rem;border-top:2px solid var(--accent);color:var(--accent);">$' + cost.total.toFixed(2) + '</td>';
+        tbody.appendChild(totalRow);
+
+        // Scale estimates
+        var scales = [1, 5, 10, 25, 50, 100];
+        var scaleHtml = '';
+        for (var si = 0; si < scales.length; si++) {
+            var q = scales[si];
+            var matS = cats.materials.total * q;
+            var conS = cats.consumables.total * q;
+            var macS = cats.machineTime.total * q;
+            var enS = cats.energy.total * q;
+            var labS = cost._laborFixed + (cost._laborVariable * q);
+            var tot = r2(matS + conS + macS + enS + labS);
+            var perU = r2(tot / q);
+            var savings = r2(cost.total - perU);
+            scaleHtml += '<div class="scale-card"><div class="qty">×' + q + '</div>' +
+                '<div class="total">$' + tot.toFixed(2) + '</div>' +
+                '<div class="per-unit">$' + perU.toFixed(2) + '/unit' +
+                (savings > 0 ? ' (save $' + savings.toFixed(2) + ')' : '') +
+                '</div></div>';
+        }
+        document.getElementById('scaleCards').innerHTML = scaleHtml;
+
+        // Scroll to results
+        document.getElementById('results').scrollIntoView({behavior:'smooth'});
+    }
+
+    function drawPie(cost) {
+        var canvas = document.getElementById('pieChart');
+        var ctx = canvas.getContext('2d');
+        var cx = 220, cy = 220, radius = 190;
+        ctx.clearRect(0, 0, 440, 440);
+
+        var cats = cost.categories;
+        var catNames = ['materials','machineTime','energy','consumables','labor'];
+        var catLabels = {materials:'Materials',machineTime:'Machine Time',energy:'Energy',consumables:'Consumables',labor:'Labor'};
+        var slices = [];
+        for (var i = 0; i < catNames.length; i++) {
+            var c = cats[catNames[i]];
+            if (c.total > 0) slices.push({label:catLabels[catNames[i]], value:c.total, color:c.color});
+        }
+
+        if (slices.length === 0) return;
+
+        var total = 0;
+        for (var j = 0; j < slices.length; j++) total += slices[j].value;
+
+        var startAngle = -Math.PI / 2;
+        for (var k = 0; k < slices.length; k++) {
+            var angle = (slices[k].value / total) * 2 * Math.PI;
+            ctx.beginPath();
+            ctx.moveTo(cx, cy);
+            ctx.arc(cx, cy, radius, startAngle, startAngle + angle);
+            ctx.closePath();
+            ctx.fillStyle = slices[k].color;
+            ctx.fill();
+            // Subtle border
+            ctx.strokeStyle = '#0f172a';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+            startAngle += angle;
+        }
+
+        // Center hole (donut)
+        ctx.beginPath();
+        ctx.arc(cx, cy, radius * 0.55, 0, Math.PI * 2);
+        ctx.fillStyle = '#1e293b';
+        ctx.fill();
+
+        // Center text
+        ctx.fillStyle = '#e2e8f0';
+        ctx.font = 'bold 22px -apple-system, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('$' + cost.total.toFixed(2), cx, cy - 8);
+        ctx.font = '13px -apple-system, sans-serif';
+        ctx.fillStyle = '#94a3b8';
+        ctx.fillText('Total Cost', cx, cy + 16);
+
+        // Legend
+        var legend = document.getElementById('pieLegend');
+        legend.innerHTML = '';
+        for (var m = 0; m < slices.length; m++) {
+            var pct = ((slices[m].value / total) * 100).toFixed(1);
+            var li = document.createElement('li');
+            li.innerHTML = '<span class="swatch" style="background:' + slices[m].color + '"></span>' +
+                '<span>' + slices[m].label + ' — $' + slices[m].value.toFixed(2) + ' (' + pct + '%)</span>';
+            legend.appendChild(li);
+        }
+    }
+
+    function resetForm() {
+        bioinks = [];
+        crosslinkers = [];
+        renderBioinks();
+        renderCrosslinkers();
+        document.getElementById('results').classList.add('hidden');
+        document.getElementById('printTime').value = '45';
+        document.getElementById('layerCount').value = '20';
+        document.getElementById('machine').selectedIndex = 0;
+        document.getElementById('needleGauge').value = '22';
+        document.getElementById('substrate').value = 'wellplate_6';
+        document.getElementById('laborRole').value = 'technician';
+        document.getElementById('postProcessing').value = '15';
+        document.getElementById('wasteFactor').value = '1.15';
+        document.getElementById('energyRate').value = '0.12';
+    }
+
+    // Preload a sample configuration
+    bioinks.push({name: 'GelMA 5%', volumeMl: 2.5});
+    renderBioinks();
+    </script>
+</body>
+</html>
