@@ -163,9 +163,11 @@ function createParameterOptimizer(config = {}) {
 
   /**
    * Evaluate a single parameter set, returning all sub-scores and composite.
+   * @param {object} params - Parameter values.
+   * @param {object} [opts] - Options: { skipValidation: bool, skipCopy: bool }
    */
-  function evaluate(params) {
-    _validateParams(params);
+  function evaluate(params, opts) {
+    if (!opts || !opts.skipValidation) _validateParams(params);
     const scores = {
       viability: viabilityScore(params),
       structural: structuralScore(params),
@@ -176,7 +178,7 @@ function createParameterOptimizer(config = {}) {
       weights.structural * scores.structural +
       weights.resolution * scores.resolution +
       weights.throughput * scores.throughput;
-    return { params: { ...params }, scores };
+    return { params: (opts && opts.skipCopy) ? params : { ...params }, scores };
   }
 
   /**
@@ -203,7 +205,9 @@ function createParameterOptimizer(config = {}) {
 
     function recurse(idx) {
       if (idx >= freeParams.length) {
-        results.push(evaluate({ ...combo }));
+        // Hot path: skip validation (grid values are pre-clamped to
+        // constraints) and copy the combo since we mutate it in-place.
+        results.push(evaluate({ ...combo }, { skipValidation: true, skipCopy: true }));
         return;
       }
       const key = freeParams[idx];
