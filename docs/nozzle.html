@@ -1,0 +1,806 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>BioBots 1 - Nozzle Lifecycle Tracker</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🔧</text></svg>">
+    <script src="shared/constants.js"></script>
+    <style>
+        :root {
+            --bg: #0f172a;
+            --surface: #1e293b;
+            --border: #334155;
+            --text: #e2e8f0;
+            --muted: #94a3b8;
+            --accent: #38bdf8;
+            --accent-hover: #7dd3fc;
+            --success: #4ade80;
+            --error: #f87171;
+            --warning: #fbbf24;
+            --purple: #a78bfa;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            padding: 2rem 1rem;
+        }
+        .container { max-width: 1200px; margin: 0 auto; }
+        h1 { font-size: 1.8rem; margin-bottom: 0.5rem; }
+        .subtitle { color: var(--muted); margin-bottom: 2rem; font-size: 0.95rem; }
+        nav { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 2rem; padding-bottom: 1rem; border-bottom: 1px solid var(--border); }
+        nav a { color: var(--muted); padding: 0.5rem 1rem; border-radius: 8px; text-decoration: none; font-size: 0.9rem; transition: all 0.2s; }
+        nav a:hover { color: var(--accent); background: var(--surface); }
+        nav a.active { color: var(--accent); background: var(--surface); border: 1px solid var(--border); }
+
+        .dashboard { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 1.5rem; margin-bottom: 2rem; }
+        .stat-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 1.5rem;
+        }
+        .stat-card .label { color: var(--muted); font-size: 0.85rem; margin-bottom: 0.5rem; }
+        .stat-card .value { font-size: 2rem; font-weight: 700; }
+        .stat-card .detail { color: var(--muted); font-size: 0.8rem; margin-top: 0.5rem; }
+
+        .section {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+        .section h2 { font-size: 1.2rem; margin-bottom: 1rem; }
+        .section h3 { font-size: 1rem; color: var(--accent); margin: 1rem 0 0.5rem; }
+
+        /* Wear gauge */
+        .wear-gauge { display: flex; align-items: center; gap: 1rem; margin: 1rem 0; }
+        .gauge-bar { flex: 1; height: 28px; background: var(--bg); border-radius: 14px; overflow: hidden; position: relative; }
+        .gauge-fill { height: 100%; border-radius: 14px; transition: width 0.6s ease; }
+        .gauge-label { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); font-size: 0.85rem; font-weight: 600; color: var(--text); text-shadow: 0 1px 2px rgba(0,0,0,0.8); }
+        .gauge-title { min-width: 120px; font-weight: 600; font-size: 0.9rem; }
+
+        /* Canvas chart */
+        canvas { width: 100%; height: 300px; border-radius: 8px; }
+
+        /* Nozzle table */
+        .nozzle-table { width: 100%; border-collapse: collapse; margin-top: 1rem; }
+        .nozzle-table th, .nozzle-table td { padding: 0.75rem 1rem; text-align: left; border-bottom: 1px solid var(--border); }
+        .nozzle-table th { color: var(--muted); font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.05em; }
+        .nozzle-table td { font-size: 0.9rem; }
+
+        /* Status badges */
+        .badge { display: inline-block; padding: 0.2rem 0.6rem; border-radius: 6px; font-size: 0.75rem; font-weight: 600; }
+        .badge-good { background: rgba(74,222,128,0.15); color: var(--success); }
+        .badge-warn { background: rgba(251,191,36,0.15); color: var(--warning); }
+        .badge-critical { background: rgba(248,113,113,0.15); color: var(--error); }
+
+        /* Settings */
+        .settings-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 1rem; }
+        .settings-group label { display: block; color: var(--muted); font-size: 0.8rem; margin-bottom: 0.3rem; }
+        .settings-group input, .settings-group select {
+            width: 100%; padding: 0.5rem 0.7rem;
+            background: var(--bg); color: var(--text);
+            border: 1px solid var(--border); border-radius: 6px;
+            font-size: 0.9rem;
+        }
+        .settings-group input:focus, .settings-group select:focus { outline: none; border-color: var(--accent); }
+
+        button.primary {
+            background: var(--accent); color: var(--bg);
+            border: none; padding: 0.6rem 1.5rem; border-radius: 8px;
+            font-weight: 600; cursor: pointer; font-size: 0.9rem;
+            transition: background 0.2s;
+        }
+        button.primary:hover { background: var(--accent-hover); }
+        button.secondary {
+            background: transparent; color: var(--accent);
+            border: 1px solid var(--border); padding: 0.5rem 1.2rem;
+            border-radius: 8px; cursor: pointer; font-size: 0.85rem;
+            transition: all 0.2s;
+        }
+        button.secondary:hover { border-color: var(--accent); background: rgba(56,189,248,0.1); }
+        .btn-row { display: flex; gap: 0.75rem; margin-top: 1rem; flex-wrap: wrap; }
+
+        /* Recommendation cards */
+        .rec-card {
+            background: var(--bg);
+            border-radius: 8px;
+            padding: 1rem;
+            margin-top: 0.75rem;
+            border-left: 3px solid var(--accent);
+        }
+        .rec-card.warn { border-left-color: var(--warning); }
+        .rec-card.critical { border-left-color: var(--error); }
+        .rec-card .rec-title { font-weight: 600; margin-bottom: 0.3rem; }
+        .rec-card .rec-body { color: var(--muted); font-size: 0.85rem; }
+
+        @media (max-width: 600px) {
+            .dashboard { grid-template-columns: 1fr; }
+            .settings-grid { grid-template-columns: 1fr; }
+            .nozzle-table { font-size: 0.8rem; }
+            .nozzle-table th, .nozzle-table td { padding: 0.5rem; }
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h1>🔧 Nozzle Lifecycle Tracker</h1>
+    <p class="subtitle">Estimate nozzle wear, predict replacement timing, and track degradation from print history data.</p>
+
+    <nav>
+        <a href="index.html">Query Tool</a>
+        <a href="explorer.html">📊 Data Explorer</a>
+        <a href="table.html">Data Table</a>
+        <a href="compare.html">Compare</a>
+        <a href="quality.html">🎯 Quality</a>
+        <a href="anomaly.html">🔍 Anomaly</a>
+        <a href="trends.html">Trends</a>
+        <a href="optimizer.html">⚡ Optimizer</a>
+        <a href="api.html">📡 API</a>
+        <a href="cluster.html">🧩 Clusters</a>
+        <a href="maintenance.html">🔧 Maintenance</a>
+        <a href="batch.html">📋 Batch Planner</a>
+        <a href="logbook.html">📓 Logbook</a>
+        <a href="nozzle.html" class="active">🔩 Nozzle Tracker</a>
+    </nav>
+
+    <!-- Settings -->
+    <div class="section" id="settings-section">
+        <h2>⚙️ Nozzle Configuration</h2>
+        <div class="settings-grid">
+            <div class="settings-group">
+                <label for="nozzle-type">Nozzle Type</label>
+                <select id="nozzle-type">
+                    <option value="standard">Standard (Metal)</option>
+                    <option value="ceramic">Ceramic</option>
+                    <option value="glass">Glass Capillary</option>
+                    <option value="plastic">Plastic (Disposable)</option>
+                </select>
+            </div>
+            <div class="settings-group">
+                <label for="nozzle-diameter">Diameter (mm)</label>
+                <input type="number" id="nozzle-diameter" value="0.4" min="0.1" max="2.0" step="0.1" />
+            </div>
+            <div class="settings-group">
+                <label for="max-prints">Rated Lifetime (prints)</label>
+                <input type="number" id="max-prints" value="200" min="10" max="2000" step="10" />
+            </div>
+            <div class="settings-group">
+                <label for="pressure-threshold">Pressure Warn Threshold (psi)</label>
+                <input type="number" id="pressure-threshold" value="80" min="10" max="200" step="5" />
+            </div>
+        </div>
+        <div class="btn-row">
+            <button class="primary" onclick="analyzeNozzle()">Analyze Nozzle Wear</button>
+            <button class="secondary" onclick="resetSettings()">Reset Defaults</button>
+            <button class="secondary" onclick="exportReport()">📄 Export Report</button>
+        </div>
+    </div>
+
+    <!-- Dashboard stats -->
+    <div class="dashboard" id="dashboard" style="display:none;">
+        <div class="stat-card">
+            <div class="label">Estimated Wear</div>
+            <div class="value" id="stat-wear">—</div>
+            <div class="detail" id="stat-wear-detail"></div>
+        </div>
+        <div class="stat-card">
+            <div class="label">Remaining Life</div>
+            <div class="value" id="stat-remaining">—</div>
+            <div class="detail" id="stat-remaining-detail"></div>
+        </div>
+        <div class="stat-card">
+            <div class="label">Avg Pressure Trend</div>
+            <div class="value" id="stat-pressure">—</div>
+            <div class="detail" id="stat-pressure-detail"></div>
+        </div>
+        <div class="stat-card">
+            <div class="label">Quality Risk</div>
+            <div class="value" id="stat-risk">—</div>
+            <div class="detail" id="stat-risk-detail"></div>
+        </div>
+    </div>
+
+    <!-- Wear gauge -->
+    <div class="section" id="gauge-section" style="display:none;">
+        <h2>📊 Nozzle Wear Level</h2>
+        <div class="wear-gauge">
+            <span class="gauge-title">Overall Wear</span>
+            <div class="gauge-bar">
+                <div class="gauge-fill" id="wear-fill"></div>
+                <span class="gauge-label" id="wear-pct"></span>
+            </div>
+        </div>
+        <div class="wear-gauge">
+            <span class="gauge-title">Pressure Load</span>
+            <div class="gauge-bar">
+                <div class="gauge-fill" id="pressure-fill"></div>
+                <span class="gauge-label" id="pressure-pct"></span>
+            </div>
+        </div>
+        <div class="wear-gauge">
+            <span class="gauge-title">Layer Stress</span>
+            <div class="gauge-bar">
+                <div class="gauge-fill" id="layer-fill"></div>
+                <span class="gauge-label" id="layer-pct"></span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Degradation chart -->
+    <div class="section" id="chart-section" style="display:none;">
+        <h2>📈 Degradation Curve</h2>
+        <p style="color:var(--muted);font-size:0.85rem;margin-bottom:1rem;">Pressure and quality metrics over print runs — rising pressure or falling viability signals nozzle degradation.</p>
+        <canvas id="degradation-chart"></canvas>
+    </div>
+
+    <!-- Per-extruder breakdown -->
+    <div class="section" id="extruder-section" style="display:none;">
+        <h2>🔩 Per-Extruder Analysis</h2>
+        <table class="nozzle-table">
+            <thead>
+                <tr>
+                    <th>Extruder</th>
+                    <th>Avg Pressure (psi)</th>
+                    <th>Max Pressure</th>
+                    <th>Pressure Trend</th>
+                    <th>Print Count</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody id="extruder-tbody"></tbody>
+        </table>
+    </div>
+
+    <!-- Recommendations -->
+    <div class="section" id="rec-section" style="display:none;">
+        <h2>💡 Recommendations</h2>
+        <div id="rec-list"></div>
+    </div>
+
+    <!-- Run history table -->
+    <div class="section" id="history-section" style="display:none;">
+        <h2>🗂️ Print Run History (Nozzle Impact)</h2>
+        <p style="color:var(--muted);font-size:0.85rem;margin-bottom:1rem;">Each run's contribution to nozzle wear — sorted by cumulative impact.</p>
+        <div style="max-height:400px;overflow-y:auto;">
+            <table class="nozzle-table">
+                <thead>
+                    <tr>
+                        <th>Run #</th>
+                        <th>Ext1 (psi)</th>
+                        <th>Ext2 (psi)</th>
+                        <th>Layers</th>
+                        <th>Viability %</th>
+                        <th>Wear Impact</th>
+                    </tr>
+                </thead>
+                <tbody id="history-tbody"></tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<script src="shared/data-loader.js"></script>
+<script>
+'use strict';
+
+/* ── Helpers ───────────────────────────────────────── */
+
+function mean(arr) {
+    if (!arr.length) return 0;
+    var s = 0;
+    for (var i = 0; i < arr.length; i++) s += arr[i];
+    return s / arr.length;
+}
+
+function linearSlope(vals) {
+    var n = vals.length;
+    if (n < 2) return 0;
+    var sx = 0, sy = 0, sxy = 0, sx2 = 0;
+    for (var i = 0; i < n; i++) {
+        sx += i; sy += vals[i];
+        sxy += i * vals[i];
+        sx2 += i * i;
+    }
+    var denom = n * sx2 - sx * sx;
+    return denom === 0 ? 0 : (n * sxy - sx * sy) / denom;
+}
+
+function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
+
+function pct(v) { return Math.round(v * 100); }
+
+function gaugeColor(fraction) {
+    if (fraction < 0.5) return 'var(--success)';
+    if (fraction < 0.75) return 'var(--warning)';
+    return 'var(--error)';
+}
+
+function statusBadge(fraction) {
+    if (fraction < 0.5) return '<span class="badge badge-good">Good</span>';
+    if (fraction < 0.75) return '<span class="badge badge-warn">Moderate</span>';
+    return '<span class="badge badge-critical">Replace Soon</span>';
+}
+
+function escapeHTML(str) {
+    var el = document.createElement('span');
+    el.textContent = String(str);
+    return el.innerHTML;
+}
+
+/* ── Nozzle wear factors by type ───────────────────── */
+
+var NOZZLE_FACTORS = {
+    standard: { pressureSens: 1.0, layerSens: 1.0, name: 'Standard Metal' },
+    ceramic:  { pressureSens: 0.6, layerSens: 0.8, name: 'Ceramic' },
+    glass:    { pressureSens: 1.3, layerSens: 0.7, name: 'Glass Capillary' },
+    plastic:  { pressureSens: 1.5, layerSens: 1.2, name: 'Plastic (Disposable)' }
+};
+
+/* ── Settings management ───────────────────────────── */
+
+var SETTINGS_KEY = 'biobots_nozzle_settings';
+
+function getSettings() {
+    return {
+        type: document.getElementById('nozzle-type').value,
+        diameter: parseFloat(document.getElementById('nozzle-diameter').value) || 0.4,
+        maxPrints: parseInt(document.getElementById('max-prints').value, 10) || 200,
+        pressureThreshold: parseFloat(document.getElementById('pressure-threshold').value) || 80
+    };
+}
+
+function saveSettings(s) {
+    try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(s)); } catch (e) { /* ignore */ }
+}
+
+function loadSavedSettings() {
+    try {
+        var raw = localStorage.getItem(SETTINGS_KEY);
+        if (!raw) return;
+        var s = JSON.parse(raw);
+        if (s.type) document.getElementById('nozzle-type').value = s.type;
+        if (s.diameter) document.getElementById('nozzle-diameter').value = s.diameter;
+        if (s.maxPrints) document.getElementById('max-prints').value = s.maxPrints;
+        if (s.pressureThreshold) document.getElementById('pressure-threshold').value = s.pressureThreshold;
+    } catch (e) { /* ignore */ }
+}
+
+function resetSettings() {
+    document.getElementById('nozzle-type').value = 'standard';
+    document.getElementById('nozzle-diameter').value = '0.4';
+    document.getElementById('max-prints').value = '200';
+    document.getElementById('pressure-threshold').value = '80';
+    try { localStorage.removeItem(SETTINGS_KEY); } catch (e) { /* ignore */ }
+}
+
+/* ── Core analysis ─────────────────────────────────── */
+
+function computeWearMetrics(data, settings) {
+    var factor = NOZZLE_FACTORS[settings.type] || NOZZLE_FACTORS.standard;
+    var ext1Pressures = [];
+    var ext2Pressures = [];
+    var layers = [];
+    var viabilities = [];
+    var runs = [];
+
+    for (var i = 0; i < data.length; i++) {
+        var rec = data[i];
+        if (!rec.print_info || !rec.print_info.pressure || !rec.print_info.resolution) continue;
+        var e1 = rec.print_info.pressure.extruder1;
+        var e2 = rec.print_info.pressure.extruder2;
+        var ly = rec.print_info.resolution.layerNum || 0;
+        var viab = (rec.print_data && rec.print_data.livePercent != null)
+            ? rec.print_data.livePercent : null;
+
+        ext1Pressures.push(e1);
+        ext2Pressures.push(e2);
+        layers.push(ly);
+        if (viab !== null) viabilities.push(viab);
+
+        // Per-run impact: higher pressure + more layers = more wear
+        var maxP = Math.max(e1, e2);
+        var impact = (maxP / 150) * factor.pressureSens * 0.6 +
+                     (ly / 100) * factor.layerSens * 0.4;
+        runs.push({
+            index: i,
+            serial: rec.user_info ? rec.user_info.serial : i,
+            ext1: e1,
+            ext2: e2,
+            layers: ly,
+            viability: viab,
+            impact: clamp(impact, 0, 1)
+        });
+    }
+
+    var totalRuns = runs.length;
+    var usageFraction = clamp(totalRuns / settings.maxPrints, 0, 1);
+
+    // Pressure trend — rising pressure suggests nozzle wear
+    var e1Slope = linearSlope(ext1Pressures);
+    var e2Slope = linearSlope(ext2Pressures);
+    var pressureTrendFraction = clamp(
+        (Math.max(e1Slope, e2Slope) / 0.5) * factor.pressureSens, 0, 1
+    );
+
+    // Layer cumulative stress
+    var totalLayers = 0;
+    for (var j = 0; j < layers.length; j++) totalLayers += layers[j];
+    var avgLayers = totalRuns > 0 ? totalLayers / totalRuns : 0;
+    var layerStress = clamp((avgLayers / 60) * factor.layerSens, 0, 1);
+
+    // Overall wear composite
+    var overallWear = clamp(
+        usageFraction * 0.5 +
+        pressureTrendFraction * 0.3 +
+        layerStress * 0.2,
+        0, 1
+    );
+
+    // Quality risk — viability trend
+    var viabSlope = linearSlope(viabilities);
+    var qualityRisk = viabSlope < -0.1 ? 'High' :
+                      viabSlope < 0 ? 'Moderate' : 'Low';
+
+    var remainingPrints = Math.max(0, Math.round(settings.maxPrints * (1 - overallWear)));
+
+    return {
+        overallWear: overallWear,
+        usageFraction: usageFraction,
+        pressureTrend: pressureTrendFraction,
+        layerStress: layerStress,
+        totalRuns: totalRuns,
+        remainingPrints: remainingPrints,
+        qualityRisk: qualityRisk,
+        ext1: { avg: mean(ext1Pressures), max: Math.max.apply(null, ext1Pressures.length ? ext1Pressures : [0]), slope: e1Slope, count: ext1Pressures.length },
+        ext2: { avg: mean(ext2Pressures), max: Math.max.apply(null, ext2Pressures.length ? ext2Pressures : [0]), slope: e2Slope, count: ext2Pressures.length },
+        avgViability: mean(viabilities),
+        viabSlope: viabSlope,
+        factor: factor,
+        runs: runs,
+        pressureThreshold: settings.pressureThreshold
+    };
+}
+
+/* ── Render ─────────────────────────────────────────── */
+
+function renderDashboard(m) {
+    document.getElementById('dashboard').style.display = '';
+    document.getElementById('stat-wear').textContent = pct(m.overallWear) + '%';
+    document.getElementById('stat-wear').style.color = gaugeColor(m.overallWear);
+    document.getElementById('stat-wear-detail').textContent =
+        'Based on ' + m.totalRuns + ' runs, pressure trend, layer stress (' + m.factor.name + ')';
+
+    document.getElementById('stat-remaining').textContent = m.remainingPrints;
+    document.getElementById('stat-remaining').style.color =
+        m.remainingPrints < 20 ? 'var(--error)' : m.remainingPrints < 50 ? 'var(--warning)' : 'var(--success)';
+    document.getElementById('stat-remaining-detail').textContent = 'Estimated prints before replacement';
+
+    var slopeDir = Math.max(m.ext1.slope, m.ext2.slope) > 0.05 ? '↑ Rising' :
+                   Math.max(m.ext1.slope, m.ext2.slope) < -0.05 ? '↓ Falling' : '→ Stable';
+    document.getElementById('stat-pressure').textContent = slopeDir;
+    document.getElementById('stat-pressure').style.color =
+        slopeDir === '↑ Rising' ? 'var(--error)' : slopeDir === '→ Stable' ? 'var(--success)' : 'var(--accent)';
+    document.getElementById('stat-pressure-detail').textContent =
+        'Ext1: ' + m.ext1.avg.toFixed(1) + ' avg / Ext2: ' + m.ext2.avg.toFixed(1) + ' avg psi';
+
+    document.getElementById('stat-risk').textContent = m.qualityRisk;
+    document.getElementById('stat-risk').style.color =
+        m.qualityRisk === 'High' ? 'var(--error)' : m.qualityRisk === 'Moderate' ? 'var(--warning)' : 'var(--success)';
+    document.getElementById('stat-risk-detail').textContent =
+        'Viability trend slope: ' + m.viabSlope.toFixed(3) + ' per run';
+}
+
+function renderGauges(m) {
+    document.getElementById('gauge-section').style.display = '';
+    setGauge('wear', m.overallWear);
+    setGauge('pressure', m.pressureTrend);
+    setGauge('layer', m.layerStress);
+}
+
+function setGauge(prefix, fraction) {
+    var fill = document.getElementById(prefix + '-fill');
+    var label = document.getElementById(prefix + '-pct');
+    var p = pct(fraction);
+    fill.style.width = p + '%';
+    fill.style.background = gaugeColor(fraction);
+    label.textContent = p + '%';
+}
+
+function renderExtruders(m) {
+    document.getElementById('extruder-section').style.display = '';
+    var tbody = document.getElementById('extruder-tbody');
+    var rows = [
+        { name: 'Extruder 1', data: m.ext1 },
+        { name: 'Extruder 2', data: m.ext2 }
+    ];
+    var html = '';
+    for (var i = 0; i < rows.length; i++) {
+        var r = rows[i];
+        var trendStr = r.data.slope > 0.05 ? '↑ +' + r.data.slope.toFixed(3) + '/run' :
+                       r.data.slope < -0.05 ? '↓ ' + r.data.slope.toFixed(3) + '/run' :
+                       '→ Stable';
+        var wearFrac = clamp(r.data.avg / m.pressureThreshold, 0, 1);
+        html += '<tr>' +
+            '<td>' + escapeHTML(r.name) + '</td>' +
+            '<td>' + r.data.avg.toFixed(1) + '</td>' +
+            '<td>' + r.data.max.toFixed(1) + '</td>' +
+            '<td style="color:' + gaugeColor(wearFrac) + '">' + escapeHTML(trendStr) + '</td>' +
+            '<td>' + r.data.count + '</td>' +
+            '<td>' + statusBadge(wearFrac) + '</td>' +
+            '</tr>';
+    }
+    tbody.innerHTML = html;
+}
+
+function renderRecommendations(m) {
+    document.getElementById('rec-section').style.display = '';
+    var recs = [];
+
+    if (m.overallWear > 0.75) {
+        recs.push({ level: 'critical', title: 'Replace Nozzle Soon',
+            body: 'Overall wear is at ' + pct(m.overallWear) + '%. Quality degradation is likely. Schedule replacement within the next ' + m.remainingPrints + ' prints.' });
+    } else if (m.overallWear > 0.5) {
+        recs.push({ level: 'warn', title: 'Monitor Closely',
+            body: 'Nozzle is at ' + pct(m.overallWear) + '% wear. Increase visual inspection frequency and monitor pressure readings.' });
+    }
+
+    if (m.ext1.avg > m.pressureThreshold || m.ext2.avg > m.pressureThreshold) {
+        recs.push({ level: 'warn', title: 'High Average Pressure',
+            body: 'Average pressure exceeds the ' + m.pressureThreshold + ' psi threshold. This accelerates wear — consider reducing print speed or checking for clogs.' });
+    }
+
+    if (m.ext1.slope > 0.1 || m.ext2.slope > 0.1) {
+        recs.push({ level: 'warn', title: 'Rising Pressure Trend',
+            body: 'Pressure is increasing over time, which typically indicates nozzle constriction from material buildup. Run a cleaning cycle.' });
+    }
+
+    if (m.qualityRisk === 'High') {
+        recs.push({ level: 'critical', title: 'Viability Declining',
+            body: 'Cell viability is trending downward (slope: ' + m.viabSlope.toFixed(3) + '). This may be caused by nozzle degradation affecting print precision.' });
+    }
+
+    if (m.layerStress > 0.7) {
+        recs.push({ level: 'warn', title: 'High Layer Stress',
+            body: 'Average layer count per print is high, which increases mechanical stress on the nozzle tip. Consider splitting tall prints.' });
+    }
+
+    if (recs.length === 0) {
+        recs.push({ level: '', title: 'All Clear',
+            body: 'Nozzle metrics are within normal ranges. Continue regular maintenance schedule.' });
+    }
+
+    var html = '';
+    for (var i = 0; i < recs.length; i++) {
+        var cls = recs[i].level === 'critical' ? ' critical' : recs[i].level === 'warn' ? ' warn' : '';
+        html += '<div class="rec-card' + cls + '">' +
+            '<div class="rec-title">' + escapeHTML(recs[i].title) + '</div>' +
+            '<div class="rec-body">' + escapeHTML(recs[i].body) + '</div></div>';
+    }
+    document.getElementById('rec-list').innerHTML = html;
+}
+
+function renderHistory(m) {
+    document.getElementById('history-section').style.display = '';
+    var sorted = m.runs.slice().sort(function(a, b) { return b.impact - a.impact; });
+    var tbody = document.getElementById('history-tbody');
+    var html = '';
+    var limit = Math.min(sorted.length, 50);
+    for (var i = 0; i < limit; i++) {
+        var r = sorted[i];
+        var viabStr = r.viability !== null ? r.viability.toFixed(1) + '%' : '—';
+        var impPct = pct(r.impact);
+        html += '<tr>' +
+            '<td>#' + escapeHTML(String(r.serial)) + '</td>' +
+            '<td>' + r.ext1.toFixed(1) + '</td>' +
+            '<td>' + r.ext2.toFixed(1) + '</td>' +
+            '<td>' + r.layers + '</td>' +
+            '<td>' + escapeHTML(viabStr) + '</td>' +
+            '<td>' + statusBadge(r.impact) + ' ' + impPct + '%</td>' +
+            '</tr>';
+    }
+    tbody.innerHTML = html;
+}
+
+/* ── Chart ─────────────────────────────────────────── */
+
+function drawDegradationChart(m) {
+    document.getElementById('chart-section').style.display = '';
+    var canvas = document.getElementById('degradation-chart');
+    if (!canvas) return;
+    var ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    // Set actual pixel dimensions
+    var rect = canvas.getBoundingClientRect();
+    canvas.width = rect.width * (window.devicePixelRatio || 1);
+    canvas.height = 300 * (window.devicePixelRatio || 1);
+    ctx.scale(window.devicePixelRatio || 1, window.devicePixelRatio || 1);
+    var W = rect.width, H = 300;
+
+    var pad = { top: 30, right: 20, bottom: 40, left: 55 };
+    var cw = W - pad.left - pad.right;
+    var ch = H - pad.top - pad.bottom;
+
+    ctx.clearRect(0, 0, W, H);
+    ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--bg').trim() || '#0f172a';
+    ctx.fillRect(0, 0, W, H);
+
+    var runs = m.runs;
+    if (runs.length < 2) {
+        ctx.fillStyle = '#94a3b8';
+        ctx.font = '14px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('Not enough data points to plot degradation curve', W / 2, H / 2);
+        return;
+    }
+
+    // Prepare series
+    var pressures = runs.map(function(r) { return Math.max(r.ext1, r.ext2); });
+    var viabs = runs.map(function(r) { return r.viability; });
+    var hasViab = viabs.some(function(v) { return v !== null; });
+
+    var pMin = Math.min.apply(null, pressures);
+    var pMax = Math.max.apply(null, pressures);
+    if (pMax === pMin) { pMax = pMin + 10; }
+
+    function xPos(i) { return pad.left + (i / (runs.length - 1)) * cw; }
+    function yP(v) { return pad.top + (1 - (v - pMin) / (pMax - pMin)) * ch; }
+
+    // Grid lines
+    ctx.strokeStyle = '#334155';
+    ctx.lineWidth = 0.5;
+    for (var g = 0; g <= 4; g++) {
+        var gy = pad.top + (g / 4) * ch;
+        ctx.beginPath(); ctx.moveTo(pad.left, gy); ctx.lineTo(W - pad.right, gy); ctx.stroke();
+    }
+
+    // Pressure line (accent)
+    ctx.strokeStyle = '#38bdf8';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    for (var i = 0; i < pressures.length; i++) {
+        var x = xPos(i), y = yP(pressures[i]);
+        i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+    }
+    ctx.stroke();
+
+    // Viability line (green) on secondary axis
+    if (hasViab) {
+        var vVals = viabs.filter(function(v) { return v !== null; });
+        var vMin = Math.min.apply(null, vVals);
+        var vMax = Math.max.apply(null, vVals);
+        if (vMax === vMin) { vMax = vMin + 10; }
+        function yV(v) { return pad.top + (1 - (v - vMin) / (vMax - vMin)) * ch; }
+
+        ctx.strokeStyle = '#4ade80';
+        ctx.lineWidth = 2;
+        ctx.setLineDash([6, 3]);
+        ctx.beginPath();
+        var started = false;
+        for (var j = 0; j < viabs.length; j++) {
+            if (viabs[j] === null) continue;
+            var vx = xPos(j), vy = yV(viabs[j]);
+            started ? ctx.lineTo(vx, vy) : ctx.moveTo(vx, vy);
+            started = true;
+        }
+        ctx.stroke();
+        ctx.setLineDash([]);
+    }
+
+    // Threshold line
+    if (m.pressureThreshold >= pMin && m.pressureThreshold <= pMax) {
+        ctx.strokeStyle = '#f87171';
+        ctx.lineWidth = 1;
+        ctx.setLineDash([4, 4]);
+        var ty = yP(m.pressureThreshold);
+        ctx.beginPath(); ctx.moveTo(pad.left, ty); ctx.lineTo(W - pad.right, ty); ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.fillStyle = '#f87171';
+        ctx.font = '11px sans-serif';
+        ctx.textAlign = 'right';
+        ctx.fillText('Threshold', W - pad.right - 4, ty - 4);
+    }
+
+    // Axes labels
+    ctx.fillStyle = '#94a3b8';
+    ctx.font = '11px sans-serif';
+    ctx.textAlign = 'right';
+    for (var a = 0; a <= 4; a++) {
+        var av = pMin + (pMax - pMin) * (1 - a / 4);
+        ctx.fillText(av.toFixed(0), pad.left - 8, pad.top + (a / 4) * ch + 4);
+    }
+
+    ctx.textAlign = 'center';
+    ctx.fillText('Print Runs →', W / 2, H - 5);
+
+    // Legend
+    ctx.font = '12px sans-serif';
+    var lx = pad.left + 10;
+    ctx.fillStyle = '#38bdf8';
+    ctx.fillRect(lx, pad.top - 20, 20, 3);
+    ctx.fillText('Max Pressure (psi)', lx + 75, pad.top - 15);
+    if (hasViab) {
+        ctx.fillStyle = '#4ade80';
+        ctx.setLineDash([4, 2]);
+        ctx.beginPath(); ctx.moveTo(lx + 150, pad.top - 18); ctx.lineTo(lx + 170, pad.top - 18); ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.fillText('Viability %', lx + 215, pad.top - 15);
+    }
+}
+
+/* ── Export ─────────────────────────────────────────── */
+
+function exportReport() {
+    var settings = getSettings();
+    loadBioprintData({ validate: true }).then(function(data) {
+        var m = computeWearMetrics(data, settings);
+        var lines = [
+            'Nozzle Lifecycle Report',
+            '======================',
+            'Generated: ' + new Date().toISOString(),
+            '',
+            'Configuration',
+            '  Nozzle Type: ' + m.factor.name,
+            '  Diameter: ' + settings.diameter + ' mm',
+            '  Rated Lifetime: ' + settings.maxPrints + ' prints',
+            '  Pressure Threshold: ' + settings.pressureThreshold + ' psi',
+            '',
+            'Summary',
+            '  Total Runs Analyzed: ' + m.totalRuns,
+            '  Overall Wear: ' + pct(m.overallWear) + '%',
+            '  Estimated Remaining Prints: ' + m.remainingPrints,
+            '  Quality Risk: ' + m.qualityRisk,
+            '',
+            'Extruder 1',
+            '  Average Pressure: ' + m.ext1.avg.toFixed(1) + ' psi',
+            '  Max Pressure: ' + m.ext1.max.toFixed(1) + ' psi',
+            '  Trend Slope: ' + m.ext1.slope.toFixed(4) + ' psi/run',
+            '',
+            'Extruder 2',
+            '  Average Pressure: ' + m.ext2.avg.toFixed(1) + ' psi',
+            '  Max Pressure: ' + m.ext2.max.toFixed(1) + ' psi',
+            '  Trend Slope: ' + m.ext2.slope.toFixed(4) + ' psi/run',
+            '',
+            'Average Viability: ' + m.avgViability.toFixed(1) + '%',
+            'Viability Trend: ' + m.viabSlope.toFixed(4) + '/run'
+        ];
+        var blob = new Blob([lines.join('\n')], { type: 'text/plain' });
+        var a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = 'nozzle-report-' + new Date().toISOString().slice(0, 10) + '.txt';
+        a.click();
+        URL.revokeObjectURL(a.href);
+    });
+}
+
+/* ── Main entry ────────────────────────────────────── */
+
+function analyzeNozzle() {
+    var settings = getSettings();
+    saveSettings(settings);
+
+    loadBioprintData({ validate: true }).then(function(data) {
+        var m = computeWearMetrics(data, settings);
+        renderDashboard(m);
+        renderGauges(m);
+        drawDegradationChart(m);
+        renderExtruders(m);
+        renderRecommendations(m);
+        renderHistory(m);
+    }).catch(function(err) {
+        alert('Failed to load data: ' + err.message);
+    });
+}
+
+/* ── Init ──────────────────────────────────────────── */
+
+loadSavedSettings();
+</script>
+</body>
+</html>
