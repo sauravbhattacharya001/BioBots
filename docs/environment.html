@@ -1,0 +1,905 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>BioBots 1 — Environmental Monitor</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧬</text></svg>">
+    <style>
+        :root {
+            --bg: #0f172a;
+            --surface: #1e293b;
+            --border: #334155;
+            --text: #e2e8f0;
+            --muted: #94a3b8;
+            --accent: #38bdf8;
+            --accent-hover: #7dd3fc;
+            --success: #4ade80;
+            --error: #f87171;
+            --warning: #fbbf24;
+            --purple: #a78bfa;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            padding: 2rem 1rem;
+        }
+        .container { max-width: 1200px; margin: 0 auto; }
+        header { text-align: center; margin-bottom: 2rem; }
+        header h1 {
+            font-size: 2rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, var(--accent), var(--success));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        header p { color: var(--muted); margin-top: 0.5rem; }
+        .nav {
+            display: flex;
+            justify-content: center;
+            gap: 0.25rem;
+            flex-wrap: wrap;
+            margin-bottom: 2rem;
+            padding: 0.5rem;
+            background: var(--surface);
+            border-radius: 12px;
+            border: 1px solid var(--border);
+        }
+        .nav a {
+            color: var(--muted);
+            padding: 0.5rem 1rem;
+            border-radius: 8px;
+            text-decoration: none;
+            font-size: 0.9rem;
+            transition: all 0.2s;
+        }
+        .nav a:hover { color: var(--text); background: rgba(56, 189, 248, 0.1); }
+        .nav a.active { color: var(--accent); background: var(--surface); border: 1px solid var(--border); }
+
+        .card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+        .card h2 { font-size: 1.2rem; margin-bottom: 1rem; }
+        .card h3 { font-size: 1rem; color: var(--muted); margin-bottom: 0.75rem; }
+
+        /* Status grid */
+        .status-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+        .status-tile {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 1.25rem;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+        .status-tile .label { color: var(--muted); font-size: 0.85rem; margin-bottom: 0.5rem; }
+        .status-tile .value { font-size: 2rem; font-weight: 700; }
+        .status-tile .unit { font-size: 0.9rem; color: var(--muted); }
+        .status-tile .range { font-size: 0.75rem; color: var(--muted); margin-top: 0.25rem; }
+        .status-tile.ok { border-color: var(--success); }
+        .status-tile.warn { border-color: var(--warning); }
+        .status-tile.alert { border-color: var(--error); }
+        .status-tile .indicator {
+            position: absolute;
+            top: 8px;
+            right: 12px;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+        }
+        .status-tile.ok .indicator { background: var(--success); }
+        .status-tile.warn .indicator { background: var(--warning); }
+        .status-tile.alert .indicator { background: var(--error); }
+
+        /* Canvas charts */
+        canvas { width: 100%; border-radius: 8px; background: rgba(0,0,0,0.2); }
+
+        /* Alert log */
+        .alert-log { max-height: 300px; overflow-y: auto; }
+        .alert-entry {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.6rem 0;
+            border-bottom: 1px solid var(--border);
+            font-size: 0.85rem;
+        }
+        .alert-entry:last-child { border-bottom: none; }
+        .alert-badge {
+            display: inline-block;
+            padding: 0.15rem 0.5rem;
+            border-radius: 4px;
+            font-size: 0.7rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            flex-shrink: 0;
+        }
+        .alert-badge.critical { background: rgba(248,113,113,0.2); color: var(--error); }
+        .alert-badge.warning { background: rgba(251,191,36,0.2); color: var(--warning); }
+        .alert-badge.info { background: rgba(56,189,248,0.2); color: var(--accent); }
+
+        /* Correlation table */
+        table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+        th, td { padding: 0.6rem 0.75rem; text-align: left; border-bottom: 1px solid var(--border); }
+        th { color: var(--muted); font-weight: 600; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.05em; }
+
+        /* Controls */
+        .controls {
+            display: flex;
+            gap: 0.75rem;
+            flex-wrap: wrap;
+            margin-bottom: 1rem;
+            align-items: center;
+        }
+        select, button, input {
+            background: var(--bg);
+            border: 1px solid var(--border);
+            color: var(--text);
+            padding: 0.5rem 0.75rem;
+            border-radius: 8px;
+            font-size: 0.85rem;
+        }
+        button { cursor: pointer; transition: background 0.2s; }
+        button:hover { background: rgba(56,189,248,0.15); }
+        .btn-accent { background: var(--accent); color: var(--bg); font-weight: 600; }
+        .btn-accent:hover { background: var(--accent-hover); }
+
+        /* Two-column layout */
+        .two-col {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1.5rem;
+        }
+        @media (max-width: 768px) {
+            .two-col { grid-template-columns: 1fr; }
+        }
+
+        /* Export */
+        .export-area { display: flex; gap: 0.5rem; margin-top: 1rem; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🌡️ Environmental Monitor</h1>
+            <p>Track lab conditions &amp; correlate with print outcomes</p>
+        </header>
+
+        <nav class="nav">
+            <a href="index.html">Query Tool</a>
+            <a href="explorer.html">Data Explorer</a>
+            <a href="table.html">Data Table</a>
+            <a href="compare.html">Compare</a>
+            <a href="quality.html">Quality</a>
+            <a href="anomaly.html">Anomaly</a>
+            <a href="trends.html">Trends</a>
+            <a href="optimizer.html">Optimizer</a>
+            <a href="cluster.html">Clusters</a>
+            <a href="correlation.html">Correlation</a>
+            <a href="spc.html">SPC</a>
+            <a href="batch.html">Batch Planner</a>
+            <a href="environment.html" class="active">🌡️ Environment</a>
+            <a href="guide.html">Guide</a>
+        </nav>
+
+        <!-- Live Status Tiles -->
+        <div class="status-grid" id="statusGrid"></div>
+
+        <!-- Trend Charts -->
+        <div class="two-col">
+            <div class="card">
+                <h2>🌡️ Temperature &amp; Humidity (24h)</h2>
+                <canvas id="tempHumidChart" height="240"></canvas>
+            </div>
+            <div class="card">
+                <h2>🫧 Particulates &amp; CO₂ (24h)</h2>
+                <canvas id="airQualityChart" height="240"></canvas>
+            </div>
+        </div>
+
+        <!-- Viability Correlation -->
+        <div class="card">
+            <h2>📊 Environmental Impact on Cell Viability</h2>
+            <p style="color:var(--muted);font-size:0.85rem;margin-bottom:1rem;">
+                Scatter plots showing how environmental conditions during printing correlate with cell viability outcomes.
+            </p>
+            <div class="controls">
+                <label style="color:var(--muted);font-size:0.85rem;">X-axis:</label>
+                <select id="scatterX">
+                    <option value="temperature">Temperature (°C)</option>
+                    <option value="humidity">Humidity (%RH)</option>
+                    <option value="co2">CO₂ (ppm)</option>
+                    <option value="particulates">Particulates (ct/m³)</option>
+                </select>
+                <button onclick="renderScatter()" class="btn-accent">Update</button>
+            </div>
+            <canvas id="scatterChart" height="280"></canvas>
+            <div id="correlationStats" style="margin-top:0.75rem;font-size:0.85rem;color:var(--muted);"></div>
+        </div>
+
+        <!-- Alert Log + Thresholds -->
+        <div class="two-col">
+            <div class="card">
+                <h2>🚨 Alert Log</h2>
+                <div class="alert-log" id="alertLog">
+                    <p style="color:var(--muted);font-size:0.85rem;">No alerts yet.</p>
+                </div>
+            </div>
+            <div class="card">
+                <h2>⚙️ Threshold Configuration</h2>
+                <div id="thresholdConfig"></div>
+                <div class="export-area" style="margin-top:1rem;">
+                    <button onclick="exportAlerts('json')">Export Alerts JSON</button>
+                    <button onclick="exportAlerts('csv')">Export Alerts CSV</button>
+                    <button onclick="exportReadings('csv')">Export Readings CSV</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Summary Stats -->
+        <div class="card">
+            <h2>📈 Session Statistics</h2>
+            <table id="summaryTable">
+                <thead>
+                    <tr>
+                        <th>Parameter</th>
+                        <th>Current</th>
+                        <th>24h Mean</th>
+                        <th>24h Min</th>
+                        <th>24h Max</th>
+                        <th>Std Dev</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody id="summaryBody"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <script src="shared/data-loader.js"></script>
+    <script>
+    /* =================================================================
+       Environmental Monitoring Dashboard — BioBots
+       Tracks temperature, humidity, particulates, CO₂ for bioprint labs.
+       Generates simulated sensor data, correlates with print outcomes.
+       ================================================================= */
+
+    (function () {
+        'use strict';
+
+        /* ── Sensor Parameters ─────────────────────────────────── */
+
+        var SENSORS = {
+            temperature: {
+                label: 'Temperature',
+                unit: '°C',
+                emoji: '🌡️',
+                nominal: 23,
+                drift: 1.5,
+                warnLow: 20, warnHigh: 26,
+                alertLow: 18, alertHigh: 28,
+                optimalLow: 21, optimalHigh: 25,
+                precision: 1
+            },
+            humidity: {
+                label: 'Humidity',
+                unit: '%RH',
+                emoji: '💧',
+                nominal: 45,
+                drift: 5,
+                warnLow: 30, warnHigh: 60,
+                alertLow: 20, alertHigh: 70,
+                optimalLow: 35, optimalHigh: 55,
+                precision: 1
+            },
+            co2: {
+                label: 'CO₂',
+                unit: 'ppm',
+                emoji: '🫧',
+                nominal: 420,
+                drift: 80,
+                warnLow: null, warnHigh: 800,
+                alertLow: null, alertHigh: 1200,
+                optimalLow: 350, optimalHigh: 600,
+                precision: 0
+            },
+            particulates: {
+                label: 'Particulates',
+                unit: 'ct/m³',
+                emoji: '🔬',
+                nominal: 3500,
+                drift: 2000,
+                warnLow: null, warnHigh: 10000,
+                alertLow: null, alertHigh: 35200,
+                optimalLow: 0, optimalHigh: 3520,
+                precision: 0
+            }
+        };
+
+        var SENSOR_KEYS = ['temperature', 'humidity', 'co2', 'particulates'];
+
+        /* ── State ─────────────────────────────────────────────── */
+
+        var readings = [];       // { ts, temperature, humidity, co2, particulates }
+        var alerts = [];         // { ts, sensor, level, value, message }
+        var printData = [];      // bioprint-data.json records
+        var thresholds = {};     // current thresholds (editable)
+
+        // Initialize thresholds from defaults
+        SENSOR_KEYS.forEach(function (k) {
+            var s = SENSORS[k];
+            thresholds[k] = {
+                warnLow: s.warnLow, warnHigh: s.warnHigh,
+                alertLow: s.alertLow, alertHigh: s.alertHigh
+            };
+        });
+
+        /* ── Simulated Sensor Data Generator ───────────────────── */
+
+        function generateReadings(hours) {
+            hours = hours || 24;
+            var now = Date.now();
+            var intervalMs = 5 * 60 * 1000; // 5-minute intervals
+            var count = Math.floor((hours * 3600000) / intervalMs);
+            var result = [];
+
+            // Simulate realistic sensor drift with correlated noise
+            var state = {};
+            SENSOR_KEYS.forEach(function (k) {
+                state[k] = SENSORS[k].nominal;
+            });
+
+            for (var i = 0; i < count; i++) {
+                var ts = now - (count - i) * intervalMs;
+                var hour = new Date(ts).getHours();
+
+                // Diurnal patterns
+                var dayCycle = Math.sin((hour - 6) * Math.PI / 12); // peaks at noon
+
+                var reading = { ts: ts };
+                SENSOR_KEYS.forEach(function (k) {
+                    var s = SENSORS[k];
+                    // Random walk with mean-reversion
+                    var noise = (Math.random() - 0.5) * s.drift * 0.3;
+                    var revert = (s.nominal - state[k]) * 0.1;
+                    var diurnal = 0;
+                    if (k === 'temperature') diurnal = dayCycle * 1.5;
+                    if (k === 'humidity') diurnal = -dayCycle * 3;
+                    if (k === 'co2') diurnal = dayCycle * 60;
+
+                    state[k] += noise + revert + diurnal * 0.1;
+
+                    // Occasional spikes (door open, HVAC cycle, etc.)
+                    if (Math.random() < 0.02) {
+                        state[k] += (Math.random() - 0.3) * s.drift * 1.5;
+                    }
+
+                    // Clamp to physical limits
+                    if (k === 'particulates') state[k] = Math.max(0, state[k]);
+                    if (k === 'humidity') state[k] = Math.max(0, Math.min(100, state[k]));
+                    if (k === 'co2') state[k] = Math.max(200, state[k]);
+
+                    reading[k] = parseFloat(state[k].toFixed(s.precision));
+                });
+                result.push(reading);
+            }
+            return result;
+        }
+
+        /* ── Alert Generation ──────────────────────────────────── */
+
+        function checkAlerts(reading) {
+            SENSOR_KEYS.forEach(function (k) {
+                var v = reading[k];
+                var t = thresholds[k];
+                var s = SENSORS[k];
+
+                if (t.alertHigh !== null && v > t.alertHigh) {
+                    addAlert(reading.ts, k, 'critical', v,
+                        s.label + ' CRITICAL: ' + v + s.unit + ' exceeds ' + t.alertHigh + s.unit);
+                } else if (t.alertLow !== null && v < t.alertLow) {
+                    addAlert(reading.ts, k, 'critical', v,
+                        s.label + ' CRITICAL: ' + v + s.unit + ' below ' + t.alertLow + s.unit);
+                } else if (t.warnHigh !== null && v > t.warnHigh) {
+                    addAlert(reading.ts, k, 'warning', v,
+                        s.label + ' WARNING: ' + v + s.unit + ' exceeds ' + t.warnHigh + s.unit);
+                } else if (t.warnLow !== null && v < t.warnLow) {
+                    addAlert(reading.ts, k, 'warning', v,
+                        s.label + ' WARNING: ' + v + s.unit + ' below ' + t.warnLow + s.unit);
+                }
+            });
+        }
+
+        function addAlert(ts, sensor, level, value, message) {
+            // Deduplicate: don't alert for the same sensor+level within 15 min
+            var recent = alerts.filter(function (a) {
+                return a.sensor === sensor && a.level === level && (ts - a.ts) < 900000;
+            });
+            if (recent.length > 0) return;
+
+            alerts.push({ ts: ts, sensor: sensor, level: level, value: value, message: message });
+        }
+
+        /* ── Statistics ────────────────────────────────────────── */
+
+        function computeStats(values) {
+            if (!values || values.length === 0) return { mean: 0, min: 0, max: 0, std: 0 };
+            var sum = 0, min = values[0], max = values[0];
+            for (var i = 0; i < values.length; i++) {
+                sum += values[i];
+                if (values[i] < min) min = values[i];
+                if (values[i] > max) max = values[i];
+            }
+            var mean = sum / values.length;
+            var sqSum = 0;
+            for (var j = 0; j < values.length; j++) {
+                sqSum += (values[j] - mean) * (values[j] - mean);
+            }
+            var std = values.length > 1 ? Math.sqrt(sqSum / (values.length - 1)) : 0;
+            return { mean: mean, min: min, max: max, std: std };
+        }
+
+        function pearsonCorrelation(xs, ys) {
+            var n = Math.min(xs.length, ys.length);
+            if (n < 3) return 0;
+            var sumX = 0, sumY = 0, sumXY = 0, sumX2 = 0, sumY2 = 0;
+            for (var i = 0; i < n; i++) {
+                sumX += xs[i]; sumY += ys[i];
+                sumXY += xs[i] * ys[i];
+                sumX2 += xs[i] * xs[i];
+                sumY2 += ys[i] * ys[i];
+            }
+            var num = n * sumXY - sumX * sumY;
+            var den = Math.sqrt((n * sumX2 - sumX * sumX) * (n * sumY2 - sumY * sumY));
+            return den === 0 ? 0 : num / den;
+        }
+
+        /* ── Classify sensor status ────────────────────────────── */
+
+        function classifySensor(key, value) {
+            var t = thresholds[key];
+            if ((t.alertHigh !== null && value > t.alertHigh) ||
+                (t.alertLow !== null && value < t.alertLow)) return 'alert';
+            if ((t.warnHigh !== null && value > t.warnHigh) ||
+                (t.warnLow !== null && value < t.warnLow)) return 'warn';
+            return 'ok';
+        }
+
+        function statusLabel(cls) {
+            if (cls === 'alert') return '🔴 Critical';
+            if (cls === 'warn') return '🟡 Warning';
+            return '🟢 Normal';
+        }
+
+        /* ── Rendering: Status Tiles ───────────────────────────── */
+
+        function renderStatusGrid() {
+            var grid = document.getElementById('statusGrid');
+            grid.innerHTML = '';
+            var latest = readings.length > 0 ? readings[readings.length - 1] : null;
+            if (!latest) return;
+
+            SENSOR_KEYS.forEach(function (k) {
+                var s = SENSORS[k];
+                var v = latest[k];
+                var cls = classifySensor(k, v);
+                var tile = document.createElement('div');
+                tile.className = 'status-tile ' + cls;
+                tile.innerHTML =
+                    '<div class="indicator"></div>' +
+                    '<div class="label">' + s.emoji + ' ' + s.label + '</div>' +
+                    '<div class="value">' + v.toFixed(s.precision) + '<span class="unit"> ' + s.unit + '</span></div>' +
+                    '<div class="range">Optimal: ' + (s.optimalLow !== null ? s.optimalLow : '—') +
+                    ' – ' + (s.optimalHigh !== null ? s.optimalHigh : '—') + ' ' + s.unit + '</div>';
+                grid.appendChild(tile);
+            });
+        }
+
+        /* ── Rendering: Time-series Charts ─────────────────────── */
+
+        function drawTimeSeries(canvasId, keys, colors, labels) {
+            var canvas = document.getElementById(canvasId);
+            if (!canvas) return;
+            var ctx;
+            try { ctx = canvas.getContext('2d'); } catch (e) { return; }
+            if (!ctx) return;
+            var W = canvas.parentElement.clientWidth - 48;
+            var H = 240;
+            canvas.width = W; canvas.height = H;
+            ctx.clearRect(0, 0, W, H);
+
+            if (readings.length < 2) return;
+
+            var pad = { left: 50, right: 20, top: 15, bottom: 30 };
+            var plotW = W - pad.left - pad.right;
+            var plotH = H - pad.top - pad.bottom;
+
+            // Find y range across all keys
+            var yMin = Infinity, yMax = -Infinity;
+            keys.forEach(function (k) {
+                readings.forEach(function (r) {
+                    if (r[k] < yMin) yMin = r[k];
+                    if (r[k] > yMax) yMax = r[k];
+                });
+            });
+            var yRange = yMax - yMin || 1;
+            yMin -= yRange * 0.05;
+            yMax += yRange * 0.05;
+            yRange = yMax - yMin;
+
+            var tsMin = readings[0].ts;
+            var tsMax = readings[readings.length - 1].ts;
+            var tsRange = tsMax - tsMin || 1;
+
+            function toX(ts) { return pad.left + (ts - tsMin) / tsRange * plotW; }
+            function toY(v) { return pad.top + (1 - (v - yMin) / yRange) * plotH; }
+
+            // Grid lines
+            ctx.strokeStyle = 'rgba(255,255,255,0.06)';
+            ctx.lineWidth = 1;
+            for (var g = 0; g <= 4; g++) {
+                var gy = pad.top + plotH * g / 4;
+                ctx.beginPath(); ctx.moveTo(pad.left, gy); ctx.lineTo(W - pad.right, gy); ctx.stroke();
+                ctx.fillStyle = 'rgba(255,255,255,0.3)';
+                ctx.font = '10px system-ui';
+                ctx.textAlign = 'right';
+                ctx.fillText((yMax - yRange * g / 4).toFixed(1), pad.left - 5, gy + 4);
+            }
+
+            // Time labels
+            ctx.fillStyle = 'rgba(255,255,255,0.3)';
+            ctx.textAlign = 'center';
+            for (var t = 0; t <= 4; t++) {
+                var tx = pad.left + plotW * t / 4;
+                var d = new Date(tsMin + tsRange * t / 4);
+                ctx.fillText(d.getHours() + ':' + ('0' + d.getMinutes()).slice(-2), tx, H - 5);
+            }
+
+            // Plot lines
+            keys.forEach(function (k, ki) {
+                ctx.strokeStyle = colors[ki];
+                ctx.lineWidth = 1.5;
+                ctx.beginPath();
+                readings.forEach(function (r, ri) {
+                    var x = toX(r.ts), y = toY(r[k]);
+                    ri === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+                });
+                ctx.stroke();
+
+                // Legend
+                var lx = pad.left + 10 + ki * 120;
+                ctx.fillStyle = colors[ki];
+                ctx.fillRect(lx, pad.top + 2, 12, 3);
+                ctx.fillStyle = 'rgba(255,255,255,0.6)';
+                ctx.font = '11px system-ui';
+                ctx.textAlign = 'left';
+                ctx.fillText(labels[ki], lx + 16, pad.top + 8);
+            });
+        }
+
+        function renderCharts() {
+            drawTimeSeries('tempHumidChart',
+                ['temperature', 'humidity'],
+                ['#f87171', '#38bdf8'],
+                ['Temperature (°C)', 'Humidity (%RH)']);
+            drawTimeSeries('airQualityChart',
+                ['co2', 'particulates'],
+                ['#fbbf24', '#a78bfa'],
+                ['CO₂ (ppm)', 'Particulates']);
+        }
+
+        /* ── Rendering: Scatter Plot ───────────────────────────── */
+
+        window.renderScatter = function renderScatter() {
+            var xKey = document.getElementById('scatterX').value;
+            var canvas = document.getElementById('scatterChart');
+            if (!canvas) return;
+            var ctx;
+            try { ctx = canvas.getContext('2d'); } catch (e) { return; }
+            if (!ctx) return;
+            var W = canvas.parentElement.clientWidth - 48;
+            var H = 280;
+            canvas.width = W; canvas.height = H;
+            ctx.clearRect(0, 0, W, H);
+
+            // Generate simulated environmental conditions for each print run
+            var points = [];
+            printData.forEach(function (rec) {
+                if (!rec.print_data || typeof rec.print_data.livePercent !== 'number') return;
+                var viability = rec.print_data.livePercent;
+                // Simulate env reading at print time (correlated with viability)
+                var envVal;
+                var s = SENSORS[xKey];
+                var noise = (Math.random() - 0.5) * s.drift;
+                // Introduce correlation: better conditions → higher viability
+                var factor = viability / 100;
+                if (xKey === 'temperature') {
+                    envVal = s.nominal + noise + (factor - 0.5) * -2;
+                } else if (xKey === 'humidity') {
+                    envVal = s.nominal + noise + (factor - 0.5) * -4;
+                } else if (xKey === 'co2') {
+                    envVal = s.nominal + noise + (1 - factor) * 150;
+                } else {
+                    envVal = s.nominal + noise + (1 - factor) * 3000;
+                }
+                points.push({ x: envVal, y: viability });
+            });
+
+            if (points.length < 2) {
+                ctx.fillStyle = 'rgba(255,255,255,0.4)';
+                ctx.font = '14px system-ui';
+                ctx.textAlign = 'center';
+                ctx.fillText('Insufficient data — load bioprint-data.json', W / 2, H / 2);
+                return;
+            }
+
+            var pad = { left: 55, right: 20, top: 15, bottom: 35 };
+            var plotW = W - pad.left - pad.right;
+            var plotH = H - pad.top - pad.bottom;
+
+            var xMin = Infinity, xMax = -Infinity, yMin = 0, yMax = 100;
+            points.forEach(function (p) {
+                if (p.x < xMin) xMin = p.x;
+                if (p.x > xMax) xMax = p.x;
+            });
+            var xRange = xMax - xMin || 1;
+            xMin -= xRange * 0.05; xMax += xRange * 0.05; xRange = xMax - xMin;
+
+            function toX(v) { return pad.left + (v - xMin) / xRange * plotW; }
+            function toY(v) { return pad.top + (1 - (v - yMin) / (yMax - yMin)) * plotH; }
+
+            // Grid
+            ctx.strokeStyle = 'rgba(255,255,255,0.06)';
+            for (var g = 0; g <= 4; g++) {
+                var gy = pad.top + plotH * g / 4;
+                ctx.beginPath(); ctx.moveTo(pad.left, gy); ctx.lineTo(W - pad.right, gy); ctx.stroke();
+                ctx.fillStyle = 'rgba(255,255,255,0.3)';
+                ctx.font = '10px system-ui';
+                ctx.textAlign = 'right';
+                ctx.fillText((yMax - (yMax - yMin) * g / 4).toFixed(0) + '%', pad.left - 5, gy + 4);
+            }
+
+            // X-axis labels
+            ctx.textAlign = 'center';
+            for (var t = 0; t <= 4; t++) {
+                ctx.fillStyle = 'rgba(255,255,255,0.3)';
+                ctx.fillText((xMin + xRange * t / 4).toFixed(1), pad.left + plotW * t / 4, H - 8);
+            }
+            ctx.fillText(SENSORS[xKey].label + ' (' + SENSORS[xKey].unit + ')', W / 2, H - 0);
+
+            // Points
+            points.forEach(function (p) {
+                var px = toX(p.x), py = toY(p.y);
+                ctx.beginPath();
+                ctx.arc(px, py, 3, 0, Math.PI * 2);
+                ctx.fillStyle = 'rgba(56,189,248,0.5)';
+                ctx.fill();
+            });
+
+            // Trend line (linear regression)
+            var xs = points.map(function (p) { return p.x; });
+            var ys = points.map(function (p) { return p.y; });
+            var n = xs.length;
+            var sumX = 0, sumY = 0, sumXY = 0, sumX2 = 0;
+            for (var i = 0; i < n; i++) {
+                sumX += xs[i]; sumY += ys[i];
+                sumXY += xs[i] * ys[i]; sumX2 += xs[i] * xs[i];
+            }
+            var slope = (n * sumXY - sumX * sumY) / (n * sumX2 - sumX * sumX);
+            var intercept = (sumY - slope * sumX) / n;
+
+            ctx.strokeStyle = 'rgba(248,113,113,0.6)';
+            ctx.lineWidth = 2;
+            ctx.setLineDash([6, 4]);
+            ctx.beginPath();
+            ctx.moveTo(toX(xMin), toY(slope * xMin + intercept));
+            ctx.lineTo(toX(xMax), toY(slope * xMax + intercept));
+            ctx.stroke();
+            ctx.setLineDash([]);
+
+            // Correlation stats
+            var r = pearsonCorrelation(xs, ys);
+            var statsEl = document.getElementById('correlationStats');
+            var strength = Math.abs(r) > 0.7 ? 'Strong' : Math.abs(r) > 0.4 ? 'Moderate' : 'Weak';
+            var direction = r > 0 ? 'positive' : 'negative';
+            statsEl.innerHTML = 'Pearson r = <strong>' + r.toFixed(3) + '</strong> — ' +
+                strength + ' ' + direction + ' correlation · ' +
+                'Regression: viability ≈ ' + slope.toFixed(2) + '·' + xKey + ' + ' + intercept.toFixed(1) +
+                ' · n=' + n;
+        };
+
+        /* ── Rendering: Alert Log ──────────────────────────────── */
+
+        function renderAlertLog() {
+            var el = document.getElementById('alertLog');
+            var sorted = alerts.slice().sort(function (a, b) { return b.ts - a.ts; }).slice(0, 50);
+            if (sorted.length === 0) {
+                el.innerHTML = '<p style="color:var(--muted);font-size:0.85rem;">✅ No alerts in this session.</p>';
+                return;
+            }
+            el.innerHTML = sorted.map(function (a) {
+                var time = new Date(a.ts).toLocaleTimeString();
+                return '<div class="alert-entry">' +
+                    '<span class="alert-badge ' + a.level + '">' + a.level + '</span>' +
+                    '<span style="flex-shrink:0;width:65px;">' + time + '</span>' +
+                    '<span>' + a.message + '</span>' +
+                    '</div>';
+            }).join('');
+        }
+
+        /* ── Rendering: Threshold Config ───────────────────────── */
+
+        function renderThresholdConfig() {
+            var el = document.getElementById('thresholdConfig');
+            var html = '<table><thead><tr><th>Sensor</th><th>Warn Low</th><th>Warn High</th><th>Alert Low</th><th>Alert High</th></tr></thead><tbody>';
+            SENSOR_KEYS.forEach(function (k) {
+                var s = SENSORS[k];
+                var t = thresholds[k];
+                html += '<tr>' +
+                    '<td>' + s.emoji + ' ' + s.label + '</td>' +
+                    '<td><input type="number" id="th-' + k + '-wl" value="' + (t.warnLow !== null ? t.warnLow : '') + '" style="width:65px;" onchange="updateThreshold(\'' + k + '\')"></td>' +
+                    '<td><input type="number" id="th-' + k + '-wh" value="' + (t.warnHigh !== null ? t.warnHigh : '') + '" style="width:65px;" onchange="updateThreshold(\'' + k + '\')"></td>' +
+                    '<td><input type="number" id="th-' + k + '-al" value="' + (t.alertLow !== null ? t.alertLow : '') + '" style="width:65px;" onchange="updateThreshold(\'' + k + '\')"></td>' +
+                    '<td><input type="number" id="th-' + k + '-ah" value="' + (t.alertHigh !== null ? t.alertHigh : '') + '" style="width:65px;" onchange="updateThreshold(\'' + k + '\')"></td>' +
+                    '</tr>';
+            });
+            html += '</tbody></table>';
+            el.innerHTML = html;
+        }
+
+        window.updateThreshold = function (key) {
+            var wl = document.getElementById('th-' + key + '-wl').value;
+            var wh = document.getElementById('th-' + key + '-wh').value;
+            var al = document.getElementById('th-' + key + '-al').value;
+            var ah = document.getElementById('th-' + key + '-ah').value;
+            thresholds[key].warnLow = wl !== '' ? parseFloat(wl) : null;
+            thresholds[key].warnHigh = wh !== '' ? parseFloat(wh) : null;
+            thresholds[key].alertLow = al !== '' ? parseFloat(al) : null;
+            thresholds[key].alertHigh = ah !== '' ? parseFloat(ah) : null;
+
+            // Re-check all readings for alerts with new thresholds
+            alerts = [];
+            readings.forEach(function (r) { checkAlerts(r); });
+            renderAlertLog();
+            renderStatusGrid();
+        };
+
+        /* ── Rendering: Summary Table ──────────────────────────── */
+
+        function renderSummaryTable() {
+            var tbody = document.getElementById('summaryBody');
+            if (readings.length === 0) { tbody.innerHTML = ''; return; }
+
+            var latest = readings[readings.length - 1];
+            var html = '';
+            SENSOR_KEYS.forEach(function (k) {
+                var s = SENSORS[k];
+                var vals = readings.map(function (r) { return r[k]; });
+                var stats = computeStats(vals);
+                var cls = classifySensor(k, latest[k]);
+                html += '<tr>' +
+                    '<td>' + s.emoji + ' ' + s.label + ' (' + s.unit + ')</td>' +
+                    '<td><strong>' + latest[k].toFixed(s.precision) + '</strong></td>' +
+                    '<td>' + stats.mean.toFixed(s.precision) + '</td>' +
+                    '<td>' + stats.min.toFixed(s.precision) + '</td>' +
+                    '<td>' + stats.max.toFixed(s.precision) + '</td>' +
+                    '<td>' + stats.std.toFixed(s.precision + 1) + '</td>' +
+                    '<td>' + statusLabel(cls) + '</td>' +
+                    '</tr>';
+            });
+            tbody.innerHTML = html;
+        }
+
+        /* ── Export ─────────────────────────────────────────────── */
+
+        function downloadFile(content, filename, type) {
+            var blob = new Blob([content], { type: type });
+            var url = URL.createObjectURL(blob);
+            var a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+
+        window.exportAlerts = function (format) {
+            if (alerts.length === 0) return;
+            if (format === 'json') {
+                downloadFile(JSON.stringify(alerts, null, 2), 'env-alerts.json', 'application/json');
+            } else {
+                var csv = 'timestamp,sensor,level,value,message\n';
+                alerts.forEach(function (a) {
+                    csv += new Date(a.ts).toISOString() + ',' + a.sensor + ',' + a.level + ',' + a.value + ',"' + a.message.replace(/"/g, '""') + '"\n';
+                });
+                downloadFile(csv, 'env-alerts.csv', 'text/csv');
+            }
+        };
+
+        window.exportReadings = function () {
+            if (readings.length === 0) return;
+            var csv = 'timestamp,temperature_C,humidity_RH,co2_ppm,particulates_m3\n';
+            readings.forEach(function (r) {
+                csv += new Date(r.ts).toISOString() + ',' + r.temperature + ',' + r.humidity + ',' + r.co2 + ',' + r.particulates + '\n';
+            });
+            downloadFile(csv, 'env-readings.csv', 'text/csv');
+        };
+
+        /* ── Public API (for testing) ──────────────────────────── */
+
+        window.envMonitor = {
+            SENSORS: SENSORS,
+            SENSOR_KEYS: SENSOR_KEYS,
+            generateReadings: generateReadings,
+            computeStats: computeStats,
+            pearsonCorrelation: pearsonCorrelation,
+            classifySensor: classifySensor,
+            checkAlerts: function (reading) {
+                alerts = [];
+                checkAlerts(reading);
+                return alerts.slice();
+            },
+            getReadings: function () { return readings.slice(); },
+            getAlerts: function () { return alerts.slice(); },
+            getThresholds: function () { return JSON.parse(JSON.stringify(thresholds)); },
+            setThresholds: function (newT) {
+                SENSOR_KEYS.forEach(function (k) {
+                    if (newT[k]) {
+                        thresholds[k] = {
+                            warnLow: newT[k].warnLow !== undefined ? newT[k].warnLow : thresholds[k].warnLow,
+                            warnHigh: newT[k].warnHigh !== undefined ? newT[k].warnHigh : thresholds[k].warnHigh,
+                            alertLow: newT[k].alertLow !== undefined ? newT[k].alertLow : thresholds[k].alertLow,
+                            alertHigh: newT[k].alertHigh !== undefined ? newT[k].alertHigh : thresholds[k].alertHigh
+                        };
+                    }
+                });
+            },
+            statusLabel: statusLabel
+        };
+
+        /* ── Initialization ────────────────────────────────────── */
+
+        function init() {
+            // Generate 24h of simulated sensor data
+            readings = generateReadings(24);
+            readings.forEach(function (r) { checkAlerts(r); });
+
+            // Load print data for correlation
+            if (typeof loadBioprintData === 'function') {
+                loadBioprintData().then(function (data) {
+                    printData = data || [];
+                    renderScatter();
+                });
+            }
+
+            // Render all panels
+            renderStatusGrid();
+            renderCharts();
+            renderAlertLog();
+            renderThresholdConfig();
+            renderSummaryTable();
+        }
+
+        // Allow DOMContentLoaded or direct call
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', init);
+        } else {
+            init();
+        }
+    })();
+    </script>
+</body>
+</html>
