@@ -1,0 +1,742 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>BioBots 1 — Maintenance Tracker</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧬</text></svg>">
+    <script src="shared/data-loader.js"></script>
+    <style>
+        :root {
+            --bg: #0f172a;
+            --surface: #1e293b;
+            --border: #334155;
+            --text: #e2e8f0;
+            --muted: #94a3b8;
+            --accent: #38bdf8;
+            --accent-hover: #7dd3fc;
+            --success: #4ade80;
+            --error: #f87171;
+            --warning: #fbbf24;
+            --purple: #a78bfa;
+            --orange: #fb923c;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            padding: 2rem 1rem;
+        }
+        .container { max-width: 1200px; margin: 0 auto; }
+        header { text-align: center; margin-bottom: 2rem; }
+        header h1 {
+            font-size: 2rem; font-weight: 700;
+            background: linear-gradient(135deg, var(--orange), var(--warning));
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+        }
+        header p { color: var(--muted); margin-top: 0.5rem; }
+
+        .nav { display: flex; justify-content: center; gap: 0.5rem; margin-bottom: 2rem; flex-wrap: wrap; }
+        .nav a {
+            color: var(--muted); padding: 0.5rem 1rem; border-radius: 8px;
+            text-decoration: none; font-size: 0.9rem; transition: all 0.2s;
+        }
+        .nav a:hover { color: var(--accent); }
+        .nav a.active {
+            color: var(--accent); background: var(--surface);
+            border: 1px solid var(--border);
+        }
+
+        .card {
+            background: var(--surface); border: 1px solid var(--border);
+            border-radius: 12px; padding: 1.5rem; margin-bottom: 1.5rem;
+        }
+        .card h2 { font-size: 1.1rem; margin-bottom: 1rem; }
+
+        .controls { display: flex; gap: 1rem; flex-wrap: wrap; align-items: end; }
+        .control-group { display: flex; flex-direction: column; gap: 0.3rem; }
+        .control-group label { font-size: 0.8rem; color: var(--muted); font-weight: 500; }
+        .control-group input, .control-group select, .control-group textarea {
+            background: var(--bg); border: 1px solid var(--border);
+            color: var(--text); padding: 0.4rem 0.7rem; border-radius: 6px;
+            font-size: 0.85rem; font-family: inherit;
+        }
+        .control-group input:focus, .control-group select:focus, .control-group textarea:focus {
+            outline: none; border-color: var(--accent);
+        }
+        .control-group textarea { resize: vertical; min-height: 60px; width: 300px; }
+        .btn {
+            padding: 0.5rem 1.2rem; border-radius: 8px; border: none;
+            font-family: inherit; font-size: 0.85rem; font-weight: 600;
+            cursor: pointer; transition: all 0.2s;
+        }
+        .btn-primary { background: var(--accent); color: #0f172a; }
+        .btn-primary:hover { background: var(--accent-hover); }
+        .btn-outline { background: none; border: 1px solid var(--border); color: var(--muted); }
+        .btn-outline:hover { border-color: var(--accent); color: var(--accent); }
+        .btn-danger { background: var(--error); color: #0f172a; }
+        .btn-danger:hover { opacity: 0.9; }
+
+        .dashboard { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1rem; margin-bottom: 1.5rem; }
+        .dash-card {
+            background: var(--surface); border: 1px solid var(--border);
+            border-radius: 12px; padding: 1.2rem; text-align: center;
+        }
+        .dash-card .icon { font-size: 1.5rem; margin-bottom: 0.5rem; }
+        .dash-card .value { font-size: 1.8rem; font-weight: 700; }
+        .dash-card .label { font-size: 0.75rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; margin-top: 0.3rem; }
+        .status-good .value { color: var(--success); }
+        .status-warn .value { color: var(--warning); }
+        .status-bad .value { color: var(--error); }
+
+        .alert-banner {
+            background: rgba(251, 191, 36, 0.1); border: 1px solid var(--warning);
+            border-radius: 12px; padding: 1rem 1.5rem; margin-bottom: 1.5rem;
+            display: none;
+        }
+        .alert-banner.visible { display: block; }
+        .alert-banner h3 { color: var(--warning); margin-bottom: 0.5rem; }
+        .alert-banner ul { margin: 0; padding-left: 1.5rem; }
+        .alert-banner li { margin: 0.3rem 0; font-size: 0.9rem; }
+
+        .timeline { position: relative; padding-left: 30px; }
+        .timeline::before {
+            content: ''; position: absolute; left: 10px; top: 0; bottom: 0;
+            width: 2px; background: var(--border);
+        }
+        .tl-entry {
+            position: relative; margin-bottom: 1.5rem; padding: 1rem;
+            background: var(--bg); border: 1px solid var(--border); border-radius: 8px;
+        }
+        .tl-entry::before {
+            content: ''; position: absolute; left: -24px; top: 1.2rem;
+            width: 10px; height: 10px; border-radius: 50%;
+            border: 2px solid var(--accent); background: var(--bg);
+        }
+        .tl-entry.type-nozzle::before { border-color: var(--error); }
+        .tl-entry.type-calibration::before { border-color: var(--warning); }
+        .tl-entry.type-cleaning::before { border-color: var(--success); }
+        .tl-entry.type-firmware::before { border-color: var(--purple); }
+        .tl-entry.type-repair::before { border-color: var(--orange); }
+        .tl-entry .tl-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; }
+        .tl-entry .tl-type { font-weight: 600; font-size: 0.9rem; }
+        .tl-entry .tl-date { font-size: 0.8rem; color: var(--muted); }
+        .tl-entry .tl-notes { font-size: 0.85rem; color: var(--muted); margin-top: 0.3rem; }
+        .tl-entry .tl-actions { margin-top: 0.5rem; }
+
+        .tag {
+            display: inline-block; padding: 0.15rem 0.5rem; border-radius: 4px;
+            font-size: 0.75rem; font-weight: 600;
+        }
+        .tag-nozzle { background: rgba(248, 113, 113, 0.2); color: var(--error); }
+        .tag-calibration { background: rgba(251, 191, 36, 0.2); color: var(--warning); }
+        .tag-cleaning { background: rgba(74, 222, 128, 0.2); color: var(--success); }
+        .tag-firmware { background: rgba(167, 139, 250, 0.2); color: var(--purple); }
+        .tag-repair { background: rgba(251, 146, 60, 0.2); color: var(--orange); }
+        .tag-general { background: rgba(56, 189, 248, 0.2); color: var(--accent); }
+
+        .chart-area { position: relative; height: 200px; background: var(--bg); border-radius: 8px; padding: 0.5rem; overflow: hidden; }
+
+        .schedule-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+        .schedule-table th {
+            text-align: left; padding: 0.6rem 0.8rem; border-bottom: 2px solid var(--border);
+            color: var(--muted); font-weight: 600; font-size: 0.75rem; text-transform: uppercase;
+        }
+        .schedule-table td { padding: 0.6rem 0.8rem; border-bottom: 1px solid var(--border); }
+        .schedule-table tr:last-child td { border-bottom: none; }
+
+        .overdue { color: var(--error); font-weight: 600; }
+        .due-soon { color: var(--warning); font-weight: 600; }
+        .on-track { color: var(--success); }
+
+        .tabs { display: flex; gap: 0; margin-bottom: 1.5rem; border-bottom: 2px solid var(--border); }
+        .tab {
+            padding: 0.6rem 1.2rem; cursor: pointer; color: var(--muted);
+            font-size: 0.9rem; font-weight: 500; border-bottom: 2px solid transparent;
+            margin-bottom: -2px; transition: all 0.2s;
+        }
+        .tab:hover { color: var(--text); }
+        .tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+        .tab-panel { display: none; }
+        .tab-panel.active { display: block; }
+
+        .empty-state { text-align: center; padding: 3rem; color: var(--muted); }
+        .empty-state .icon { font-size: 2.5rem; margin-bottom: 1rem; }
+
+        .actions-bar { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 1rem; }
+
+        footer { text-align: center; margin-top: 3rem; color: var(--muted); font-size: 0.8rem; }
+        footer a { color: var(--accent); text-decoration: none; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🔧 Maintenance Tracker</h1>
+            <p>Log maintenance events, track printer health, and get service reminders</p>
+        </header>
+
+        <nav class="nav">
+            <a href="index.html">Home</a>
+            <a href="explorer.html">Explorer</a>
+            <a href="quality.html">Quality</a>
+            <a href="anomaly.html">Anomaly</a>
+            <a href="calibration.html">Calibration</a>
+            <a href="logbook.html">Logbook</a>
+            <a href="spc.html">SPC</a>
+            <a href="maintenance.html" class="active">Maintenance</a>
+        </nav>
+
+        <div id="alertBanner" class="alert-banner">
+            <h3>⚠️ Maintenance Alerts</h3>
+            <ul id="alertList"></ul>
+        </div>
+
+        <div class="dashboard" id="dashboard"></div>
+
+        <div class="tabs">
+            <div class="tab active" data-tab="log">📝 Log Event</div>
+            <div class="tab" data-tab="history">📋 History</div>
+            <div class="tab" data-tab="schedule">📅 Schedule</div>
+            <div class="tab" data-tab="impact">📊 Quality Impact</div>
+        </div>
+
+        <div id="tab-log" class="tab-panel active">
+            <div class="card">
+                <h2>Log Maintenance Event</h2>
+                <div class="controls" style="flex-direction: column; align-items: stretch;">
+                    <div style="display: flex; gap: 1rem; flex-wrap: wrap;">
+                        <div class="control-group">
+                            <label>Event Type</label>
+                            <select id="eventType">
+                                <option value="nozzle">🔴 Nozzle Change</option>
+                                <option value="calibration">🟡 Calibration</option>
+                                <option value="cleaning">🟢 Cleaning</option>
+                                <option value="firmware">🟣 Firmware Update</option>
+                                <option value="repair">🟠 Repair</option>
+                                <option value="general">🔵 General Service</option>
+                            </select>
+                        </div>
+                        <div class="control-group">
+                            <label>Date</label>
+                            <input type="date" id="eventDate" />
+                        </div>
+                        <div class="control-group">
+                            <label>Printer Serial</label>
+                            <input type="text" id="eventPrinter" placeholder="e.g. BioBot-001" />
+                        </div>
+                        <div class="control-group">
+                            <label>Cost ($)</label>
+                            <input type="number" id="eventCost" min="0" step="0.01" placeholder="0.00" />
+                        </div>
+                    </div>
+                    <div class="control-group">
+                        <label>Notes</label>
+                        <textarea id="eventNotes" placeholder="Details: parts replaced, issues found, etc."></textarea>
+                    </div>
+                    <div style="display: flex; gap: 0.5rem;">
+                        <button class="btn btn-primary" onclick="logEvent()">Log Event</button>
+                        <button class="btn btn-outline" onclick="clearForm()">Clear</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="tab-history" class="tab-panel">
+            <div class="card">
+                <h2>Maintenance History</h2>
+                <div class="actions-bar">
+                    <div class="control-group">
+                        <select id="historyFilter" onchange="renderHistory()">
+                            <option value="all">All Types</option>
+                            <option value="nozzle">Nozzle Change</option>
+                            <option value="calibration">Calibration</option>
+                            <option value="cleaning">Cleaning</option>
+                            <option value="firmware">Firmware Update</option>
+                            <option value="repair">Repair</option>
+                            <option value="general">General Service</option>
+                        </select>
+                    </div>
+                    <button class="btn btn-outline" onclick="exportHistory()">📥 Export JSON</button>
+                    <label class="btn btn-outline" style="cursor:pointer;">
+                        📤 Import <input type="file" accept=".json" onchange="importHistory(event)" style="display:none;" />
+                    </label>
+                    <button class="btn btn-danger" onclick="clearHistory()">🗑️ Clear All</button>
+                </div>
+                <div id="historyTimeline"></div>
+            </div>
+        </div>
+
+        <div id="tab-schedule" class="tab-panel">
+            <div class="card">
+                <h2>Maintenance Schedule</h2>
+                <p style="color: var(--muted); margin-bottom: 1rem; font-size: 0.85rem;">
+                    Recommended intervals based on manufacturer guidelines and usage patterns.
+                </p>
+                <table class="schedule-table" id="scheduleTable"></table>
+            </div>
+            <div class="card">
+                <h2>⚙️ Custom Intervals</h2>
+                <div class="controls">
+                    <div class="control-group">
+                        <label>Task</label>
+                        <select id="schedTaskType">
+                            <option value="nozzle">Nozzle Change</option>
+                            <option value="calibration">Calibration</option>
+                            <option value="cleaning">Cleaning</option>
+                            <option value="firmware">Firmware Update</option>
+                            <option value="general">General Service</option>
+                        </select>
+                    </div>
+                    <div class="control-group">
+                        <label>Interval (days)</label>
+                        <input type="number" id="schedInterval" min="1" max="365" />
+                    </div>
+                    <button class="btn btn-primary" onclick="updateInterval()">Update</button>
+                    <button class="btn btn-outline" onclick="resetIntervals()">Reset Defaults</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="tab-impact" class="tab-panel">
+            <div class="card">
+                <h2>Quality Impact Analysis</h2>
+                <p style="color: var(--muted); margin-bottom: 1rem; font-size: 0.85rem;">
+                    How print quality metrics change before and after maintenance events.
+                </p>
+                <div class="controls" style="margin-bottom: 1rem;">
+                    <div class="control-group">
+                        <label>Maintenance Type</label>
+                        <select id="impactType" onchange="renderImpact()">
+                            <option value="all">All Types</option>
+                            <option value="nozzle">Nozzle Change</option>
+                            <option value="calibration">Calibration</option>
+                            <option value="cleaning">Cleaning</option>
+                        </select>
+                    </div>
+                    <div class="control-group">
+                        <label>Quality Metric</label>
+                        <select id="impactMetric" onchange="renderImpact()">
+                            <option value="livePercent">Cell Viability (%)</option>
+                            <option value="elasticity">Elasticity</option>
+                            <option value="deadPercent">Dead Cell %</option>
+                        </select>
+                    </div>
+                </div>
+                <div id="impactResults"></div>
+            </div>
+            <div class="card">
+                <h2>📈 Degradation Curve</h2>
+                <p style="color: var(--muted); margin-bottom: 1rem; font-size: 0.85rem;">
+                    Average quality at each print offset from last maintenance event.
+                </p>
+                <div class="chart-area">
+                    <canvas id="degradationChart"></canvas>
+                </div>
+            </div>
+            <div class="card">
+                <h2>💰 Maintenance Cost Summary</h2>
+                <div id="costSummary"></div>
+            </div>
+        </div>
+
+        <footer>
+            <a href="index.html">← Back to BioBots Home</a>
+        </footer>
+    </div>
+
+    <script>
+    (function() {
+        'use strict';
+
+        var STORAGE_KEY = 'biobots_maintenance';
+        var INTERVALS_KEY = 'biobots_maintenance_intervals';
+        var TYPE_LABELS = {
+            nozzle: 'Nozzle Change', calibration: 'Calibration', cleaning: 'Cleaning',
+            firmware: 'Firmware Update', repair: 'Repair', general: 'General Service'
+        };
+        var TYPE_ICONS = {
+            nozzle: '🔴', calibration: '🟡', cleaning: '🟢',
+            firmware: '🟣', repair: '🟠', general: '🔵'
+        };
+        var DEFAULT_INTERVALS = { nozzle: 30, calibration: 14, cleaning: 7, firmware: 90, general: 60 };
+
+        var printData = [];
+        var events = loadEvents();
+        var intervals = loadIntervals();
+
+        function loadEvents() {
+            try { var raw = localStorage.getItem(STORAGE_KEY); return raw ? JSON.parse(raw) : []; }
+            catch (e) { return []; }
+        }
+        function saveEvents() { localStorage.setItem(STORAGE_KEY, JSON.stringify(events)); }
+
+        function loadIntervals() {
+            try {
+                var raw = localStorage.getItem(INTERVALS_KEY);
+                if (!raw) return copyObj(DEFAULT_INTERVALS);
+                var parsed = JSON.parse(raw);
+                var result = copyObj(DEFAULT_INTERVALS);
+                for (var k in parsed) { if (parsed.hasOwnProperty(k)) result[k] = parsed[k]; }
+                return result;
+            } catch (e) { return copyObj(DEFAULT_INTERVALS); }
+        }
+        function saveIntervals() { localStorage.setItem(INTERVALS_KEY, JSON.stringify(intervals)); }
+
+        function copyObj(o) { var r = {}; for (var k in o) { if (o.hasOwnProperty(k)) r[k] = o[k]; } return r; }
+
+        function loadPrintData() {
+            if (typeof window.loadBioprintData === 'function') {
+                window.loadBioprintData(function(data) { printData = data || []; refresh(); });
+            } else {
+                var xhr = new XMLHttpRequest();
+                xhr.open('GET', 'bioprint-data.json');
+                xhr.onload = function() {
+                    if (xhr.status === 200) { try { printData = JSON.parse(xhr.responseText); } catch (e) { printData = []; } }
+                    refresh();
+                };
+                xhr.onerror = function() { refresh(); };
+                xhr.send();
+            }
+        }
+
+        function init() {
+            document.getElementById('eventDate').value = new Date().toISOString().split('T')[0];
+            var tabs = document.querySelectorAll('.tab');
+            for (var i = 0; i < tabs.length; i++) {
+                tabs[i].addEventListener('click', function() {
+                    var target = this.getAttribute('data-tab');
+                    for (var j = 0; j < tabs.length; j++) tabs[j].classList.remove('active');
+                    this.classList.add('active');
+                    var panels = document.querySelectorAll('.tab-panel');
+                    for (var j = 0; j < panels.length; j++) {
+                        panels[j].classList.toggle('active', panels[j].id === 'tab-' + target);
+                    }
+                });
+            }
+            loadPrintData();
+        }
+
+        function refresh() {
+            renderDashboard(); renderAlerts(); renderHistory();
+            renderSchedule(); renderImpact(); renderCostSummary();
+            renderDegradationChart();
+        }
+
+        function renderDashboard() {
+            var container = document.getElementById('dashboard');
+            var now = Date.now();
+            var thirtyDaysAgo = now - 30 * 86400000;
+            var totalEvents = events.length;
+            var recentEvents = events.filter(function(e) { return new Date(e.date).getTime() >= thirtyDaysAgo; }).length;
+            var totalCost = events.reduce(function(sum, e) { return sum + (e.cost || 0); }, 0);
+            var overdue = countOverdue();
+            var healthClass = overdue === 0 ? 'status-good' : (overdue <= 2 ? 'status-warn' : 'status-bad');
+            var healthLabel = overdue === 0 ? 'Healthy' : (overdue <= 2 ? 'Needs Attention' : 'Overdue');
+            var lastEventDate = getLastEventDate();
+            var daysSinceLast = lastEventDate ? Math.floor((now - lastEventDate.getTime()) / 86400000) : '—';
+
+            container.innerHTML =
+                '<div class="dash-card ' + healthClass + '"><div class="icon">🏥</div><div class="value">' + healthLabel + '</div><div class="label">Printer Health</div></div>' +
+                '<div class="dash-card"><div class="icon">🔧</div><div class="value" style="color:var(--accent)">' + totalEvents + '</div><div class="label">Total Events</div></div>' +
+                '<div class="dash-card"><div class="icon">📅</div><div class="value" style="color:var(--purple)">' + recentEvents + '</div><div class="label">Last 30 Days</div></div>' +
+                '<div class="dash-card"><div class="icon">⏱️</div><div class="value" style="color:var(--orange)">' + daysSinceLast + '</div><div class="label">Days Since Last</div></div>' +
+                '<div class="dash-card"><div class="icon">💰</div><div class="value" style="color:var(--warning)">$' + totalCost.toFixed(0) + '</div><div class="label">Total Spend</div></div>';
+        }
+
+        function countOverdue() {
+            var count = 0;
+            var statuses = getScheduleStatuses();
+            for (var i = 0; i < statuses.length; i++) { if (statuses[i].status === 'overdue') count++; }
+            return count;
+        }
+
+        function renderAlerts() {
+            var banner = document.getElementById('alertBanner');
+            var list = document.getElementById('alertList');
+            var statuses = getScheduleStatuses();
+            var alerts = [];
+            for (var i = 0; i < statuses.length; i++) {
+                var s = statuses[i];
+                if (s.status === 'overdue') {
+                    alerts.push(TYPE_LABELS[s.type] + ' is <strong class="overdue">overdue by ' + Math.abs(s.daysRemaining) + ' day' + (Math.abs(s.daysRemaining) === 1 ? '' : 's') + '</strong>');
+                } else if (s.status === 'due-soon') {
+                    alerts.push(TYPE_LABELS[s.type] + ' is <strong class="due-soon">due in ' + s.daysRemaining + ' day' + (s.daysRemaining === 1 ? '' : 's') + '</strong>');
+                }
+            }
+            if (alerts.length > 0) {
+                list.innerHTML = alerts.map(function(a) { return '<li>' + a + '</li>'; }).join('');
+                banner.classList.add('visible');
+            } else { banner.classList.remove('visible'); }
+        }
+
+        function getScheduleStatuses() {
+            var now = Date.now();
+            var results = [];
+            for (var type in intervals) {
+                if (!intervals.hasOwnProperty(type)) continue;
+                var intervalDays = intervals[type];
+                var lastEvent = getLastEventOfType(type);
+                var lastDate = lastEvent ? new Date(lastEvent.date) : null;
+                var daysRemaining, status;
+                if (!lastDate) { daysRemaining = 0; status = 'overdue'; }
+                else {
+                    var nextDue = new Date(lastDate.getTime() + intervalDays * 86400000);
+                    daysRemaining = Math.ceil((nextDue.getTime() - now) / 86400000);
+                    if (daysRemaining < 0) status = 'overdue';
+                    else if (daysRemaining <= 3) status = 'due-soon';
+                    else status = 'on-track';
+                }
+                results.push({ type: type, interval: intervalDays, lastDate: lastDate, daysRemaining: daysRemaining, status: status });
+            }
+            return results;
+        }
+
+        function renderSchedule() {
+            var table = document.getElementById('scheduleTable');
+            var statuses = getScheduleStatuses();
+            var html = '<thead><tr><th>Task</th><th>Interval</th><th>Last Done</th><th>Status</th><th>Days Remaining</th></tr></thead><tbody>';
+            statuses.sort(function(a, b) { var order = { overdue: 0, 'due-soon': 1, 'on-track': 2 }; return (order[a.status] || 0) - (order[b.status] || 0); });
+            for (var i = 0; i < statuses.length; i++) {
+                var s = statuses[i];
+                var statusClass = s.status === 'overdue' ? 'overdue' : (s.status === 'due-soon' ? 'due-soon' : 'on-track');
+                var statusText = s.status === 'overdue' ? '⚠️ Overdue' : (s.status === 'due-soon' ? '🔔 Due Soon' : '✅ On Track');
+                var daysText = s.status === 'overdue' ? Math.abs(s.daysRemaining) + ' days overdue' : s.daysRemaining + ' days';
+                var lastDone = s.lastDate ? s.lastDate.toLocaleDateString() : 'Never';
+                html += '<tr><td>' + TYPE_ICONS[s.type] + ' ' + TYPE_LABELS[s.type] + '</td><td>Every ' + s.interval + ' days</td><td>' + lastDone + '</td><td class="' + statusClass + '">' + statusText + '</td><td class="' + statusClass + '">' + daysText + '</td></tr>';
+            }
+            html += '</tbody>';
+            table.innerHTML = html;
+        }
+
+        function renderHistory() {
+            var container = document.getElementById('historyTimeline');
+            var filter = document.getElementById('historyFilter').value;
+            var filtered = filter !== 'all' ? events.filter(function(e) { return e.type === filter; }) : events;
+            if (filtered.length === 0) {
+                container.innerHTML = '<div class="empty-state"><div class="icon">🔧</div><p>No maintenance events logged yet.</p><p style="font-size:0.85rem;margin-top:0.5rem;">Switch to the "Log Event" tab to record your first event.</p></div>';
+                return;
+            }
+            var sorted = filtered.slice().sort(function(a, b) { return new Date(b.date).getTime() - new Date(a.date).getTime(); });
+            var html = '<div class="timeline">';
+            for (var i = 0; i < sorted.length; i++) {
+                var e = sorted[i];
+                var d = new Date(e.date);
+                var costStr = e.cost ? ' · $' + Number(e.cost).toFixed(2) : '';
+                html += '<div class="tl-entry type-' + escHtml(e.type) + '"><div class="tl-header"><span class="tl-type"><span class="tag tag-' + escHtml(e.type) + '">' + TYPE_LABELS[e.type] + '</span>' + costStr + '</span><span class="tl-date">' + d.toLocaleDateString() + '</span></div>' +
+                    (e.printer ? '<div class="tl-notes">Printer: ' + escHtml(e.printer) + '</div>' : '') +
+                    (e.notes ? '<div class="tl-notes">' + escHtml(e.notes) + '</div>' : '') +
+                    '<div class="tl-actions"><button class="btn btn-outline" style="padding:0.25rem 0.6rem;font-size:0.75rem;" onclick="deleteEvent(\'' + e.id + '\')">Delete</button></div></div>';
+            }
+            html += '</div>';
+            container.innerHTML = html;
+        }
+
+        function renderImpact() {
+            var container = document.getElementById('impactResults');
+            var typeFilter = document.getElementById('impactType').value;
+            var metric = document.getElementById('impactMetric').value;
+            if (events.length === 0 || printData.length === 0) {
+                container.innerHTML = '<div class="empty-state"><div class="icon">📊</div><p>Need maintenance events and print data to analyze quality impact.</p></div>';
+                return;
+            }
+            var relevantEvents = typeFilter === 'all' ? events : events.filter(function(e) { return e.type === typeFilter; });
+            if (relevantEvents.length === 0) { container.innerHTML = '<div class="empty-state"><p>No events of this type to analyze.</p></div>'; return; }
+            var sortedPrints = printData.slice().sort(function(a, b) { return (a.user_info.serial || 0) - (b.user_info.serial || 0); });
+            var beforeValues = [], afterValues = [], WINDOW = 5;
+            for (var ei = 0; ei < relevantEvents.length; ei++) {
+                var eventDate = new Date(relevantEvents[ei].date);
+                var eventSerial = findNearestSerial(eventDate);
+                if (eventSerial < 0) continue;
+                for (var pi = 0; pi < sortedPrints.length; pi++) {
+                    var serial = sortedPrints[pi].user_info.serial;
+                    var val = getMetricValue(sortedPrints[pi], metric);
+                    if (val === null) continue;
+                    var offset = serial - eventSerial;
+                    if (offset >= -WINDOW && offset < 0) beforeValues.push(val);
+                    if (offset > 0 && offset <= WINDOW) afterValues.push(val);
+                }
+            }
+            if (beforeValues.length === 0 && afterValues.length === 0) { container.innerHTML = '<div class="empty-state"><p>Not enough print data near maintenance events.</p></div>'; return; }
+            var avgBefore = beforeValues.length > 0 ? avg(beforeValues) : 0;
+            var avgAfter = afterValues.length > 0 ? avg(afterValues) : 0;
+            var change = avgBefore > 0 ? ((avgAfter - avgBefore) / avgBefore * 100) : 0;
+            var improved = (metric === 'deadPercent') ? change < 0 : change > 0;
+            var changeColor = improved ? 'var(--success)' : 'var(--error)';
+            var changeIcon = improved ? '📈' : '📉';
+            var changeText = (change >= 0 ? '+' : '') + change.toFixed(1) + '%';
+            container.innerHTML = '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:1rem;">' +
+                '<div class="dash-card"><div class="label">Before Maintenance</div><div class="value" style="color:var(--muted);font-size:1.4rem;">' + avgBefore.toFixed(2) + '</div><div class="label">' + beforeValues.length + ' samples</div></div>' +
+                '<div class="dash-card"><div class="label">After Maintenance</div><div class="value" style="color:var(--accent);font-size:1.4rem;">' + avgAfter.toFixed(2) + '</div><div class="label">' + afterValues.length + ' samples</div></div>' +
+                '<div class="dash-card"><div class="label">' + changeIcon + ' Change</div><div class="value" style="color:' + changeColor + ';font-size:1.4rem;">' + changeText + '</div><div class="label">' + (improved ? 'Improved' : 'Declined') + '</div></div></div>';
+        }
+
+        function renderDegradationChart() {
+            var canvas = document.getElementById('degradationChart');
+            if (!canvas || !canvas.getContext) return;
+            var ctx = canvas.getContext('2d');
+            if (!ctx) return;
+            var rect = canvas.parentElement.getBoundingClientRect();
+            canvas.width = rect.width; canvas.height = rect.height;
+            if (events.length === 0 || printData.length === 0) {
+                ctx.fillStyle = '#94a3b8'; ctx.font = '14px sans-serif'; ctx.textAlign = 'center';
+                ctx.fillText('Need maintenance events and print data', canvas.width / 2, canvas.height / 2);
+                return;
+            }
+            var sortedPrints = printData.slice().sort(function(a, b) { return (a.user_info.serial || 0) - (b.user_info.serial || 0); });
+            var sortedEvents = events.slice().sort(function(a, b) { return new Date(a.date).getTime() - new Date(b.date).getTime(); });
+            var offsetBuckets = {}, MAX_OFFSET = 20;
+            for (var pi = 0; pi < sortedPrints.length; pi++) {
+                var serial = sortedPrints[pi].user_info.serial || pi;
+                var viability = sortedPrints[pi].print_data.livePercent;
+                if (viability === undefined || viability === null) continue;
+                var lastEventSerial = -1;
+                for (var ei = 0; ei < sortedEvents.length; ei++) {
+                    var es = findNearestSerial(new Date(sortedEvents[ei].date));
+                    if (es >= 0 && es <= serial) lastEventSerial = es;
+                }
+                if (lastEventSerial < 0) continue;
+                var offset = serial - lastEventSerial;
+                if (offset < 0 || offset > MAX_OFFSET) continue;
+                if (!offsetBuckets[offset]) offsetBuckets[offset] = [];
+                offsetBuckets[offset].push(viability);
+            }
+            var offsets = [], averages = [];
+            for (var o = 0; o <= MAX_OFFSET; o++) {
+                if (offsetBuckets[o] && offsetBuckets[o].length > 0) { offsets.push(o); averages.push(avg(offsetBuckets[o])); }
+            }
+            if (offsets.length < 2) {
+                ctx.fillStyle = '#94a3b8'; ctx.font = '14px sans-serif'; ctx.textAlign = 'center';
+                ctx.fillText('Not enough data for degradation curve', canvas.width / 2, canvas.height / 2);
+                return;
+            }
+            var pad = { top: 20, right: 20, bottom: 35, left: 50 };
+            var w = canvas.width - pad.left - pad.right, h = canvas.height - pad.top - pad.bottom;
+            var minVal = Math.min.apply(null, averages), maxVal = Math.max.apply(null, averages);
+            var range = maxVal - minVal || 1;
+            function xPos(off) { return pad.left + (off / MAX_OFFSET) * w; }
+            function yPos(val) { return pad.top + h - ((val - minVal + range * 0.1) / (range * 1.2)) * h; }
+            ctx.strokeStyle = '#334155'; ctx.lineWidth = 1;
+            for (var gi = 0; gi <= 4; gi++) { var gy = pad.top + (gi / 4) * h; ctx.beginPath(); ctx.moveTo(pad.left, gy); ctx.lineTo(pad.left + w, gy); ctx.stroke(); }
+            ctx.strokeStyle = '#38bdf8'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(xPos(offsets[0]), yPos(averages[0]));
+            for (var li = 1; li < offsets.length; li++) ctx.lineTo(xPos(offsets[li]), yPos(averages[li]));
+            ctx.stroke();
+            ctx.fillStyle = 'rgba(56, 189, 248, 0.1)'; ctx.beginPath(); ctx.moveTo(xPos(offsets[0]), yPos(averages[0]));
+            for (var li = 1; li < offsets.length; li++) ctx.lineTo(xPos(offsets[li]), yPos(averages[li]));
+            ctx.lineTo(xPos(offsets[offsets.length - 1]), pad.top + h); ctx.lineTo(xPos(offsets[0]), pad.top + h); ctx.closePath(); ctx.fill();
+            ctx.fillStyle = '#38bdf8';
+            for (var di = 0; di < offsets.length; di++) { ctx.beginPath(); ctx.arc(xPos(offsets[di]), yPos(averages[di]), 3, 0, Math.PI * 2); ctx.fill(); }
+            ctx.fillStyle = '#94a3b8'; ctx.font = '11px sans-serif'; ctx.textAlign = 'center';
+            ctx.fillText('Prints since maintenance', pad.left + w / 2, canvas.height - 5);
+            for (var xi = 0; xi <= MAX_OFFSET; xi += 5) ctx.fillText(xi.toString(), xPos(xi), pad.top + h + 18);
+            ctx.textAlign = 'right';
+            for (var yi = 0; yi <= 4; yi++) { var yVal = minVal - range * 0.1 + (4 - yi) / 4 * range * 1.2; ctx.fillText(yVal.toFixed(1), pad.left - 5, pad.top + (yi / 4) * h + 4); }
+            ctx.save(); ctx.translate(12, pad.top + h / 2); ctx.rotate(-Math.PI / 2); ctx.textAlign = 'center';
+            ctx.fillText('Cell Viability (%)', 0, 0); ctx.restore();
+        }
+
+        function renderCostSummary() {
+            var container = document.getElementById('costSummary');
+            if (events.length === 0) { container.innerHTML = '<p style="color:var(--muted);text-align:center;">No events with cost data.</p>'; return; }
+            var byType = {}, byMonth = {};
+            for (var i = 0; i < events.length; i++) {
+                var e = events[i], cost = e.cost || 0;
+                byType[e.type] = (byType[e.type] || 0) + cost;
+                var month = e.date.substring(0, 7);
+                byMonth[month] = (byMonth[month] || 0) + cost;
+            }
+            var total = events.reduce(function(s, e) { return s + (e.cost || 0); }, 0);
+            var months = Object.keys(byMonth).sort();
+            var avgMonthly = months.length > 0 ? total / months.length : 0;
+            var html = '<div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;">';
+            html += '<div><h3 style="font-size:0.9rem;margin-bottom:0.5rem;">By Type</h3>';
+            for (var t in byType) {
+                if (!byType.hasOwnProperty(t)) continue;
+                var pct = total > 0 ? (byType[t] / total * 100).toFixed(0) : 0;
+                html += '<div style="display:flex;justify-content:space-between;padding:0.3rem 0;font-size:0.85rem;"><span>' + TYPE_ICONS[t] + ' ' + TYPE_LABELS[t] + '</span><span>$' + byType[t].toFixed(2) + ' (' + pct + '%)</span></div>';
+            }
+            html += '</div><div><h3 style="font-size:0.9rem;margin-bottom:0.5rem;">Monthly</h3>';
+            var recentMonths = months.slice(-6);
+            for (var mi = 0; mi < recentMonths.length; mi++) {
+                html += '<div style="display:flex;justify-content:space-between;padding:0.3rem 0;font-size:0.85rem;"><span>' + recentMonths[mi] + '</span><span>$' + byMonth[recentMonths[mi]].toFixed(2) + '</span></div>';
+            }
+            html += '<div style="border-top:1px solid var(--border);padding-top:0.3rem;margin-top:0.3rem;display:flex;justify-content:space-between;font-size:0.85rem;font-weight:600;"><span>Avg/month</span><span>$' + avgMonthly.toFixed(2) + '</span></div></div></div>';
+            container.innerHTML = html;
+        }
+
+        function findNearestSerial(date) {
+            if (printData.length === 0) return -1;
+            var target = date.getTime();
+            var serials = printData.map(function(p) { return p.user_info.serial || 0; });
+            var minSerial = Math.min.apply(null, serials), maxSerial = Math.max.apply(null, serials);
+            if (maxSerial === minSerial) return minSerial;
+            var now = Date.now(), yearAgo = now - 365 * 86400000;
+            var frac = Math.max(0, Math.min(1, (target - yearAgo) / (now - yearAgo)));
+            return Math.round(minSerial + frac * (maxSerial - minSerial));
+        }
+
+        function getMetricValue(print, metric) {
+            if (print && print.print_data && print.print_data[metric] !== undefined) return print.print_data[metric];
+            return null;
+        }
+
+        function avg(arr) { if (arr.length === 0) return 0; var sum = 0; for (var i = 0; i < arr.length; i++) sum += arr[i]; return sum / arr.length; }
+        function getLastEventDate() { if (events.length === 0) return null; var latest = events[0]; for (var i = 1; i < events.length; i++) { if (new Date(events[i].date) > new Date(latest.date)) latest = events[i]; } return new Date(latest.date); }
+        function getLastEventOfType(type) { var matching = events.filter(function(e) { return e.type === type; }); if (matching.length === 0) return null; matching.sort(function(a, b) { return new Date(b.date).getTime() - new Date(a.date).getTime(); }); return matching[0]; }
+        function escHtml(s) { if (!s) return ''; return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;'); }
+        function generateId() { return Date.now().toString(36) + Math.random().toString(36).substring(2, 7); }
+
+        window.logEvent = function() {
+            var type = document.getElementById('eventType').value;
+            var date = document.getElementById('eventDate').value;
+            var printer = document.getElementById('eventPrinter').value.trim();
+            var cost = parseFloat(document.getElementById('eventCost').value) || 0;
+            var notes = document.getElementById('eventNotes').value.trim();
+            if (!date) { alert('Please select a date.'); return; }
+            events.push({ id: generateId(), type: type, date: date, printer: printer, cost: cost, notes: notes });
+            saveEvents(); clearForm(); refresh();
+        };
+        window.clearForm = function() {
+            document.getElementById('eventDate').value = new Date().toISOString().split('T')[0];
+            document.getElementById('eventPrinter').value = '';
+            document.getElementById('eventCost').value = '';
+            document.getElementById('eventNotes').value = '';
+        };
+        window.deleteEvent = function(id) { if (!confirm('Delete this maintenance event?')) return; events = events.filter(function(e) { return e.id !== id; }); saveEvents(); refresh(); };
+        window.exportHistory = function() {
+            var blob = new Blob([JSON.stringify(events, null, 2)], { type: 'application/json' });
+            var url = URL.createObjectURL(blob); var a = document.createElement('a');
+            a.href = url; a.download = 'biobots-maintenance-' + new Date().toISOString().split('T')[0] + '.json';
+            a.click(); URL.revokeObjectURL(url);
+        };
+        window.importHistory = function(event) {
+            var file = event.target.files[0]; if (!file) return;
+            var reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    var imported = JSON.parse(e.target.result);
+                    if (!Array.isArray(imported)) { alert('Invalid format: expected JSON array.'); return; }
+                    var existingIds = {}; for (var i = 0; i < events.length; i++) existingIds[events[i].id] = true;
+                    var added = 0;
+                    for (var j = 0; j < imported.length; j++) { var item = imported[j]; if (!item.id) item.id = generateId(); if (!existingIds[item.id]) { events.push(item); added++; } }
+                    saveEvents(); refresh(); alert('Imported ' + added + ' event(s).');
+                } catch (err) { alert('Failed to parse JSON file.'); }
+            };
+            reader.readAsText(file); event.target.value = '';
+        };
+        window.clearHistory = function() { if (!confirm('Delete ALL maintenance events? This cannot be undone.')) return; events = []; saveEvents(); refresh(); };
+        window.updateInterval = function() {
+            var type = document.getElementById('schedTaskType').value;
+            var days = parseInt(document.getElementById('schedInterval').value, 10);
+            if (!days || days < 1) { alert('Enter a valid interval (1-365 days).'); return; }
+            intervals[type] = days; saveIntervals(); refresh();
+        };
+        window.resetIntervals = function() { if (!confirm('Reset all maintenance intervals to defaults?')) return; intervals = copyObj(DEFAULT_INTERVALS); saveIntervals(); refresh(); };
+
+        if (document.readyState === 'loading') { document.addEventListener('DOMContentLoaded', init); } else { init(); }
+    })();
+    </script>
+</body>
+</html>
