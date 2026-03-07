@@ -1,0 +1,578 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>BioBots 1 — Print Logbook</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧬</text></svg>">
+    <script src="shared/constants.js"></script>
+    <style>
+        :root {
+            --bg: #0f172a;
+            --surface: #1e293b;
+            --border: #334155;
+            --text: #e2e8f0;
+            --muted: #94a3b8;
+            --accent: #38bdf8;
+            --accent-hover: #7dd3fc;
+            --success: #4ade80;
+            --error: #f87171;
+            --warning: #fbbf24;
+            --purple: #a78bfa;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            padding: 2rem 1rem;
+        }
+        .container { max-width: 1200px; margin: 0 auto; }
+        header { text-align: center; margin-bottom: 2rem; }
+        header h1 {
+            font-size: 2rem; font-weight: 700;
+            background: linear-gradient(135deg, var(--accent), var(--purple));
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+        }
+        header p { color: var(--muted); margin-top: 0.5rem; }
+
+        .nav { display: flex; justify-content: center; gap: 0.5rem; margin-bottom: 2rem; flex-wrap: wrap; }
+        .nav a {
+            color: var(--muted); padding: 0.5rem 1rem; border-radius: 8px;
+            text-decoration: none; font-size: 0.9rem; transition: all 0.2s;
+        }
+        .nav a:hover { color: var(--accent); }
+        .nav a.active {
+            color: var(--accent); background: var(--surface);
+            border: 1px solid var(--border);
+        }
+
+        .card {
+            background: var(--surface); border: 1px solid var(--border);
+            border-radius: 12px; padding: 1.5rem; margin-bottom: 1.5rem;
+        }
+        .card h2 { font-size: 1.1rem; margin-bottom: 1rem; }
+
+        .controls { display: flex; gap: 1rem; flex-wrap: wrap; align-items: end; }
+        .control-group { display: flex; flex-direction: column; gap: 0.3rem; }
+        .control-group label { font-size: 0.8rem; color: var(--muted); font-weight: 500; }
+        .control-group input, .control-group select, .control-group textarea {
+            background: var(--bg); border: 1px solid var(--border);
+            color: var(--text); padding: 0.4rem 0.7rem; border-radius: 6px;
+            font-size: 0.85rem; font-family: inherit;
+        }
+        .control-group input:focus, .control-group select:focus, .control-group textarea:focus {
+            outline: none; border-color: var(--accent);
+        }
+        .control-group textarea { resize: vertical; min-height: 80px; }
+        .btn {
+            padding: 0.5rem 1.2rem; border-radius: 8px; border: none;
+            font-family: inherit; font-size: 0.85rem; font-weight: 600;
+            cursor: pointer; transition: all 0.2s;
+        }
+        .btn-primary { background: var(--accent); color: #0f172a; }
+        .btn-primary:hover { background: var(--accent-hover); }
+        .btn-outline { background: none; border: 1px solid var(--border); color: var(--muted); }
+        .btn-outline:hover { border-color: var(--accent); color: var(--accent); }
+        .btn-success { background: var(--success); color: #0f172a; }
+        .btn-success:hover { opacity: 0.9; }
+        .btn-danger { background: var(--error); color: #0f172a; }
+        .btn-danger:hover { opacity: 0.9; }
+        .btn-warning { background: var(--warning); color: #0f172a; }
+        .btn-warning:hover { opacity: 0.9; }
+        .btn-sm { padding: 0.3rem 0.8rem; font-size: 0.8rem; }
+
+        /* Print selector */
+        .print-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+            gap: 0.5rem;
+            max-height: 200px;
+            overflow-y: auto;
+            padding: 0.5rem;
+        }
+        .print-chip {
+            background: var(--bg); border: 1px solid var(--border);
+            border-radius: 6px; padding: 0.3rem 0.5rem;
+            font-size: 0.75rem; text-align: center;
+            cursor: pointer; transition: all 0.2s;
+        }
+        .print-chip:hover { border-color: var(--accent); }
+        .print-chip.selected { border-color: var(--accent); background: rgba(56,189,248,0.1); color: var(--accent); }
+        .print-chip.flagged { border-color: var(--warning); }
+        .print-chip.annotated { border-color: var(--success); }
+
+        /* Tags */
+        .tag-list { display: flex; gap: 0.3rem; flex-wrap: wrap; margin-top: 0.5rem; }
+        .tag {
+            display: inline-flex; align-items: center; gap: 0.3rem;
+            background: rgba(56,189,248,0.15); color: var(--accent);
+            padding: 0.2rem 0.6rem; border-radius: 12px;
+            font-size: 0.75rem; cursor: default;
+        }
+        .tag.tag-flag { background: rgba(251,191,36,0.15); color: var(--warning); }
+        .tag.tag-success { background: rgba(74,222,128,0.15); color: var(--success); }
+        .tag.tag-error { background: rgba(248,113,113,0.15); color: var(--error); }
+        .tag .remove { cursor: pointer; opacity: 0.7; }
+        .tag .remove:hover { opacity: 1; }
+
+        /* Entry list */
+        .entry-list { display: flex; flex-direction: column; gap: 1rem; }
+        .entry {
+            background: var(--bg); border: 1px solid var(--border);
+            border-radius: 8px; padding: 1rem; transition: all 0.2s;
+        }
+        .entry:hover { border-color: var(--accent); }
+        .entry-header {
+            display: flex; justify-content: space-between; align-items: center;
+            margin-bottom: 0.5rem;
+        }
+        .entry-header .print-id { font-weight: 600; color: var(--accent); }
+        .entry-header .timestamp { font-size: 0.75rem; color: var(--muted); }
+        .entry-body { font-size: 0.9rem; line-height: 1.5; white-space: pre-wrap; }
+        .entry-footer { display: flex; justify-content: space-between; align-items: center; margin-top: 0.7rem; }
+        .entry-actions { display: flex; gap: 0.5rem; }
+
+        /* Filters */
+        .filter-bar {
+            display: flex; gap: 0.7rem; flex-wrap: wrap; align-items: center;
+            margin-bottom: 1rem;
+        }
+        .filter-bar input, .filter-bar select {
+            background: var(--bg); border: 1px solid var(--border);
+            color: var(--text); padding: 0.4rem 0.7rem; border-radius: 6px;
+            font-size: 0.85rem; font-family: inherit;
+        }
+        .filter-bar input:focus, .filter-bar select:focus {
+            outline: none; border-color: var(--accent);
+        }
+
+        /* Stats bar */
+        .stats-bar {
+            display: flex; gap: 1.5rem; flex-wrap: wrap;
+            margin-bottom: 1rem;
+        }
+        .stat { text-align: center; }
+        .stat .value { font-size: 1.5rem; font-weight: 700; color: var(--accent); }
+        .stat .label { font-size: 0.75rem; color: var(--muted); }
+
+        /* Empty state */
+        .empty {
+            text-align: center; padding: 3rem;
+            color: var(--muted); font-size: 0.9rem;
+        }
+
+        /* Modal */
+        .modal-overlay {
+            display: none; position: fixed; inset: 0;
+            background: rgba(0,0,0,0.6); z-index: 100;
+            justify-content: center; align-items: center;
+        }
+        .modal-overlay.active { display: flex; }
+        .modal {
+            background: var(--surface); border: 1px solid var(--border);
+            border-radius: 12px; padding: 1.5rem; max-width: 500px; width: 90%;
+        }
+        .modal h3 { margin-bottom: 1rem; }
+        .modal-actions { display: flex; gap: 0.5rem; justify-content: flex-end; margin-top: 1rem; }
+
+        /* Export section */
+        .export-area {
+            background: var(--bg); border: 1px solid var(--border);
+            border-radius: 6px; padding: 1rem; margin-top: 1rem;
+            font-family: 'Courier New', monospace; font-size: 0.8rem;
+            max-height: 300px; overflow-y: auto; white-space: pre-wrap;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>📓 Print Logbook</h1>
+            <p>Lab notebook for annotating bioprinting runs — notes, tags, flags, and observations</p>
+        </header>
+
+        <div class="nav">
+            <a href="index.html">Query Tool</a>
+            <a href="explorer.html">📊 Data Explorer</a>
+            <a href="table.html">Data Table</a>
+            <a href="compare.html">Compare</a>
+            <a href="quality.html">🎯 Quality</a>
+            <a href="anomaly.html">🔍 Anomaly</a>
+            <a href="trends.html">Trends</a>
+            <a href="optimizer.html">⚙️ Optimizer</a>
+            <a href="api.html">📡 API</a>
+            <a href="architecture.html">🏗️ Architecture</a>
+            <a href="cluster.html">🔗 Clusters</a>
+            <a href="batch.html">📦 Batch Planner</a>
+            <a href="guide.html">📘 Guide</a>
+            <a href="report.html">📋 Report</a>
+            <a href="logbook.html" class="active">📓 Logbook</a>
+        </div>
+
+        <!-- Stats -->
+        <div class="card">
+            <div class="stats-bar" id="stats-bar">
+                <div class="stat"><div class="value" id="stat-entries">0</div><div class="label">Entries</div></div>
+                <div class="stat"><div class="value" id="stat-prints">0</div><div class="label">Prints Annotated</div></div>
+                <div class="stat"><div class="value" id="stat-flagged">0</div><div class="label">Flagged</div></div>
+                <div class="stat"><div class="value" id="stat-tags">0</div><div class="label">Unique Tags</div></div>
+            </div>
+        </div>
+
+        <!-- New Entry Form -->
+        <div class="card" id="entry-form-card">
+            <h2>✏️ New Logbook Entry</h2>
+            <div style="display: flex; flex-direction: column; gap: 1rem;">
+                <div class="controls">
+                    <div class="control-group" style="flex: 1; min-width: 200px;">
+                        <label>Print # (serial number)</label>
+                        <input type="number" id="entry-print" min="0" placeholder="e.g. 42">
+                    </div>
+                    <div class="control-group" style="flex: 1; min-width: 200px;">
+                        <label>Category</label>
+                        <select id="entry-category">
+                            <option value="observation">🔬 Observation</option>
+                            <option value="issue">⚠️ Issue</option>
+                            <option value="success">✅ Success</option>
+                            <option value="hypothesis">💡 Hypothesis</option>
+                            <option value="protocol-change">🔄 Protocol Change</option>
+                            <option value="follow-up">📌 Follow-up Needed</option>
+                        </select>
+                    </div>
+                    <div class="control-group">
+                        <label>Flag for review</label>
+                        <label style="display: flex; align-items: center; gap: 0.4rem; cursor: pointer; font-size: 0.85rem; color: var(--text);">
+                            <input type="checkbox" id="entry-flag"> 🚩 Flag
+                        </label>
+                    </div>
+                </div>
+                <div class="control-group">
+                    <label>Notes</label>
+                    <textarea id="entry-notes" placeholder="What happened? What did you observe? Any anomalies or insights..."></textarea>
+                </div>
+                <div class="control-group">
+                    <label>Tags (comma-separated)</label>
+                    <input type="text" id="entry-tags" placeholder="e.g. high-viability, nozzle-clog, gelatin">
+                </div>
+                <div style="display: flex; gap: 0.5rem;">
+                    <button class="btn btn-primary" onclick="addEntry()">Add Entry</button>
+                    <button class="btn btn-outline" onclick="clearForm()">Clear</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Filters -->
+        <div class="card">
+            <h2>🔍 Filter & Search</h2>
+            <div class="filter-bar">
+                <input type="text" id="filter-search" placeholder="Search notes..." oninput="renderEntries()">
+                <select id="filter-category" onchange="renderEntries()">
+                    <option value="all">All Categories</option>
+                    <option value="observation">🔬 Observation</option>
+                    <option value="issue">⚠️ Issue</option>
+                    <option value="success">✅ Success</option>
+                    <option value="hypothesis">💡 Hypothesis</option>
+                    <option value="protocol-change">🔄 Protocol Change</option>
+                    <option value="follow-up">📌 Follow-up</option>
+                </select>
+                <select id="filter-flag" onchange="renderEntries()">
+                    <option value="all">All</option>
+                    <option value="flagged">🚩 Flagged Only</option>
+                    <option value="unflagged">Unflagged Only</option>
+                </select>
+                <select id="filter-sort" onchange="renderEntries()">
+                    <option value="newest">Newest First</option>
+                    <option value="oldest">Oldest First</option>
+                    <option value="print-asc">Print # ↑</option>
+                    <option value="print-desc">Print # ↓</option>
+                </select>
+                <input type="text" id="filter-tag" placeholder="Filter by tag..." oninput="renderEntries()">
+            </div>
+            <div style="display: flex; gap: 0.5rem;">
+                <button class="btn btn-outline btn-sm" onclick="exportJSON()">📤 Export JSON</button>
+                <button class="btn btn-outline btn-sm" onclick="exportCSV()">📤 Export CSV</button>
+                <button class="btn btn-outline btn-sm" onclick="importData()">📥 Import</button>
+                <button class="btn btn-danger btn-sm" onclick="confirmClearAll()">🗑️ Clear All</button>
+            </div>
+            <div class="export-area" id="export-area"></div>
+        </div>
+
+        <!-- Entry List -->
+        <div class="card">
+            <h2>📋 Logbook Entries</h2>
+            <div class="entry-list" id="entry-list">
+                <div class="empty">No entries yet. Add your first observation above!</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Delete Confirmation Modal -->
+    <div class="modal-overlay" id="delete-modal">
+        <div class="modal">
+            <h3>🗑️ Delete Entry?</h3>
+            <p>This action cannot be undone.</p>
+            <div class="modal-actions">
+                <button class="btn btn-outline" onclick="closeModal()">Cancel</button>
+                <button class="btn btn-danger" id="confirm-delete-btn">Delete</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Import Modal -->
+    <div class="modal-overlay" id="import-modal">
+        <div class="modal">
+            <h3>📥 Import Logbook Data</h3>
+            <div class="control-group">
+                <label>Paste JSON data</label>
+                <textarea id="import-data" style="min-height: 120px; width: 100%; background: var(--bg); border: 1px solid var(--border); color: var(--text); padding: 0.5rem; border-radius: 6px; font-family: 'Courier New', monospace; font-size: 0.8rem;"></textarea>
+            </div>
+            <p style="font-size: 0.8rem; color: var(--muted); margin-top: 0.5rem;">
+                Import will merge with existing entries (duplicates by ID are skipped).
+            </p>
+            <div class="modal-actions">
+                <button class="btn btn-outline" onclick="closeImportModal()">Cancel</button>
+                <button class="btn btn-success" onclick="doImport()">Import</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const STORAGE_KEY = 'biobots-logbook';
+
+        // ── Data ──
+        function loadEntries() {
+            try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'); }
+            catch { return []; }
+        }
+        function saveEntries(entries) {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(entries));
+        }
+
+        // ── Category meta ──
+        const CATEGORIES = {
+            'observation': { icon: '🔬', label: 'Observation', color: 'var(--accent)' },
+            'issue':       { icon: '⚠️', label: 'Issue',       color: 'var(--warning)' },
+            'success':     { icon: '✅', label: 'Success',     color: 'var(--success)' },
+            'hypothesis':  { icon: '💡', label: 'Hypothesis',  color: 'var(--purple)' },
+            'protocol-change': { icon: '🔄', label: 'Protocol Change', color: '#fb923c' },
+            'follow-up':   { icon: '📌', label: 'Follow-up',   color: 'var(--error)' },
+        };
+
+        // ── Add Entry ──
+        function addEntry() {
+            const printNum = document.getElementById('entry-print').value.trim();
+            const notes = document.getElementById('entry-notes').value.trim();
+            if (!notes) { alert('Please add some notes.'); return; }
+
+            const tagsRaw = document.getElementById('entry-tags').value.trim();
+            const tags = tagsRaw ? tagsRaw.split(',').map(t => t.trim().toLowerCase()).filter(Boolean) : [];
+
+            const entry = {
+                id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+                printSerial: printNum !== '' ? parseInt(printNum) : null,
+                category: document.getElementById('entry-category').value,
+                notes,
+                tags,
+                flagged: document.getElementById('entry-flag').checked,
+                createdAt: new Date().toISOString(),
+                editedAt: null,
+            };
+
+            const entries = loadEntries();
+            entries.unshift(entry);
+            saveEntries(entries);
+            clearForm();
+            renderEntries();
+            updateStats();
+        }
+
+        function clearForm() {
+            document.getElementById('entry-print').value = '';
+            document.getElementById('entry-notes').value = '';
+            document.getElementById('entry-tags').value = '';
+            document.getElementById('entry-flag').checked = false;
+            document.getElementById('entry-category').value = 'observation';
+        }
+
+        // ── Delete ──
+        let pendingDeleteId = null;
+        function deleteEntry(id) {
+            pendingDeleteId = id;
+            document.getElementById('delete-modal').classList.add('active');
+            document.getElementById('confirm-delete-btn').onclick = () => {
+                let entries = loadEntries();
+                entries = entries.filter(e => e.id !== pendingDeleteId);
+                saveEntries(entries);
+                closeModal();
+                renderEntries();
+                updateStats();
+            };
+        }
+        function closeModal() {
+            document.getElementById('delete-modal').classList.remove('active');
+            pendingDeleteId = null;
+        }
+
+        // ── Toggle Flag ──
+        function toggleFlag(id) {
+            const entries = loadEntries();
+            const e = entries.find(x => x.id === id);
+            if (e) { e.flagged = !e.flagged; saveEntries(entries); renderEntries(); updateStats(); }
+        }
+
+        // ── Render ──
+        function renderEntries() {
+            let entries = loadEntries();
+
+            // filters
+            const search = document.getElementById('filter-search').value.toLowerCase();
+            const cat = document.getElementById('filter-category').value;
+            const flag = document.getElementById('filter-flag').value;
+            const tagFilter = document.getElementById('filter-tag').value.trim().toLowerCase();
+
+            if (search) entries = entries.filter(e => e.notes.toLowerCase().includes(search) || (e.tags || []).some(t => t.includes(search)));
+            if (cat !== 'all') entries = entries.filter(e => e.category === cat);
+            if (flag === 'flagged') entries = entries.filter(e => e.flagged);
+            if (flag === 'unflagged') entries = entries.filter(e => !e.flagged);
+            if (tagFilter) entries = entries.filter(e => (e.tags || []).some(t => t.includes(tagFilter)));
+
+            // sort
+            const sort = document.getElementById('filter-sort').value;
+            if (sort === 'newest') entries.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+            if (sort === 'oldest') entries.sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
+            if (sort === 'print-asc') entries.sort((a, b) => (a.printSerial ?? 9999) - (b.printSerial ?? 9999));
+            if (sort === 'print-desc') entries.sort((a, b) => (b.printSerial ?? -1) - (a.printSerial ?? -1));
+
+            const list = document.getElementById('entry-list');
+            if (entries.length === 0) {
+                list.innerHTML = '<div class="empty">No entries match your filters.</div>';
+                return;
+            }
+
+            list.innerHTML = entries.map(e => {
+                const cat = CATEGORIES[e.category] || CATEGORIES.observation;
+                const date = new Date(e.createdAt);
+                const dateStr = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) +
+                    ' ' + date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+                const editedStr = e.editedAt ? ` (edited ${new Date(e.editedAt).toLocaleDateString()})` : '';
+                const printLabel = e.printSerial !== null ? `Print #${e.printSerial}` : 'General';
+                const flagIcon = e.flagged ? '🚩 ' : '';
+
+                const tagsHtml = (e.tags || []).map(t => `<span class="tag">${t}</span>`).join('');
+                const categoryTag = `<span class="tag" style="background: ${cat.color}22; color: ${cat.color};">${cat.icon} ${cat.label}</span>`;
+
+                return `
+                    <div class="entry" style="${e.flagged ? 'border-color: var(--warning);' : ''}">
+                        <div class="entry-header">
+                            <span class="print-id">${flagIcon}${printLabel}</span>
+                            <span class="timestamp">${dateStr}${editedStr}</span>
+                        </div>
+                        <div class="entry-body">${escapeHtml(e.notes)}</div>
+                        <div class="entry-footer">
+                            <div class="tag-list">${categoryTag}${tagsHtml}</div>
+                            <div class="entry-actions">
+                                <button class="btn btn-outline btn-sm" onclick="toggleFlag('${e.id}')" title="${e.flagged ? 'Unflag' : 'Flag'}">
+                                    ${e.flagged ? '🏳️ Unflag' : '🚩 Flag'}
+                                </button>
+                                <button class="btn btn-outline btn-sm" onclick="deleteEntry('${e.id}')">🗑️</button>
+                            </div>
+                        </div>
+                    </div>`;
+            }).join('');
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // ── Stats ──
+        function updateStats() {
+            const entries = loadEntries();
+            const prints = new Set(entries.filter(e => e.printSerial !== null).map(e => e.printSerial));
+            const tags = new Set(entries.flatMap(e => e.tags || []));
+            const flagged = entries.filter(e => e.flagged).length;
+
+            document.getElementById('stat-entries').textContent = entries.length;
+            document.getElementById('stat-prints').textContent = prints.size;
+            document.getElementById('stat-flagged').textContent = flagged;
+            document.getElementById('stat-tags').textContent = tags.size;
+        }
+
+        // ── Export ──
+        function exportJSON() {
+            const entries = loadEntries();
+            const area = document.getElementById('export-area');
+            area.style.display = 'block';
+            area.textContent = JSON.stringify(entries, null, 2);
+        }
+
+        function exportCSV() {
+            const entries = loadEntries();
+            const headers = ['id', 'printSerial', 'category', 'notes', 'tags', 'flagged', 'createdAt'];
+            const rows = entries.map(e =>
+                headers.map(h => {
+                    let val = e[h];
+                    if (Array.isArray(val)) val = val.join('; ');
+                    if (typeof val === 'string') val = '"' + val.replace(/"/g, '""') + '"';
+                    return val ?? '';
+                }).join(',')
+            );
+            const csv = [headers.join(','), ...rows].join('\n');
+            const blob = new Blob([csv], { type: 'text/csv' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url; a.download = 'biobots-logbook.csv'; a.click();
+            URL.revokeObjectURL(url);
+        }
+
+        // ── Import ──
+        function importData() {
+            document.getElementById('import-modal').classList.add('active');
+        }
+        function closeImportModal() {
+            document.getElementById('import-modal').classList.remove('active');
+            document.getElementById('import-data').value = '';
+        }
+        function doImport() {
+            try {
+                const data = JSON.parse(document.getElementById('import-data').value);
+                if (!Array.isArray(data)) throw new Error('Expected array');
+                const existing = loadEntries();
+                const existingIds = new Set(existing.map(e => e.id));
+                let added = 0;
+                for (const entry of data) {
+                    if (entry.id && !existingIds.has(entry.id)) {
+                        existing.push(entry);
+                        added++;
+                    }
+                }
+                saveEntries(existing);
+                closeImportModal();
+                renderEntries();
+                updateStats();
+                alert(`Imported ${added} new entries (${data.length - added} duplicates skipped).`);
+            } catch (err) {
+                alert('Invalid JSON: ' + err.message);
+            }
+        }
+
+        // ── Clear All ──
+        function confirmClearAll() {
+            if (confirm('Delete ALL logbook entries? This cannot be undone.')) {
+                saveEntries([]);
+                renderEntries();
+                updateStats();
+            }
+        }
+
+        // ── Init ──
+        renderEntries();
+        updateStats();
+    </script>
+</body>
+</html>

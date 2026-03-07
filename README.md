@@ -55,6 +55,7 @@ All analysis tools are deployed on GitHub Pages:
 | [🧫 Wellplate Analyzer](https://sauravbhattacharya001.github.io/BioBots/wellplate.html) | Performance breakdown by wellplate format |
 | [📋 Print Report](https://sauravbhattacharya001.github.io/BioBots/report.html) | Generate formatted, printable lab reports |
 | [💰 Cost Estimator](https://sauravbhattacharya001.github.io/BioBots/cost.html) | Estimate per-print costs with materials, machine time, and batch scaling |
+| [📓 Print Logbook](https://sauravbhattacharya001.github.io/BioBots/logbook.html) | Lab notebook for annotating runs — notes, tags, flags, search, export |
 
 ## 🏗️ Architecture
 
