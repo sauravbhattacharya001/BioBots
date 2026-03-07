@@ -191,6 +191,36 @@ describe('Print Session Logger', () => {
             const summary = s.end('aborted');
             assert.strictEqual(summary.state, 'aborted');
         });
+
+        it('records the "Session ended" event in the event log', () => {
+            const s = logger.startSession();
+            s.log('NOZZLE', 'INFO', 'primed');
+            s.end('completed');
+            const allEvents = s.getEvents();
+            const endEvent = allEvents.find(e => e.message.indexOf('Session ended') !== -1);
+            assert.ok(endEvent, 'Session ended event should exist');
+            assert.strictEqual(endEvent.category, 'SYSTEM');
+            assert.strictEqual(endEvent.severity, 'INFO');
+            assert.ok(endEvent.data.outcome === 'completed');
+        });
+
+        it('records end event for aborted sessions', () => {
+            const s = logger.startSession();
+            s.end('aborted');
+            const allEvents = s.getEvents();
+            const endEvent = allEvents.find(e => e.message.indexOf('Session ended') !== -1);
+            assert.ok(endEvent, 'Aborted session should have end event');
+            assert.strictEqual(endEvent.severity, 'WARNING');
+            assert.strictEqual(endEvent.data.outcome, 'aborted');
+        });
+
+        it('includes end event in exports', () => {
+            const s = logger.startSession();
+            s.log('MOTION', 'INFO', 'Layer 1');
+            s.end('completed');
+            const csv = s.export('csv');
+            assert.ok(csv.indexOf('Session ended') !== -1, 'CSV export should include end event');
+        });
     });
 
     describe('getEvents', () => {

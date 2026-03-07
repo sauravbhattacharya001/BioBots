@@ -285,13 +285,16 @@ function createSessionLogger(options) {
             var activeTime = endTime - startTime - totalPauseMs;
 
             outcome = outcome || 'completed';
+
+            // Log the final event BEFORE changing state, since log()
+            // rejects events when state is not ACTIVE or PAUSED.
+            log('SYSTEM', outcome === 'completed' ? 'INFO' : 'WARNING',
+                'Session ended: ' + outcome, { outcome: outcome, activeTime: activeTime });
+
             if (outcome === 'completed') state = SESSION_STATES.COMPLETED;
             else if (outcome === 'aborted') state = SESSION_STATES.ABORTED;
             else if (outcome === 'error') state = SESSION_STATES.ERROR;
             else state = SESSION_STATES.COMPLETED;
-
-            log('SYSTEM', outcome === 'completed' ? 'INFO' : 'WARNING',
-                'Session ended: ' + outcome, { outcome: outcome, activeTime: activeTime });
 
             return {
                 sessionId: sessionId,
