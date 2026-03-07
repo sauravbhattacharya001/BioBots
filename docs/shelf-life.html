@@ -1,0 +1,973 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>BioBots 1 - Shelf Life Dashboard</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⏳</text></svg>">
+    <script src="shared/constants.js"></script>
+    <style>
+        :root {
+            --bg: #0f172a;
+            --surface: #1e293b;
+            --border: #334155;
+            --text: #e2e8f0;
+            --muted: #94a3b8;
+            --accent: #38bdf8;
+            --accent-hover: #7dd3fc;
+            --success: #4ade80;
+            --error: #f87171;
+            --warning: #fbbf24;
+            --purple: #a78bfa;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            padding: 2rem 1rem;
+        }
+        .container { max-width: 1200px; margin: 0 auto; }
+        h1 { font-size: 1.8rem; margin-bottom: 0.5rem; }
+        .subtitle { color: var(--muted); margin-bottom: 2rem; font-size: 0.95rem; }
+        nav { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 2rem; padding-bottom: 1rem; border-bottom: 1px solid var(--border); }
+        nav a { color: var(--muted); padding: 0.5rem 1rem; border-radius: 8px; text-decoration: none; font-size: 0.9rem; transition: all 0.2s; }
+        nav a:hover { color: var(--accent); background: var(--surface); }
+        nav a.active { color: var(--accent); background: var(--surface); border: 1px solid var(--border); }
+
+        .dashboard { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem; margin-bottom: 2rem; }
+        .stat-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 1.25rem;
+        }
+        .stat-card .label { color: var(--muted); font-size: 0.8rem; margin-bottom: 0.3rem; }
+        .stat-card .value { font-size: 1.8rem; font-weight: 700; }
+        .stat-card .detail { color: var(--muted); font-size: 0.75rem; margin-top: 0.3rem; }
+
+        .section {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+        .section h2 { font-size: 1.2rem; margin-bottom: 1rem; }
+
+        /* Tabs */
+        .tabs { display: flex; gap: 0.25rem; margin-bottom: 1.5rem; }
+        .tab-btn {
+            padding: 0.5rem 1.2rem;
+            border: 1px solid var(--border);
+            background: transparent;
+            color: var(--muted);
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            transition: all 0.2s;
+        }
+        .tab-btn:hover { color: var(--text); background: var(--surface); }
+        .tab-btn.active { color: var(--accent); background: var(--surface); border-color: var(--accent); }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+
+        /* Badges */
+        .badge { display: inline-block; padding: 0.2rem 0.6rem; border-radius: 6px; font-size: 0.75rem; font-weight: 600; }
+        .badge-ok { background: rgba(74,222,128,0.15); color: var(--success); }
+        .badge-warning { background: rgba(251,191,36,0.15); color: var(--warning); }
+        .badge-urgent { background: rgba(248,113,113,0.15); color: var(--error); }
+        .badge-expired { background: rgba(248,113,113,0.3); color: var(--error); }
+        .badge-protein { background: rgba(167,139,250,0.15); color: var(--purple); }
+        .badge-polysaccharide { background: rgba(74,222,128,0.15); color: var(--success); }
+        .badge-synthetic { background: rgba(56,189,248,0.15); color: var(--accent); }
+
+        /* Table */
+        .data-table { width: 100%; border-collapse: collapse; }
+        .data-table th, .data-table td { padding: 0.7rem 0.8rem; text-align: left; border-bottom: 1px solid var(--border); font-size: 0.85rem; }
+        .data-table th { color: var(--muted); font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; }
+        .data-table tr:hover td { background: rgba(56,189,248,0.04); }
+        .data-table .actions button { margin-right: 0.3rem; }
+
+        /* Quality bar */
+        .quality-bar { width: 80px; height: 8px; background: var(--bg); border-radius: 4px; overflow: hidden; display: inline-block; vertical-align: middle; margin-right: 0.5rem; }
+        .quality-fill { height: 100%; border-radius: 4px; transition: width 0.3s; }
+
+        /* Forms */
+        .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 1rem; }
+        .form-group label { display: block; color: var(--muted); font-size: 0.8rem; margin-bottom: 0.3rem; }
+        .form-group select,
+        .form-group input {
+            width: 100%;
+            padding: 0.5rem 0.75rem;
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            color: var(--text);
+            font-size: 0.9rem;
+        }
+        .form-group select:focus,
+        .form-group input:focus { outline: none; border-color: var(--accent); }
+
+        /* Buttons */
+        .btn {
+            padding: 0.5rem 1.2rem;
+            border-radius: 8px;
+            border: none;
+            cursor: pointer;
+            font-size: 0.85rem;
+            font-weight: 600;
+            transition: all 0.2s;
+        }
+        .btn-primary { background: var(--accent); color: #0f172a; }
+        .btn-primary:hover { background: var(--accent-hover); }
+        .btn-secondary { background: transparent; color: var(--accent); border: 1px solid var(--accent); }
+        .btn-secondary:hover { background: rgba(56,189,248,0.1); }
+        .btn-danger { background: transparent; color: var(--error); border: 1px solid var(--error); }
+        .btn-danger:hover { background: rgba(248,113,113,0.1); }
+        .btn-sm { padding: 0.3rem 0.6rem; font-size: 0.75rem; }
+
+        /* Alert bar */
+        .alert { padding: 1rem; border-radius: 8px; margin-bottom: 1rem; font-size: 0.85rem; display: flex; align-items: center; gap: 0.5rem; }
+        .alert-urgent { background: rgba(248,113,113,0.1); border: 1px solid var(--error); color: var(--error); }
+        .alert-warning { background: rgba(251,191,36,0.1); border: 1px solid var(--warning); color: var(--warning); }
+
+        /* Canvas chart */
+        canvas { width: 100%; height: 260px; border-radius: 8px; background: var(--bg); }
+
+        /* Recommendation cards */
+        .rec-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1rem; }
+        .rec-card {
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 1rem;
+        }
+        .rec-card .rec-factor { font-weight: 600; margin-bottom: 0.25rem; }
+        .rec-card .rec-optimal { color: var(--success); font-size: 0.85rem; }
+        .rec-card .rec-tip { color: var(--muted); font-size: 0.8rem; margin-top: 0.5rem; }
+        .impact-high { border-left: 3px solid var(--error); }
+        .impact-medium { border-left: 3px solid var(--warning); }
+        .impact-low { border-left: 3px solid var(--success); }
+
+        /* Modal overlay */
+        .modal-overlay {
+            display: none;
+            position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.6);
+            z-index: 100;
+            justify-content: center;
+            align-items: center;
+        }
+        .modal-overlay.visible { display: flex; }
+        .modal {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 1.5rem;
+            max-width: 500px;
+            width: 90%;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+        .modal h3 { margin-bottom: 1rem; }
+        .modal .close-btn {
+            float: right;
+            background: none;
+            border: none;
+            color: var(--muted);
+            font-size: 1.2rem;
+            cursor: pointer;
+        }
+
+        @media (max-width: 768px) {
+            .dashboard { grid-template-columns: 1fr 1fr; }
+            .form-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>⏳ Bioink Shelf Life Dashboard</h1>
+        <p class="subtitle">Track bioink batch inventory, predict expiration, and optimize storage conditions</p>
+
+        <nav>
+            <a href="index.html">Query Tool</a>
+            <a href="table.html">Data Table</a>
+            <a href="materials.html">🧪 Materials</a>
+            <a href="maintenance.html">🔧 Maintenance</a>
+            <a href="nozzle.html">🔧 Nozzle</a>
+            <a href="environment.html">🌡️ Environment</a>
+            <a href="shelf-life.html" class="active">⏳ Shelf Life</a>
+        </nav>
+
+        <!-- Alerts -->
+        <div id="alertsContainer"></div>
+
+        <!-- Summary Dashboard -->
+        <div class="dashboard" id="summaryDashboard">
+            <div class="stat-card">
+                <div class="label">Total Batches</div>
+                <div class="value" id="totalBatches">0</div>
+            </div>
+            <div class="stat-card">
+                <div class="label">Active Volume</div>
+                <div class="value" id="activeVolume">0 mL</div>
+            </div>
+            <div class="stat-card">
+                <div class="label">Inventory Value</div>
+                <div class="value" id="inventoryValue">$0</div>
+            </div>
+            <div class="stat-card">
+                <div class="label">Expiring Soon</div>
+                <div class="value" id="expiringSoon" style="color:var(--warning)">0</div>
+                <div class="detail">within 30 days</div>
+            </div>
+            <div class="stat-card">
+                <div class="label">Expired</div>
+                <div class="value" id="expiredCount" style="color:var(--error)">0</div>
+            </div>
+        </div>
+
+        <!-- Tabs -->
+        <div class="tabs">
+            <button class="tab-btn active" onclick="switchTab('inventory')">📦 Inventory</button>
+            <button class="tab-btn" onclick="switchTab('register')">➕ Register Batch</button>
+            <button class="tab-btn" onclick="switchTab('materials')">🧪 Material Guide</button>
+            <button class="tab-btn" onclick="switchTab('degradation')">📉 Degradation Curves</button>
+        </div>
+
+        <!-- Inventory Tab -->
+        <div id="tab-inventory" class="tab-content active">
+            <div class="section">
+                <h2>📦 Batch Inventory (FEFO Order)</h2>
+                <p style="color:var(--muted);font-size:0.85rem;margin-bottom:1rem;">First-Expired, First-Out — batches expiring soonest listed first</p>
+                <div style="margin-bottom:1rem;">
+                    <select id="filterStatus" onchange="renderInventory()" style="padding:0.4rem;background:var(--bg);border:1px solid var(--border);color:var(--text);border-radius:6px;font-size:0.85rem;">
+                        <option value="all">All Statuses</option>
+                        <option value="ok">✅ OK</option>
+                        <option value="warning">⚠️ Warning</option>
+                        <option value="urgent">🔴 Urgent</option>
+                        <option value="expired">💀 Expired</option>
+                    </select>
+                    <select id="filterMaterial" onchange="renderInventory()" style="padding:0.4rem;background:var(--bg);border:1px solid var(--border);color:var(--text);border-radius:6px;font-size:0.85rem;margin-left:0.5rem;">
+                        <option value="all">All Materials</option>
+                    </select>
+                </div>
+                <div style="overflow-x:auto;">
+                    <table class="data-table" id="inventoryTable">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Material</th>
+                                <th>Quality</th>
+                                <th>Remaining</th>
+                                <th>Expires</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="inventoryBody"></tbody>
+                    </table>
+                </div>
+                <p id="emptyInventory" style="color:var(--muted);text-align:center;padding:2rem;display:none;">No batches registered. Use the <strong>Register Batch</strong> tab to add your first bioink batch.</p>
+            </div>
+        </div>
+
+        <!-- Register Tab -->
+        <div id="tab-register" class="tab-content">
+            <div class="section">
+                <h2>➕ Register New Batch</h2>
+                <form id="registerForm" onsubmit="handleRegister(event)">
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label for="regMaterial">Material *</label>
+                            <select id="regMaterial" required onchange="updateMaterialInfo()">
+                                <option value="">Select material...</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="regVolume">Volume (mL) *</label>
+                            <input type="number" id="regVolume" step="0.1" min="0.1" required placeholder="e.g. 10" />
+                        </div>
+                        <div class="form-group">
+                            <label for="regLot">Lot Number</label>
+                            <input type="text" id="regLot" placeholder="e.g. LOT-2026-0042" />
+                        </div>
+                        <div class="form-group">
+                            <label for="regSupplier">Supplier</label>
+                            <input type="text" id="regSupplier" placeholder="e.g. Sigma-Aldrich" />
+                        </div>
+                        <div class="form-group">
+                            <label for="regDate">Received Date</label>
+                            <input type="date" id="regDate" />
+                        </div>
+                        <div class="form-group">
+                            <label for="regTemp">Storage Temp (°C)</label>
+                            <input type="number" id="regTemp" step="1" placeholder="e.g. 4" />
+                        </div>
+                        <div class="form-group">
+                            <label for="regHumidity">Humidity (%RH)</label>
+                            <input type="number" id="regHumidity" step="1" min="0" max="100" placeholder="45" />
+                        </div>
+                        <div class="form-group">
+                            <label for="regLight">Light Exposure</label>
+                            <select id="regLight">
+                                <option value="dark">Dark (foil/fridge)</option>
+                                <option value="ambient">Ambient light</option>
+                                <option value="direct">Direct light</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="regContainer">Container</label>
+                            <select id="regContainer">
+                                <option value="sealed">Sealed</option>
+                                <option value="open">Open</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="regFT">Freeze-Thaw Cycles</label>
+                            <input type="number" id="regFT" min="0" value="0" />
+                        </div>
+                    </div>
+                    <div id="materialInfo" style="display:none;margin-bottom:1rem;"></div>
+                    <div style="display:flex;gap:0.5rem;">
+                        <button type="submit" class="btn btn-primary">Register Batch</button>
+                        <button type="button" class="btn btn-secondary" onclick="loadDemoData()">Load Demo Data</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Material Guide Tab -->
+        <div id="tab-materials" class="tab-content">
+            <div class="section">
+                <h2>🧪 Material Storage Guide</h2>
+                <p style="color:var(--muted);font-size:0.85rem;margin-bottom:1rem;">Select a material to see storage recommendations and shelf life estimates</p>
+                <div class="form-group" style="max-width:300px;margin-bottom:1.5rem;">
+                    <select id="guideMaterial" onchange="showMaterialGuide()">
+                        <option value="">Select material...</option>
+                    </select>
+                </div>
+                <div id="guideContent"></div>
+            </div>
+        </div>
+
+        <!-- Degradation Curves Tab -->
+        <div id="tab-degradation" class="tab-content">
+            <div class="section">
+                <h2>📉 Degradation Curves</h2>
+                <p style="color:var(--muted);font-size:0.85rem;margin-bottom:1rem;">Quality decay over time for registered batches</p>
+                <div class="form-group" style="max-width:300px;margin-bottom:1rem;">
+                    <select id="curveBatch" onchange="renderDegradationCurve()">
+                        <option value="">Select batch...</option>
+                    </select>
+                </div>
+                <canvas id="degradationCanvas" width="800" height="260"></canvas>
+                <div id="curveInfo" style="margin-top:1rem;"></div>
+            </div>
+        </div>
+
+        <!-- Usage Modal -->
+        <div class="modal-overlay" id="usageModal">
+            <div class="modal">
+                <button class="close-btn" onclick="closeModal('usageModal')">&times;</button>
+                <h3>📝 Record Usage</h3>
+                <div class="form-group" style="margin-bottom:1rem;">
+                    <label>Batch</label>
+                    <input type="text" id="usageBatchLabel" disabled />
+                </div>
+                <div class="form-group" style="margin-bottom:1rem;">
+                    <label>Volume Used (mL)</label>
+                    <input type="number" id="usageVolume" step="0.1" min="0.1" />
+                </div>
+                <div class="form-group" style="margin-bottom:1rem;">
+                    <label>Purpose</label>
+                    <input type="text" id="usagePurpose" placeholder="e.g. Print run #42" />
+                </div>
+                <button class="btn btn-primary" onclick="submitUsage()">Record Usage</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+    (function() {
+        'use strict';
+
+        // ── Shelf Life Tracker (inline) ─────────────────────────────
+
+        // Inline the module to keep the page self-contained
+        var DEFAULT_MATERIALS = {
+            'collagen-type-1': { name:'Collagen Type I', category:'protein', baseShelfLifeDays:90, optimalTempC:4, maxTempC:8, minTempC:-20, humiditySensitivity:0.3, lightSensitivity:0.2, freezeThawTolerance:3, q10:2.5, costPerMl:45.00, storageNotes:'Keep at 2-8\u00b0C. Avoid repeated freeze-thaw. Light-sensitive.' },
+            'gelatin-methacrylate': { name:'GelMA', category:'protein', baseShelfLifeDays:180, optimalTempC:-20, maxTempC:4, minTempC:-80, humiditySensitivity:0.4, lightSensitivity:0.7, freezeThawTolerance:5, q10:2.0, costPerMl:12.50, storageNotes:'Store at -20\u00b0C. Protect from light (foil-wrap). Lyophilized preferred.' },
+            'alginate': { name:'Alginate', category:'polysaccharide', baseShelfLifeDays:365, optimalTempC:20, maxTempC:30, minTempC:2, humiditySensitivity:0.6, lightSensitivity:0.1, freezeThawTolerance:10, q10:1.5, costPerMl:3.80, storageNotes:'Room temperature OK if dry. Keep sealed \u2014 hygroscopic.' },
+            'hyaluronic-acid': { name:'Hyaluronic Acid', category:'polysaccharide', baseShelfLifeDays:180, optimalTempC:4, maxTempC:8, minTempC:-20, humiditySensitivity:0.5, lightSensitivity:0.3, freezeThawTolerance:4, q10:2.2, costPerMl:28.00, storageNotes:'Refrigerate at 2-8\u00b0C. Sensitive to enzymatic degradation.' },
+            'fibrin': { name:'Fibrin', category:'protein', baseShelfLifeDays:30, optimalTempC:-20, maxTempC:4, minTempC:-80, humiditySensitivity:0.3, lightSensitivity:0.1, freezeThawTolerance:2, q10:3.0, costPerMl:65.00, storageNotes:'Store frozen. Very short shelf life once thawed. Use within 24h at RT.' },
+            'silk-fibroin': { name:'Silk Fibroin', category:'protein', baseShelfLifeDays:270, optimalTempC:4, maxTempC:25, minTempC:-20, humiditySensitivity:0.2, lightSensitivity:0.1, freezeThawTolerance:8, q10:1.8, costPerMl:18.00, storageNotes:'Refrigerate. Relatively stable. Avoid gelation triggers.' },
+            'chitosan': { name:'Chitosan', category:'polysaccharide', baseShelfLifeDays:300, optimalTempC:20, maxTempC:30, minTempC:2, humiditySensitivity:0.7, lightSensitivity:0.1, freezeThawTolerance:6, q10:1.6, costPerMl:5.50, storageNotes:'Room temperature. Keep dry \u2014 very hygroscopic. Acidic solution preferred.' },
+            'pluronic-f127': { name:'Pluronic F-127', category:'synthetic', baseShelfLifeDays:730, optimalTempC:20, maxTempC:30, minTempC:2, humiditySensitivity:0.1, lightSensitivity:0.05, freezeThawTolerance:20, q10:1.3, costPerMl:8.20, storageNotes:'Room temperature. Very stable synthetic. Keep sealed.' },
+            'peg-diacrylate': { name:'PEG-DA', category:'synthetic', baseShelfLifeDays:365, optimalTempC:-20, maxTempC:4, minTempC:-80, humiditySensitivity:0.3, lightSensitivity:0.8, freezeThawTolerance:15, q10:1.4, costPerMl:15.00, storageNotes:'Store frozen. Protect from light \u2014 acrylate polymerization. Add inhibitor.' },
+            'cellulose-nanofiber': { name:'Cellulose Nanofiber', category:'polysaccharide', baseShelfLifeDays:365, optimalTempC:4, maxTempC:25, minTempC:-20, humiditySensitivity:0.4, lightSensitivity:0.1, freezeThawTolerance:3, q10:1.5, costPerMl:9.00, storageNotes:'Refrigerate suspension. Do not freeze (nanostructure damage). Never dry.' }
+        };
+
+        var materials = {};
+        var batches = [];
+        var nextId = 1;
+        var usageTargetId = null;
+
+        function init() {
+            for (var k in DEFAULT_MATERIALS) {
+                materials[k] = {};
+                for (var p in DEFAULT_MATERIALS[k]) { materials[k][p] = DEFAULT_MATERIALS[k][p]; }
+            }
+            populateSelects();
+            loadFromStorage();
+            refresh();
+        }
+
+        function populateSelects() {
+            var ids = Object.keys(materials).sort(function(a, b) {
+                return materials[a].name.localeCompare(materials[b].name);
+            });
+            var regSel = document.getElementById('regMaterial');
+            var guideSel = document.getElementById('guideMaterial');
+            var filterSel = document.getElementById('filterMaterial');
+            ids.forEach(function(id) {
+                var m = materials[id];
+                var opt1 = new Option(m.name + ' (' + m.category + ')', id);
+                var opt2 = new Option(m.name, id);
+                var opt3 = new Option(m.name, id);
+                regSel.appendChild(opt1);
+                guideSel.appendChild(opt2);
+                filterSel.appendChild(opt3);
+            });
+        }
+
+        // ── Degradation math ────────────────────────────────────
+
+        function degradationMultiplier(material, conditions) {
+            var tempC = conditions.tempC != null ? conditions.tempC : material.optimalTempC;
+            var humidity = conditions.humidityRH != null ? conditions.humidityRH : 45;
+            var light = conditions.lightExposure || 'dark';
+            var container = conditions.container || 'sealed';
+
+            var tempFactor = Math.pow(material.q10, (tempC - material.optimalTempC) / 10);
+            if (tempFactor < 0.1) tempFactor = 0.1;
+
+            var humidityFactor = 1.0;
+            if (humidity > 60) humidityFactor = 1.0 + material.humiditySensitivity * (humidity - 60) / 40;
+
+            var lightFactor = 1.0;
+            if (light === 'ambient') lightFactor = 1.0 + material.lightSensitivity * 0.5;
+            else if (light === 'direct') lightFactor = 1.0 + material.lightSensitivity * 2.0;
+
+            var containerFactor = container === 'open' ? 1.5 : 1.0;
+            return tempFactor * humidityFactor * lightFactor * containerFactor;
+        }
+
+        function calcShelfLife(batch) {
+            var mat = materials[batch.materialId];
+            if (!mat) return null;
+            var now = new Date();
+            var created = new Date(batch.createdDate);
+            var elapsedDays = Math.max(0, (now - created) / 864e5);
+            var rate = degradationMultiplier(mat, batch.conditions);
+
+            var ftCycles = batch.freezeThawCycles || 0;
+            var ftPenalty = 0;
+            if (ftCycles > 0) {
+                if (ftCycles > mat.freezeThawTolerance)
+                    ftPenalty = (ftCycles - mat.freezeThawTolerance) * mat.baseShelfLifeDays * 0.10;
+                else
+                    ftPenalty = ftCycles * mat.baseShelfLifeDays * 0.02;
+            }
+
+            var totalDays = Math.max(1, mat.baseShelfLifeDays / rate - ftPenalty);
+            var remaining = Math.max(0, totalDays - elapsedDays);
+            var quality = Math.max(0, Math.min(100, (remaining / totalDays) * 100));
+
+            var status = 'ok';
+            if (remaining <= 0) status = 'expired';
+            else if (remaining <= 7) status = 'urgent';
+            else if (remaining <= 30) status = 'warning';
+
+            var expDate = new Date(created.getTime() + totalDays * 864e5);
+            return {
+                remaining: Math.round(remaining * 10) / 10,
+                total: Math.round(totalDays * 10) / 10,
+                elapsed: Math.round(elapsedDays * 10) / 10,
+                quality: Math.round(quality * 10) / 10,
+                status: status,
+                expDate: expDate.toISOString().split('T')[0],
+                rate: Math.round(rate * 1000) / 1000
+            };
+        }
+
+        // ── Persistence (localStorage) ──────────────────────────
+
+        var STORAGE_KEY = 'biobots_shelf_life_batches';
+
+        function saveToStorage() {
+            try { localStorage.setItem(STORAGE_KEY, JSON.stringify({ batches: batches, nextId: nextId })); } catch (e) {}
+        }
+
+        function loadFromStorage() {
+            try {
+                var raw = localStorage.getItem(STORAGE_KEY);
+                if (raw) {
+                    var data = JSON.parse(raw);
+                    batches = data.batches || [];
+                    nextId = data.nextId || (batches.length + 1);
+                }
+            } catch (e) {}
+        }
+
+        // ── Tab switching ───────────────────────────────────────
+
+        window.switchTab = function(tabId) {
+            document.querySelectorAll('.tab-btn').forEach(function(btn) { btn.classList.remove('active'); });
+            document.querySelectorAll('.tab-content').forEach(function(tc) { tc.classList.remove('active'); });
+            document.getElementById('tab-' + tabId).classList.add('active');
+            // Activate matching button
+            document.querySelectorAll('.tab-btn').forEach(function(btn) {
+                if (btn.textContent.toLowerCase().indexOf(tabId.substring(0, 4)) !== -1 ||
+                    (tabId === 'register' && btn.textContent.indexOf('Register') !== -1) ||
+                    (tabId === 'inventory' && btn.textContent.indexOf('Inventory') !== -1) ||
+                    (tabId === 'materials' && btn.textContent.indexOf('Material Guide') !== -1) ||
+                    (tabId === 'degradation' && btn.textContent.indexOf('Degradation') !== -1)) {
+                    btn.classList.add('active');
+                }
+            });
+            if (tabId === 'degradation') populateCurveBatchSelect();
+        };
+
+        // ── Refresh all views ───────────────────────────────────
+
+        function refresh() {
+            renderSummary();
+            renderAlerts();
+            renderInventory();
+        }
+
+        function renderSummary() {
+            var totalVol = 0, totalVal = 0, expiring = 0, expired = 0;
+            batches.forEach(function(b) {
+                var sl = calcShelfLife(b);
+                if (!sl) return;
+                if (sl.status !== 'expired') {
+                    totalVol += b.remainingMl;
+                    var mat = materials[b.materialId];
+                    if (mat) totalVal += b.remainingMl * mat.costPerMl;
+                }
+                if (sl.status === 'expired') expired++;
+                if (sl.status === 'warning' || sl.status === 'urgent') expiring++;
+            });
+            document.getElementById('totalBatches').textContent = batches.length;
+            document.getElementById('activeVolume').textContent = totalVol.toFixed(1) + ' mL';
+            document.getElementById('inventoryValue').textContent = '$' + totalVal.toFixed(0);
+            document.getElementById('expiringSoon').textContent = expiring;
+            document.getElementById('expiredCount').textContent = expired;
+        }
+
+        function renderAlerts() {
+            var container = document.getElementById('alertsContainer');
+            container.innerHTML = '';
+            batches.forEach(function(b) {
+                var sl = calcShelfLife(b);
+                if (!sl) return;
+                var mat = materials[b.materialId];
+                var name = mat ? mat.name : b.materialId;
+                if (sl.status === 'expired') {
+                    container.innerHTML += '<div class="alert alert-urgent">⚠️ <strong>Batch #' + b.id + ' (' + esc(name) + ')</strong> — EXPIRED. Discard or verify quality before use.</div>';
+                } else if (sl.status === 'urgent') {
+                    container.innerHTML += '<div class="alert alert-urgent">🔴 <strong>Batch #' + b.id + ' (' + esc(name) + ')</strong> — Expires in ' + sl.remaining + ' days. Use immediately.</div>';
+                }
+            });
+        }
+
+        window.renderInventory = function() {
+            var statusFilter = document.getElementById('filterStatus').value;
+            var matFilter = document.getElementById('filterMaterial').value;
+
+            var items = batches.map(function(b) {
+                return { batch: b, sl: calcShelfLife(b) };
+            }).filter(function(item) {
+                if (!item.sl) return false;
+                if (statusFilter !== 'all' && item.sl.status !== statusFilter) return false;
+                if (matFilter !== 'all' && item.batch.materialId !== matFilter) return false;
+                return true;
+            });
+
+            // FEFO order
+            items.sort(function(a, b) { return a.sl.remaining - b.sl.remaining; });
+
+            var tbody = document.getElementById('inventoryBody');
+            var empty = document.getElementById('emptyInventory');
+
+            if (items.length === 0) {
+                tbody.innerHTML = '';
+                empty.style.display = 'block';
+                return;
+            }
+            empty.style.display = 'none';
+
+            var html = '';
+            items.forEach(function(item) {
+                var b = item.batch;
+                var sl = item.sl;
+                var mat = materials[b.materialId];
+                var name = mat ? mat.name : b.materialId;
+                var color = sl.quality > 60 ? 'var(--success)' : sl.quality > 30 ? 'var(--warning)' : 'var(--error)';
+
+                html += '<tr>';
+                html += '<td>#' + b.id + '</td>';
+                html += '<td>' + esc(name) + (b.lotNumber ? '<br><span style="color:var(--muted);font-size:0.75rem;">' + esc(b.lotNumber) + '</span>' : '') + '</td>';
+                html += '<td><span class="quality-bar"><span class="quality-fill" style="width:' + sl.quality + '%;background:' + color + '"></span></span>' + sl.quality + '%</td>';
+                html += '<td>' + b.remainingMl + ' mL</td>';
+                html += '<td>' + sl.expDate + '<br><span style="color:var(--muted);font-size:0.75rem;">' + sl.remaining + ' days left</span></td>';
+                html += '<td><span class="badge badge-' + sl.status + '">' + sl.status.toUpperCase() + '</span></td>';
+                html += '<td class="actions">';
+                html += '<button class="btn btn-sm btn-secondary" onclick="openUsageModal(' + b.id + ')">Use</button>';
+                html += '<button class="btn btn-sm btn-secondary" onclick="recordFT(' + b.id + ')">❄️ F/T</button>';
+                html += '<button class="btn btn-sm btn-danger" onclick="removeBatch(' + b.id + ')">✕</button>';
+                html += '</td>';
+                html += '</tr>';
+            });
+            tbody.innerHTML = html;
+        };
+
+        // ── Registration ────────────────────────────────────────
+
+        window.handleRegister = function(e) {
+            e.preventDefault();
+            var matId = document.getElementById('regMaterial').value;
+            var vol = parseFloat(document.getElementById('regVolume').value);
+            if (!matId || !vol || vol <= 0) return;
+
+            var dateVal = document.getElementById('regDate').value;
+            var batch = {
+                id: nextId++,
+                materialId: matId,
+                volumeMl: vol,
+                remainingMl: vol,
+                lotNumber: document.getElementById('regLot').value || null,
+                supplier: document.getElementById('regSupplier').value || null,
+                createdDate: dateVal ? new Date(dateVal).toISOString() : new Date().toISOString(),
+                conditions: {
+                    tempC: parseFloat(document.getElementById('regTemp').value) || undefined,
+                    humidityRH: parseFloat(document.getElementById('regHumidity').value) || undefined,
+                    lightExposure: document.getElementById('regLight').value,
+                    container: document.getElementById('regContainer').value
+                },
+                freezeThawCycles: parseInt(document.getElementById('regFT').value) || 0,
+                usageLog: []
+            };
+
+            batches.push(batch);
+            saveToStorage();
+            document.getElementById('registerForm').reset();
+            document.getElementById('materialInfo').style.display = 'none';
+            switchTab('inventory');
+            refresh();
+        };
+
+        window.updateMaterialInfo = function() {
+            var id = document.getElementById('regMaterial').value;
+            var info = document.getElementById('materialInfo');
+            if (!id || !materials[id]) { info.style.display = 'none'; return; }
+            var m = materials[id];
+            info.style.display = 'block';
+            info.innerHTML = '<div style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:0.75rem;font-size:0.85rem;">' +
+                '<span class="badge badge-' + m.category + '">' + m.category + '</span> &nbsp;' +
+                '<strong>' + esc(m.name) + '</strong> — ' +
+                'Base shelf life: <strong>' + m.baseShelfLifeDays + ' days</strong> · ' +
+                'Optimal: <strong>' + m.optimalTempC + '°C</strong> · ' +
+                '$' + m.costPerMl.toFixed(2) + '/mL<br>' +
+                '<span style="color:var(--muted);">' + esc(m.storageNotes) + '</span></div>';
+        };
+
+        // ── Demo data ───────────────────────────────────────────
+
+        window.loadDemoData = function() {
+            if (batches.length > 0 && !confirm('This will add demo batches to your existing inventory. Continue?')) return;
+
+            var now = Date.now();
+            var day = 864e5;
+            var demos = [
+                { materialId:'collagen-type-1', volumeMl:25, remainingMl:18.5, lotNumber:'COL-2026-001', supplier:'Sigma-Aldrich', createdDate:new Date(now - 60 * day).toISOString(), conditions:{ tempC:4, lightExposure:'dark', container:'sealed' }, freezeThawCycles:0 },
+                { materialId:'gelatin-methacrylate', volumeMl:50, remainingMl:42, lotNumber:'GMA-2026-014', supplier:'Cellink', createdDate:new Date(now - 90 * day).toISOString(), conditions:{ tempC:-20, lightExposure:'dark', container:'sealed' }, freezeThawCycles:2 },
+                { materialId:'alginate', volumeMl:100, remainingMl:65, lotNumber:'ALG-2025-088', supplier:'FMC BioPolymer', createdDate:new Date(now - 200 * day).toISOString(), conditions:{ tempC:22, humidityRH:50, container:'sealed' }, freezeThawCycles:0 },
+                { materialId:'fibrin', volumeMl:5, remainingMl:3.2, lotNumber:'FIB-2026-003', supplier:'Enzyme Research', createdDate:new Date(now - 20 * day).toISOString(), conditions:{ tempC:-18, lightExposure:'dark', container:'sealed' }, freezeThawCycles:1 },
+                { materialId:'pluronic-f127', volumeMl:200, remainingMl:180, lotNumber:'PLU-2025-042', supplier:'BASF', createdDate:new Date(now - 400 * day).toISOString(), conditions:{ tempC:22, container:'sealed' }, freezeThawCycles:0 },
+                { materialId:'hyaluronic-acid', volumeMl:15, remainingMl:2.5, lotNumber:'HA-2026-007', supplier:'Lifecore', createdDate:new Date(now - 150 * day).toISOString(), conditions:{ tempC:6, container:'sealed' }, freezeThawCycles:3 },
+                { materialId:'peg-diacrylate', volumeMl:30, remainingMl:28, lotNumber:'PEG-2026-019', supplier:'Laysan Bio', createdDate:new Date(now - 30 * day).toISOString(), conditions:{ tempC:-20, lightExposure:'dark', container:'sealed' }, freezeThawCycles:0 },
+                { materialId:'chitosan', volumeMl:75, remainingMl:60, lotNumber:'CHI-2025-011', supplier:'Heppe Medical', createdDate:new Date(now - 100 * day).toISOString(), conditions:{ tempC:20, humidityRH:40, container:'sealed' }, freezeThawCycles:0 }
+            ];
+
+            demos.forEach(function(d) {
+                d.id = nextId++;
+                d.usageLog = [];
+                batches.push(d);
+            });
+            saveToStorage();
+            refresh();
+            switchTab('inventory');
+        };
+
+        // ── Usage recording ─────────────────────────────────────
+
+        window.openUsageModal = function(batchId) {
+            var b = batches.find(function(x) { return x.id === batchId; });
+            if (!b) return;
+            usageTargetId = batchId;
+            var mat = materials[b.materialId];
+            document.getElementById('usageBatchLabel').value = '#' + b.id + ' — ' + (mat ? mat.name : b.materialId) + ' (' + b.remainingMl + ' mL remaining)';
+            document.getElementById('usageVolume').value = '';
+            document.getElementById('usageVolume').max = b.remainingMl;
+            document.getElementById('usagePurpose').value = '';
+            document.getElementById('usageModal').classList.add('visible');
+        };
+
+        window.closeModal = function(id) {
+            document.getElementById(id).classList.remove('visible');
+        };
+
+        window.submitUsage = function() {
+            var vol = parseFloat(document.getElementById('usageVolume').value);
+            var purpose = document.getElementById('usagePurpose').value;
+            if (!vol || vol <= 0 || usageTargetId == null) return;
+
+            var b = batches.find(function(x) { return x.id === usageTargetId; });
+            if (!b) return;
+            if (vol > b.remainingMl) { alert('Insufficient volume. Remaining: ' + b.remainingMl + ' mL'); return; }
+
+            b.remainingMl = Math.round((b.remainingMl - vol) * 100) / 100;
+            b.usageLog.push({ date: new Date().toISOString(), volumeMl: vol, purpose: purpose || null });
+            saveToStorage();
+            closeModal('usageModal');
+            refresh();
+        };
+
+        // ── Freeze-thaw ─────────────────────────────────────────
+
+        window.recordFT = function(batchId) {
+            var b = batches.find(function(x) { return x.id === batchId; });
+            if (!b) return;
+            b.freezeThawCycles = (b.freezeThawCycles || 0) + 1;
+            var mat = materials[b.materialId];
+            if (mat && b.freezeThawCycles > mat.freezeThawTolerance) {
+                alert('⚠️ Batch #' + b.id + ' exceeded freeze-thaw tolerance (' + b.freezeThawCycles + '/' + mat.freezeThawTolerance + '). Material integrity compromised.');
+            }
+            saveToStorage();
+            refresh();
+        };
+
+        // ── Remove batch ────────────────────────────────────────
+
+        window.removeBatch = function(batchId) {
+            if (!confirm('Remove batch #' + batchId + '?')) return;
+            batches = batches.filter(function(b) { return b.id !== batchId; });
+            saveToStorage();
+            refresh();
+        };
+
+        // ── Material Guide ──────────────────────────────────────
+
+        window.showMaterialGuide = function() {
+            var id = document.getElementById('guideMaterial').value;
+            var el = document.getElementById('guideContent');
+            if (!id || !materials[id]) { el.innerHTML = ''; return; }
+
+            var m = materials[id];
+            var recs = getRecommendations(m);
+
+            var roomTempDays = Math.round(m.baseShelfLifeDays / Math.pow(m.q10, (22 - m.optimalTempC) / 10));
+            var worstDays = Math.round(m.baseShelfLifeDays / Math.pow(m.q10, (30 - m.optimalTempC) / 10) / 1.5);
+
+            var html = '<div style="margin-bottom:1.5rem;">';
+            html += '<span class="badge badge-' + m.category + '">' + m.category + '</span> ';
+            html += '<strong style="font-size:1.1rem;">' + esc(m.name) + '</strong>';
+            html += '<p style="color:var(--muted);margin-top:0.5rem;">' + esc(m.storageNotes) + '</p>';
+            html += '</div>';
+
+            // Shelf life estimates
+            html += '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:1rem;margin-bottom:1.5rem;">';
+            html += shelfCard('Optimal', m.baseShelfLifeDays + ' days', m.optimalTempC + '°C, sealed, dark', 'var(--success)');
+            html += shelfCard('Room Temp', roomTempDays + ' days', '22°C, sealed', 'var(--warning)');
+            html += shelfCard('Worst Case', worstDays + ' days', '30°C, open, direct light', 'var(--error)');
+            html += '</div>';
+
+            // Recommendations
+            html += '<h3 style="margin-bottom:1rem;">Storage Recommendations</h3>';
+            html += '<div class="rec-grid">';
+            recs.forEach(function(r) {
+                html += '<div class="rec-card impact-' + r.impact + '">';
+                html += '<div class="rec-factor">' + esc(r.factor) + '</div>';
+                html += '<div class="rec-optimal">' + esc(r.optimal) + '</div>';
+                html += '<div class="rec-tip">' + esc(r.tip) + '</div>';
+                html += '</div>';
+            });
+            html += '</div>';
+            el.innerHTML = html;
+        };
+
+        function shelfCard(label, value, desc, color) {
+            return '<div style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:1rem;text-align:center;">' +
+                '<div style="color:var(--muted);font-size:0.8rem;">' + label + '</div>' +
+                '<div style="font-size:1.4rem;font-weight:700;color:' + color + ';">' + value + '</div>' +
+                '<div style="color:var(--muted);font-size:0.75rem;margin-top:0.3rem;">' + desc + '</div></div>';
+        }
+
+        function getRecommendations(m) {
+            var recs = [];
+            recs.push({ factor:'Temperature', optimal:m.optimalTempC + '°C (range: ' + m.minTempC + ' to ' + m.maxTempC + '°C)', impact:'high', tip:'Each 10°C above optimal increases degradation ' + m.q10 + 'x (Q10 rule)' });
+            if (m.lightSensitivity > 0.5) recs.push({ factor:'Light Protection', optimal:'Dark storage (foil-wrapped)', impact:'high', tip:'High light sensitivity (' + (m.lightSensitivity * 100) + '%). Use amber vials or foil.' });
+            else if (m.lightSensitivity > 0.2) recs.push({ factor:'Light Protection', optimal:'Minimal light exposure', impact:'medium', tip:'Moderate sensitivity. Avoid direct sunlight.' });
+            if (m.humiditySensitivity > 0.5) recs.push({ factor:'Humidity Control', optimal:'Below 45% RH with desiccant', impact:'high', tip:'Highly hygroscopic. Use desiccant packets in storage container.' });
+            if (m.freezeThawTolerance <= 3) recs.push({ factor:'Freeze-Thaw', optimal:'Aliquot before freezing (max ' + m.freezeThawTolerance + ' cycles)', impact:'high', tip:'Very sensitive. Prepare single-use aliquots.' });
+            else recs.push({ factor:'Freeze-Thaw', optimal:'Up to ' + m.freezeThawTolerance + ' cycles tolerated', impact:'medium', tip:'Moderate tolerance. Aliquot when possible.' });
+            recs.push({ factor:'Container', optimal:'Sealed, sterile container', impact:'medium', tip:'Open containers increase oxidation rate by ~50%.' });
+            return recs;
+        }
+
+        // ── Degradation curve ───────────────────────────────────
+
+        function populateCurveBatchSelect() {
+            var sel = document.getElementById('curveBatch');
+            sel.innerHTML = '<option value="">Select batch...</option>';
+            batches.forEach(function(b) {
+                var mat = materials[b.materialId];
+                var name = mat ? mat.name : b.materialId;
+                sel.appendChild(new Option('#' + b.id + ' — ' + name, b.id));
+            });
+        }
+
+        window.renderDegradationCurve = function() {
+            var batchId = parseInt(document.getElementById('curveBatch').value);
+            var canvas = document.getElementById('degradationCanvas');
+            var ctx = canvas.getContext('2d');
+            var info = document.getElementById('curveInfo');
+
+            canvas.width = canvas.offsetWidth * (window.devicePixelRatio || 1);
+            canvas.height = 260 * (window.devicePixelRatio || 1);
+            ctx.scale(window.devicePixelRatio || 1, window.devicePixelRatio || 1);
+            var W = canvas.offsetWidth, H = 260;
+            ctx.clearRect(0, 0, W, H);
+
+            var b = batches.find(function(x) { return x.id === batchId; });
+            if (!b) { info.innerHTML = ''; return; }
+
+            var mat = materials[b.materialId];
+            if (!mat) return;
+
+            var rate = degradationMultiplier(mat, b.conditions || {});
+            var totalDays = Math.max(1, mat.baseShelfLifeDays / rate);
+            var points = 20;
+            var curve = [];
+            for (var i = 0; i <= points; i++) {
+                var day = Math.round(i * totalDays / points);
+                var q = Math.max(0, 100 * (1 - day / totalDays));
+                curve.push({ day: day, quality: q });
+            }
+
+            // Chart margins
+            var ml = 50, mr = 20, mt = 20, mb = 40;
+            var cw = W - ml - mr, ch = H - mt - mb;
+
+            // Grid
+            ctx.strokeStyle = '#334155';
+            ctx.lineWidth = 0.5;
+            for (var g = 0; g <= 4; g++) {
+                var gy = mt + ch * (1 - g / 4);
+                ctx.beginPath(); ctx.moveTo(ml, gy); ctx.lineTo(ml + cw, gy); ctx.stroke();
+            }
+
+            // Y axis labels
+            ctx.fillStyle = '#94a3b8';
+            ctx.font = '11px -apple-system, sans-serif';
+            ctx.textAlign = 'right';
+            for (var y = 0; y <= 100; y += 25) {
+                ctx.fillText(y + '%', ml - 8, mt + ch * (1 - y / 100) + 4);
+            }
+
+            // X axis labels
+            ctx.textAlign = 'center';
+            var xLabels = [0, Math.round(totalDays * 0.25), Math.round(totalDays * 0.5), Math.round(totalDays * 0.75), Math.round(totalDays)];
+            xLabels.forEach(function(d) {
+                var x = ml + (d / totalDays) * cw;
+                ctx.fillText('Day ' + d, x, H - 8);
+            });
+
+            // Warning/urgent zones
+            var warningDay = Math.max(0, totalDays - 30);
+            var urgentDay = Math.max(0, totalDays - 7);
+            ctx.fillStyle = 'rgba(251,191,36,0.08)';
+            ctx.fillRect(ml + (warningDay / totalDays) * cw, mt, ((urgentDay - warningDay) / totalDays) * cw, ch);
+            ctx.fillStyle = 'rgba(248,113,113,0.08)';
+            ctx.fillRect(ml + (urgentDay / totalDays) * cw, mt, ((totalDays - urgentDay) / totalDays) * cw, ch);
+
+            // Curve line
+            ctx.beginPath();
+            ctx.strokeStyle = '#38bdf8';
+            ctx.lineWidth = 2.5;
+            curve.forEach(function(p, i) {
+                var x = ml + (p.day / totalDays) * cw;
+                var yy = mt + ch * (1 - p.quality / 100);
+                if (i === 0) ctx.moveTo(x, yy);
+                else ctx.lineTo(x, yy);
+            });
+            ctx.stroke();
+
+            // Fill under curve
+            ctx.lineTo(ml + cw, mt + ch);
+            ctx.lineTo(ml, mt + ch);
+            ctx.closePath();
+            ctx.fillStyle = 'rgba(56,189,248,0.08)';
+            ctx.fill();
+
+            // Current position marker
+            var sl = calcShelfLife(b);
+            if (sl) {
+                var cx = ml + (sl.elapsed / totalDays) * cw;
+                var cy = mt + ch * (1 - sl.quality / 100);
+                ctx.beginPath();
+                ctx.arc(cx, cy, 6, 0, Math.PI * 2);
+                ctx.fillStyle = sl.status === 'ok' ? '#4ade80' : sl.status === 'warning' ? '#fbbf24' : '#f87171';
+                ctx.fill();
+                ctx.strokeStyle = '#0f172a';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+
+                // Label
+                ctx.fillStyle = '#e2e8f0';
+                ctx.font = 'bold 11px -apple-system, sans-serif';
+                ctx.textAlign = 'center';
+                ctx.fillText('Now: ' + sl.quality + '%', cx, cy - 12);
+            }
+
+            // Info box
+            if (sl) {
+                info.innerHTML = '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:1rem;margin-top:0.5rem;">' +
+                    '<div><span style="color:var(--muted);font-size:0.8rem;">Material</span><br><strong>' + esc(mat.name) + '</strong></div>' +
+                    '<div><span style="color:var(--muted);font-size:0.8rem;">Effective Shelf Life</span><br><strong>' + sl.total + ' days</strong></div>' +
+                    '<div><span style="color:var(--muted);font-size:0.8rem;">Elapsed</span><br><strong>' + sl.elapsed + ' days</strong></div>' +
+                    '<div><span style="color:var(--muted);font-size:0.8rem;">Remaining</span><br><strong style="color:' + (sl.remaining > 30 ? 'var(--success)' : sl.remaining > 7 ? 'var(--warning)' : 'var(--error)') + ';">' + sl.remaining + ' days</strong></div>' +
+                    '<div><span style="color:var(--muted);font-size:0.8rem;">Degradation Rate</span><br><strong>' + sl.rate + 'x</strong></div>' +
+                    '</div>';
+            }
+        };
+
+        // ── Helpers ─────────────────────────────────────────────
+
+        function esc(s) {
+            if (!s) return '';
+            return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+        }
+
+        // ── Boot ────────────────────────────────────────────────
+        init();
+    })();
+    </script>
+</body>
+</html>
