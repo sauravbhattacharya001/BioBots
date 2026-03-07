@@ -331,16 +331,27 @@ function createCrosslinkAnalyzer() {
 
         var crosslinked = [];
         var uncrosslinked = [];
+        // Single-pass: partition AND accumulate summary stats to avoid
+        // three redundant .map() calls over crosslinked later.
+        var sumViability = 0, sumDuration = 0, sumIntensity = 0;
 
         for (var i = 0; i < prints.length; i++) {
             var p = prints[i];
             if (!p || !p.print_info || !p.print_info.crosslinking) continue;
             if (p.print_info.crosslinking.cl_enabled) {
                 crosslinked.push(p);
+                sumViability += p.print_data.livePercent;
+                sumDuration += p.print_info.crosslinking.cl_duration;
+                sumIntensity += p.print_info.crosslinking.cl_intensity;
             } else {
                 uncrosslinked.push(p);
             }
         }
+
+        var clLen = crosslinked.length;
+        var avgViability = clLen > 0 ? Math.round((sumViability / clLen) * 100) / 100 : 0;
+        var avgDuration = clLen > 0 ? Math.round((sumDuration / clLen) * 100) / 100 : 0;
+        var avgIntensity = clLen > 0 ? Math.round((sumIntensity / clLen) * 100) / 100 : 0;
 
         // Bin by intensity ranges
         var bins = _binByIntensity(crosslinked);
@@ -348,17 +359,18 @@ function createCrosslinkAnalyzer() {
         // Estimate effective rate constant from data
         var rateEstimate = _estimateRateConstant(crosslinked);
 
-        // Generate recommendations
-        var recommendations = _generateRecommendations(crosslinked, uncrosslinked, bins);
+        // Generate recommendations (pass pre-computed avgViability
+        // so _generateRecommendations doesn't re-scan crosslinked)
+        var recommendations = _generateRecommendations(crosslinked, uncrosslinked, bins, avgViability);
 
         return {
             summary: {
                 total: prints.length,
-                crosslinked: crosslinked.length,
+                crosslinked: clLen,
                 uncrosslinked: uncrosslinked.length,
-                avgViability: _mean(crosslinked.map(function (p) { return p.print_data.livePercent; })),
-                avgDuration: _mean(crosslinked.map(function (p) { return p.print_info.crosslinking.cl_duration; })),
-                avgIntensity: _mean(crosslinked.map(function (p) { return p.print_info.crosslinking.cl_intensity; }))
+                avgViability: avgViability,
+                avgDuration: avgDuration,
+                avgIntensity: avgIntensity
             },
             bins: bins,
             rateEstimate: rateEstimate,
@@ -373,7 +385,7 @@ function createCrosslinkAnalyzer() {
     function _binByIntensity(prints) {
         if (prints.length === 0) return [];
 
-        // Find intensity range
+        // Single pass: find intensity range
         var minI = Infinity, maxI = -Infinity;
         for (var i = 0; i < prints.length; i++) {
             var inten = prints[i].print_info.crosslinking.cl_intensity;
@@ -382,37 +394,68 @@ function createCrosslinkAnalyzer() {
         }
 
         if (minI === maxI) {
+            // All same intensity — compute stats in one pass
+            var sumV = 0, sumD = 0, sumE = 0;
+            for (var i = 0; i < prints.length; i++) {
+                sumV += prints[i].print_data.livePercent;
+                sumD += prints[i].print_info.crosslinking.cl_duration;
+                sumE += prints[i].print_data.elasticity;
+            }
+            var n = prints.length;
             return [{
                 range: [minI, maxI],
                 label: 'Intensity ' + minI,
-                count: prints.length,
-                avgViability: _mean(prints.map(function (p) { return p.print_data.livePercent; })),
-                avgDuration: _mean(prints.map(function (p) { return p.print_info.crosslinking.cl_duration; })),
-                avgElasticity: _mean(prints.map(function (p) { return p.print_data.elasticity; }))
+                count: n,
+                avgViability: Math.round((sumV / n) * 100) / 100,
+                avgDuration: Math.round((sumD / n) * 100) / 100,
+                avgElasticity: Math.round((sumE / n) * 100) / 100
             }];
         }
 
         var numBins = Math.min(5, Math.ceil(Math.sqrt(prints.length)));
         var binWidth = (maxI - minI) / numBins;
-        var bins = [];
 
+        // Pre-allocate bin accumulators — single pass O(n) instead of
+        // O(n*k) from filter() per bin + 3 map() calls per bin.
+        var binCounts = new Array(numBins);
+        var binSumV = new Array(numBins);
+        var binSumD = new Array(numBins);
+        var binSumE = new Array(numBins);
         for (var b = 0; b < numBins; b++) {
+            binCounts[b] = 0;
+            binSumV[b] = 0;
+            binSumD[b] = 0;
+            binSumE[b] = 0;
+        }
+
+        // Single pass: assign each print to its bin
+        for (var i = 0; i < prints.length; i++) {
+            var p = prints[i];
+            var v = p.print_info.crosslinking.cl_intensity;
+            var idx = Math.floor((v - minI) / binWidth);
+            // Last bin is inclusive of maxI
+            if (idx >= numBins) idx = numBins - 1;
+            binCounts[idx]++;
+            binSumV[idx] += p.print_data.livePercent;
+            binSumD[idx] += p.print_info.crosslinking.cl_duration;
+            binSumE[idx] += p.print_data.elasticity;
+        }
+
+        // Build result bins (only non-empty)
+        var bins = [];
+        for (var b = 0; b < numBins; b++) {
+            if (binCounts[b] === 0) continue;
             var lo = minI + b * binWidth;
-            var hi = (b === numBins - 1) ? maxI + 0.001 : minI + (b + 1) * binWidth;
-            var inBin = prints.filter(function (p) {
-                var v = p.print_info.crosslinking.cl_intensity;
-                return v >= lo && v < hi;
+            var hi = (b === numBins - 1) ? maxI : minI + (b + 1) * binWidth;
+            var n = binCounts[b];
+            bins.push({
+                range: [Math.round(lo * 100) / 100, Math.round(hi * 100) / 100],
+                label: Math.round(lo) + '-' + Math.round(hi),
+                count: n,
+                avgViability: Math.round((binSumV[b] / n) * 100) / 100,
+                avgDuration: Math.round((binSumD[b] / n) * 100) / 100,
+                avgElasticity: Math.round((binSumE[b] / n) * 100) / 100
             });
-            if (inBin.length > 0) {
-                bins.push({
-                    range: [Math.round(lo * 100) / 100, Math.round((hi - (b === numBins - 1 ? 0.001 : 0)) * 100) / 100],
-                    label: Math.round(lo) + '-' + Math.round(hi - (b === numBins - 1 ? 0.001 : 0)),
-                    count: inBin.length,
-                    avgViability: _mean(inBin.map(function (p) { return p.print_data.livePercent; })),
-                    avgDuration: _mean(inBin.map(function (p) { return p.print_info.crosslinking.cl_duration; })),
-                    avgElasticity: _mean(inBin.map(function (p) { return p.print_data.elasticity; }))
-                });
-            }
         }
 
         return bins;
@@ -455,7 +498,7 @@ function createCrosslinkAnalyzer() {
      * Generate actionable recommendations from print data analysis.
      * @private
      */
-    function _generateRecommendations(crosslinked, uncrosslinked, bins) {
+    function _generateRecommendations(crosslinked, uncrosslinked, bins, precomputedAvgViability) {
         var recs = [];
 
         if (uncrosslinked.length > crosslinked.length) {
@@ -467,8 +510,11 @@ function createCrosslinkAnalyzer() {
             return recs;
         }
 
-        // Check for low viability
-        var avgViability = _mean(crosslinked.map(function (p) { return p.print_data.livePercent; }));
+        // Use pre-computed avgViability from analyzePrintData to avoid
+        // redundant .map() + _mean() over the full crosslinked array.
+        var avgViability = (precomputedAvgViability != null)
+            ? precomputedAvgViability
+            : _mean(crosslinked.map(function (p) { return p.print_data.livePercent; }));
         if (avgViability < 30) {
             recs.push('Average viability is low (' + avgViability.toFixed(1) + '%) — consider reducing cross-linking intensity or duration');
         }
