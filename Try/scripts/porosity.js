@@ -8,7 +8,7 @@
  * permeability estimates, and scaffold suitability for different tissue types.
  */
 
-const { mean, stddev, median, percentile } = require('./scriptUtils');
+const { clamp, mean, stddev, median, percentile } = require('./scriptUtils');
 
 // ── Tissue type target parameters (pore size in µm, porosity in %) ──
 
@@ -171,9 +171,9 @@ function calculatePorosity(scaffold) {
   const solidFraction = totalStrandVolume / boundingVolume;
 
   return {
-    porosity: Math.max(0, Math.min(1, porosity)),
-    porosityPercent: Math.max(0, Math.min(100, porosity * 100)),
-    solidFraction: Math.max(0, Math.min(1, solidFraction)),
+    porosity: clamp(porosity, 0, 1),
+    porosityPercent: clamp(porosity * 100, 0, 100),
+    solidFraction: clamp(solidFraction, 0, 1),
     totalVolume: boundingVolume,
     solidVolume: totalStrandVolume,
     poreVolume: boundingVolume - totalStrandVolume

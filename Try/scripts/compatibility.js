@@ -1,6 +1,6 @@
 'use strict';
 
-const { clamp } = require('./scriptUtils');
+const { clamp, mean: _mean } = require('./scriptUtils');
 
 /**
  * Bioink Compatibility Matrix
@@ -520,7 +520,7 @@ function createCompatibilityMatrix(opts = {}) {
 
     const minPair = pairResults.reduce((m, p) =>
       p.composite < m.composite ? p : m, pairResults[0]);
-    const avgComposite = +(pairResults.reduce((s, p) => s + p.composite, 0) / pairResults.length).toFixed(4);
+    const avgComposite = +(_mean(pairResults.map(p => p.composite))).toFixed(4);
 
     // Find common thermal window
     let commonTempMin = -Infinity, commonTempMax = Infinity;

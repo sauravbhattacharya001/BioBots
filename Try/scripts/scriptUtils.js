@@ -89,4 +89,15 @@ function percentile(arr, p) {
   return sorted[lo] + (sorted[hi] - sorted[lo]) * (idx - lo);
 }
 
-module.exports = { clamp, validatePositive, validateNonNegative, mean, stddev, median, percentile };
+/**
+ * Round a number to a fixed number of decimal places.
+ * @param {number} n - Value to round.
+ * @param {number} decimals - Number of decimal places.
+ * @returns {number} Rounded value.
+ */
+function round(n, decimals) {
+  var factor = Math.pow(10, decimals);
+  return Math.round(n * factor) / factor;
+}
+
+module.exports = { clamp, validatePositive, validateNonNegative, mean, stddev, median, percentile, round };
