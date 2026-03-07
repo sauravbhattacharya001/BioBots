@@ -367,17 +367,13 @@ function createSterilizationAnalyzer(userConfig) {
         if (typeof duration !== 'number' || duration < 0) {
             throw new Error('Duration must be a non-negative number');
         }
-        var pName = pathogenName || config.defaultPathogen;
-        var pathogen = pathogens[pName];
-        if (!pathogen) {
-            throw new Error('Unknown pathogen: ' + pName);
-        }
-        var dValue = pathogen[method];
+        var lookup = _lookupPathogen(pathogenName);
+        var dValue = lookup.data[method];
         if (dValue == null) {
             return {
                 method: method,
                 methodName: METHODS[method].name,
-                pathogen: pName,
+                pathogen: lookup.name,
                 duration: duration,
                 dValue: null,
                 logReduction: 0,
@@ -385,27 +381,26 @@ function createSterilizationAnalyzer(userConfig) {
                 initialBioburden: config.defaultBioburden,
                 sal: 1.0,
                 effective: false,
-                reason: METHODS[method].name + ' is not effective against ' + pName
+                reason: METHODS[method].name + ' is not effective against ' + lookup.name
             };
         }
 
-        var logReduction = duration / dValue;
-        var survivors = config.defaultBioburden * Math.pow(10, -logReduction);
-        var sal = survivors;  // SAL = expected survivors per unit
+        var logRed = _logReduction(duration, dValue);
+        var surv = _survivors(config.defaultBioburden, logRed);
 
         return {
             method: method,
             methodName: METHODS[method].name,
-            pathogen: pName,
+            pathogen: lookup.name,
             duration: duration,
             dValue: dValue,
-            logReduction: _round(logReduction, 2),
-            survivors: _round(survivors, 6),
+            logReduction: _round(logRed, 2),
+            survivors: _round(surv, 6),
             initialBioburden: config.defaultBioburden,
-            sal: _round(sal, 10),
-            effective: logReduction >= 6,  // 6-log minimum for sterilization
-            sterile: sal < config.defaultSAL,
-            durationUnit: method === 'gamma' ? 'kGy' : 'minutes'
+            sal: _round(surv, 10),
+            effective: logRed >= 6,  // 6-log minimum for sterilization
+            sterile: surv < config.defaultSAL,
+            durationUnit: _durationUnit(method)
         };
     }
 
@@ -424,15 +419,13 @@ function createSterilizationAnalyzer(userConfig) {
             throw new Error('maxDuration must be a positive number');
         }
         var nSteps = (typeof steps === 'number' && steps >= 2) ? steps : 20;
-        var pName = pathogenName || config.defaultPathogen;
-        var pathogen = pathogens[pName];
-        if (!pathogen) throw new Error('Unknown pathogen: ' + pName);
+        var lookup = _lookupPathogen(pathogenName);
 
-        var dValue = pathogen[method];
+        var dValue = lookup.data[method];
         if (dValue == null) {
             return {
                 method: method,
-                pathogen: pName,
+                pathogen: lookup.name,
                 effective: false,
                 reason: 'Method not effective against this pathogen',
                 points: []
@@ -445,15 +438,15 @@ function createSterilizationAnalyzer(userConfig) {
 
         for (var i = 0; i <= nSteps; i++) {
             var t = (maxDuration / nSteps) * i;
-            var logRed = t / dValue;
-            var survivors = config.defaultBioburden * Math.pow(10, -logRed);
+            var logRed = _logReduction(t, dValue);
+            var surv = _survivors(config.defaultBioburden, logRed);
             points.push({
                 duration: _round(t, 2),
                 logReduction: _round(logRed, 2),
-                survivors: _round(survivors, 6),
-                logSurvivors: _round(Math.log10(Math.max(survivors, 1e-20)), 4)
+                survivors: _round(surv, 6),
+                logSurvivors: _round(Math.log10(Math.max(surv, 1e-20)), 4)
             });
-            if (salReachedAt === null && survivors <= config.defaultSAL) {
+            if (salReachedAt === null && surv <= config.defaultSAL) {
                 salReachedAt = _round(t, 2);
             }
             if (sixLogAt === null && logRed >= 6) {
@@ -464,14 +457,14 @@ function createSterilizationAnalyzer(userConfig) {
         return {
             method: method,
             methodName: METHODS[method].name,
-            pathogen: pName,
+            pathogen: lookup.name,
             dValue: dValue,
             initialBioburden: config.defaultBioburden,
             targetSAL: config.defaultSAL,
             points: points,
             salReachedAt: salReachedAt,
             sixLogReductionAt: sixLogAt,
-            durationUnit: method === 'gamma' ? 'kGy' : 'minutes'
+            durationUnit: _durationUnit(method)
         };
     }
 
@@ -487,11 +480,7 @@ function createSterilizationAnalyzer(userConfig) {
      */
     function assessMaterialCompat(materialName, method, cycles) {
         _validateMethod(method);
-        var mat = materials[materialName];
-        if (!mat) {
-            throw new Error('Unknown material: ' + materialName + '. Available: ' +
-                Object.keys(materials).join(', '));
-        }
+        var mat = _lookupMaterial(materialName);
         var nCycles = (typeof cycles === 'number' && cycles >= 1) ? Math.floor(cycles) : 1;
 
         var baseCompat = mat[method];
@@ -545,10 +534,7 @@ function createSterilizationAnalyzer(userConfig) {
      * @returns {object} Ranked methods by compatibility.
      */
     function bestMethodsForMaterial(materialName) {
-        var mat = materials[materialName];
-        if (!mat) {
-            throw new Error('Unknown material: ' + materialName);
-        }
+        var mat = _lookupMaterial(materialName);
 
         var results = [];
         var methodKeys = Object.keys(METHODS);
@@ -608,9 +594,7 @@ function createSterilizationAnalyzer(userConfig) {
         var targetPathogens = [];
         if (opts.pathogens && opts.pathogens.length > 0) {
             for (var pi = 0; pi < opts.pathogens.length; pi++) {
-                if (!pathogens[opts.pathogens[pi]]) {
-                    throw new Error('Unknown pathogen: ' + opts.pathogens[pi]);
-                }
+                _lookupPathogen(opts.pathogens[pi]);  // validate existence
                 targetPathogens.push(opts.pathogens[pi]);
             }
         } else {
@@ -636,10 +620,7 @@ function createSterilizationAnalyzer(userConfig) {
 
             for (var mati = 0; mati < opts.materials.length; mati++) {
                 var matName = opts.materials[mati];
-                var mat = materials[matName];
-                if (!mat) {
-                    throw new Error('Unknown material: ' + matName);
-                }
+                var mat = _lookupMaterial(matName);
                 var ret = mat[method];
                 if (ret == null || ret < config.materialThreshold) {
                     allCompatible = false;
@@ -670,7 +651,7 @@ function createSterilizationAnalyzer(userConfig) {
             if (!anyEffective) continue;
 
             // Required log reduction: log10(bioburden / SAL)
-            var requiredLogRed = Math.log10(bioburden / targetSAL);
+            var requiredLogRed = _requiredLogReduction(bioburden, targetSAL);
             // Required duration = D-value * required_log_reduction * safety_factor
             var requiredDuration = worstDValue * requiredLogRed * config.safetyFactor;
 
@@ -693,7 +674,7 @@ function createSterilizationAnalyzer(userConfig) {
                 worstCaseDValue: worstDValue,
                 requiredLogReduction: _round(requiredLogRed, 2),
                 requiredDuration: _round(requiredDuration, 1),
-                durationUnit: method === 'gamma' ? 'kGy' : 'minutes',
+                durationUnit: _durationUnit(method),
                 withinLimits: withinLimits,
                 feasible: allCompatible && withinLimits,
                 score: _scoreCandidate(allCompatible, minRetention, requiredDuration,
@@ -878,23 +859,21 @@ function createSterilizationAnalyzer(userConfig) {
         _validateMethod(method);
         var options = opts || {};
         var bioburden = options.bioburden || config.defaultBioburden;
-        var pName = options.pathogen || config.defaultPathogen;
         var targetSAL = options.targetSAL || config.defaultSAL;
         var applyOverkill = options.applyOverkill !== false;
 
-        var pathogen = pathogens[pName];
-        if (!pathogen) throw new Error('Unknown pathogen: ' + pName);
+        var lookup = _lookupPathogen(options.pathogen);
 
-        var dValue = pathogen[method];
+        var dValue = lookup.data[method];
         if (dValue == null) {
             return {
                 method: method,
                 feasible: false,
-                reason: METHODS[method].name + ' is not effective against ' + pName
+                reason: METHODS[method].name + ' is not effective against ' + lookup.name
             };
         }
 
-        var requiredLogRed = Math.log10(bioburden / targetSAL);
+        var requiredLogRed = _requiredLogReduction(bioburden, targetSAL);
         var minDuration = dValue * requiredLogRed;
         var overkillDuration = minDuration * config.safetyFactor;
         var recommendedDuration = applyOverkill ? overkillDuration : minDuration;
@@ -902,7 +881,7 @@ function createSterilizationAnalyzer(userConfig) {
         return {
             method: method,
             methodName: METHODS[method].name,
-            pathogen: pName,
+            pathogen: lookup.name,
             bioburden: bioburden,
             targetSAL: targetSAL,
             dValue: dValue,
@@ -910,7 +889,7 @@ function createSterilizationAnalyzer(userConfig) {
             minimumDuration: _round(minDuration, 2),
             overkillDuration: _round(overkillDuration, 2),
             recommendedDuration: _round(recommendedDuration, 2),
-            durationUnit: method === 'gamma' ? 'kGy' : 'minutes',
+            durationUnit: _durationUnit(method),
             safetyFactor: config.safetyFactor,
             feasible: true
         };
@@ -926,16 +905,14 @@ function createSterilizationAnalyzer(userConfig) {
      * @returns {object} Comparison matrix.
      */
     function compareMethods(pathogenName, materialNames) {
-        var pName = pathogenName || config.defaultPathogen;
-        var pathogen = pathogens[pName];
-        if (!pathogen) throw new Error('Unknown pathogen: ' + pName);
+        var lookup = _lookupPathogen(pathogenName);
 
         var methodKeys = Object.keys(METHODS);
         var comparison = [];
 
         for (var i = 0; i < methodKeys.length; i++) {
             var m = methodKeys[i];
-            var dv = pathogen[m];
+            var dv = lookup.data[m];
             var entry = {
                 method: m,
                 methodName: METHODS[m].name,
@@ -947,9 +924,9 @@ function createSterilizationAnalyzer(userConfig) {
 
             if (dv != null) {
                 // Time to achieve SAL 10^-6 from default bioburden
-                var logRed = Math.log10(config.defaultBioburden / config.defaultSAL);
+                var logRed = _requiredLogReduction(config.defaultBioburden, config.defaultSAL);
                 entry.timeToSAL = _round(dv * logRed * config.safetyFactor, 1);
-                entry.timeUnit = m === 'gamma' ? 'kGy' : 'minutes';
+                entry.timeUnit = _durationUnit(m);
             }
 
             // Material compatibility
@@ -979,9 +956,9 @@ function createSterilizationAnalyzer(userConfig) {
         });
 
         return {
-            pathogen: pName,
-            pathogenType: pathogen.type,
-            description: pathogen.description,
+            pathogen: lookup.name,
+            pathogenType: lookup.data.type,
+            description: lookup.data.description,
             methods: comparison,
             fastest: comparison.length > 0 && comparison[0].effective ? comparison[0] : null
         };
@@ -1126,6 +1103,44 @@ function createSterilizationAnalyzer(userConfig) {
             throw new Error('Unknown method: ' + method + '. Available: ' +
                 Object.keys(METHODS).join(', '));
         }
+    }
+
+    /** Look up a pathogen by name, throwing if unknown. */
+    function _lookupPathogen(name) {
+        var pName = name || config.defaultPathogen;
+        var p = pathogens[pName];
+        if (!p) throw new Error('Unknown pathogen: ' + pName);
+        return { name: pName, data: p };
+    }
+
+    /** Look up a material by name, throwing if unknown. */
+    function _lookupMaterial(name) {
+        var m = materials[name];
+        if (!m) {
+            throw new Error('Unknown material: ' + name + '. Available: ' +
+                Object.keys(materials).join(', '));
+        }
+        return m;
+    }
+
+    /** Required log reduction to reach target SAL from bioburden. */
+    function _requiredLogReduction(bioburden, targetSAL) {
+        return Math.log10(bioburden / targetSAL);
+    }
+
+    /** Compute log reduction from exposure and D-value. */
+    function _logReduction(duration, dValue) {
+        return duration / dValue;
+    }
+
+    /** Compute survivors from bioburden and log reduction. */
+    function _survivors(bioburden, logReduction) {
+        return bioburden * Math.pow(10, -logReduction);
+    }
+
+    /** Return the duration unit string for a method. */
+    function _durationUnit(method) {
+        return method === 'gamma' ? 'kGy' : 'minutes';
     }
 
     function _classifyCompat(retention) {
