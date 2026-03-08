@@ -1,0 +1,861 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>BioBots 1 - Sample Tracking Registry</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧪</text></svg>">
+    <script src="shared/constants.js"></script>
+    <style>
+        :root {
+            --bg: #0f172a;
+            --surface: #1e293b;
+            --border: #334155;
+            --text: #e2e8f0;
+            --muted: #94a3b8;
+            --accent: #38bdf8;
+            --accent-hover: #7dd3fc;
+            --success: #4ade80;
+            --error: #f87171;
+            --warning: #fbbf24;
+            --purple: #a78bfa;
+            --pink: #f472b6;
+            --orange: #fb923c;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            padding: 2rem 1rem;
+        }
+        .container { max-width: 1400px; margin: 0 auto; }
+        h1 { font-size: 1.8rem; margin-bottom: 0.5rem; }
+        .subtitle { color: var(--muted); margin-bottom: 2rem; font-size: 0.95rem; }
+        nav { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 2rem; padding-bottom: 1rem; border-bottom: 1px solid var(--border); }
+        nav a { color: var(--muted); padding: 0.5rem 1rem; border-radius: 8px; text-decoration: none; font-size: 0.9rem; transition: all 0.2s; cursor: pointer; }
+        nav a:hover { color: var(--accent); background: var(--surface); }
+        nav a.active { color: var(--accent); background: var(--surface); border: 1px solid var(--border); }
+
+        .dashboard { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 1rem; margin-bottom: 2rem; }
+        .stat-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 1.25rem;
+        }
+        .stat-card .label { color: var(--muted); font-size: 0.8rem; margin-bottom: 0.3rem; }
+        .stat-card .value { font-size: 1.8rem; font-weight: 700; }
+        .stat-card .detail { color: var(--muted); font-size: 0.75rem; margin-top: 0.3rem; }
+
+        .tabs { display: flex; gap: 0.5rem; margin-bottom: 1.5rem; flex-wrap: wrap; }
+        .tab-btn {
+            padding: 0.5rem 1.2rem; border-radius: 8px; border: 1px solid var(--border);
+            background: var(--surface); color: var(--muted); cursor: pointer; font-size: 0.9rem; transition: all 0.2s;
+        }
+        .tab-btn:hover { color: var(--accent); border-color: var(--accent); }
+        .tab-btn.active { color: var(--accent); border-color: var(--accent); background: rgba(56,189,248,0.1); }
+        .tab-panel { display: none; }
+        .tab-panel.active { display: block; }
+
+        .toolbar {
+            display: flex; gap: 0.75rem; margin-bottom: 1.5rem; flex-wrap: wrap; align-items: center;
+        }
+        .toolbar input, .toolbar select {
+            padding: 0.5rem 0.75rem; border-radius: 8px; border: 1px solid var(--border);
+            background: var(--surface); color: var(--text); font-size: 0.85rem;
+        }
+        .toolbar input:focus, .toolbar select:focus { outline: none; border-color: var(--accent); }
+        .toolbar input { min-width: 200px; }
+
+        .btn {
+            padding: 0.5rem 1rem; border-radius: 8px; border: none; cursor: pointer;
+            font-size: 0.85rem; font-weight: 600; transition: all 0.2s;
+        }
+        .btn-primary { background: var(--accent); color: #0f172a; }
+        .btn-primary:hover { background: var(--accent-hover); }
+        .btn-success { background: var(--success); color: #0f172a; }
+        .btn-danger { background: var(--error); color: #0f172a; }
+        .btn-outline { background: transparent; border: 1px solid var(--border); color: var(--muted); }
+        .btn-outline:hover { border-color: var(--accent); color: var(--accent); }
+        .btn-sm { padding: 0.3rem 0.6rem; font-size: 0.8rem; }
+
+        table { width: 100%; border-collapse: collapse; }
+        th, td { padding: 0.75rem 1rem; text-align: left; border-bottom: 1px solid var(--border); font-size: 0.85rem; }
+        th { color: var(--muted); font-weight: 600; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.5px; }
+        tr:hover { background: rgba(56,189,248,0.05); }
+
+        .badge {
+            display: inline-block; padding: 0.2rem 0.6rem; border-radius: 12px;
+            font-size: 0.75rem; font-weight: 600;
+        }
+        .badge-prepared { background: rgba(148,163,184,0.2); color: var(--muted); }
+        .badge-loaded { background: rgba(251,191,36,0.2); color: var(--warning); }
+        .badge-printing { background: rgba(56,189,248,0.2); color: var(--accent); }
+        .badge-postprocess { background: rgba(167,139,250,0.2); color: var(--purple); }
+        .badge-maturation { background: rgba(244,114,182,0.2); color: var(--pink); }
+        .badge-analysis { background: rgba(249,115,22,0.2); color: var(--orange); }
+        .badge-archived { background: rgba(74,222,128,0.2); color: var(--success); }
+        .badge-discarded { background: rgba(248,113,113,0.2); color: var(--error); }
+
+        .type-bioink { color: var(--accent); }
+        .type-tissue { color: var(--pink); }
+        .type-construct { color: var(--purple); }
+        .type-scaffold { color: var(--warning); }
+
+        .modal-overlay {
+            display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6);
+            z-index: 100; align-items: center; justify-content: center;
+        }
+        .modal-overlay.open { display: flex; }
+        .modal {
+            background: var(--surface); border: 1px solid var(--border); border-radius: 16px;
+            padding: 2rem; max-width: 600px; width: 90%; max-height: 80vh; overflow-y: auto;
+        }
+        .modal h2 { margin-bottom: 1.5rem; font-size: 1.3rem; }
+        .form-group { margin-bottom: 1rem; }
+        .form-group label { display: block; color: var(--muted); font-size: 0.8rem; margin-bottom: 0.3rem; }
+        .form-group input, .form-group select, .form-group textarea {
+            width: 100%; padding: 0.5rem 0.75rem; border-radius: 8px; border: 1px solid var(--border);
+            background: var(--bg); color: var(--text); font-size: 0.85rem;
+        }
+        .form-group textarea { min-height: 80px; resize: vertical; font-family: inherit; }
+        .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+        .form-actions { display: flex; gap: 0.75rem; justify-content: flex-end; margin-top: 1.5rem; }
+
+        .timeline { position: relative; padding-left: 2rem; }
+        .timeline::before {
+            content: ''; position: absolute; left: 0.5rem; top: 0; bottom: 0;
+            width: 2px; background: var(--border);
+        }
+        .timeline-item { position: relative; margin-bottom: 1.5rem; }
+        .timeline-item::before {
+            content: ''; position: absolute; left: -1.65rem; top: 0.3rem;
+            width: 10px; height: 10px; border-radius: 50%; background: var(--accent); border: 2px solid var(--surface);
+        }
+        .timeline-item .time { color: var(--muted); font-size: 0.75rem; }
+        .timeline-item .event { font-size: 0.85rem; margin-top: 0.2rem; }
+        .timeline-item .event-note { color: var(--muted); font-size: 0.8rem; margin-top: 0.2rem; }
+
+        .detail-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 1.5rem; }
+        .detail-field .field-label { color: var(--muted); font-size: 0.75rem; margin-bottom: 0.2rem; }
+        .detail-field .field-value { font-size: 0.95rem; }
+
+        .chain-bar { display: flex; gap: 0.25rem; align-items: center; flex-wrap: wrap; }
+        .chain-step {
+            padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.7rem;
+            background: var(--surface); border: 1px solid var(--border); color: var(--muted);
+        }
+        .chain-step.current { border-color: var(--accent); color: var(--accent); background: rgba(56,189,248,0.1); }
+        .chain-step.done { border-color: var(--success); color: var(--success); }
+        .chain-arrow { color: var(--border); font-size: 0.7rem; }
+
+        .empty-state { text-align: center; padding: 3rem; color: var(--muted); }
+        .empty-state .icon { font-size: 3rem; margin-bottom: 1rem; }
+
+        @media (max-width: 768px) {
+            .form-row { grid-template-columns: 1fr; }
+            .toolbar { flex-direction: column; }
+            .toolbar input { min-width: 100%; }
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <nav>
+        <a href="index.html">🧬 Home</a>
+        <a href="calculator.html">Calculator</a>
+        <a href="materials.html">Materials</a>
+        <a href="environment.html">Environment</a>
+        <a href="shelf-life.html">Shelf Life</a>
+        <a href="queue.html">Queue</a>
+        <a href="samples.html" class="active">Samples</a>
+    </nav>
+
+    <h1>🧪 Sample Tracking Registry</h1>
+    <p class="subtitle">Track bioink batches, tissue samples, and printed constructs through their lifecycle</p>
+
+    <!-- Dashboard Stats -->
+    <div class="dashboard" id="stats-bar"></div>
+
+    <!-- Tabs -->
+    <div class="tabs">
+        <button class="tab-btn active" data-tab="registry">📋 Registry</button>
+        <button class="tab-btn" data-tab="detail">🔍 Detail</button>
+        <button class="tab-btn" data-tab="lifecycle">📊 Lifecycle</button>
+        <button class="tab-btn" data-tab="export">📤 Export</button>
+    </div>
+
+    <!-- Registry Tab -->
+    <div class="tab-panel active" id="tab-registry">
+        <div class="toolbar">
+            <input type="text" id="search-input" placeholder="Search samples (ID, name, notes)..." />
+            <select id="filter-type">
+                <option value="">All Types</option>
+                <option value="bioink">Bioink Batch</option>
+                <option value="tissue">Tissue Sample</option>
+                <option value="construct">Printed Construct</option>
+                <option value="scaffold">Scaffold</option>
+            </select>
+            <select id="filter-stage">
+                <option value="">All Stages</option>
+                <option value="prepared">Prepared</option>
+                <option value="loaded">Loaded</option>
+                <option value="printing">Printing</option>
+                <option value="postprocess">Post-processing</option>
+                <option value="maturation">Maturation</option>
+                <option value="analysis">Analysis</option>
+                <option value="archived">Archived</option>
+                <option value="discarded">Discarded</option>
+            </select>
+            <button class="btn btn-primary" onclick="openNewSampleModal()">+ New Sample</button>
+            <button class="btn btn-outline" onclick="loadDemoData()">Load Demo</button>
+        </div>
+        <div id="registry-table-container"></div>
+    </div>
+
+    <!-- Detail Tab -->
+    <div class="tab-panel" id="tab-detail">
+        <div id="detail-content">
+            <div class="empty-state">
+                <div class="icon">🔍</div>
+                <p>Select a sample from the Registry to view details</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Lifecycle Tab -->
+    <div class="tab-panel" id="tab-lifecycle">
+        <div id="lifecycle-content"></div>
+    </div>
+
+    <!-- Export Tab -->
+    <div class="tab-panel" id="tab-export">
+        <h2 style="margin-bottom:1rem">Export & Import</h2>
+        <div style="display:flex;gap:1rem;flex-wrap:wrap;margin-bottom:2rem">
+            <button class="btn btn-primary" onclick="exportJSON()">Export JSON</button>
+            <button class="btn btn-outline" onclick="exportCSV()">Export CSV</button>
+            <button class="btn btn-outline" onclick="exportLabels()">Print Labels</button>
+        </div>
+        <div class="form-group">
+            <label>Import JSON</label>
+            <input type="file" id="import-file" accept=".json" style="padding:0.75rem" />
+        </div>
+        <button class="btn btn-success" onclick="importData()" style="margin-top:0.5rem">Import</button>
+        <div style="margin-top:2rem">
+            <button class="btn btn-danger" onclick="clearAllData()">Clear All Data</button>
+        </div>
+    </div>
+</div>
+
+<!-- New Sample Modal -->
+<div class="modal-overlay" id="modal-new-sample">
+    <div class="modal">
+        <h2 id="modal-title">Register New Sample</h2>
+        <input type="hidden" id="edit-sample-id" />
+        <div class="form-row">
+            <div class="form-group">
+                <label>Sample Type *</label>
+                <select id="new-type">
+                    <option value="bioink">Bioink Batch</option>
+                    <option value="tissue">Tissue Sample</option>
+                    <option value="construct">Printed Construct</option>
+                    <option value="scaffold">Scaffold</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Name *</label>
+                <input type="text" id="new-name" placeholder="e.g. GelMA-5%-Batch-12" />
+            </div>
+        </div>
+        <div class="form-row">
+            <div class="form-group">
+                <label>Source / Origin</label>
+                <input type="text" id="new-source" placeholder="e.g. Lab A, Vendor XYZ" />
+            </div>
+            <div class="form-group">
+                <label>Material</label>
+                <input type="text" id="new-material" placeholder="e.g. GelMA 5%, Alginate 2%" />
+            </div>
+        </div>
+        <div class="form-row">
+            <div class="form-group">
+                <label>Volume / Quantity</label>
+                <input type="text" id="new-volume" placeholder="e.g. 10 mL, 5 g" />
+            </div>
+            <div class="form-group">
+                <label>Storage Conditions</label>
+                <input type="text" id="new-storage" placeholder="e.g. 4°C refrigerated" />
+            </div>
+        </div>
+        <div class="form-row">
+            <div class="form-group">
+                <label>Operator</label>
+                <input type="text" id="new-operator" placeholder="Name of person handling" />
+            </div>
+            <div class="form-group">
+                <label>Parent Sample ID</label>
+                <input type="text" id="new-parent" placeholder="Link to parent sample" />
+            </div>
+        </div>
+        <div class="form-group">
+            <label>Tags (comma-separated)</label>
+            <input type="text" id="new-tags" placeholder="e.g. urgent, experiment-42, collab" />
+        </div>
+        <div class="form-group">
+            <label>Notes</label>
+            <textarea id="new-notes" placeholder="Additional observations or context..."></textarea>
+        </div>
+        <div class="form-actions">
+            <button class="btn btn-outline" onclick="closeModal('modal-new-sample')">Cancel</button>
+            <button class="btn btn-primary" onclick="saveSample()">Save</button>
+        </div>
+    </div>
+</div>
+
+<!-- Log Event Modal -->
+<div class="modal-overlay" id="modal-log-event">
+    <div class="modal">
+        <h2>Log Event</h2>
+        <input type="hidden" id="event-sample-id" />
+        <div class="form-row">
+            <div class="form-group">
+                <label>Event Type *</label>
+                <select id="event-type">
+                    <option value="observation">Observation</option>
+                    <option value="measurement">Measurement</option>
+                    <option value="stage-change">Stage Change</option>
+                    <option value="transfer">Transfer / Handoff</option>
+                    <option value="contamination">Contamination Alert</option>
+                    <option value="photo">Photo / Image</option>
+                    <option value="note">General Note</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Operator</label>
+                <input type="text" id="event-operator" placeholder="Who logged this" />
+            </div>
+        </div>
+        <div class="form-group" id="stage-change-group" style="display:none">
+            <label>New Stage</label>
+            <select id="event-new-stage">
+                <option value="prepared">Prepared</option>
+                <option value="loaded">Loaded</option>
+                <option value="printing">Printing</option>
+                <option value="postprocess">Post-processing</option>
+                <option value="maturation">Maturation</option>
+                <option value="analysis">Analysis</option>
+                <option value="archived">Archived</option>
+                <option value="discarded">Discarded</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label>Description *</label>
+            <textarea id="event-description" placeholder="What happened..."></textarea>
+        </div>
+        <div class="form-actions">
+            <button class="btn btn-outline" onclick="closeModal('modal-log-event')">Cancel</button>
+            <button class="btn btn-primary" onclick="saveEvent()">Log Event</button>
+        </div>
+    </div>
+</div>
+
+<script>
+/* ── State ────────────────────────────────────────────── */
+const STORAGE_KEY = 'biobots-sample-registry';
+const STAGES = ['prepared','loaded','printing','postprocess','maturation','analysis','archived','discarded'];
+const STAGE_LABELS = { prepared:'Prepared', loaded:'Loaded', printing:'Printing', postprocess:'Post-processing', maturation:'Maturation', analysis:'Analysis', archived:'Archived', discarded:'Discarded' };
+const TYPE_LABELS = { bioink:'Bioink Batch', tissue:'Tissue Sample', construct:'Printed Construct', scaffold:'Scaffold' };
+const TYPE_ICONS = { bioink:'🧴', tissue:'🫀', construct:'🏗️', scaffold:'🦴' };
+
+let state = loadState();
+
+function loadState() {
+    try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (raw) return JSON.parse(raw);
+    } catch(e) { /* ignore */ }
+    return { samples: [], nextId: 1 };
+}
+function saveState() { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }
+
+function generateId(type) {
+    const prefix = { bioink:'BIO', tissue:'TIS', construct:'CON', scaffold:'SCA' }[type] || 'SAM';
+    const num = String(state.nextId++).padStart(4,'0');
+    return `${prefix}-${num}`;
+}
+
+/* ── Tabs ─────────────────────────────────────────────── */
+document.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+        btn.classList.add('active');
+        document.getElementById('tab-' + btn.dataset.tab).classList.add('active');
+        if (btn.dataset.tab === 'lifecycle') renderLifecycle();
+    });
+});
+
+/* ── Event type toggle ────────────────────────────────── */
+document.getElementById('event-type').addEventListener('change', (e) => {
+    document.getElementById('stage-change-group').style.display = e.target.value === 'stage-change' ? 'block' : 'none';
+});
+
+/* ── Search & Filter ──────────────────────────────────── */
+document.getElementById('search-input').addEventListener('input', renderRegistry);
+document.getElementById('filter-type').addEventListener('change', renderRegistry);
+document.getElementById('filter-stage').addEventListener('change', renderRegistry);
+
+/* ── Modal helpers ────────────────────────────────────── */
+function openModal(id) { document.getElementById(id).classList.add('open'); }
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+
+function openNewSampleModal() {
+    document.getElementById('modal-title').textContent = 'Register New Sample';
+    document.getElementById('edit-sample-id').value = '';
+    document.getElementById('new-type').value = 'bioink';
+    document.getElementById('new-name').value = '';
+    document.getElementById('new-source').value = '';
+    document.getElementById('new-material').value = '';
+    document.getElementById('new-volume').value = '';
+    document.getElementById('new-storage').value = '';
+    document.getElementById('new-operator').value = '';
+    document.getElementById('new-parent').value = '';
+    document.getElementById('new-tags').value = '';
+    document.getElementById('new-notes').value = '';
+    openModal('modal-new-sample');
+}
+
+function openEditSampleModal(id) {
+    const s = state.samples.find(x => x.id === id);
+    if (!s) return;
+    document.getElementById('modal-title').textContent = 'Edit Sample';
+    document.getElementById('edit-sample-id').value = s.id;
+    document.getElementById('new-type').value = s.type;
+    document.getElementById('new-name').value = s.name;
+    document.getElementById('new-source').value = s.source || '';
+    document.getElementById('new-material').value = s.material || '';
+    document.getElementById('new-volume').value = s.volume || '';
+    document.getElementById('new-storage').value = s.storage || '';
+    document.getElementById('new-operator').value = s.operator || '';
+    document.getElementById('new-parent').value = s.parentId || '';
+    document.getElementById('new-tags').value = (s.tags||[]).join(', ');
+    document.getElementById('new-notes').value = s.notes || '';
+    openModal('modal-new-sample');
+}
+
+function openLogEventModal(id) {
+    document.getElementById('event-sample-id').value = id;
+    document.getElementById('event-type').value = 'observation';
+    document.getElementById('event-operator').value = '';
+    document.getElementById('event-description').value = '';
+    document.getElementById('stage-change-group').style.display = 'none';
+    openModal('modal-log-event');
+}
+
+/* ── CRUD ─────────────────────────────────────────────── */
+function saveSample() {
+    const name = document.getElementById('new-name').value.trim();
+    if (!name) return alert('Name is required');
+    const type = document.getElementById('new-type').value;
+    const editId = document.getElementById('edit-sample-id').value;
+
+    const data = {
+        type,
+        name,
+        source: document.getElementById('new-source').value.trim(),
+        material: document.getElementById('new-material').value.trim(),
+        volume: document.getElementById('new-volume').value.trim(),
+        storage: document.getElementById('new-storage').value.trim(),
+        operator: document.getElementById('new-operator').value.trim(),
+        parentId: document.getElementById('new-parent').value.trim(),
+        tags: document.getElementById('new-tags').value.split(',').map(t=>t.trim()).filter(Boolean),
+        notes: document.getElementById('new-notes').value.trim(),
+    };
+
+    if (editId) {
+        const s = state.samples.find(x => x.id === editId);
+        if (s) Object.assign(s, data, { updatedAt: new Date().toISOString() });
+    } else {
+        state.samples.unshift({
+            id: generateId(type),
+            ...data,
+            stage: 'prepared',
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+            events: [{ type:'stage-change', stage:'prepared', description:'Sample registered', operator: data.operator, timestamp: new Date().toISOString() }],
+        });
+    }
+
+    saveState();
+    closeModal('modal-new-sample');
+    renderAll();
+}
+
+function saveEvent() {
+    const id = document.getElementById('event-sample-id').value;
+    const desc = document.getElementById('event-description').value.trim();
+    if (!desc) return alert('Description is required');
+    const s = state.samples.find(x => x.id === id);
+    if (!s) return;
+
+    const evtType = document.getElementById('event-type').value;
+    const evt = {
+        type: evtType,
+        description: desc,
+        operator: document.getElementById('event-operator').value.trim(),
+        timestamp: new Date().toISOString(),
+    };
+
+    if (evtType === 'stage-change') {
+        const newStage = document.getElementById('event-new-stage').value;
+        evt.stage = newStage;
+        evt.previousStage = s.stage;
+        s.stage = newStage;
+    }
+
+    s.events.push(evt);
+    s.updatedAt = new Date().toISOString();
+    saveState();
+    closeModal('modal-log-event');
+    renderAll();
+    showDetail(id);
+}
+
+function deleteSample(id) {
+    if (!confirm('Delete this sample? This cannot be undone.')) return;
+    state.samples = state.samples.filter(x => x.id !== id);
+    saveState();
+    renderAll();
+}
+
+/* ── Render Dashboard ─────────────────────────────────── */
+function renderStats() {
+    const total = state.samples.length;
+    const active = state.samples.filter(s => !['archived','discarded'].includes(s.stage)).length;
+    const types = {};
+    state.samples.forEach(s => { types[s.type] = (types[s.type]||0) + 1; });
+    const recentEvents = state.samples.reduce((sum,s) => {
+        const cutoff = Date.now() - 24*60*60*1000;
+        return sum + (s.events||[]).filter(e => new Date(e.timestamp).getTime() > cutoff).length;
+    }, 0);
+
+    document.getElementById('stats-bar').innerHTML = `
+        <div class="stat-card"><div class="label">Total Samples</div><div class="value">${total}</div><div class="detail">in registry</div></div>
+        <div class="stat-card"><div class="label">Active</div><div class="value" style="color:var(--success)">${active}</div><div class="detail">in pipeline</div></div>
+        <div class="stat-card"><div class="label">Bioink</div><div class="value" style="color:var(--accent)">${types.bioink||0}</div><div class="detail">batches</div></div>
+        <div class="stat-card"><div class="label">Tissue</div><div class="value" style="color:var(--pink)">${types.tissue||0}</div><div class="detail">samples</div></div>
+        <div class="stat-card"><div class="label">Constructs</div><div class="value" style="color:var(--purple)">${types.construct||0}</div><div class="detail">printed</div></div>
+        <div class="stat-card"><div class="label">Events (24h)</div><div class="value" style="color:var(--warning)">${recentEvents}</div><div class="detail">logged</div></div>
+    `;
+}
+
+/* ── Render Registry ──────────────────────────────────── */
+function renderRegistry() {
+    const query = document.getElementById('search-input').value.toLowerCase();
+    const typeFilter = document.getElementById('filter-type').value;
+    const stageFilter = document.getElementById('filter-stage').value;
+
+    let filtered = state.samples.filter(s => {
+        if (typeFilter && s.type !== typeFilter) return false;
+        if (stageFilter && s.stage !== stageFilter) return false;
+        if (query) {
+            const haystack = `${s.id} ${s.name} ${s.material||''} ${s.source||''} ${(s.tags||[]).join(' ')} ${s.notes||''}`.toLowerCase();
+            if (!haystack.includes(query)) return false;
+        }
+        return true;
+    });
+
+    if (!filtered.length) {
+        document.getElementById('registry-table-container').innerHTML = `
+            <div class="empty-state"><div class="icon">📭</div><p>No samples found. Register your first sample or load demo data.</p></div>`;
+        return;
+    }
+
+    const rows = filtered.map(s => `
+        <tr>
+            <td><strong style="cursor:pointer;color:var(--accent)" onclick="showDetail('${s.id}')">${s.id}</strong></td>
+            <td><span class="type-${s.type}">${TYPE_ICONS[s.type]} ${s.name}</span></td>
+            <td>${TYPE_LABELS[s.type]||s.type}</td>
+            <td><span class="badge badge-${s.stage}">${STAGE_LABELS[s.stage]||s.stage}</span></td>
+            <td>${s.material||'—'}</td>
+            <td>${(s.tags||[]).map(t=>'<span style="background:var(--border);padding:0.1rem 0.4rem;border-radius:4px;font-size:0.75rem;margin-right:0.25rem">'+t+'</span>').join('')||'—'}</td>
+            <td style="color:var(--muted);font-size:0.8rem">${timeAgo(s.updatedAt)}</td>
+            <td>
+                <button class="btn btn-outline btn-sm" onclick="openLogEventModal('${s.id}')" title="Log event">📝</button>
+                <button class="btn btn-outline btn-sm" onclick="openEditSampleModal('${s.id}')" title="Edit">✏️</button>
+                <button class="btn btn-outline btn-sm" onclick="deleteSample('${s.id}')" title="Delete" style="color:var(--error)">🗑️</button>
+            </td>
+        </tr>
+    `).join('');
+
+    document.getElementById('registry-table-container').innerHTML = `
+        <table>
+            <thead><tr><th>ID</th><th>Name</th><th>Type</th><th>Stage</th><th>Material</th><th>Tags</th><th>Updated</th><th>Actions</th></tr></thead>
+            <tbody>${rows}</tbody>
+        </table>`;
+}
+
+/* ── Detail View ──────────────────────────────────────── */
+function showDetail(id) {
+    const s = state.samples.find(x => x.id === id);
+    if (!s) return;
+    // Switch to detail tab
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+    document.querySelector('[data-tab="detail"]').classList.add('active');
+    document.getElementById('tab-detail').classList.add('active');
+
+    const stageIdx = STAGES.indexOf(s.stage);
+    const chain = STAGES.filter(st=>st!=='discarded').map((st,i) => {
+        let cls = 'chain-step';
+        if (s.stage === 'discarded' && st === 'discarded') cls += ' current';
+        else if (i < stageIdx) cls += ' done';
+        else if (i === stageIdx) cls += ' current';
+        return `<span class="${cls}">${STAGE_LABELS[st]}</span>`;
+    }).join('<span class="chain-arrow">→</span>');
+
+    const events = [...(s.events||[])].reverse();
+    const timeline = events.map(e => `
+        <div class="timeline-item">
+            <div class="time">${new Date(e.timestamp).toLocaleString()} ${e.operator ? '• '+e.operator : ''}</div>
+            <div class="event">
+                ${e.type === 'stage-change' ? '<span class="badge badge-'+e.stage+'">'+STAGE_LABELS[e.stage]+'</span> ' : ''}
+                ${e.type === 'contamination' ? '⚠️ ' : ''}
+                ${e.description}
+            </div>
+        </div>
+    `).join('');
+
+    const parent = s.parentId ? state.samples.find(x=>x.id===s.parentId) : null;
+    const children = state.samples.filter(x => x.parentId === s.id);
+
+    document.getElementById('detail-content').innerHTML = `
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.5rem;flex-wrap:wrap;gap:1rem">
+            <div>
+                <h2>${TYPE_ICONS[s.type]} ${s.name} <span style="color:var(--muted);font-size:1rem">${s.id}</span></h2>
+                <div style="margin-top:0.5rem">${chain}</div>
+            </div>
+            <div style="display:flex;gap:0.5rem">
+                <button class="btn btn-primary btn-sm" onclick="openLogEventModal('${s.id}')">📝 Log Event</button>
+                <button class="btn btn-outline btn-sm" onclick="openEditSampleModal('${s.id}')">✏️ Edit</button>
+                <button class="btn btn-outline btn-sm" onclick="renderRegistry();document.querySelector('[data-tab=registry]').click()">← Back</button>
+            </div>
+        </div>
+        <div class="detail-grid">
+            <div class="detail-field"><div class="field-label">Type</div><div class="field-value type-${s.type}">${TYPE_LABELS[s.type]}</div></div>
+            <div class="detail-field"><div class="field-label">Material</div><div class="field-value">${s.material||'—'}</div></div>
+            <div class="detail-field"><div class="field-label">Volume / Qty</div><div class="field-value">${s.volume||'—'}</div></div>
+            <div class="detail-field"><div class="field-label">Storage</div><div class="field-value">${s.storage||'—'}</div></div>
+            <div class="detail-field"><div class="field-label">Source</div><div class="field-value">${s.source||'—'}</div></div>
+            <div class="detail-field"><div class="field-label">Operator</div><div class="field-value">${s.operator||'—'}</div></div>
+            <div class="detail-field"><div class="field-label">Created</div><div class="field-value">${new Date(s.createdAt).toLocaleString()}</div></div>
+            <div class="detail-field"><div class="field-label">Parent</div><div class="field-value">${parent ? '<a style="color:var(--accent);cursor:pointer" onclick="showDetail(\''+parent.id+'\')">'+parent.id+' — '+parent.name+'</a>' : '—'}</div></div>
+        </div>
+        ${s.tags && s.tags.length ? '<div style="margin-bottom:1rem">'+(s.tags.map(t=>'<span style="background:var(--border);padding:0.2rem 0.5rem;border-radius:6px;font-size:0.8rem;margin-right:0.3rem">'+t+'</span>')).join('')+'</div>' : ''}
+        ${s.notes ? '<div style="background:var(--surface);padding:1rem;border-radius:8px;border:1px solid var(--border);margin-bottom:1.5rem;font-size:0.85rem;color:var(--muted)">'+s.notes+'</div>' : ''}
+        ${children.length ? '<div style="margin-bottom:1.5rem"><h3 style="font-size:0.9rem;margin-bottom:0.5rem;color:var(--muted)">Child Samples</h3>'+children.map(c=>'<span style="color:var(--accent);cursor:pointer;margin-right:1rem" onclick="showDetail(\''+c.id+'\')">'+TYPE_ICONS[c.type]+' '+c.id+' — '+c.name+'</span>').join('')+'</div>' : ''}
+        <h3 style="font-size:1rem;margin-bottom:1rem">Event Timeline (${events.length})</h3>
+        <div class="timeline">${timeline || '<div class="empty-state">No events logged</div>'}</div>
+    `;
+}
+
+/* ── Lifecycle View ───────────────────────────────────── */
+function renderLifecycle() {
+    const stageCounts = {};
+    STAGES.forEach(st => stageCounts[st] = 0);
+    state.samples.forEach(s => { stageCounts[s.stage] = (stageCounts[s.stage]||0) + 1; });
+
+    const maxCount = Math.max(1, ...Object.values(stageCounts));
+
+    const bars = STAGES.map(st => {
+        const pct = (stageCounts[st] / maxCount * 100).toFixed(0);
+        const colors = { prepared:'var(--muted)', loaded:'var(--warning)', printing:'var(--accent)', postprocess:'var(--purple)', maturation:'var(--pink)', analysis:'var(--orange)', archived:'var(--success)', discarded:'var(--error)' };
+        return `<div style="display:flex;align-items:center;gap:1rem;margin-bottom:0.75rem">
+            <div style="width:120px;text-align:right;font-size:0.85rem;color:var(--muted)">${STAGE_LABELS[st]}</div>
+            <div style="flex:1;background:var(--surface);border-radius:6px;height:28px;overflow:hidden;border:1px solid var(--border)">
+                <div style="width:${pct}%;height:100%;background:${colors[st]};border-radius:6px;min-width:${stageCounts[st]?'20px':'0'};display:flex;align-items:center;justify-content:flex-end;padding-right:0.5rem;font-size:0.75rem;font-weight:600;color:#0f172a">${stageCounts[st]||''}</div>
+            </div>
+        </div>`;
+    }).join('');
+
+    // Average time in each stage
+    const avgTimes = {};
+    state.samples.forEach(s => {
+        (s.events||[]).forEach((e,i) => {
+            if (e.type === 'stage-change' && e.previousStage) {
+                const prevEvt = [...(s.events||[])].reverse().find(pe => pe.type === 'stage-change' && pe.stage === e.previousStage);
+                if (prevEvt) {
+                    const dur = new Date(e.timestamp) - new Date(prevEvt.timestamp);
+                    if (!avgTimes[e.previousStage]) avgTimes[e.previousStage] = [];
+                    avgTimes[e.previousStage].push(dur);
+                }
+            }
+        });
+    });
+
+    const avgRows = Object.entries(avgTimes).map(([stage, durations]) => {
+        const avg = durations.reduce((a,b)=>a+b,0) / durations.length;
+        return `<tr><td><span class="badge badge-${stage}">${STAGE_LABELS[stage]}</span></td><td>${formatDuration(avg)}</td><td>${durations.length} transitions</td></tr>`;
+    }).join('');
+
+    document.getElementById('lifecycle-content').innerHTML = `
+        <h2 style="margin-bottom:1.5rem">Pipeline Distribution</h2>
+        <div style="max-width:600px;margin-bottom:2rem">${bars}</div>
+        ${avgRows ? `<h2 style="margin-bottom:1rem">Average Stage Duration</h2>
+        <table style="max-width:500px"><thead><tr><th>Stage</th><th>Avg Duration</th><th>Data Points</th></tr></thead><tbody>${avgRows}</tbody></table>` : ''}
+    `;
+}
+
+/* ── Export / Import ──────────────────────────────────── */
+function exportJSON() {
+    const blob = new Blob([JSON.stringify(state, null, 2)], { type:'application/json' });
+    downloadBlob(blob, 'biobots-samples-' + dateStr() + '.json');
+}
+
+function exportCSV() {
+    const headers = ['ID','Name','Type','Stage','Material','Source','Volume','Storage','Operator','Tags','Created','Updated','Events'];
+    const rows = state.samples.map(s => [
+        s.id, s.name, s.type, s.stage, s.material||'', s.source||'', s.volume||'', s.storage||'', s.operator||'',
+        (s.tags||[]).join(';'), s.createdAt, s.updatedAt, (s.events||[]).length
+    ].map(v => '"'+String(v).replace(/"/g,'""')+'"'));
+    const csv = [headers.join(','), ...rows.map(r=>r.join(','))].join('\n');
+    downloadBlob(new Blob([csv], { type:'text/csv' }), 'biobots-samples-' + dateStr() + '.csv');
+}
+
+function exportLabels() {
+    const labels = state.samples.map(s => `
+        <div style="border:2px solid #333;padding:0.75rem;margin:0.5rem;display:inline-block;width:250px;font-family:monospace;font-size:12px;page-break-inside:avoid">
+            <div style="font-size:16px;font-weight:bold">${s.id}</div>
+            <div>${s.name}</div>
+            <div style="color:#666">${TYPE_LABELS[s.type]} • ${STAGE_LABELS[s.stage]}</div>
+            <div style="color:#666">${s.material||''}</div>
+            <div style="font-size:10px;color:#999">${new Date(s.createdAt).toLocaleDateString()}</div>
+        </div>
+    `).join('');
+    const win = window.open('','_blank');
+    win.document.write(`<html><head><title>Sample Labels</title><style>@media print{body{margin:0}}</style></head><body>${labels}</body></html>`);
+    win.document.close();
+}
+
+function importData() {
+    const file = document.getElementById('import-file').files[0];
+    if (!file) return alert('Select a JSON file first');
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        try {
+            const imported = JSON.parse(e.target.result);
+            if (imported.samples && Array.isArray(imported.samples)) {
+                const count = imported.samples.length;
+                imported.samples.forEach(s => {
+                    if (!state.samples.find(x=>x.id===s.id)) state.samples.push(s);
+                });
+                state.nextId = Math.max(state.nextId, imported.nextId || 0);
+                saveState();
+                renderAll();
+                alert(`Imported ${count} samples (duplicates skipped)`);
+            } else {
+                alert('Invalid file format');
+            }
+        } catch(err) { alert('Failed to parse: ' + err.message); }
+    };
+    reader.readAsText(file);
+}
+
+function clearAllData() {
+    if (!confirm('Delete ALL samples? This cannot be undone.')) return;
+    state = { samples: [], nextId: 1 };
+    saveState();
+    renderAll();
+}
+
+/* ── Demo Data ────────────────────────────────────────── */
+function loadDemoData() {
+    if (state.samples.length && !confirm('This will add demo samples. Continue?')) return;
+    const now = Date.now();
+    const h = 3600000;
+    const demo = [
+        { id:'BIO-0001', type:'bioink', name:'GelMA 5% Batch 12', material:'GelMA 5% w/v', source:'Lab A Synthesis', volume:'25 mL', storage:'4°C dark', operator:'Dr. Chen', parentId:'', tags:['gelma','validated'], notes:'Photo-crosslinkable, LAP initiator 0.05%', stage:'loaded',
+          events:[
+            { type:'stage-change', stage:'prepared', description:'Batch synthesized and filtered', operator:'Dr. Chen', timestamp: new Date(now-48*h).toISOString() },
+            { type:'measurement', description:'Viscosity: 0.45 Pa·s at 25°C, pH 7.2', operator:'Dr. Chen', timestamp: new Date(now-47*h).toISOString() },
+            { type:'stage-change', stage:'loaded', previousStage:'prepared', description:'Loaded into cartridge #3', operator:'Tech Kim', timestamp: new Date(now-24*h).toISOString() },
+          ]},
+        { id:'BIO-0002', type:'bioink', name:'Alginate-CaCl₂ 2%', material:'Sodium alginate 2% w/v', source:'Sigma-Aldrich lot #A2033', volume:'50 mL', storage:'Room temp', operator:'Dr. Patel', parentId:'', tags:['alginate','stock'], notes:'Crosslinker: 100mM CaCl₂', stage:'prepared',
+          events:[
+            { type:'stage-change', stage:'prepared', description:'Stock solution prepared', operator:'Dr. Patel', timestamp: new Date(now-72*h).toISOString() },
+          ]},
+        { id:'TIS-0001', type:'tissue', name:'hMSC Passage 4', material:'Human mesenchymal stem cells', source:'ATCC PCS-500-012', volume:'2×10⁶ cells', storage:'37°C 5% CO₂', operator:'Dr. Chen', parentId:'', tags:['hmsc','p4','expansion'], notes:'Doubling time ~36h, viability >95%', stage:'maturation',
+          events:[
+            { type:'stage-change', stage:'prepared', description:'Thawed from cryostock', operator:'Dr. Chen', timestamp: new Date(now-120*h).toISOString() },
+            { type:'stage-change', stage:'maturation', previousStage:'prepared', description:'Seeded in T-75 flask for expansion', operator:'Dr. Chen', timestamp: new Date(now-96*h).toISOString() },
+            { type:'observation', description:'Confluency ~60%, healthy morphology', operator:'Tech Kim', timestamp: new Date(now-48*h).toISOString() },
+            { type:'measurement', description:'Cell count: 1.8×10⁶, viability 97%', operator:'Dr. Chen', timestamp: new Date(now-12*h).toISOString() },
+          ]},
+        { id:'CON-0001', type:'construct', name:'Cartilage Disc v3', material:'GelMA 5% + hMSC', source:'Print Run #47', volume:'Ø8mm × 2mm', storage:'37°C incubator', operator:'Dr. Patel', parentId:'BIO-0001', tags:['cartilage','study-7'], notes:'3-layer construct, 200µm nozzle', stage:'postprocess',
+          events:[
+            { type:'stage-change', stage:'prepared', description:'Print file loaded, parameters set', operator:'Dr. Patel', timestamp: new Date(now-20*h).toISOString() },
+            { type:'stage-change', stage:'printing', previousStage:'prepared', description:'Printing started, pressure 25 kPa, speed 10 mm/s', operator:'Dr. Patel', timestamp: new Date(now-19*h).toISOString() },
+            { type:'observation', description:'Layer adhesion good, no clogging', operator:'Dr. Patel', timestamp: new Date(now-18.5*h).toISOString() },
+            { type:'stage-change', stage:'postprocess', previousStage:'printing', description:'UV crosslink 30s, transferred to media', operator:'Dr. Patel', timestamp: new Date(now-18*h).toISOString() },
+          ]},
+        { id:'SCA-0001', type:'scaffold', name:'PCL Mesh Template', material:'Polycaprolactone', source:'3D Systems FDM', volume:'20×20×5 mm', storage:'Room temp, sealed', operator:'Tech Kim', parentId:'', tags:['pcl','template'], notes:'400µm pore size, 0/90° lay pattern', stage:'archived',
+          events:[
+            { type:'stage-change', stage:'prepared', description:'FDM printed at 65°C', operator:'Tech Kim', timestamp: new Date(now-168*h).toISOString() },
+            { type:'stage-change', stage:'analysis', previousStage:'prepared', description:'SEM imaging and mechanical testing', operator:'Dr. Chen', timestamp: new Date(now-144*h).toISOString() },
+            { type:'measurement', description:'Compressive modulus: 12.3 MPa, porosity 62%', operator:'Dr. Chen', timestamp: new Date(now-140*h).toISOString() },
+            { type:'stage-change', stage:'archived', previousStage:'analysis', description:'Template validated, stored for future use', operator:'Tech Kim', timestamp: new Date(now-120*h).toISOString() },
+          ]},
+    ];
+    demo.forEach(s => {
+        s.createdAt = s.events[0].timestamp;
+        s.updatedAt = s.events[s.events.length-1].timestamp;
+        if (!state.samples.find(x=>x.id===s.id)) state.samples.push(s);
+    });
+    state.nextId = Math.max(state.nextId, 6);
+    saveState();
+    renderAll();
+}
+
+/* ── Helpers ──────────────────────────────────────────── */
+function timeAgo(iso) {
+    const diff = Date.now() - new Date(iso).getTime();
+    const mins = Math.floor(diff/60000);
+    if (mins < 1) return 'just now';
+    if (mins < 60) return mins + 'm ago';
+    const hrs = Math.floor(mins/60);
+    if (hrs < 24) return hrs + 'h ago';
+    const days = Math.floor(hrs/24);
+    return days + 'd ago';
+}
+
+function formatDuration(ms) {
+    const mins = Math.floor(ms/60000);
+    if (mins < 60) return mins + ' min';
+    const hrs = Math.floor(mins/60);
+    if (hrs < 24) return hrs + 'h ' + (mins%60) + 'm';
+    const days = Math.floor(hrs/24);
+    return days + 'd ' + (hrs%24) + 'h';
+}
+
+function dateStr() { return new Date().toISOString().slice(0,10); }
+
+function downloadBlob(blob, name) {
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = name;
+    a.click();
+    URL.revokeObjectURL(a.href);
+}
+
+function renderAll() {
+    renderStats();
+    renderRegistry();
+}
+
+/* ── Init ─────────────────────────────────────────────── */
+renderAll();
+</script>
+</body>
+</html>
