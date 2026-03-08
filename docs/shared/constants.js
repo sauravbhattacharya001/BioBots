@@ -1,9 +1,27 @@
 /**
  * BioBots Shared Constants
  *
- * Centralized metric definitions, labels, and colors used across
- * all dashboard pages. Single source of truth — add new metrics here.
+ * Centralized metric definitions, labels, colors, and HTML safety
+ * utilities used across all dashboard pages. Single source of truth.
  */
+
+/**
+ * Escape a string for safe insertion into HTML via innerHTML.
+ * Prevents XSS when rendering user-supplied data (names, notes,
+ * materials, labels from bioprint-data.json).
+ *
+ * @param {*} str - Value to escape (coerced to string).
+ * @returns {string} HTML-safe string with &, <, >, ", ' escaped.
+ */
+function escapeHtml(str) {
+    if (str == null) return '';
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
 
 /** All queryable metric keys. */
 const METRICS = [
