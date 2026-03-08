@@ -641,7 +641,14 @@ function createCrosslinkAnalyzer() {
 
     function _std(arr) {
         if (arr.length < 2) return 0;
-        var m = _mean(arr);
+        // Use exact mean (not rounded _mean()) to avoid inflated variance.
+        // _mean() rounds to 2 decimal places for display, which introduces
+        // systematic error into deviation calculations — e.g. for values
+        // near 1.00x, the rounded mean shifts by ~0.002, inflating std by
+        // up to 2-3x and causing false "high variation" warnings.
+        var sum = 0;
+        for (var i = 0; i < arr.length; i++) sum += arr[i];
+        var m = sum / arr.length;
         var sumSq = 0;
         for (var i = 0; i < arr.length; i++) {
             var d = arr[i] - m;
