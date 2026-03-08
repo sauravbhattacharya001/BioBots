@@ -1,0 +1,751 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>BioBots 1 — Rheology Dashboard</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧬</text></svg>">
+    <style>
+        :root {
+            --bg: #0f172a; --surface: #1e293b; --border: #334155;
+            --text: #e2e8f0; --muted: #94a3b8;
+            --accent: #38bdf8; --accent-hover: #7dd3fc;
+            --success: #4ade80; --error: #f87171; --warning: #fbbf24;
+            --purple: #a78bfa;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg); color: var(--text);
+            min-height: 100vh; padding: 2rem 1rem;
+        }
+        nav { display: flex; gap: 0.5rem; margin-bottom: 2rem; flex-wrap: wrap; justify-content: center; }
+        nav a { color: var(--muted); padding: 0.5rem 1rem; border-radius: 8px; text-decoration: none; font-size: 0.9rem; transition: all 0.2s; }
+        nav a:hover { color: var(--accent); background: var(--surface); }
+        nav a.active { color: var(--accent); background: var(--surface); border: 1px solid var(--border); }
+        header { text-align: center; margin-bottom: 2rem; }
+        header h1 {
+            font-size: 2rem; font-weight: 700;
+            background: linear-gradient(135deg, var(--accent), var(--purple));
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+        }
+        header p { color: var(--muted); margin-top: 0.5rem; }
+        .container { max-width: 1200px; margin: 0 auto; }
+        .card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 1.5rem; margin-bottom: 1.5rem; }
+        .card h2 { font-size: 1.2rem; margin-bottom: 1rem; display: flex; align-items: center; gap: 0.5rem; }
+        .card h3 { font-size: 1rem; margin-bottom: 0.75rem; color: var(--accent); }
+
+        /* Tabs */
+        .tabs { display: flex; gap: 0.5rem; margin-bottom: 1.5rem; flex-wrap: wrap; }
+        .tab { background: transparent; border: 1px solid var(--border); color: var(--muted); padding: 0.5rem 1rem; border-radius: 8px; cursor: pointer; font-size: 0.9rem; transition: all 0.2s; }
+        .tab:hover { color: var(--text); border-color: var(--accent); }
+        .tab.active { background: var(--accent); color: var(--bg); border-color: var(--accent); font-weight: 600; }
+        .tab-panel { display: none; }
+        .tab-panel.active { display: block; }
+
+        /* Form */
+        .form-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 1rem; }
+        label { display: block; font-size: 0.85rem; color: var(--muted); margin-bottom: 0.25rem; }
+        input, select { width: 100%; background: var(--bg); border: 1px solid var(--border); color: var(--text); padding: 0.5rem; border-radius: 6px; font-size: 0.9rem; }
+        input:focus, select:focus { outline: none; border-color: var(--accent); }
+        .unit { font-size: 0.75rem; color: var(--muted); }
+
+        /* Buttons */
+        .btn { background: var(--accent); color: var(--bg); border: none; padding: 0.6rem 1.2rem; border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 0.9rem; transition: all 0.2s; }
+        .btn:hover { background: var(--accent-hover); }
+        .btn-secondary { background: transparent; color: var(--accent); border: 1px solid var(--accent); }
+        .btn-secondary:hover { background: rgba(56, 189, 248, 0.1); }
+        .btn-row { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+
+        /* Presets */
+        .preset-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 0.75rem; margin-bottom: 1.5rem; }
+        .preset-card { background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 1rem; cursor: pointer; transition: all 0.2s; }
+        .preset-card:hover { border-color: var(--accent); transform: translateY(-2px); }
+        .preset-card.selected { border-color: var(--accent); background: rgba(56, 189, 248, 0.05); }
+        .preset-name { font-weight: 600; margin-bottom: 0.25rem; }
+        .preset-desc { font-size: 0.8rem; color: var(--muted); margin-bottom: 0.5rem; }
+        .preset-params { font-size: 0.75rem; color: var(--accent); font-family: 'Consolas', monospace; }
+
+        /* Chart canvas */
+        .chart-container { width: 100%; max-width: 800px; margin: 0 auto; position: relative; }
+        .chart-canvas { width: 100%; height: 350px; background: var(--bg); border: 1px solid var(--border); border-radius: 8px; }
+
+        /* Results */
+        .results-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 1rem; margin-top: 1rem; }
+        .result-box { background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 1rem; text-align: center; }
+        .result-value { font-size: 1.5rem; font-weight: 700; color: var(--accent); }
+        .result-label { font-size: 0.8rem; color: var(--muted); margin-top: 0.25rem; }
+        .result-value.good { color: var(--success); }
+        .result-value.warn { color: var(--warning); }
+        .result-value.bad { color: var(--error); }
+
+        /* Printability score */
+        .score-bar { width: 100%; height: 24px; background: var(--bg); border-radius: 12px; overflow: hidden; border: 1px solid var(--border); margin: 0.75rem 0; }
+        .score-fill { height: 100%; border-radius: 12px; transition: width 0.5s ease; display: flex; align-items: center; justify-content: center; font-size: 0.75rem; font-weight: 700; color: var(--bg); }
+
+        /* Data table */
+        .data-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; margin-top: 1rem; }
+        .data-table th, .data-table td { padding: 0.5rem; text-align: left; border-bottom: 1px solid var(--border); }
+        .data-table th { color: var(--accent); font-weight: 600; }
+        .data-table td { color: var(--text); font-family: 'Consolas', monospace; }
+
+        /* Custom data input */
+        .data-input-area { width: 100%; min-height: 120px; background: var(--bg); border: 1px solid var(--border); color: var(--text); padding: 0.75rem; border-radius: 8px; font-family: 'Consolas', monospace; font-size: 0.85rem; resize: vertical; }
+        .data-input-area:focus { outline: none; border-color: var(--accent); }
+
+        /* Legend */
+        .legend { display: flex; gap: 1.5rem; flex-wrap: wrap; margin-top: 0.5rem; font-size: 0.8rem; color: var(--muted); }
+        .legend-item { display: flex; align-items: center; gap: 0.35rem; }
+        .legend-dot { width: 12px; height: 12px; border-radius: 3px; }
+
+        /* Footer */
+        .footer { text-align: center; color: var(--muted); font-size: 0.8rem; margin-top: 3rem; padding-top: 1.5rem; border-top: 1px solid var(--border); }
+        @media (max-width: 600px) {
+            .form-grid { grid-template-columns: 1fr; }
+            .preset-grid { grid-template-columns: 1fr; }
+            .results-grid { grid-template-columns: repeat(2, 1fr); }
+        }
+    </style>
+</head>
+<body>
+    <nav id="topNav"></nav>
+
+    <div class="container">
+        <header>
+            <h1>🧪 Bioink Rheology Dashboard</h1>
+            <p>Model flow behavior, analyze printability, and optimize print parameters</p>
+        </header>
+
+        <!-- Tabs -->
+        <div class="tabs" role="tablist">
+            <button class="tab active" role="tab" data-tab="viscosity">📈 Viscosity Curves</button>
+            <button class="tab" role="tab" data-tab="temperature">🌡️ Temperature</button>
+            <button class="tab" role="tab" data-tab="printability">🖨️ Printability</button>
+            <button class="tab" role="tab" data-tab="fitting">📊 Data Fitting</button>
+        </div>
+
+        <!-- Tab 1: Viscosity Curves -->
+        <div class="tab-panel active" id="panel-viscosity">
+            <div class="card">
+                <h2>🧬 Select Bioink</h2>
+                <div class="preset-grid" id="presetGrid"></div>
+                <h3>Or enter custom parameters</h3>
+                <div class="form-grid">
+                    <div>
+                        <label>Consistency Index K <span class="unit">(Pa·s<sup>n</sup>)</span></label>
+                        <input type="number" id="paramK" value="2.5" min="0.01" step="0.1">
+                    </div>
+                    <div>
+                        <label>Flow Behavior Index n</label>
+                        <input type="number" id="paramN" value="0.62" min="0.01" max="2" step="0.01">
+                    </div>
+                    <div>
+                        <label>Yield Stress τ<sub>y</sub> <span class="unit">(Pa)</span></label>
+                        <input type="number" id="paramYield" value="15" min="0" step="1">
+                    </div>
+                    <div>
+                        <label>Model</label>
+                        <select id="modelSelect">
+                            <option value="powerlaw">Power Law (Ostwald-de Waele)</option>
+                            <option value="herschel">Herschel-Bulkley</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="btn-row">
+                    <button class="btn" id="btnPlotViscosity">Plot Viscosity Curve</button>
+                    <button class="btn btn-secondary" id="btnClearCurves">Clear All</button>
+                </div>
+            </div>
+            <div class="card">
+                <h2>📈 Viscosity vs Shear Rate</h2>
+                <div class="chart-container">
+                    <canvas id="viscosityChart" class="chart-canvas"></canvas>
+                </div>
+                <div class="legend" id="viscosityLegend"></div>
+                <div class="results-grid" id="viscosityResults"></div>
+            </div>
+        </div>
+
+        <!-- Tab 2: Temperature -->
+        <div class="tab-panel" id="panel-temperature">
+            <div class="card">
+                <h2>🌡️ Temperature-Viscosity (Arrhenius)</h2>
+                <div class="form-grid">
+                    <div>
+                        <label>Reference Viscosity η<sub>ref</sub> <span class="unit">(Pa·s)</span></label>
+                        <input type="number" id="tempRefVisc" value="10" min="0.01" step="0.5">
+                    </div>
+                    <div>
+                        <label>Reference Temperature <span class="unit">(°C)</span></label>
+                        <input type="number" id="tempRefTemp" value="25" step="1">
+                    </div>
+                    <div>
+                        <label>Activation Energy E<sub>a</sub> <span class="unit">(kJ/mol)</span></label>
+                        <input type="number" id="tempEa" value="30" min="1" step="1">
+                    </div>
+                    <div>
+                        <label>Temperature Range <span class="unit">(°C)</span></label>
+                        <div style="display:flex;gap:0.5rem;">
+                            <input type="number" id="tempMin" value="15" style="width:50%">
+                            <input type="number" id="tempMax" value="45" style="width:50%">
+                        </div>
+                    </div>
+                </div>
+                <button class="btn" id="btnPlotTemp">Plot Temperature Curve</button>
+            </div>
+            <div class="card">
+                <h2>📉 Viscosity vs Temperature</h2>
+                <div class="chart-container">
+                    <canvas id="tempChart" class="chart-canvas"></canvas>
+                </div>
+                <div class="results-grid" id="tempResults"></div>
+            </div>
+        </div>
+
+        <!-- Tab 3: Printability -->
+        <div class="tab-panel" id="panel-printability">
+            <div class="card">
+                <h2>🖨️ Printability Analysis</h2>
+                <div class="form-grid">
+                    <div>
+                        <label>Consistency Index K <span class="unit">(Pa·s<sup>n</sup>)</span></label>
+                        <input type="number" id="printK" value="2.5" min="0.01" step="0.1">
+                    </div>
+                    <div>
+                        <label>Flow Behavior Index n</label>
+                        <input type="number" id="printN" value="0.62" min="0.01" max="2" step="0.01">
+                    </div>
+                    <div>
+                        <label>Nozzle Diameter <span class="unit">(μm)</span></label>
+                        <input type="number" id="printNozzle" value="400" min="50" max="2000" step="10">
+                    </div>
+                    <div>
+                        <label>Print Speed <span class="unit">(mm/s)</span></label>
+                        <input type="number" id="printSpeed" value="10" min="0.1" max="100" step="0.5">
+                    </div>
+                    <div>
+                        <label>Layer Height <span class="unit">(μm)</span></label>
+                        <input type="number" id="printLayer" value="200" min="50" max="1000" step="10">
+                    </div>
+                    <div>
+                        <label>Yield Stress τ<sub>y</sub> <span class="unit">(Pa)</span></label>
+                        <input type="number" id="printYield" value="15" min="0" step="1">
+                    </div>
+                </div>
+                <button class="btn" id="btnAnalyze">Analyze Printability</button>
+            </div>
+            <div class="card" id="printabilityResults" style="display:none;">
+                <h2>📊 Results</h2>
+                <div id="printScore"></div>
+                <div class="results-grid" id="printMetrics"></div>
+                <div id="printFactors" style="margin-top:1rem;"></div>
+            </div>
+        </div>
+
+        <!-- Tab 4: Data Fitting -->
+        <div class="tab-panel" id="panel-fitting">
+            <div class="card">
+                <h2>📊 Fit Power Law from Data</h2>
+                <p style="color:var(--muted); margin-bottom:1rem;">
+                    Enter shear rate and viscosity pairs (one per line, comma/tab separated).
+                    The tool will fit K and n parameters using log-log regression.
+                </p>
+                <textarea class="data-input-area" id="fittingData" placeholder="shear_rate, viscosity
+0.1, 85.2
+1.0, 28.4
+10, 9.5
+100, 3.2
+1000, 1.1"></textarea>
+                <div style="margin-top:0.75rem;">
+                    <div class="btn-row">
+                        <button class="btn" id="btnFit">Fit Power Law</button>
+                        <button class="btn btn-secondary" id="btnLoadSample">Load Sample Data</button>
+                    </div>
+                </div>
+            </div>
+            <div class="card" id="fittingResults" style="display:none;">
+                <h2>📈 Fit Results</h2>
+                <div class="results-grid" id="fitMetrics"></div>
+                <div class="chart-container" style="margin-top:1rem;">
+                    <canvas id="fitChart" class="chart-canvas"></canvas>
+                </div>
+                <div class="legend" id="fitLegend"></div>
+                <table class="data-table" id="fitTable"></table>
+            </div>
+        </div>
+
+        <div class="footer">
+            <p>BioBots 1 — Bioink Rheology Dashboard • Rheological models from published literature</p>
+        </div>
+    </div>
+
+    <script src="shared/rheology.js"></script>
+    <script src="shared/constants.js"></script>
+    <script>
+    'use strict';
+
+    /* ── Globals ────────────────────────────────────────────── */
+    var rheo = createRheologyModeler();
+    var curveData = []; // stored curves for overlay
+    var COLORS = ['#38bdf8', '#a78bfa', '#4ade80', '#fbbf24', '#f87171', '#fb923c'];
+
+    /* ── Nav ─────────────────────────────────────────────────── */
+    (function () {
+        var pages = [
+            ['index.html', 'Home'], ['api.html', 'API'], ['materials.html', 'Materials'],
+            ['cost.html', 'Cost'], ['nozzle.html', 'Nozzle'], ['environment.html', 'Env'],
+            ['shelf-life.html', 'Shelf Life'], ['quality.html', 'QC'], ['rheology.html', 'Rheology']
+        ];
+        var nav = document.getElementById('topNav');
+        pages.forEach(function (p) {
+            var a = document.createElement('a');
+            a.href = p[0]; a.textContent = p[1];
+            if (p[0] === 'rheology.html') a.className = 'active';
+            nav.appendChild(a);
+        });
+    })();
+
+    /* ── Tabs ────────────────────────────────────────────────── */
+    (function () {
+        var tabs = document.querySelectorAll('.tab');
+        tabs.forEach(function (tab) {
+            tab.addEventListener('click', function () {
+                tabs.forEach(function (t) { t.classList.remove('active'); });
+                document.querySelectorAll('.tab-panel').forEach(function (p) { p.classList.remove('active'); });
+                tab.classList.add('active');
+                document.getElementById('panel-' + tab.getAttribute('data-tab')).classList.add('active');
+            });
+        });
+    })();
+
+    /* ── Presets ─────────────────────────────────────────────── */
+    (function () {
+        var presets = rheo.getBioinkPresets();
+        var grid = document.getElementById('presetGrid');
+        presets.forEach(function (p) {
+            var card = document.createElement('div');
+            card.className = 'preset-card';
+            card.innerHTML =
+                '<div class="preset-name">' + escapeHtml(p.name) + '</div>' +
+                '<div class="preset-desc">' + escapeHtml(p.description) + '</div>' +
+                '<div class="preset-params">K=' + p.K + ' n=' + p.n + ' τ<sub>y</sub>=' + p.yieldStress + ' Pa</div>';
+            card.addEventListener('click', function () {
+                document.getElementById('paramK').value = p.K;
+                document.getElementById('paramN').value = p.n;
+                document.getElementById('paramYield').value = p.yieldStress;
+                document.getElementById('printK').value = p.K;
+                document.getElementById('printN').value = p.n;
+                document.getElementById('printYield').value = p.yieldStress;
+                // Highlight selected
+                document.querySelectorAll('.preset-card').forEach(function (c) { c.classList.remove('selected'); });
+                card.classList.add('selected');
+            });
+            grid.appendChild(card);
+        });
+    })();
+
+    /* ── Canvas Chart Drawing ────────────────────────────────── */
+    function drawLogLogChart(canvasId, datasets, xlabel, ylabel) {
+        var canvas = document.getElementById(canvasId);
+        var ctx = canvas.getContext('2d');
+        var dpr = window.devicePixelRatio || 1;
+        var rect = canvas.getBoundingClientRect();
+        canvas.width = rect.width * dpr;
+        canvas.height = rect.height * dpr;
+        ctx.scale(dpr, dpr);
+        var W = rect.width, H = rect.height;
+        var pad = { top: 20, right: 30, bottom: 45, left: 65 };
+        var plotW = W - pad.left - pad.right;
+        var plotH = H - pad.top - pad.bottom;
+
+        ctx.clearRect(0, 0, W, H);
+
+        // Find data range (all datasets)
+        var allX = [], allY = [];
+        datasets.forEach(function (ds) {
+            ds.points.forEach(function (p) {
+                if (p.x > 0 && p.y > 0) { allX.push(p.x); allY.push(p.y); }
+            });
+        });
+        if (allX.length === 0) return;
+
+        var logXmin = Math.floor(Math.log10(Math.min.apply(null, allX)));
+        var logXmax = Math.ceil(Math.log10(Math.max.apply(null, allX)));
+        var logYmin = Math.floor(Math.log10(Math.min.apply(null, allY)));
+        var logYmax = Math.ceil(Math.log10(Math.max.apply(null, allY)));
+        if (logXmin === logXmax) logXmax++;
+        if (logYmin === logYmax) logYmax++;
+
+        function mapX(v) { return pad.left + (Math.log10(v) - logXmin) / (logXmax - logXmin) * plotW; }
+        function mapY(v) { return pad.top + (1 - (Math.log10(v) - logYmin) / (logYmax - logYmin)) * plotH; }
+
+        // Grid
+        ctx.strokeStyle = '#334155'; ctx.lineWidth = 0.5;
+        for (var i = logXmin; i <= logXmax; i++) {
+            var x = mapX(Math.pow(10, i));
+            ctx.beginPath(); ctx.moveTo(x, pad.top); ctx.lineTo(x, pad.top + plotH); ctx.stroke();
+        }
+        for (var j = logYmin; j <= logYmax; j++) {
+            var y = mapY(Math.pow(10, j));
+            ctx.beginPath(); ctx.moveTo(pad.left, y); ctx.lineTo(pad.left + plotW, y); ctx.stroke();
+        }
+
+        // Axes
+        ctx.strokeStyle = '#64748b'; ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.moveTo(pad.left, pad.top); ctx.lineTo(pad.left, pad.top + plotH); ctx.lineTo(pad.left + plotW, pad.top + plotH); ctx.stroke();
+
+        // Labels
+        ctx.fillStyle = '#94a3b8'; ctx.font = '12px -apple-system, sans-serif'; ctx.textAlign = 'center';
+        for (var i = logXmin; i <= logXmax; i++) {
+            ctx.fillText('10^' + i, mapX(Math.pow(10, i)), pad.top + plotH + 18);
+        }
+        ctx.textAlign = 'right';
+        for (var j = logYmin; j <= logYmax; j++) {
+            ctx.fillText('10^' + j, pad.left - 8, mapY(Math.pow(10, j)) + 4);
+        }
+
+        // Axis titles
+        ctx.fillStyle = '#e2e8f0'; ctx.font = '13px -apple-system, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText(xlabel, pad.left + plotW / 2, H - 5);
+        ctx.save(); ctx.translate(14, pad.top + plotH / 2); ctx.rotate(-Math.PI / 2);
+        ctx.fillText(ylabel, 0, 0); ctx.restore();
+
+        // Plot datasets
+        datasets.forEach(function (ds, idx) {
+            ctx.strokeStyle = ds.color || COLORS[idx % COLORS.length];
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            var started = false;
+            ds.points.forEach(function (p) {
+                if (p.x <= 0 || p.y <= 0) return;
+                var px = mapX(p.x), py = mapY(p.y);
+                if (!started) { ctx.moveTo(px, py); started = true; }
+                else ctx.lineTo(px, py);
+            });
+            ctx.stroke();
+
+            // Draw data points if scatter
+            if (ds.scatter) {
+                ctx.fillStyle = ds.color || COLORS[idx % COLORS.length];
+                ds.points.forEach(function (p) {
+                    if (p.x <= 0 || p.y <= 0) return;
+                    ctx.beginPath();
+                    ctx.arc(mapX(p.x), mapY(p.y), 4, 0, Math.PI * 2);
+                    ctx.fill();
+                });
+            }
+        });
+    }
+
+    function drawLinearChart(canvasId, datasets, xlabel, ylabel) {
+        var canvas = document.getElementById(canvasId);
+        var ctx = canvas.getContext('2d');
+        var dpr = window.devicePixelRatio || 1;
+        var rect = canvas.getBoundingClientRect();
+        canvas.width = rect.width * dpr;
+        canvas.height = rect.height * dpr;
+        ctx.scale(dpr, dpr);
+        var W = rect.width, H = rect.height;
+        var pad = { top: 20, right: 30, bottom: 45, left: 65 };
+        var plotW = W - pad.left - pad.right;
+        var plotH = H - pad.top - pad.bottom;
+
+        ctx.clearRect(0, 0, W, H);
+
+        var allX = [], allY = [];
+        datasets.forEach(function (ds) {
+            ds.points.forEach(function (p) { allX.push(p.x); allY.push(p.y); });
+        });
+        if (allX.length === 0) return;
+
+        var xMin = Math.min.apply(null, allX), xMax = Math.max.apply(null, allX);
+        var yMin = Math.min.apply(null, allY), yMax = Math.max.apply(null, allY);
+        var xPad = (xMax - xMin) * 0.05 || 1;
+        var yPad = (yMax - yMin) * 0.1 || 1;
+        xMin -= xPad; xMax += xPad; yMin -= yPad; yMax += yPad;
+
+        function mapX(v) { return pad.left + (v - xMin) / (xMax - xMin) * plotW; }
+        function mapY(v) { return pad.top + (1 - (v - yMin) / (yMax - yMin)) * plotH; }
+
+        // Grid
+        ctx.strokeStyle = '#334155'; ctx.lineWidth = 0.5;
+        var xStep = (xMax - xMin) / 5;
+        for (var i = 0; i <= 5; i++) {
+            var xv = xMin + xStep * i;
+            var x = mapX(xv);
+            ctx.beginPath(); ctx.moveTo(x, pad.top); ctx.lineTo(x, pad.top + plotH); ctx.stroke();
+            ctx.fillStyle = '#94a3b8'; ctx.font = '12px sans-serif'; ctx.textAlign = 'center';
+            ctx.fillText(xv.toFixed(1), x, pad.top + plotH + 18);
+        }
+        var yStep = (yMax - yMin) / 5;
+        for (var j = 0; j <= 5; j++) {
+            var yv = yMin + yStep * j;
+            var y = mapY(yv);
+            ctx.beginPath(); ctx.moveTo(pad.left, y); ctx.lineTo(pad.left + plotW, y); ctx.stroke();
+            ctx.fillStyle = '#94a3b8'; ctx.textAlign = 'right';
+            ctx.fillText(yv.toFixed(1), pad.left - 8, y + 4);
+        }
+
+        // Axes
+        ctx.strokeStyle = '#64748b'; ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.moveTo(pad.left, pad.top); ctx.lineTo(pad.left, pad.top + plotH); ctx.lineTo(pad.left + plotW, pad.top + plotH); ctx.stroke();
+
+        // Axis titles
+        ctx.fillStyle = '#e2e8f0'; ctx.font = '13px sans-serif'; ctx.textAlign = 'center';
+        ctx.fillText(xlabel, pad.left + plotW / 2, H - 5);
+        ctx.save(); ctx.translate(14, pad.top + plotH / 2); ctx.rotate(-Math.PI / 2);
+        ctx.fillText(ylabel, 0, 0); ctx.restore();
+
+        // Plot
+        datasets.forEach(function (ds, idx) {
+            ctx.strokeStyle = ds.color || COLORS[idx % COLORS.length];
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            var started = false;
+            ds.points.forEach(function (p) {
+                var px = mapX(p.x), py = mapY(p.y);
+                if (!started) { ctx.moveTo(px, py); started = true; }
+                else ctx.lineTo(px, py);
+            });
+            ctx.stroke();
+        });
+    }
+
+    /* ── Legend helper ───────────────────────────────────────── */
+    function updateLegend(containerId, datasets) {
+        var el = document.getElementById(containerId);
+        el.innerHTML = '';
+        datasets.forEach(function (ds) {
+            var item = document.createElement('span');
+            item.className = 'legend-item';
+            item.innerHTML = '<span class="legend-dot" style="background:' + ds.color + '"></span>' + escapeHtml(ds.label);
+            el.appendChild(item);
+        });
+    }
+
+    /* ── Tab 1: Viscosity Curves ─────────────────────────────── */
+    document.getElementById('btnPlotViscosity').addEventListener('click', function () {
+        var K = parseFloat(document.getElementById('paramK').value);
+        var n = parseFloat(document.getElementById('paramN').value);
+        var yieldStress = parseFloat(document.getElementById('paramYield').value);
+        var model = document.getElementById('modelSelect').value;
+
+        if (isNaN(K) || K <= 0 || isNaN(n) || n <= 0) {
+            alert('Please enter valid K (>0) and n (>0) values.');
+            return;
+        }
+
+        var curve;
+        var label;
+        if (model === 'herschel' && yieldStress > 0) {
+            // Generate Herschel-Bulkley viscosity curve
+            var points = [];
+            for (var rate = 0.1; rate <= 1000; rate *= 1.2) {
+                try {
+                    var visc = rheo.herschelBulkleyViscosity(yieldStress, K, n, rate);
+                    points.push({ x: rate, y: visc });
+                } catch (e) { /* skip */ }
+            }
+            curve = points;
+            label = 'H-B (K=' + K + ', n=' + n + ', τy=' + yieldStress + ')';
+        } else {
+            var rawCurve = rheo.powerLawCurve(K, n);
+            curve = rawCurve.map(function (p) { return { x: p.shearRate, y: p.viscosity }; });
+            label = 'PL (K=' + K + ', n=' + n + ')';
+        }
+
+        var color = COLORS[curveData.length % COLORS.length];
+        curveData.push({ points: curve, color: color, label: label });
+
+        drawLogLogChart('viscosityChart', curveData, 'Shear Rate (1/s)', 'Viscosity (Pa·s)');
+        updateLegend('viscosityLegend', curveData);
+
+        // Results
+        var results = document.getElementById('viscosityResults');
+        var flowType = n < 0.5 ? 'Strongly Shear-Thinning' : n < 1 ? 'Shear-Thinning' : n === 1 ? 'Newtonian' : 'Shear-Thickening';
+        var viscLow = curve[0] ? curve[0].y.toFixed(2) : '-';
+        var viscHigh = curve[curve.length - 1] ? curve[curve.length - 1].y.toFixed(4) : '-';
+        results.innerHTML =
+            '<div class="result-box"><div class="result-value">' + n.toFixed(2) + '</div><div class="result-label">Flow Index (n)</div></div>' +
+            '<div class="result-box"><div class="result-value">' + flowType + '</div><div class="result-label">Behavior</div></div>' +
+            '<div class="result-box"><div class="result-value">' + viscLow + '</div><div class="result-label">η at low γ̇ (Pa·s)</div></div>' +
+            '<div class="result-box"><div class="result-value">' + viscHigh + '</div><div class="result-label">η at high γ̇ (Pa·s)</div></div>';
+    });
+
+    document.getElementById('btnClearCurves').addEventListener('click', function () {
+        curveData = [];
+        var canvas = document.getElementById('viscosityChart');
+        canvas.getContext('2d').clearRect(0, 0, canvas.width, canvas.height);
+        document.getElementById('viscosityLegend').innerHTML = '';
+        document.getElementById('viscosityResults').innerHTML = '';
+    });
+
+    /* ── Tab 2: Temperature ──────────────────────────────────── */
+    document.getElementById('btnPlotTemp').addEventListener('click', function () {
+        var refVisc = parseFloat(document.getElementById('tempRefVisc').value);
+        var refTemp = parseFloat(document.getElementById('tempRefTemp').value);
+        var Ea = parseFloat(document.getElementById('tempEa').value);
+        var minT = parseFloat(document.getElementById('tempMin').value);
+        var maxT = parseFloat(document.getElementById('tempMax').value);
+
+        if (isNaN(refVisc) || refVisc <= 0 || isNaN(Ea) || Ea <= 0) {
+            alert('Please enter valid reference viscosity and activation energy.');
+            return;
+        }
+
+        var tempCurve = rheo.temperatureCurve(refVisc, refTemp, Ea, minT, maxT, 1);
+        var points = tempCurve.map(function (p) { return { x: p.temperature, y: p.viscosity }; });
+
+        drawLinearChart('tempChart', [{ points: points, color: COLORS[0], label: 'Arrhenius' }], 'Temperature (°C)', 'Viscosity (Pa·s)');
+
+        // Show key temps
+        var v25 = rheo.arrheniusViscosity(refVisc, refTemp, Ea, 25);
+        var v37 = rheo.arrheniusViscosity(refVisc, refTemp, Ea, 37);
+        var ratio = v25 / v37;
+
+        document.getElementById('tempResults').innerHTML =
+            '<div class="result-box"><div class="result-value">' + v25.toFixed(2) + '</div><div class="result-label">η at 25°C (Pa·s)</div></div>' +
+            '<div class="result-box"><div class="result-value">' + v37.toFixed(2) + '</div><div class="result-label">η at 37°C (Pa·s)</div></div>' +
+            '<div class="result-box"><div class="result-value">' + ratio.toFixed(1) + 'x</div><div class="result-label">Viscosity Ratio (25/37°C)</div></div>' +
+            '<div class="result-box"><div class="result-value">' + Ea.toFixed(0) + '</div><div class="result-label">E<sub>a</sub> (kJ/mol)</div></div>';
+    });
+
+    /* ── Tab 3: Printability ─────────────────────────────────── */
+    document.getElementById('btnAnalyze').addEventListener('click', function () {
+        var K = parseFloat(document.getElementById('printK').value);
+        var n = parseFloat(document.getElementById('printN').value);
+        var nozzle = parseFloat(document.getElementById('printNozzle').value) / 1e6; // μm to m
+        var speed = parseFloat(document.getElementById('printSpeed').value) / 1000; // mm/s to m/s
+        var layer = parseFloat(document.getElementById('printLayer').value) / 1e6; // μm to m
+        var yieldStress = parseFloat(document.getElementById('printYield').value);
+
+        if (isNaN(K) || K <= 0 || isNaN(n) || n <= 0) {
+            alert('Please enter valid parameters.');
+            return;
+        }
+
+        var flowRate = rheo.estimateFlowRate(speed, nozzle, layer);
+        var shearRate = rheo.nozzleShearRate(flowRate, nozzle, n);
+        var viscAtPrint = rheo.powerLawViscosity(K, n, shearRate);
+
+        var result;
+        try {
+            result = rheo.analyzePrintability({ K: K, n: n, nozzleDiameter: nozzle, printSpeed: speed, layerHeight: layer, yieldStress: yieldStress });
+        } catch (e) {
+            result = { printable: false, score: 0, factors: [{ factor: 'Error', detail: e.message, impact: 'critical' }], flowBehavior: 'unknown' };
+        }
+
+        var resCard = document.getElementById('printabilityResults');
+        resCard.style.display = 'block';
+
+        // Score bar
+        var scoreColor = result.score >= 70 ? 'var(--success)' : result.score >= 50 ? 'var(--warning)' : 'var(--error)';
+        var scoreClass = result.score >= 70 ? 'good' : result.score >= 50 ? 'warn' : 'bad';
+        document.getElementById('printScore').innerHTML =
+            '<div style="display:flex;align-items:center;gap:1rem;margin-bottom:0.5rem;">' +
+                '<span class="result-value ' + scoreClass + '" style="font-size:2rem;">' + result.score + '/100</span>' +
+                '<span style="font-size:1.1rem;">' + (result.printable ? '✅ Printable' : '❌ Not Printable') + '</span>' +
+            '</div>' +
+            '<div class="score-bar"><div class="score-fill" style="width:' + result.score + '%;background:' + scoreColor + ';">' + result.score + '%</div></div>';
+
+        // Metrics
+        document.getElementById('printMetrics').innerHTML =
+            '<div class="result-box"><div class="result-value">' + shearRate.toFixed(0) + '</div><div class="result-label">Nozzle Shear Rate (1/s)</div></div>' +
+            '<div class="result-box"><div class="result-value">' + viscAtPrint.toFixed(2) + '</div><div class="result-label">η at Print (Pa·s)</div></div>' +
+            '<div class="result-box"><div class="result-value">' + result.flowBehavior + '</div><div class="result-label">Flow Behavior</div></div>' +
+            '<div class="result-box"><div class="result-value">' + (flowRate * 1e9).toFixed(2) + '</div><div class="result-label">Flow Rate (μL/s)</div></div>';
+
+        // Factors
+        var factorsHtml = '<h3 style="margin-bottom:0.5rem;">Analysis Factors</h3>';
+        if (result.factors && result.factors.length > 0) {
+            result.factors.forEach(function (f) {
+                var icon = f.impact === 'positive' ? '✅' : f.impact === 'critical' ? '❌' : '⚠️';
+                var color = f.impact === 'positive' ? 'var(--success)' : f.impact === 'critical' ? 'var(--error)' : 'var(--warning)';
+                factorsHtml += '<div style="display:flex;gap:0.5rem;align-items:flex-start;margin-bottom:0.5rem;padding:0.5rem;background:var(--bg);border-radius:6px;">' +
+                    '<span>' + icon + '</span>' +
+                    '<div><strong style="color:' + color + ';">' + escapeHtml(f.factor) + '</strong>' +
+                    '<div style="font-size:0.85rem;color:var(--muted);">' + escapeHtml(f.detail) + '</div></div></div>';
+            });
+        }
+        document.getElementById('printFactors').innerHTML = factorsHtml;
+    });
+
+    /* ── Tab 4: Data Fitting ─────────────────────────────────── */
+    document.getElementById('btnLoadSample').addEventListener('click', function () {
+        document.getElementById('fittingData').value =
+            '0.1, 85.2\n0.5, 42.1\n1.0, 28.4\n5.0, 14.7\n10, 9.5\n50, 4.8\n100, 3.2\n500, 1.6\n1000, 1.1';
+    });
+
+    document.getElementById('btnFit').addEventListener('click', function () {
+        var raw = document.getElementById('fittingData').value.trim();
+        if (!raw) { alert('Please enter data or load sample data.'); return; }
+
+        var lines = raw.split('\n');
+        var data = [];
+        for (var i = 0; i < lines.length; i++) {
+            var line = lines[i].trim();
+            if (!line || line.startsWith('#')) continue;
+            var parts = line.split(/[,\t\s]+/);
+            if (parts.length >= 2) {
+                var sr = parseFloat(parts[0]);
+                var visc = parseFloat(parts[1]);
+                if (!isNaN(sr) && !isNaN(visc) && sr > 0 && visc > 0) {
+                    data.push({ shearRate: sr, viscosity: visc });
+                }
+            }
+        }
+
+        if (data.length < 2) { alert('Need at least 2 valid data points.'); return; }
+
+        var fit;
+        try {
+            fit = rheo.fitPowerLaw(data);
+        } catch (e) {
+            alert('Fitting failed: ' + e.message);
+            return;
+        }
+
+        document.getElementById('fittingResults').style.display = 'block';
+
+        // Metrics
+        var rSqClass = fit.rSquared >= 0.95 ? 'good' : fit.rSquared >= 0.8 ? 'warn' : 'bad';
+        document.getElementById('fitMetrics').innerHTML =
+            '<div class="result-box"><div class="result-value">' + fit.K.toFixed(3) + '</div><div class="result-label">K (Pa·s<sup>n</sup>)</div></div>' +
+            '<div class="result-box"><div class="result-value">' + fit.n.toFixed(3) + '</div><div class="result-label">n (flow index)</div></div>' +
+            '<div class="result-box"><div class="result-value ' + rSqClass + '">' + fit.rSquared.toFixed(4) + '</div><div class="result-label">R² (goodness of fit)</div></div>' +
+            '<div class="result-box"><div class="result-value">' + data.length + '</div><div class="result-label">Data Points</div></div>';
+
+        // Chart: raw data + fitted curve
+        var rawPoints = data.map(function (d) { return { x: d.shearRate, y: d.viscosity }; });
+        var fittedCurve = rheo.powerLawCurve(fit.K, fit.n).map(function (p) { return { x: p.shearRate, y: p.viscosity }; });
+
+        drawLogLogChart('fitChart', [
+            { points: rawPoints, color: '#f87171', label: 'Measured Data', scatter: true },
+            { points: fittedCurve, color: '#38bdf8', label: 'Fitted: η = ' + fit.K.toFixed(2) + '·γ̇^(' + (fit.n - 1).toFixed(2) + ')' }
+        ], 'Shear Rate (1/s)', 'Viscosity (Pa·s)');
+
+        updateLegend('fitLegend', [
+            { color: '#f87171', label: 'Measured Data' },
+            { color: '#38bdf8', label: 'Fitted Power Law' }
+        ]);
+
+        // Data table
+        var table = document.getElementById('fitTable');
+        table.innerHTML = '<tr><th>γ̇ (1/s)</th><th>η measured (Pa·s)</th><th>η fitted (Pa·s)</th><th>Error (%)</th></tr>';
+        data.forEach(function (d) {
+            var fitted = rheo.powerLawViscosity(fit.K, fit.n, d.shearRate);
+            var error = Math.abs((fitted - d.viscosity) / d.viscosity * 100);
+            table.innerHTML += '<tr><td>' + d.shearRate.toFixed(2) + '</td><td>' + d.viscosity.toFixed(2) + '</td><td>' + fitted.toFixed(2) + '</td><td>' + error.toFixed(1) + '%</td></tr>';
+        });
+    });
+
+    /* ── Escape HTML ─────────────────────────────────────────── */
+    function escapeHtml(s) {
+        if (typeof escapeHtml._el === 'undefined') escapeHtml._el = document.createElement('div');
+        escapeHtml._el.textContent = s;
+        return escapeHtml._el.innerHTML;
+    }
+    </script>
+</body>
+</html>
