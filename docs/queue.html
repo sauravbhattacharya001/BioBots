@@ -1,0 +1,596 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>BioBots 1 — Print Queue</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧬</text></svg>">
+    <script src="shared/constants.js"></script>
+    <style>
+        :root {
+            --bg: #0f172a; --surface: #1e293b; --border: #334155;
+            --text: #e2e8f0; --muted: #94a3b8;
+            --accent: #38bdf8; --accent-hover: #7dd3fc;
+            --success: #4ade80; --error: #f87171; --warning: #fbbf24; --purple: #a78bfa;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg); color: var(--text);
+            min-height: 100vh; padding: 2rem 1rem;
+        }
+        .container { max-width: 1200px; margin: 0 auto; }
+        header { text-align: center; margin-bottom: 2rem; }
+        header h1 {
+            font-size: 2rem; font-weight: 700;
+            background: linear-gradient(135deg, var(--accent), var(--success));
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+        }
+        header p { color: var(--muted); margin-top: 0.5rem; }
+
+        .nav { display: flex; justify-content: center; gap: 0.5rem; margin-bottom: 2rem; flex-wrap: wrap; }
+        .nav a {
+            color: var(--muted); padding: 0.5rem 1rem; border-radius: 8px;
+            text-decoration: none; font-size: 0.9rem; transition: all 0.2s;
+        }
+        .nav a:hover { color: var(--accent); }
+        .nav a.active { color: var(--accent); background: var(--surface); border: 1px solid var(--border); }
+
+        .card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 1.5rem; margin-bottom: 1.5rem; }
+        .card h2 { font-size: 1.2rem; margin-bottom: 1rem; }
+
+        .stats-bar { display: flex; gap: 1rem; flex-wrap: wrap; justify-content: center; margin-bottom: 1.5rem; }
+        .stat { text-align: center; min-width: 100px; }
+        .stat .value { font-size: 1.5rem; font-weight: 700; color: var(--accent); }
+        .stat .label { font-size: 0.7rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; }
+
+        /* Tabs */
+        .tabs { display: flex; gap: 0.5rem; margin-bottom: 1.5rem; flex-wrap: wrap; }
+        .tab-btn {
+            padding: 0.5rem 1rem; border-radius: 8px; border: 1px solid var(--border);
+            background: transparent; color: var(--muted); cursor: pointer; font-size: 0.9rem; transition: all 0.2s;
+        }
+        .tab-btn:hover { color: var(--text); border-color: var(--accent); }
+        .tab-btn.active { color: var(--accent); background: rgba(56,189,248,0.1); border-color: var(--accent); }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+
+        /* Form */
+        .form-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 1rem; }
+        .form-group label { display: block; font-size: 0.8rem; color: var(--muted); margin-bottom: 0.3rem; }
+        .form-group input, .form-group select {
+            width: 100%; padding: 0.5rem; border-radius: 6px; border: 1px solid var(--border);
+            background: var(--bg); color: var(--text); font-size: 0.9rem;
+        }
+        .form-group input:focus, .form-group select:focus { outline: none; border-color: var(--accent); }
+
+        .btn {
+            padding: 0.5rem 1rem; border-radius: 8px; border: none; cursor: pointer;
+            font-size: 0.85rem; font-weight: 600; transition: all 0.2s;
+        }
+        .btn-primary { background: var(--accent); color: #0f172a; }
+        .btn-primary:hover { background: var(--accent-hover); }
+        .btn-danger { background: var(--error); color: #fff; }
+        .btn-danger:hover { opacity: 0.8; }
+        .btn-success { background: var(--success); color: #0f172a; }
+        .btn-warning { background: var(--warning); color: #0f172a; }
+        .btn-sm { padding: 0.3rem 0.6rem; font-size: 0.75rem; }
+        .btn-group { display: flex; gap: 0.3rem; flex-wrap: wrap; }
+
+        /* Queue Table */
+        .queue-table { width: 100%; border-collapse: collapse; }
+        .queue-table th, .queue-table td {
+            padding: 0.6rem 0.8rem; text-align: left; border-bottom: 1px solid var(--border); font-size: 0.85rem;
+        }
+        .queue-table th { color: var(--muted); font-weight: 600; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; }
+        .queue-table tr:hover { background: rgba(56,189,248,0.05); }
+
+        .badge {
+            display: inline-block; padding: 0.15rem 0.5rem; border-radius: 999px;
+            font-size: 0.7rem; font-weight: 600; text-transform: uppercase;
+        }
+
+        /* Timeline */
+        .timeline-container { overflow-x: auto; padding: 1rem 0; }
+        .timeline-bar {
+            height: 28px; border-radius: 6px; position: absolute;
+            display: flex; align-items: center; padding: 0 0.5rem;
+            font-size: 0.7rem; font-weight: 600; color: #0f172a;
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+            min-width: 40px;
+        }
+        .timeline-row { position: relative; height: 36px; margin-bottom: 4px; }
+        .timeline-axis { display: flex; justify-content: space-between; color: var(--muted); font-size: 0.7rem; margin-bottom: 0.5rem; border-bottom: 1px solid var(--border); padding-bottom: 0.3rem; }
+
+        /* Conflict warning */
+        .conflict-box {
+            background: rgba(248,113,113,0.1); border: 1px solid var(--error); border-radius: 8px;
+            padding: 0.8rem 1rem; margin-bottom: 1rem; font-size: 0.85rem;
+        }
+        .conflict-box strong { color: var(--error); }
+
+        .empty-state { text-align: center; color: var(--muted); padding: 2rem; font-size: 0.9rem; }
+
+        @media (max-width: 600px) {
+            .form-grid { grid-template-columns: 1fr; }
+            .queue-table { font-size: 0.75rem; }
+            .queue-table th, .queue-table td { padding: 0.4rem; }
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <header>
+        <h1>📋 Print Queue Manager</h1>
+        <p>Schedule, prioritize, and track bioprint jobs</p>
+    </header>
+
+    <div class="nav">
+        <a href="index.html">Query Tool</a>
+        <a href="explorer.html">🔬 Data Explorer</a>
+        <a href="table.html">Data Table</a>
+        <a href="compare.html">Compare</a>
+        <a href="quality.html">📊 Quality</a>
+        <a href="anomaly.html">🔍 Anomaly</a>
+        <a href="trends.html">Trends</a>
+        <a href="optimizer.html">🎯 Optimizer</a>
+        <a href="api.html">🔌 API</a>
+        <a href="architecture.html">⚙️ Architecture</a>
+        <a href="cluster.html">🔬 Clusters</a>
+        <a href="batch.html">📦 Batch Planner</a>
+        <a href="guide.html">📚 Guide</a>
+        <a href="report.html">📄 Report</a>
+        <a href="logbook.html">📓 Logbook</a>
+        <a href="queue.html" class="active">📋 Queue</a>
+    </div>
+
+    <!-- Stats -->
+    <div class="card">
+        <div class="stats-bar" id="stats-bar">
+            <div class="stat"><div class="value" id="stat-queued">0</div><div class="label">Queued</div></div>
+            <div class="stat"><div class="value" id="stat-printing">0</div><div class="label">Printing</div></div>
+            <div class="stat"><div class="value" id="stat-completed">0</div><div class="label">Completed</div></div>
+            <div class="stat"><div class="value" id="stat-failed">0</div><div class="label">Failed</div></div>
+            <div class="stat"><div class="value" id="stat-eta">—</div><div class="label">Est. Remaining</div></div>
+            <div class="stat"><div class="value" id="stat-throughput">—</div><div class="label">Jobs/hr</div></div>
+        </div>
+    </div>
+
+    <!-- Tabs -->
+    <div class="tabs">
+        <button class="tab-btn active" data-tab="queue">📋 Queue</button>
+        <button class="tab-btn" data-tab="add">➕ Add Job</button>
+        <button class="tab-btn" data-tab="timeline">📊 Timeline</button>
+        <button class="tab-btn" data-tab="history">📜 History</button>
+    </div>
+
+    <!-- Tab: Queue -->
+    <div class="tab-content active" id="tab-queue">
+        <div id="conflict-area"></div>
+        <div class="card">
+            <h2>Active Queue</h2>
+            <div id="queue-list"><div class="empty-state">No jobs in queue. Add one to get started!</div></div>
+        </div>
+    </div>
+
+    <!-- Tab: Add Job -->
+    <div class="tab-content" id="tab-add">
+        <div class="card">
+            <h2>➕ New Print Job</h2>
+            <div class="form-grid">
+                <div class="form-group">
+                    <label>Job Name *</label>
+                    <input type="text" id="inp-name" placeholder="e.g. Scaffold Batch #12">
+                </div>
+                <div class="form-group">
+                    <label>Priority</label>
+                    <select id="inp-priority">
+                        <option value="0">🔴 Urgent</option>
+                        <option value="1">🟠 High</option>
+                        <option value="2" selected>🔵 Normal</option>
+                        <option value="3">⚪ Low</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Layer Count</label>
+                    <input type="number" id="inp-layers" value="20" min="1" max="500">
+                </div>
+                <div class="form-group">
+                    <label>Layer Height (mm)</label>
+                    <input type="number" id="inp-height" value="0.3" min="0.05" max="2" step="0.05">
+                </div>
+                <div class="form-group">
+                    <label>Extruder 1 Pressure (psi)</label>
+                    <input type="number" id="inp-ext1" value="50" min="0" max="100">
+                </div>
+                <div class="form-group">
+                    <label>Extruder 2 Pressure (psi)</label>
+                    <input type="number" id="inp-ext2" value="0" min="0" max="100">
+                </div>
+                <div class="form-group">
+                    <label>Crosslink Duration (ms)</label>
+                    <input type="number" id="inp-cl" value="15000" min="0" max="120000">
+                </div>
+                <div class="form-group">
+                    <label>Wellplate</label>
+                    <select id="inp-well">
+                        <option value="0">None</option>
+                        <option value="6">6-well</option>
+                        <option value="12">12-well</option>
+                        <option value="24">24-well</option>
+                        <option value="96">96-well</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Assignee</label>
+                    <input type="text" id="inp-assignee" placeholder="Optional">
+                </div>
+                <div class="form-group">
+                    <label>Notes</label>
+                    <input type="text" id="inp-notes" placeholder="Optional notes">
+                </div>
+            </div>
+            <div id="time-estimate" style="color:var(--accent);margin-bottom:1rem;font-size:0.9rem;"></div>
+            <button class="btn btn-primary" id="btn-add">Add to Queue</button>
+        </div>
+    </div>
+
+    <!-- Tab: Timeline -->
+    <div class="tab-content" id="tab-timeline">
+        <div class="card">
+            <h2>📊 Gantt Timeline</h2>
+            <div id="timeline-view"><div class="empty-state">No jobs have been started yet.</div></div>
+        </div>
+    </div>
+
+    <!-- Tab: History -->
+    <div class="tab-content" id="tab-history">
+        <div class="card">
+            <h2>📜 Completed & Failed Jobs</h2>
+            <div id="history-list"><div class="empty-state">No completed jobs yet.</div></div>
+        </div>
+    </div>
+</div>
+
+<script>
+// ── Constants ──
+const PRIORITIES = { URGENT: 0, HIGH: 1, NORMAL: 2, LOW: 3 };
+const PRIORITY_LABELS = ['Urgent', 'High', 'Normal', 'Low'];
+const PRIORITY_COLORS = ['#f87171', '#fb923c', '#38bdf8', '#94a3b8'];
+const STATUS = { QUEUED: 'queued', PRINTING: 'printing', PAUSED: 'paused', COMPLETED: 'completed', FAILED: 'failed', CANCELLED: 'cancelled' };
+const STATUS_COLORS = { queued: '#94a3b8', printing: '#38bdf8', paused: '#fbbf24', completed: '#4ade80', failed: '#f87171', cancelled: '#64748b' };
+const STATUS_ICONS = { queued: '⏳', printing: '🖨️', paused: '⏸️', completed: '✅', failed: '❌', cancelled: '🚫' };
+
+// ── State ──
+let queue = [];
+let history = [];
+let jobCounter = parseInt(localStorage.getItem('bb_queue_counter') || '0');
+
+function save() {
+    localStorage.setItem('bb_queue_jobs', JSON.stringify(queue));
+    localStorage.setItem('bb_queue_history', JSON.stringify(history));
+    localStorage.setItem('bb_queue_counter', String(jobCounter));
+}
+function load() {
+    try { queue = JSON.parse(localStorage.getItem('bb_queue_jobs') || '[]'); } catch { queue = []; }
+    try { history = JSON.parse(localStorage.getItem('bb_queue_history') || '[]'); } catch { history = []; }
+}
+
+// ── Time Estimation ──
+function estimateTime(p) {
+    const layers = p.layerNum || 10;
+    const lh = p.layerHeight || 0.3;
+    const pr1 = p.extruder1 || 50;
+    const pr2 = p.extruder2 || 0;
+    const clDur = p.clDuration || 10000;
+    const clOn = p.clEnabled !== false;
+    const base = 2.0 * (0.3 / Math.max(lh, 0.05));
+    const avg = pr2 > 0 ? (pr1 + pr2) / 2 : pr1;
+    const pf = Math.max(1.0 - (avg - 50) * 0.002, 0.5);
+    const clAdd = clOn ? clDur / 60000 : 0;
+    return Math.round(layers * (base * pf + clAdd) * 10) / 10;
+}
+
+function fmtMin(m) {
+    if (m < 60) return `${Math.round(m)}m`;
+    const h = Math.floor(m / 60);
+    const r = Math.round(m % 60);
+    return r > 0 ? `${h}h ${r}m` : `${h}h`;
+}
+
+function inferResources(p) {
+    const r = ['stage'];
+    if (p.extruder1 > 0) r.push('extruder1');
+    if (p.extruder2 > 0) r.push('extruder2');
+    if (p.clEnabled !== false) r.push('crosslinker');
+    if (p.wellplate > 0) r.push('wellplate');
+    return r;
+}
+
+// ── Sorting ──
+function sortQueue() {
+    const order = { printing: 0, paused: 1, queued: 2 };
+    queue.sort((a, b) => {
+        const sa = order[a.status] ?? 9, sb = order[b.status] ?? 9;
+        if (sa !== sb) return sa - sb;
+        if (a.priority !== b.priority) return a.priority - b.priority;
+        return a.createdAt - b.createdAt;
+    });
+}
+
+// ── Conflict Detection ──
+function getConflicts(job) {
+    const active = queue.filter(j => j.status === 'printing');
+    const conflicts = [];
+    for (const a of active) {
+        const shared = (job.resources || []).filter(r => (a.resources || []).includes(r));
+        if (shared.length > 0) conflicts.push({ id: a.id, name: a.name, resources: shared });
+    }
+    return conflicts;
+}
+
+// ── Rendering ──
+function renderStats() {
+    const all = [...queue, ...history];
+    const q = queue.filter(j => j.status === 'queued').length;
+    const p = queue.filter(j => j.status === 'printing').length;
+    const c = history.filter(j => j.status === 'completed').length;
+    const f = history.filter(j => j.status === 'failed').length;
+    const eta = queue.filter(j => j.status === 'queued').reduce((s, j) => s + (j.estimatedMinutes || 0), 0);
+
+    document.getElementById('stat-queued').textContent = q;
+    document.getElementById('stat-printing').textContent = p;
+    document.getElementById('stat-completed').textContent = c;
+    document.getElementById('stat-failed').textContent = f;
+    document.getElementById('stat-eta').textContent = eta > 0 ? fmtMin(eta) : '—';
+
+    const completed = history.filter(j => j.status === 'completed' && j.startedAt && j.completedAt);
+    if (completed.length >= 2) {
+        const span = (Date.now() - Math.min(...completed.map(j => j.startedAt))) / 3600000;
+        const thr = span > 0 ? (completed.length / span).toFixed(1) : '—';
+        document.getElementById('stat-throughput').textContent = thr;
+    } else {
+        document.getElementById('stat-throughput').textContent = '—';
+    }
+}
+
+function renderQueue() {
+    const el = document.getElementById('queue-list');
+    if (queue.length === 0) { el.innerHTML = '<div class="empty-state">No jobs in queue. Add one to get started!</div>'; return; }
+
+    let html = '<table class="queue-table"><thead><tr><th>#</th><th>Job</th><th>Priority</th><th>Status</th><th>Est. Time</th><th>Resources</th><th>Assignee</th><th>Actions</th></tr></thead><tbody>';
+    queue.forEach((j, i) => {
+        const priColor = PRIORITY_COLORS[j.priority] || '#94a3b8';
+        const statColor = STATUS_COLORS[j.status] || '#94a3b8';
+        const icon = STATUS_ICONS[j.status] || '';
+        html += `<tr>
+            <td>${i + 1}</td>
+            <td><strong>${esc(j.name)}</strong>${j.notes ? `<br><span style="color:var(--muted);font-size:0.75rem">${esc(j.notes)}</span>` : ''}</td>
+            <td><span class="badge" style="background:${priColor};color:#0f172a">${PRIORITY_LABELS[j.priority]}</span></td>
+            <td><span class="badge" style="background:${statColor};color:#0f172a">${icon} ${j.status}</span></td>
+            <td>${fmtMin(j.estimatedMinutes || 0)}</td>
+            <td style="font-size:0.75rem">${(j.resources || []).join(', ')}</td>
+            <td>${esc(j.assignee || '—')}</td>
+            <td><div class="btn-group">${getActions(j)}</div></td>
+        </tr>`;
+    });
+    html += '</tbody></table>';
+    el.innerHTML = html;
+
+    // Conflicts
+    const ca = document.getElementById('conflict-area');
+    const queued = queue.filter(j => j.status === 'queued');
+    const conflictMsgs = [];
+    for (const j of queued) {
+        const c = getConflicts(j);
+        if (c.length > 0) {
+            conflictMsgs.push(`<strong>${esc(j.name)}</strong> conflicts with ${c.map(x => `<em>${esc(x.name)}</em> (${x.resources.join(', ')})`).join(', ')}`);
+        }
+    }
+    ca.innerHTML = conflictMsgs.length > 0
+        ? `<div class="conflict-box">⚠️ <strong>Resource Conflicts:</strong><br>${conflictMsgs.join('<br>')}</div>`
+        : '';
+}
+
+function getActions(j) {
+    const b = (label, cls, fn) => `<button class="btn ${cls} btn-sm" onclick="${fn}">${label}</button>`;
+    let btns = '';
+    if (j.status === 'queued') {
+        btns += b('▶ Start', 'btn-success', `startJob('${j.id}')`);
+        btns += b('✕', 'btn-danger', `cancelJob('${j.id}')`);
+    } else if (j.status === 'printing') {
+        btns += b('⏸', 'btn-warning', `pauseJob('${j.id}')`);
+        btns += b('✓ Done', 'btn-success', `completeJob('${j.id}')`);
+        btns += b('✕ Fail', 'btn-danger', `failJob('${j.id}')`);
+    } else if (j.status === 'paused') {
+        btns += b('▶ Resume', 'btn-success', `resumeJob('${j.id}')`);
+        btns += b('✕', 'btn-danger', `cancelJob('${j.id}')`);
+    }
+    return btns;
+}
+
+function renderHistory() {
+    const el = document.getElementById('history-list');
+    if (history.length === 0) { el.innerHTML = '<div class="empty-state">No completed jobs yet.</div>'; return; }
+
+    const sorted = [...history].sort((a, b) => (b.completedAt || 0) - (a.completedAt || 0));
+    let html = '<table class="queue-table"><thead><tr><th>Job</th><th>Status</th><th>Duration</th><th>Priority</th><th>Completed</th></tr></thead><tbody>';
+    for (const j of sorted) {
+        const sc = STATUS_COLORS[j.status] || '#94a3b8';
+        const dur = j.startedAt && j.completedAt ? fmtMin((j.completedAt - j.startedAt) / 60000) : '—';
+        const comp = j.completedAt ? new Date(j.completedAt).toLocaleString() : '—';
+        html += `<tr>
+            <td><strong>${esc(j.name)}</strong></td>
+            <td><span class="badge" style="background:${sc};color:#0f172a">${STATUS_ICONS[j.status] || ''} ${j.status}</span></td>
+            <td>${dur}</td>
+            <td><span class="badge" style="background:${PRIORITY_COLORS[j.priority]};color:#0f172a">${PRIORITY_LABELS[j.priority]}</span></td>
+            <td style="font-size:0.8rem">${comp}</td>
+        </tr>`;
+    }
+    html += '</tbody></table>';
+    el.innerHTML = html;
+}
+
+function renderTimeline() {
+    const el = document.getElementById('timeline-view');
+    const items = [...queue, ...history].filter(j => j.startedAt).sort((a, b) => a.startedAt - b.startedAt);
+    if (items.length === 0) { el.innerHTML = '<div class="empty-state">No jobs have been started yet.</div>'; return; }
+
+    const minT = Math.min(...items.map(j => j.startedAt));
+    const maxT = Math.max(...items.map(j => j.completedAt || (j.startedAt + (j.estimatedMinutes || 10) * 60000)));
+    const span = Math.max(maxT - minT, 60000);
+
+    let html = '<div class="timeline-container">';
+    html += `<div class="timeline-axis"><span>${new Date(minT).toLocaleTimeString()}</span><span>${new Date(maxT).toLocaleTimeString()}</span></div>`;
+    html += '<div style="position:relative;">';
+    items.forEach(j => {
+        const left = ((j.startedAt - minT) / span * 100).toFixed(2);
+        const end = j.completedAt || (j.startedAt + (j.estimatedMinutes || 10) * 60000);
+        const width = Math.max(((end - j.startedAt) / span * 100), 3).toFixed(2);
+        const color = STATUS_COLORS[j.status] || '#94a3b8';
+        html += `<div class="timeline-row"><div class="timeline-bar" style="left:${left}%;width:${width}%;background:${color}">${esc(j.name)}</div></div>`;
+    });
+    html += '</div></div>';
+    el.innerHTML = html;
+}
+
+function renderAll() { renderStats(); renderQueue(); renderHistory(); renderTimeline(); }
+
+// ── Actions ──
+function startJob(id) {
+    const j = queue.find(x => x.id === id);
+    if (j) { j.status = 'printing'; j.startedAt = Date.now(); sortQueue(); save(); renderAll(); }
+}
+function pauseJob(id) {
+    const j = queue.find(x => x.id === id);
+    if (j) { j.status = 'paused'; save(); renderAll(); }
+}
+function resumeJob(id) {
+    const j = queue.find(x => x.id === id);
+    if (j) { j.status = 'printing'; save(); renderAll(); }
+}
+function completeJob(id) {
+    const idx = queue.findIndex(x => x.id === id);
+    if (idx !== -1) { const j = queue.splice(idx, 1)[0]; j.status = 'completed'; j.completedAt = Date.now(); history.push(j); save(); renderAll(); }
+}
+function failJob(id) {
+    const reason = prompt('Failure reason (optional):');
+    const idx = queue.findIndex(x => x.id === id);
+    if (idx !== -1) { const j = queue.splice(idx, 1)[0]; j.status = 'failed'; j.completedAt = Date.now(); if (reason) j.notes = `${j.notes} [FAIL] ${reason}`.trim(); history.push(j); save(); renderAll(); }
+}
+function cancelJob(id) {
+    const idx = queue.findIndex(x => x.id === id);
+    if (idx !== -1) { const j = queue.splice(idx, 1)[0]; j.status = 'cancelled'; j.completedAt = Date.now(); history.push(j); save(); renderAll(); }
+}
+
+function esc(s) { const d = document.createElement('div'); d.textContent = s || ''; return d.innerHTML; }
+
+// ── Tabs ──
+document.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+        btn.classList.add('active');
+        document.getElementById('tab-' + btn.dataset.tab).classList.add('active');
+    });
+});
+
+// ── Live time estimate on form ──
+function updateEstimate() {
+    const p = {
+        layerNum: parseInt(document.getElementById('inp-layers').value) || 10,
+        layerHeight: parseFloat(document.getElementById('inp-height').value) || 0.3,
+        extruder1: parseFloat(document.getElementById('inp-ext1').value) || 0,
+        extruder2: parseFloat(document.getElementById('inp-ext2').value) || 0,
+        clEnabled: parseInt(document.getElementById('inp-cl').value) > 0,
+        clDuration: parseInt(document.getElementById('inp-cl').value) || 0,
+    };
+    const t = estimateTime(p);
+    document.getElementById('time-estimate').textContent = `⏱️ Estimated print time: ${fmtMin(t)}`;
+}
+['inp-layers', 'inp-height', 'inp-ext1', 'inp-ext2', 'inp-cl'].forEach(id => {
+    document.getElementById(id).addEventListener('input', updateEstimate);
+});
+updateEstimate();
+
+// ── Add Job ──
+document.getElementById('btn-add').addEventListener('click', () => {
+    const name = document.getElementById('inp-name').value.trim();
+    if (!name) { alert('Job name is required'); return; }
+
+    jobCounter++;
+    const params = {
+        layerNum: parseInt(document.getElementById('inp-layers').value) || 10,
+        layerHeight: parseFloat(document.getElementById('inp-height').value) || 0.3,
+        extruder1: parseFloat(document.getElementById('inp-ext1').value) || 0,
+        extruder2: parseFloat(document.getElementById('inp-ext2').value) || 0,
+        clEnabled: parseInt(document.getElementById('inp-cl').value) > 0,
+        clDuration: parseInt(document.getElementById('inp-cl').value) || 0,
+        wellplate: parseInt(document.getElementById('inp-well').value) || 0,
+    };
+
+    const job = {
+        id: 'job-' + jobCounter,
+        name,
+        params,
+        priority: parseInt(document.getElementById('inp-priority').value),
+        status: 'queued',
+        resources: inferResources(params),
+        estimatedMinutes: estimateTime(params),
+        createdAt: Date.now(),
+        startedAt: null,
+        completedAt: null,
+        notes: document.getElementById('inp-notes').value.trim(),
+        assignee: document.getElementById('inp-assignee').value.trim(),
+    };
+
+    queue.push(job);
+    sortQueue();
+    save();
+    renderAll();
+
+    // Reset form
+    document.getElementById('inp-name').value = '';
+    document.getElementById('inp-notes').value = '';
+    document.getElementById('inp-assignee').value = '';
+
+    // Switch to queue tab
+    document.querySelector('[data-tab="queue"]').click();
+});
+
+// ── Demo Data ──
+function loadDemo() {
+    if (queue.length > 0 || history.length > 0) return;
+    const demos = [
+        { name: 'Cartilage Scaffold A', params: { layerNum: 40, layerHeight: 0.2, extruder1: 60, extruder2: 30, clEnabled: true, clDuration: 20000, wellplate: 6 }, priority: 1, assignee: 'Dr. Chen' },
+        { name: 'Skin Graft Test #7', params: { layerNum: 15, layerHeight: 0.3, extruder1: 45, extruder2: 0, clEnabled: true, clDuration: 10000, wellplate: 12 }, priority: 2, assignee: 'Lab Tech Kim' },
+        { name: 'Bone Matrix Print', params: { layerNum: 60, layerHeight: 0.4, extruder1: 80, extruder2: 50, clEnabled: true, clDuration: 30000, wellplate: 6 }, priority: 0, assignee: 'Dr. Patel' },
+        { name: 'Hydrogel Calibration', params: { layerNum: 5, layerHeight: 0.3, extruder1: 50, extruder2: 0, clEnabled: false, clDuration: 0 }, priority: 3 },
+    ];
+    demos.forEach((d, i) => {
+        jobCounter++;
+        queue.push({
+            id: 'job-' + jobCounter,
+            name: d.name,
+            params: d.params,
+            priority: d.priority,
+            status: 'queued',
+            resources: inferResources(d.params),
+            estimatedMinutes: estimateTime(d.params),
+            createdAt: Date.now() - (demos.length - i) * 60000,
+            startedAt: null, completedAt: null,
+            notes: '', assignee: d.assignee || '',
+        });
+    });
+    sortQueue();
+    save();
+    renderAll();
+}
+
+// ── Init ──
+load();
+if (queue.length === 0 && history.length === 0) loadDemo();
+renderAll();
+</script>
+</body>
+</html>
