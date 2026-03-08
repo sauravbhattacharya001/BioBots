@@ -1,0 +1,1035 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>BioBots 1 — Waste &amp; Sustainability Dashboard</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧬</text></svg>">
+    <style>
+        :root {
+            --bg: #0f172a;
+            --surface: #1e293b;
+            --border: #334155;
+            --text: #e2e8f0;
+            --muted: #94a3b8;
+            --accent: #38bdf8;
+            --accent-hover: #7dd3fc;
+            --success: #4ade80;
+            --error: #f87171;
+            --warning: #fbbf24;
+            --purple: #a78bfa;
+            --teal: #2dd4bf;
+            --orange: #fb923c;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            padding: 2rem 1rem;
+        }
+        .container { max-width: 1200px; margin: 0 auto; }
+        header { text-align: center; margin-bottom: 2rem; }
+        header h1 {
+            font-size: 2rem; font-weight: 700;
+            background: linear-gradient(135deg, var(--success), var(--teal));
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+        }
+        header p { color: var(--muted); margin-top: 0.5rem; }
+        .nav { display: flex; justify-content: center; gap: 0.5rem; margin-bottom: 2rem; flex-wrap: wrap; }
+        .nav a {
+            color: var(--muted); padding: 0.5rem 1rem; border-radius: 8px;
+            text-decoration: none; font-size: 0.9rem; transition: all 0.2s;
+        }
+        .nav a:hover { color: var(--accent); background: var(--surface); }
+        .nav a.active { color: var(--accent); background: var(--surface); border: 1px solid var(--border); }
+
+        .tabs { display: flex; gap: 0.5rem; margin-bottom: 1.5rem; flex-wrap: wrap; }
+        .tab-btn {
+            background: var(--surface); color: var(--muted); border: 1px solid var(--border);
+            padding: 0.6rem 1.2rem; border-radius: 8px; cursor: pointer; font-size: 0.9rem;
+            font-weight: 500; transition: all 0.2s;
+        }
+        .tab-btn:hover { color: var(--text); border-color: var(--accent); }
+        .tab-btn.active { color: var(--accent); border-color: var(--accent); background: rgba(56,189,248,0.1); }
+        .tab-panel { display: none; }
+        .tab-panel.active { display: block; }
+
+        .card {
+            background: var(--surface); border: 1px solid var(--border);
+            border-radius: 16px; padding: 1.5rem; margin-bottom: 1.5rem;
+        }
+        .card h2 { font-size: 1.1rem; margin-bottom: 1rem; color: var(--muted); font-weight: 500; }
+
+        .stats-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 1rem; margin-bottom: 1.5rem; }
+        .stat-card {
+            background: var(--surface); border: 1px solid var(--border);
+            border-radius: 12px; padding: 1rem; text-align: center;
+        }
+        .stat-card .value { font-size: 1.4rem; font-weight: 700; color: var(--accent); }
+        .stat-card .label { font-size: 0.75rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; margin-top: 0.25rem; }
+
+        .form-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem; margin-bottom: 1rem; }
+        .form-group { display: flex; flex-direction: column; gap: 0.3rem; }
+        label { font-size: 0.8rem; color: var(--muted); font-weight: 500; }
+        select, input[type="number"], input[type="text"], input[type="date"], textarea {
+            background: var(--bg); border: 1px solid var(--border); color: var(--text);
+            padding: 0.5rem 0.7rem; border-radius: 8px; font-size: 0.9rem;
+            outline: none; transition: border-color 0.2s; font-family: inherit;
+        }
+        select:focus, input:focus, textarea:focus { border-color: var(--accent); }
+        textarea { resize: vertical; min-height: 60px; }
+
+        .btn {
+            background: var(--accent); color: var(--bg); border: none;
+            padding: 0.6rem 1.2rem; border-radius: 8px; font-size: 0.9rem;
+            font-weight: 600; cursor: pointer; transition: all 0.2s;
+        }
+        .btn:hover { background: var(--accent-hover); }
+        .btn.secondary { background: transparent; color: var(--accent); border: 1px solid var(--accent); }
+        .btn.secondary:hover { background: rgba(56,189,248,0.1); }
+        .btn.danger { background: var(--error); color: #fff; }
+        .btn.danger:hover { opacity: 0.85; }
+        .btn-row { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-top: 1rem; }
+
+        table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+        th, td { padding: 0.6rem 0.8rem; text-align: left; border-bottom: 1px solid var(--border); }
+        th { color: var(--muted); font-weight: 500; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; }
+        td { color: var(--text); }
+        tbody tr:hover { background: rgba(56,189,248,0.05); }
+        .empty-msg { color: var(--muted); text-align: center; padding: 2rem; font-style: italic; }
+
+        .badge {
+            display: inline-block; padding: 0.15rem 0.5rem; border-radius: 4px;
+            font-size: 0.75rem; font-weight: 600; text-transform: uppercase;
+        }
+        .badge-bioink { background: rgba(167,139,250,0.2); color: var(--purple); }
+        .badge-failed { background: rgba(248,113,113,0.2); color: var(--error); }
+        .badge-expired { background: rgba(251,191,36,0.2); color: var(--warning); }
+        .badge-packaging { background: rgba(45,212,191,0.2); color: var(--teal); }
+        .badge-consumable { background: rgba(251,146,60,0.2); color: var(--orange); }
+        .badge-other { background: rgba(148,163,184,0.2); color: var(--muted); }
+
+        .bar-chart { display: flex; flex-direction: column; gap: 0.5rem; }
+        .bar-row { display: flex; align-items: center; gap: 0.5rem; }
+        .bar-label { width: 100px; font-size: 0.8rem; color: var(--muted); text-align: right; flex-shrink: 0; }
+        .bar-track { flex: 1; height: 24px; background: var(--bg); border-radius: 4px; overflow: hidden; position: relative; }
+        .bar-fill { height: 100%; border-radius: 4px; transition: width 0.4s ease; display: flex; align-items: center; padding-left: 6px; font-size: 0.7rem; font-weight: 600; color: var(--bg); min-width: 0; }
+
+        .goal-progress { margin-top: 0.5rem; }
+        .goal-bar { height: 12px; background: var(--bg); border-radius: 6px; overflow: hidden; position: relative; }
+        .goal-fill { height: 100%; border-radius: 6px; transition: width 0.4s ease; }
+        .goal-text { font-size: 0.8rem; color: var(--muted); margin-top: 0.3rem; }
+
+        .impact-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; }
+        .impact-card {
+            background: var(--bg); border: 1px solid var(--border);
+            border-radius: 12px; padding: 1rem; text-align: center;
+        }
+        .impact-card .icon { font-size: 1.8rem; margin-bottom: 0.5rem; }
+        .impact-card .metric { font-size: 1.3rem; font-weight: 700; }
+        .impact-card .desc { font-size: 0.75rem; color: var(--muted); margin-top: 0.3rem; }
+
+        footer { text-align: center; margin-top: 3rem; color: var(--muted); font-size: 0.8rem; }
+        footer a { color: var(--accent); text-decoration: none; }
+        footer a:hover { text-decoration: underline; }
+
+        @media (max-width: 600px) {
+            .form-row { grid-template-columns: 1fr; }
+            .stats-row { grid-template-columns: repeat(2, 1fr); }
+            .bar-label { width: 70px; font-size: 0.7rem; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>&#9851; Waste &amp; Sustainability Dashboard</h1>
+            <p>Track bioprinting waste, set reduction goals, and measure environmental impact</p>
+        </header>
+
+        <nav class="nav">
+            <a href="index.html">Query Tool</a>
+            <a href="explorer.html">Data Explorer</a>
+            <a href="cost.html">Cost</a>
+            <a href="environment.html">Environment</a>
+            <a href="shelf-life.html">Shelf Life</a>
+            <a href="maintenance.html">Maintenance</a>
+            <a href="waste.html" class="active">Waste</a>
+        </nav>
+
+        <div class="stats-row" id="summaryStats">
+            <div class="stat-card"><div class="value" id="statTotal">0</div><div class="label">Total Entries</div></div>
+            <div class="stat-card"><div class="value" id="statMass">0 g</div><div class="label">Total Waste</div></div>
+            <div class="stat-card"><div class="value" id="statCost">$0</div><div class="label">Material Lost</div></div>
+            <div class="stat-card"><div class="value" id="statDiversion">0%</div><div class="label">Diversion Rate</div></div>
+            <div class="stat-card"><div class="value" id="statGoal">--</div><div class="label">Goal Progress</div></div>
+        </div>
+
+        <div class="tabs" role="tablist">
+            <button class="tab-btn active" data-tab="log" role="tab" aria-selected="true">Log Waste</button>
+            <button class="tab-btn" data-tab="history" role="tab" aria-selected="false">History</button>
+            <button class="tab-btn" data-tab="breakdown" role="tab" aria-selected="false">Breakdown</button>
+            <button class="tab-btn" data-tab="goals" role="tab" aria-selected="false">Goals</button>
+            <button class="tab-btn" data-tab="impact" role="tab" aria-selected="false">Impact</button>
+        </div>
+
+        <!-- Log Waste Tab -->
+        <div class="tab-panel active" id="panel-log" role="tabpanel">
+            <div class="card">
+                <h2>Log Waste Entry</h2>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="wasteDate">Date</label>
+                        <input type="date" id="wasteDate" />
+                    </div>
+                    <div class="form-group">
+                        <label for="wasteCategory">Category</label>
+                        <select id="wasteCategory">
+                            <option value="bioink">Bioink Waste</option>
+                            <option value="failed">Failed Print</option>
+                            <option value="expired">Expired Material</option>
+                            <option value="packaging">Packaging</option>
+                            <option value="consumable">Consumable</option>
+                            <option value="other">Other</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="wasteMass">Mass (grams)</label>
+                        <input type="number" id="wasteMass" min="0" step="0.1" placeholder="e.g. 12.5" />
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="wasteCost">Estimated Cost ($)</label>
+                        <input type="number" id="wasteCost" min="0" step="0.01" placeholder="e.g. 4.50" />
+                    </div>
+                    <div class="form-group">
+                        <label for="wasteDiverted">Diverted / Recycled?</label>
+                        <select id="wasteDiverted">
+                            <option value="no">No -- Landfill / Biohazard</option>
+                            <option value="yes">Yes -- Recycled / Reused</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="wasteMaterial">Material Name</label>
+                        <input type="text" id="wasteMaterial" placeholder="e.g. GelMA 7%" maxlength="100" />
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="wasteNotes">Notes</label>
+                    <textarea id="wasteNotes" rows="2" placeholder="Optional: reason for waste, observations..." maxlength="500"></textarea>
+                </div>
+                <div class="btn-row">
+                    <button class="btn" id="btnLogWaste">Log Entry</button>
+                    <button class="btn secondary" id="btnLoadDemo">Load Demo Data</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- History Tab -->
+        <div class="tab-panel" id="panel-history" role="tabpanel">
+            <div class="card">
+                <h2>Waste History</h2>
+                <div class="form-row" style="margin-bottom:1rem;">
+                    <div class="form-group">
+                        <label for="filterCategory">Filter Category</label>
+                        <select id="filterCategory">
+                            <option value="all">All Categories</option>
+                            <option value="bioink">Bioink Waste</option>
+                            <option value="failed">Failed Print</option>
+                            <option value="expired">Expired Material</option>
+                            <option value="packaging">Packaging</option>
+                            <option value="consumable">Consumable</option>
+                            <option value="other">Other</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="filterSort">Sort By</label>
+                        <select id="filterSort">
+                            <option value="newest">Newest First</option>
+                            <option value="oldest">Oldest First</option>
+                            <option value="mass-desc">Mass (High to Low)</option>
+                            <option value="cost-desc">Cost (High to Low)</option>
+                        </select>
+                    </div>
+                </div>
+                <div style="overflow-x:auto;">
+                    <table id="historyTable">
+                        <thead>
+                            <tr>
+                                <th>Date</th><th>Category</th><th>Material</th>
+                                <th>Mass (g)</th><th>Cost ($)</th><th>Diverted</th><th></th>
+                            </tr>
+                        </thead>
+                        <tbody id="historyBody"></tbody>
+                    </table>
+                    <div class="empty-msg" id="historyEmpty">No waste entries logged yet.</div>
+                </div>
+                <div class="btn-row">
+                    <button class="btn secondary" id="btnExportCSV">Export CSV</button>
+                    <button class="btn secondary" id="btnExportJSON">Export JSON</button>
+                    <button class="btn danger" id="btnClearAll">Clear All</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Breakdown Tab -->
+        <div class="tab-panel" id="panel-breakdown" role="tabpanel">
+            <div class="card">
+                <h2>Waste by Category (Mass)</h2>
+                <div class="bar-chart" id="categoryChart"></div>
+            </div>
+            <div class="card">
+                <h2>Weekly Trend (Last 7 Weeks)</h2>
+                <div class="bar-chart" id="weeklyChart"></div>
+            </div>
+            <div class="card">
+                <h2>Top Wasted Materials</h2>
+                <div class="bar-chart" id="materialChart"></div>
+            </div>
+        </div>
+
+        <!-- Goals Tab -->
+        <div class="tab-panel" id="panel-goals" role="tabpanel">
+            <div class="card">
+                <h2>Set Reduction Goal</h2>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="goalMetric">Metric</label>
+                        <select id="goalMetric">
+                            <option value="mass">Total Waste Mass (g)</option>
+                            <option value="cost">Total Waste Cost ($)</option>
+                            <option value="diversion">Diversion Rate (%)</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="goalTarget">Target Value</label>
+                        <input type="number" id="goalTarget" min="0" step="0.1" placeholder="e.g. 50" />
+                    </div>
+                    <div class="form-group">
+                        <label for="goalPeriod">Period</label>
+                        <select id="goalPeriod">
+                            <option value="weekly">Per Week</option>
+                            <option value="monthly">Per Month</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="btn-row">
+                    <button class="btn" id="btnSetGoal">Set Goal</button>
+                    <button class="btn secondary" id="btnClearGoal">Clear Goal</button>
+                </div>
+            </div>
+            <div class="card" id="goalStatus" style="display:none;">
+                <h2>Current Goal Progress</h2>
+                <div id="goalDisplay"></div>
+            </div>
+        </div>
+
+        <!-- Impact Tab -->
+        <div class="tab-panel" id="panel-impact" role="tabpanel">
+            <div class="card">
+                <h2>Environmental Impact Estimates</h2>
+                <p style="color:var(--muted);font-size:0.85rem;margin-bottom:1rem;">
+                    Estimates based on published bioprinting waste lifecycle data.
+                    Actual impact varies by material, disposal method, and facility.
+                </p>
+                <div class="impact-grid" id="impactGrid"></div>
+            </div>
+            <div class="card">
+                <h2>Sustainability Score</h2>
+                <div id="sustainabilityScore"></div>
+            </div>
+        </div>
+
+        <footer>
+            <p>Built with &#9851; by <a href="https://github.com/sauravbhattacharya001">Saurav Bhattacharya</a></p>
+            <p><a href="https://github.com/sauravbhattacharya001/BioBots">View Source</a></p>
+        </footer>
+    </div>
+
+    <script>
+    'use strict';
+
+    /* -- Helpers ---------------------------------------------------------- */
+
+    var STORAGE_KEY = 'biobots_waste_entries';
+    var GOAL_KEY = 'biobots_waste_goal';
+
+    var CATEGORIES = {
+        bioink: { label: 'Bioink Waste', color: '#a78bfa' },
+        failed: { label: 'Failed Print', color: '#f87171' },
+        expired: { label: 'Expired Material', color: '#fbbf24' },
+        packaging: { label: 'Packaging', color: '#2dd4bf' },
+        consumable: { label: 'Consumable', color: '#fb923c' },
+        other: { label: 'Other', color: '#94a3b8' }
+    };
+
+    var _esc = document.createElement('div');
+    function escapeHtml(str) {
+        if (str == null) return '';
+        _esc.textContent = String(str);
+        return _esc.innerHTML;
+    }
+
+    function generateId() {
+        return Date.now().toString(36) + Math.random().toString(36).substr(2, 6);
+    }
+
+    function todayISO() {
+        var d = new Date();
+        var mm = String(d.getMonth() + 1).padStart(2, '0');
+        var dd = String(d.getDate()).padStart(2, '0');
+        return d.getFullYear() + '-' + mm + '-' + dd;
+    }
+
+    function csvSafe(val) {
+        if (val == null) return '';
+        var s = String(val);
+        var first = s.charAt(0);
+        if (first === '=' || first === '+' || first === '-' || first === '@' || first === '\t' || first === '\r') {
+            s = "'" + s;
+        }
+        if (s.indexOf(',') !== -1 || s.indexOf('"') !== -1 || s.indexOf('\n') !== -1) {
+            return '"' + s.replace(/"/g, '""') + '"';
+        }
+        return s;
+    }
+
+    /* -- State ------------------------------------------------------------ */
+
+    var entries = [];
+    var goal = null;
+
+    function loadEntries() {
+        try {
+            var raw = localStorage.getItem(STORAGE_KEY);
+            if (raw) { entries = JSON.parse(raw); }
+        } catch (e) { entries = []; }
+    }
+
+    function saveEntries() {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(entries));
+    }
+
+    function loadGoal() {
+        try {
+            var raw = localStorage.getItem(GOAL_KEY);
+            if (raw) { goal = JSON.parse(raw); }
+        } catch (e) { goal = null; }
+    }
+
+    function saveGoal() {
+        if (goal) {
+            localStorage.setItem(GOAL_KEY, JSON.stringify(goal));
+        } else {
+            localStorage.removeItem(GOAL_KEY);
+        }
+    }
+
+    /* -- Summary Stats ---------------------------------------------------- */
+
+    function updateSummary() {
+        var totalMass = 0;
+        var totalCost = 0;
+        var divertedMass = 0;
+
+        for (var i = 0; i < entries.length; i++) {
+            totalMass += entries[i].mass || 0;
+            totalCost += entries[i].cost || 0;
+            if (entries[i].diverted) { divertedMass += entries[i].mass || 0; }
+        }
+
+        document.getElementById('statTotal').textContent = entries.length;
+        document.getElementById('statMass').textContent = totalMass.toFixed(1) + ' g';
+        document.getElementById('statCost').textContent = '$' + totalCost.toFixed(2);
+
+        var divRate = totalMass > 0 ? (divertedMass / totalMass * 100) : 0;
+        document.getElementById('statDiversion').textContent = divRate.toFixed(1) + '%';
+
+        updateGoalStat();
+    }
+
+    /* -- Log Entry -------------------------------------------------------- */
+
+    function logWaste() {
+        var dateEl = document.getElementById('wasteDate');
+        var catEl = document.getElementById('wasteCategory');
+        var massEl = document.getElementById('wasteMass');
+        var costEl = document.getElementById('wasteCost');
+        var divEl = document.getElementById('wasteDiverted');
+        var matEl = document.getElementById('wasteMaterial');
+        var notesEl = document.getElementById('wasteNotes');
+
+        var mass = parseFloat(massEl.value);
+        if (isNaN(mass) || mass <= 0) {
+            alert('Please enter a valid mass greater than 0.');
+            return;
+        }
+
+        var entry = {
+            id: generateId(),
+            date: dateEl.value || todayISO(),
+            category: catEl.value,
+            mass: mass,
+            cost: parseFloat(costEl.value) || 0,
+            diverted: divEl.value === 'yes',
+            material: matEl.value.trim().substring(0, 100),
+            notes: notesEl.value.trim().substring(0, 500)
+        };
+
+        entries.push(entry);
+        saveEntries();
+        updateSummary();
+        renderHistory();
+
+        // Reset form
+        massEl.value = '';
+        costEl.value = '';
+        matEl.value = '';
+        notesEl.value = '';
+    }
+
+    /* -- Demo Data -------------------------------------------------------- */
+
+    function loadDemoData() {
+        if (entries.length > 0 && !confirm('This will add demo entries. Continue?')) return;
+
+        var now = new Date();
+        var demoEntries = [
+            { cat: 'bioink', mass: 15.2, cost: 8.50, div: false, mat: 'GelMA 7%', notes: 'Leftover after print run #42' },
+            { cat: 'failed', mass: 32.0, cost: 22.00, div: false, mat: 'Alginate 3%', notes: 'Nozzle clogged at layer 12' },
+            { cat: 'expired', mass: 50.0, cost: 35.00, div: false, mat: 'Collagen I', notes: 'Batch #B-2024-15 expired' },
+            { cat: 'packaging', mass: 120.0, cost: 0.50, div: true, mat: 'Cardboard', notes: 'Reagent shipping box recycled' },
+            { cat: 'bioink', mass: 8.3, cost: 4.20, div: false, mat: 'Fibrin 10mg/mL', notes: 'Purged nozzle before print' },
+            { cat: 'consumable', mass: 5.0, cost: 12.00, div: false, mat: 'Nozzle tip 22G', notes: 'Worn after 3 runs' },
+            { cat: 'failed', mass: 18.5, cost: 14.00, div: false, mat: 'GelMA 5%', notes: 'Temperature drift print aborted' },
+            { cat: 'packaging', mass: 85.0, cost: 0.30, div: true, mat: 'Styrofoam', notes: 'Cold chain packaging recycled' },
+            { cat: 'bioink', mass: 22.0, cost: 11.00, div: true, mat: 'Alginate 2%', notes: 'Excess mixed reused for calibration' },
+            { cat: 'expired', mass: 25.0, cost: 45.00, div: false, mat: 'PEGDA 10%', notes: 'Opened too long photoinitiator degraded' },
+            { cat: 'consumable', mass: 2.5, cost: 3.50, div: false, mat: 'Syringe 5mL', notes: 'Single use' },
+            { cat: 'other', mass: 10.0, cost: 1.00, div: true, mat: 'Gloves', notes: 'Nitrile biohazard waste' },
+            { cat: 'bioink', mass: 6.0, cost: 3.00, div: false, mat: 'HA 1.5%', notes: 'Dead volume in cartridge' },
+            { cat: 'failed', mass: 28.0, cost: 19.00, div: false, mat: 'GelMA 10%', notes: 'Layer adhesion failure' },
+            { cat: 'packaging', mass: 45.0, cost: 0.20, div: true, mat: 'Bubble wrap', notes: 'Reused for internal shipping' }
+        ];
+
+        for (var i = 0; i < demoEntries.length; i++) {
+            var d = new Date(now);
+            d.setDate(d.getDate() - Math.floor(Math.random() * 42));
+            var dd = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+            entries.push({
+                id: generateId() + i,
+                date: dd,
+                category: demoEntries[i].cat,
+                mass: demoEntries[i].mass,
+                cost: demoEntries[i].cost,
+                diverted: demoEntries[i].div,
+                material: demoEntries[i].mat,
+                notes: demoEntries[i].notes
+            });
+        }
+
+        saveEntries();
+        updateSummary();
+        renderHistory();
+        renderBreakdown();
+        renderGoals();
+        renderImpact();
+    }
+
+    /* -- History Tab ------------------------------------------------------- */
+
+    function renderHistory() {
+        var tbody = document.getElementById('historyBody');
+        var emptyMsg = document.getElementById('historyEmpty');
+        var catFilter = document.getElementById('filterCategory').value;
+        var sortBy = document.getElementById('filterSort').value;
+
+        var filtered = entries.slice();
+        if (catFilter !== 'all') {
+            filtered = filtered.filter(function(e) { return e.category === catFilter; });
+        }
+
+        filtered.sort(function(a, b) {
+            switch (sortBy) {
+                case 'oldest': return a.date < b.date ? -1 : a.date > b.date ? 1 : 0;
+                case 'mass-desc': return (b.mass || 0) - (a.mass || 0);
+                case 'cost-desc': return (b.cost || 0) - (a.cost || 0);
+                default: return a.date > b.date ? -1 : a.date < b.date ? 1 : 0;
+            }
+        });
+
+        if (filtered.length === 0) {
+            tbody.innerHTML = '';
+            emptyMsg.style.display = 'block';
+            return;
+        }
+        emptyMsg.style.display = 'none';
+
+        var html = '';
+        for (var i = 0; i < filtered.length; i++) {
+            var e = filtered[i];
+            var catInfo = CATEGORIES[e.category] || CATEGORIES.other;
+            html += '<tr>' +
+                '<td>' + escapeHtml(e.date) + '</td>' +
+                '<td><span class="badge badge-' + escapeHtml(e.category) + '">' + escapeHtml(catInfo.label) + '</span></td>' +
+                '<td>' + escapeHtml(e.material || '--') + '</td>' +
+                '<td>' + (e.mass || 0).toFixed(1) + '</td>' +
+                '<td>$' + (e.cost || 0).toFixed(2) + '</td>' +
+                '<td>' + (e.diverted ? 'Yes' : '--') + '</td>' +
+                '<td><button class="btn danger" style="padding:0.2rem 0.5rem;font-size:0.75rem;" data-delete="' + escapeHtml(e.id) + '">X</button></td>' +
+                '</tr>';
+        }
+        tbody.innerHTML = html;
+    }
+
+    function deleteEntry(id) {
+        entries = entries.filter(function(e) { return e.id !== id; });
+        saveEntries();
+        updateSummary();
+        renderHistory();
+    }
+
+    /* -- Breakdown Tab ---------------------------------------------------- */
+
+    function renderBreakdown() {
+        renderCategoryChart();
+        renderWeeklyChart();
+        renderMaterialChart();
+    }
+
+    function renderCategoryChart() {
+        var container = document.getElementById('categoryChart');
+        var byCategory = {};
+        for (var i = 0; i < entries.length; i++) {
+            var cat = entries[i].category;
+            byCategory[cat] = (byCategory[cat] || 0) + (entries[i].mass || 0);
+        }
+
+        var cats = Object.keys(byCategory).sort(function(a, b) { return byCategory[b] - byCategory[a]; });
+        var maxMass = cats.length > 0 ? byCategory[cats[0]] : 1;
+
+        if (cats.length === 0) {
+            container.innerHTML = '<div class="empty-msg">No data to display.</div>';
+            return;
+        }
+
+        var html = '';
+        for (var j = 0; j < cats.length; j++) {
+            var c = cats[j];
+            var info = CATEGORIES[c] || CATEGORIES.other;
+            var pct = (byCategory[c] / maxMass * 100).toFixed(0);
+            html += '<div class="bar-row">' +
+                '<div class="bar-label">' + escapeHtml(info.label) + '</div>' +
+                '<div class="bar-track"><div class="bar-fill" style="width:' + pct + '%;background:' + info.color + ';">' +
+                byCategory[c].toFixed(1) + 'g</div></div></div>';
+        }
+        container.innerHTML = html;
+    }
+
+    function renderWeeklyChart() {
+        var container = document.getElementById('weeklyChart');
+        var now = new Date();
+        var weeks = [];
+
+        for (var w = 6; w >= 0; w--) {
+            var weekStart = new Date(now);
+            weekStart.setDate(weekStart.getDate() - weekStart.getDay() - (w * 7));
+            weekStart.setHours(0, 0, 0, 0);
+            var weekEnd = new Date(weekStart);
+            weekEnd.setDate(weekEnd.getDate() + 7);
+
+            var mass = 0;
+            for (var i = 0; i < entries.length; i++) {
+                var ed = new Date(entries[i].date + 'T00:00:00');
+                if (ed >= weekStart && ed < weekEnd) {
+                    mass += entries[i].mass || 0;
+                }
+            }
+
+            var label = (weekStart.getMonth() + 1) + '/' + weekStart.getDate();
+            weeks.push({ label: label, mass: mass });
+        }
+
+        var maxW = 1;
+        for (var k = 0; k < weeks.length; k++) {
+            if (weeks[k].mass > maxW) maxW = weeks[k].mass;
+        }
+
+        if (maxW <= 1) {
+            container.innerHTML = '<div class="empty-msg">Not enough data for weekly trend.</div>';
+            return;
+        }
+
+        var html = '';
+        for (var m = 0; m < weeks.length; m++) {
+            var pct = (weeks[m].mass / maxW * 100).toFixed(0);
+            html += '<div class="bar-row">' +
+                '<div class="bar-label">Wk ' + escapeHtml(weeks[m].label) + '</div>' +
+                '<div class="bar-track"><div class="bar-fill" style="width:' + pct + '%;background:#38bdf8;">' +
+                weeks[m].mass.toFixed(1) + 'g</div></div></div>';
+        }
+        container.innerHTML = html;
+    }
+
+    function renderMaterialChart() {
+        var container = document.getElementById('materialChart');
+        var byMat = {};
+        for (var i = 0; i < entries.length; i++) {
+            var mat = entries[i].material || 'Unknown';
+            byMat[mat] = (byMat[mat] || 0) + (entries[i].mass || 0);
+        }
+
+        var mats = Object.keys(byMat).sort(function(a, b) { return byMat[b] - byMat[a]; });
+        mats = mats.slice(0, 8);
+        var maxM = mats.length > 0 ? byMat[mats[0]] : 1;
+
+        if (mats.length === 0) {
+            container.innerHTML = '<div class="empty-msg">No data to display.</div>';
+            return;
+        }
+
+        var html = '';
+        for (var j = 0; j < mats.length; j++) {
+            var pct = (byMat[mats[j]] / maxM * 100).toFixed(0);
+            html += '<div class="bar-row">' +
+                '<div class="bar-label">' + escapeHtml(mats[j]) + '</div>' +
+                '<div class="bar-track"><div class="bar-fill" style="width:' + pct + '%;background:#a78bfa;">' +
+                byMat[mats[j]].toFixed(1) + 'g</div></div></div>';
+        }
+        container.innerHTML = html;
+    }
+
+    /* -- Goals Tab -------------------------------------------------------- */
+
+    function setGoal() {
+        var metric = document.getElementById('goalMetric').value;
+        var target = parseFloat(document.getElementById('goalTarget').value);
+        var period = document.getElementById('goalPeriod').value;
+
+        if (isNaN(target) || target <= 0) {
+            alert('Please enter a valid target greater than 0.');
+            return;
+        }
+
+        goal = { metric: metric, target: target, period: period, setDate: todayISO() };
+        saveGoal();
+        renderGoals();
+        updateSummary();
+    }
+
+    function clearGoal() {
+        goal = null;
+        saveGoal();
+        renderGoals();
+        updateSummary();
+    }
+
+    function getGoalCurrent() {
+        if (!goal) return 0;
+        var now = new Date();
+        var periodStart = new Date(now);
+
+        if (goal.period === 'weekly') {
+            periodStart.setDate(periodStart.getDate() - periodStart.getDay());
+        } else {
+            periodStart.setDate(1);
+        }
+        periodStart.setHours(0, 0, 0, 0);
+
+        var total = 0;
+        var divertedMass = 0;
+        var totalMass = 0;
+
+        for (var i = 0; i < entries.length; i++) {
+            var ed = new Date(entries[i].date + 'T00:00:00');
+            if (ed >= periodStart) {
+                if (goal.metric === 'mass') total += entries[i].mass || 0;
+                else if (goal.metric === 'cost') total += entries[i].cost || 0;
+                totalMass += entries[i].mass || 0;
+                if (entries[i].diverted) divertedMass += entries[i].mass || 0;
+            }
+        }
+
+        if (goal.metric === 'diversion') {
+            return totalMass > 0 ? (divertedMass / totalMass * 100) : 0;
+        }
+        return total;
+    }
+
+    function renderGoals() {
+        var statusCard = document.getElementById('goalStatus');
+        var display = document.getElementById('goalDisplay');
+
+        if (!goal) {
+            statusCard.style.display = 'none';
+            return;
+        }
+        statusCard.style.display = 'block';
+
+        var current = getGoalCurrent();
+        var metricLabels = { mass: 'Waste Mass', cost: 'Waste Cost', diversion: 'Diversion Rate' };
+        var metricUnits = { mass: 'g', cost: '$', diversion: '%' };
+        var label = metricLabels[goal.metric] || goal.metric;
+        var unit = metricUnits[goal.metric] || '';
+
+        var isReduction = goal.metric !== 'diversion';
+        var progressPct;
+        if (isReduction) {
+            progressPct = goal.target > 0 ? Math.min(100, (1 - current / goal.target) * 100) : 0;
+            if (progressPct < 0) progressPct = 0;
+        } else {
+            progressPct = goal.target > 0 ? Math.min(100, current / goal.target * 100) : 0;
+        }
+
+        var barColor = progressPct >= 75 ? '#4ade80' :
+                       progressPct >= 40 ? '#fbbf24' : '#f87171';
+
+        var goalStatusText = '';
+        if (isReduction) {
+            goalStatusText = current <= goal.target ? 'On track!' : 'Over target';
+        } else {
+            goalStatusText = current >= goal.target ? 'Goal met!' : 'Below target';
+        }
+
+        display.innerHTML = '<div style="margin-bottom:0.5rem;font-size:0.9rem;">' +
+            '<strong>' + escapeHtml(label) + '</strong> -- ' +
+            escapeHtml(goal.period) + ' target: ' +
+            (goal.metric === 'cost' ? '$' : '') + goal.target.toFixed(1) + unit +
+            '</div>' +
+            '<div class="goal-progress">' +
+            '<div class="goal-bar"><div class="goal-fill" style="width:' + progressPct.toFixed(0) + '%;background:' + barColor + ';"></div></div>' +
+            '<div class="goal-text">Current: ' +
+            (goal.metric === 'cost' ? '$' : '') + current.toFixed(1) + unit +
+            ' -- ' + goalStatusText + '</div></div>';
+    }
+
+    function updateGoalStat() {
+        var el = document.getElementById('statGoal');
+        if (!goal) {
+            el.textContent = '--';
+            return;
+        }
+
+        var current = getGoalCurrent();
+        var isReduction = goal.metric !== 'diversion';
+        if (isReduction) {
+            el.textContent = current <= goal.target ? 'OK' : '!!';
+        } else {
+            el.textContent = current >= goal.target ? 'OK' : '!!';
+        }
+    }
+
+    /* -- Impact Tab -------------------------------------------------------- */
+
+    var IMPACT_FACTORS = {
+        co2PerGram: 0.0025,
+        waterPerGram: 0.015,
+        energyPerGram: 0.003,
+        biohazardPerGram: 0.8
+    };
+
+    function renderImpact() {
+        var totalMass = 0;
+        var divertedMass = 0;
+        var totalCost = 0;
+        var biohazardMass = 0;
+
+        for (var i = 0; i < entries.length; i++) {
+            totalMass += entries[i].mass || 0;
+            totalCost += entries[i].cost || 0;
+            if (entries[i].diverted) divertedMass += entries[i].mass || 0;
+            if (entries[i].category === 'bioink' || entries[i].category === 'expired' || entries[i].category === 'failed') {
+                biohazardMass += entries[i].mass || 0;
+            }
+        }
+
+        var co2 = totalMass * IMPACT_FACTORS.co2PerGram;
+        var water = totalMass * IMPACT_FACTORS.waterPerGram;
+        var energy = totalMass * IMPACT_FACTORS.energyPerGram;
+        var co2Saved = divertedMass * IMPACT_FACTORS.co2PerGram * 0.6;
+
+        var grid = document.getElementById('impactGrid');
+        grid.innerHTML =
+            '<div class="impact-card"><div class="icon">Factory</div>' +
+            '<div class="metric" style="color:#fbbf24;">' + co2.toFixed(3) + ' kg</div>' +
+            '<div class="desc">CO2 equivalent emissions</div></div>' +
+
+            '<div class="impact-card"><div class="icon">Water</div>' +
+            '<div class="metric" style="color:#38bdf8;">' + water.toFixed(2) + ' L</div>' +
+            '<div class="desc">Water footprint (production)</div></div>' +
+
+            '<div class="impact-card"><div class="icon">Energy</div>' +
+            '<div class="metric" style="color:#fb923c;">' + energy.toFixed(3) + ' kWh</div>' +
+            '<div class="desc">Embodied energy</div></div>' +
+
+            '<div class="impact-card"><div class="icon">Recycle</div>' +
+            '<div class="metric" style="color:#4ade80;">' + co2Saved.toFixed(3) + ' kg</div>' +
+            '<div class="desc">CO2 saved by diversion</div></div>' +
+
+            '<div class="impact-card"><div class="icon">Biohazard</div>' +
+            '<div class="metric" style="color:#f87171;">' + biohazardMass.toFixed(1) + ' g</div>' +
+            '<div class="desc">Biohazard waste</div></div>' +
+
+            '<div class="impact-card"><div class="icon">Package</div>' +
+            '<div class="metric" style="color:#2dd4bf;">' + divertedMass.toFixed(1) + ' g</div>' +
+            '<div class="desc">Material diverted/recycled</div></div>';
+
+        var score = calculateSustainabilityScore(totalMass, divertedMass, entries.length);
+        var scoreEl = document.getElementById('sustainabilityScore');
+
+        var scoreColor = score >= 75 ? '#4ade80' :
+                         score >= 50 ? '#fbbf24' : '#f87171';
+        var scoreLabel = score >= 75 ? 'Excellent' :
+                         score >= 50 ? 'Moderate' :
+                         score >= 25 ? 'Needs Improvement' : 'Poor';
+
+        scoreEl.innerHTML =
+            '<div style="display:flex;align-items:center;gap:1.5rem;">' +
+            '<div style="font-size:3rem;font-weight:800;color:' + scoreColor + ';">' + score + '</div>' +
+            '<div><div style="font-size:1.1rem;font-weight:600;color:' + scoreColor + ';">' + scoreLabel + '</div>' +
+            '<div style="font-size:0.85rem;color:#94a3b8;margin-top:0.3rem;">Based on diversion rate, waste per entry, and tracking consistency</div></div></div>';
+    }
+
+    function calculateSustainabilityScore(totalMass, divertedMass, entryCount) {
+        if (entryCount === 0) return 0;
+
+        var divRate = totalMass > 0 ? divertedMass / totalMass : 0;
+        var divScore = Math.min(100, divRate * 100) * 0.4;
+
+        var avgWaste = totalMass / entryCount;
+        var effScore = Math.max(0, Math.min(100, (1 - (avgWaste - 20) / 80) * 100)) * 0.3;
+
+        var trackScore = Math.min(100, entryCount * 10) * 0.3;
+
+        return Math.round(divScore + effScore + trackScore);
+    }
+
+    /* -- Export ------------------------------------------------------------ */
+
+    function exportCSV() {
+        if (entries.length === 0) { alert('No entries to export.'); return; }
+        var lines = ['Date,Category,Material,Mass (g),Cost ($),Diverted,Notes'];
+        for (var i = 0; i < entries.length; i++) {
+            var e = entries[i];
+            var catLabel = (CATEGORIES[e.category] || CATEGORIES.other).label;
+            lines.push([
+                csvSafe(e.date), csvSafe(catLabel), csvSafe(e.material || ''),
+                (e.mass || 0).toFixed(1), (e.cost || 0).toFixed(2),
+                e.diverted ? 'Yes' : 'No', csvSafe(e.notes || '')
+            ].join(','));
+        }
+        downloadFile('biobots-waste.csv', lines.join('\n'), 'text/csv');
+    }
+
+    function exportJSON() {
+        if (entries.length === 0) { alert('No entries to export.'); return; }
+        var json = JSON.stringify(entries, null, 2);
+        downloadFile('biobots-waste.json', json, 'application/json');
+    }
+
+    function downloadFile(name, content, type) {
+        var blob = new Blob([content], { type: type });
+        var url = URL.createObjectURL(blob);
+        var a = document.createElement('a');
+        a.href = url;
+        a.download = name;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+    }
+
+    /* -- Tab Switching ---------------------------------------------------- */
+
+    function switchTab(tabName) {
+        var buttons = document.querySelectorAll('.tab-btn');
+        var panels = document.querySelectorAll('.tab-panel');
+
+        for (var i = 0; i < buttons.length; i++) {
+            var btn = buttons[i];
+            var isActive = btn.getAttribute('data-tab') === tabName;
+            btn.classList.toggle('active', isActive);
+            btn.setAttribute('aria-selected', isActive ? 'true' : 'false');
+        }
+        for (var j = 0; j < panels.length; j++) {
+            panels[j].classList.toggle('active', panels[j].id === 'panel-' + tabName);
+        }
+
+        if (tabName === 'breakdown') renderBreakdown();
+        if (tabName === 'goals') renderGoals();
+        if (tabName === 'impact') renderImpact();
+        if (tabName === 'history') renderHistory();
+    }
+
+    /* -- Init ------------------------------------------------------------- */
+
+    function init() {
+        document.getElementById('wasteDate').value = todayISO();
+
+        loadEntries();
+        loadGoal();
+        updateSummary();
+        renderHistory();
+
+        var tabBtns = document.querySelectorAll('.tab-btn');
+        for (var i = 0; i < tabBtns.length; i++) {
+            tabBtns[i].addEventListener('click', function() {
+                switchTab(this.getAttribute('data-tab'));
+            });
+        }
+
+        document.getElementById('btnLogWaste').addEventListener('click', logWaste);
+        document.getElementById('btnLoadDemo').addEventListener('click', loadDemoData);
+        document.getElementById('btnExportCSV').addEventListener('click', exportCSV);
+        document.getElementById('btnExportJSON').addEventListener('click', exportJSON);
+        document.getElementById('btnSetGoal').addEventListener('click', setGoal);
+        document.getElementById('btnClearGoal').addEventListener('click', clearGoal);
+        document.getElementById('btnClearAll').addEventListener('click', function() {
+            if (confirm('Delete all waste entries? This cannot be undone.')) {
+                entries = [];
+                saveEntries();
+                updateSummary();
+                renderHistory();
+            }
+        });
+
+        document.getElementById('filterCategory').addEventListener('change', renderHistory);
+        document.getElementById('filterSort').addEventListener('change', renderHistory);
+
+        document.getElementById('historyBody').addEventListener('click', function(e) {
+            var btn = e.target.closest('[data-delete]');
+            if (btn) {
+                deleteEntry(btn.getAttribute('data-delete'));
+            }
+        });
+    }
+
+    if (typeof window !== 'undefined') {
+        window._waste = {
+            logWaste: logWaste,
+            loadDemoData: loadDemoData,
+            renderHistory: renderHistory,
+            renderBreakdown: renderBreakdown,
+            renderGoals: renderGoals,
+            renderImpact: renderImpact,
+            setGoal: setGoal,
+            clearGoal: clearGoal,
+            exportCSV: exportCSV,
+            exportJSON: exportJSON,
+            switchTab: switchTab,
+            calculateSustainabilityScore: calculateSustainabilityScore,
+            getEntries: function() { return entries; },
+            getGoal: function() { return goal; },
+            CATEGORIES: CATEGORIES,
+            IMPACT_FACTORS: IMPACT_FACTORS,
+            escapeHtml: escapeHtml
+        };
+    }
+
+    init();
+    </script>
+</body>
+</html>
