@@ -1,8 +1,24 @@
 {
-  "name": "biobots-tool",
-  "version": "1.0.0",
-  "description": "REST API and web interface for querying BioBot 1 bioprinter statistics",
-  "private": true,
+  "name": "@sauravbhattacharya001/biobots",
+  "version": "1.1.0",
+  "description": "Bioprinting computation toolkit — material calculation, rheology modeling, GCode analysis, cell viability estimation, and cross-linking kinetics",
+  "main": "index.js",
+  "files": [
+    "index.js",
+    "docs/shared/*.js",
+    "README.md",
+    "LICENSE"
+  ],
+  "keywords": [
+    "bioprinting",
+    "biobots",
+    "rheology",
+    "gcode",
+    "tissue-engineering",
+    "cell-viability",
+    "bioink",
+    "material-science"
+  ],
   "scripts": {
     "test": "jest --verbose --coverage",
     "test:ci": "jest --verbose --coverage --coverageReporters=text --coverageReporters=lcov --coverageReporters=json-summary",
