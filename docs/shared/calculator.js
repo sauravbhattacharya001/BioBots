@@ -228,8 +228,12 @@ function createMaterialCalculator() {
      */
     function formatDuration(minutes) {
         if (minutes < 1) return Math.round(minutes * 60) + 's';
-        var h = Math.floor(minutes / 60);
-        var m = Math.round(minutes % 60);
+        // Round total minutes first to avoid edge cases where
+        // Math.round(minutes % 60) = 60 (e.g. minutes = 59.6
+        // would produce "60min" instead of "1h 0min").
+        var totalMinutes = Math.round(minutes);
+        var h = Math.floor(totalMinutes / 60);
+        var m = totalMinutes % 60;
         if (h === 0) return m + 'min';
         return h + 'h ' + m + 'min';
     }
