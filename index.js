@@ -10,6 +10,7 @@
  *   - Rheology Modeler: viscosity modeling & printability scoring
  *   - Viability Estimator: cell survival prediction with environment modeling
  *   - Data Exporter: CSV/JSON export with formula-injection defense
+ *   - Passage Tracker: cell line passage history, viability trends, senescence risk
  *
  * @example
  *   var biobots = require('@sauravbhattacharya001/biobots');
@@ -23,6 +24,7 @@ var gcode = require('./docs/shared/gcode');
 var rheology = require('./docs/shared/rheology');
 var viability = require('./docs/shared/viability');
 var exporter = require('./docs/shared/export');
+var passage = require('./docs/shared/passage');
 
 module.exports = {
     createMaterialCalculator: calculator.createMaterialCalculator,
@@ -30,5 +32,6 @@ module.exports = {
     createGCodeAnalyzer: gcode.createGCodeAnalyzer,
     createRheologyModeler: rheology.createRheologyModeler,
     createViabilityEstimator: viability.createViabilityEstimator,
-    createDataExporter: exporter.createDataExporter
+    createDataExporter: exporter.createDataExporter,
+    createPassageTracker: passage.createPassageTracker
 };

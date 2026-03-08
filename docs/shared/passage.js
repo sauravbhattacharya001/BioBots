@@ -1,0 +1,423 @@
+'use strict';
+
+/**
+ * Cell Passage Tracker — tracks cell line passages for bioprinting workflows.
+ *
+ * Monitors passage history, viability trends, confluence levels, optimal passage
+ * windows, and alerts for senescence risk. Essential for maintaining cell quality
+ * in bioink preparation.
+ *
+ * @example
+ *   var tracker = createPassageTracker();
+ *   tracker.addCellLine({ id: 'HEK293', name: 'HEK-293T', maxPassage: 30 });
+ *   tracker.recordPassage('HEK293', { passage: 5, viability: 95, confluence: 85 });
+ *   var report = tracker.getCellLineReport('HEK293');
+ */
+
+function createPassageTracker() {
+    var cellLines = {};
+    var passages = {};
+    var alerts = [];
+
+    // --- Cell Line Management ---
+
+    function addCellLine(opts) {
+        if (!opts || !opts.id) throw new Error('Cell line id is required');
+        if (cellLines[opts.id]) throw new Error('Cell line already exists: ' + opts.id);
+        cellLines[opts.id] = {
+            id: opts.id,
+            name: opts.name || opts.id,
+            species: opts.species || 'unknown',
+            tissue: opts.tissue || 'unknown',
+            maxPassage: opts.maxPassage || 50,
+            optimalConfluence: opts.optimalConfluence || { min: 70, max: 90 },
+            doublingTime: opts.doublingTime || null, // hours
+            medium: opts.medium || 'unknown',
+            createdAt: opts.createdAt || new Date().toISOString(),
+            notes: opts.notes || ''
+        };
+        passages[opts.id] = [];
+        return cellLines[opts.id];
+    }
+
+    function getCellLine(id) {
+        if (!cellLines[id]) throw new Error('Cell line not found: ' + id);
+        return Object.assign({}, cellLines[id]);
+    }
+
+    function listCellLines() {
+        return Object.keys(cellLines).map(function (id) {
+            var cl = cellLines[id];
+            var ps = passages[id] || [];
+            var latest = ps.length > 0 ? ps[ps.length - 1] : null;
+            return {
+                id: cl.id,
+                name: cl.name,
+                species: cl.species,
+                totalPassages: ps.length,
+                currentPassage: latest ? latest.passage : 0,
+                latestViability: latest ? latest.viability : null,
+                status: getCellLineStatus(id)
+            };
+        });
+    }
+
+    function removeCellLine(id) {
+        if (!cellLines[id]) throw new Error('Cell line not found: ' + id);
+        delete cellLines[id];
+        delete passages[id];
+        return true;
+    }
+
+    // --- Passage Recording ---
+
+    function recordPassage(cellLineId, data) {
+        if (!cellLines[cellLineId]) throw new Error('Cell line not found: ' + cellLineId);
+        if (!data || typeof data.passage !== 'number') throw new Error('Passage number is required');
+        if (data.passage < 1) throw new Error('Passage must be >= 1');
+        if (data.viability !== undefined && (data.viability < 0 || data.viability > 100))
+            throw new Error('Viability must be 0-100');
+        if (data.confluence !== undefined && (data.confluence < 0 || data.confluence > 100))
+            throw new Error('Confluence must be 0-100');
+
+        var record = {
+            passage: data.passage,
+            viability: data.viability !== undefined ? data.viability : null,
+            confluence: data.confluence !== undefined ? data.confluence : null,
+            cellCount: data.cellCount || null,
+            splitRatio: data.splitRatio || null,
+            date: data.date || new Date().toISOString(),
+            operator: data.operator || 'unknown',
+            medium: data.medium || cellLines[cellLineId].medium,
+            notes: data.notes || ''
+        };
+
+        passages[cellLineId].push(record);
+        passages[cellLineId].sort(function (a, b) { return a.passage - b.passage; });
+
+        // Check for alerts
+        var newAlerts = checkAlerts(cellLineId, record);
+        alerts = alerts.concat(newAlerts);
+
+        return { record: record, alerts: newAlerts };
+    }
+
+    function getPassageHistory(cellLineId, opts) {
+        if (!cellLines[cellLineId]) throw new Error('Cell line not found: ' + cellLineId);
+        var ps = passages[cellLineId].slice();
+        if (opts && opts.fromPassage) ps = ps.filter(function (p) { return p.passage >= opts.fromPassage; });
+        if (opts && opts.toPassage) ps = ps.filter(function (p) { return p.passage <= opts.toPassage; });
+        if (opts && opts.limit) ps = ps.slice(-opts.limit);
+        return ps;
+    }
+
+    // --- Analysis ---
+
+    function getViabilityTrend(cellLineId) {
+        if (!cellLines[cellLineId]) throw new Error('Cell line not found: ' + cellLineId);
+        var ps = passages[cellLineId].filter(function (p) { return p.viability !== null; });
+        if (ps.length < 2) return { trend: 'insufficient_data', points: ps.length, slope: 0 };
+
+        // Simple linear regression
+        var n = ps.length;
+        var sumX = 0, sumY = 0, sumXY = 0, sumXX = 0;
+        ps.forEach(function (p) {
+            sumX += p.passage;
+            sumY += p.viability;
+            sumXY += p.passage * p.viability;
+            sumXX += p.passage * p.passage;
+        });
+        var slope = (n * sumXY - sumX * sumY) / (n * sumXX - sumX * sumX);
+        var intercept = (sumY - slope * sumX) / n;
+
+        var trend = 'stable';
+        if (slope < -0.5) trend = 'declining';
+        if (slope < -1.5) trend = 'critical_decline';
+        if (slope > 0.5) trend = 'improving';
+
+        // Projected passage where viability hits 70%
+        var viabilityThreshold = 70;
+        var projectedLimit = null;
+        if (slope < 0) {
+            projectedLimit = Math.round((viabilityThreshold - intercept) / slope);
+        }
+
+        return {
+            trend: trend,
+            slope: Math.round(slope * 100) / 100,
+            intercept: Math.round(intercept * 100) / 100,
+            points: n,
+            currentViability: ps[ps.length - 1].viability,
+            projectedLimitPassage: projectedLimit,
+            recommendation: getViabilityRecommendation(trend, ps[ps.length - 1].viability)
+        };
+    }
+
+    function getConfluenceProfile(cellLineId) {
+        if (!cellLines[cellLineId]) throw new Error('Cell line not found: ' + cellLineId);
+        var ps = passages[cellLineId].filter(function (p) { return p.confluence !== null; });
+        if (ps.length === 0) return { profile: 'no_data', points: 0 };
+
+        var cl = cellLines[cellLineId];
+        var optimal = cl.optimalConfluence;
+        var inRange = 0, overConfluent = 0, underConfluent = 0;
+
+        ps.forEach(function (p) {
+            if (p.confluence >= optimal.min && p.confluence <= optimal.max) inRange++;
+            else if (p.confluence > optimal.max) overConfluent++;
+            else underConfluent++;
+        });
+
+        var avg = ps.reduce(function (s, p) { return s + p.confluence; }, 0) / ps.length;
+
+        return {
+            profile: inRange / ps.length >= 0.7 ? 'well_managed' : 'needs_attention',
+            points: ps.length,
+            averageConfluence: Math.round(avg * 10) / 10,
+            optimalRange: optimal,
+            inRangePercent: Math.round(inRange / ps.length * 100),
+            overConfluentCount: overConfluent,
+            underConfluentCount: underConfluent,
+            lastConfluence: ps[ps.length - 1].confluence
+        };
+    }
+
+    function getOptimalPassageWindow(cellLineId) {
+        if (!cellLines[cellLineId]) throw new Error('Cell line not found: ' + cellLineId);
+        var cl = cellLines[cellLineId];
+        var ps = passages[cellLineId].filter(function (p) {
+            return p.viability !== null;
+        });
+
+        if (ps.length < 3) return { window: null, reason: 'insufficient_data' };
+
+        // Find passage range where viability stays above 85%
+        var highViability = ps.filter(function (p) { return p.viability >= 85; });
+        if (highViability.length === 0) return { window: null, reason: 'no_high_viability_passages' };
+
+        var minP = highViability[0].passage;
+        var maxP = highViability[highViability.length - 1].passage;
+
+        // Also consider max passage limit
+        var safeMax = Math.min(maxP, Math.floor(cl.maxPassage * 0.8));
+
+        return {
+            window: { from: minP, to: safeMax },
+            maxPassageLimit: cl.maxPassage,
+            senescenceBuffer: cl.maxPassage - safeMax,
+            highViabilityPassages: highViability.length,
+            recommendation: 'Use cells between passages ' + minP + '-' + safeMax + ' for best results'
+        };
+    }
+
+    function getSenescenceRisk(cellLineId) {
+        if (!cellLines[cellLineId]) throw new Error('Cell line not found: ' + cellLineId);
+        var cl = cellLines[cellLineId];
+        var ps = passages[cellLineId];
+        if (ps.length === 0) return { risk: 'unknown', currentPassage: 0, maxPassage: cl.maxPassage };
+
+        var current = ps[ps.length - 1].passage;
+        var ratio = current / cl.maxPassage;
+        var risk = 'low';
+        if (ratio > 0.9) risk = 'critical';
+        else if (ratio > 0.75) risk = 'high';
+        else if (ratio > 0.5) risk = 'moderate';
+
+        var viabilityTrend = getViabilityTrend(cellLineId);
+
+        return {
+            risk: risk,
+            currentPassage: current,
+            maxPassage: cl.maxPassage,
+            passageRatio: Math.round(ratio * 100),
+            remainingPassages: cl.maxPassage - current,
+            viabilityTrend: viabilityTrend.trend,
+            action: getSenescenceAction(risk, viabilityTrend.trend)
+        };
+    }
+
+    // --- Reporting ---
+
+    function getCellLineReport(cellLineId) {
+        if (!cellLines[cellLineId]) throw new Error('Cell line not found: ' + cellLineId);
+        return {
+            cellLine: getCellLine(cellLineId),
+            passageCount: passages[cellLineId].length,
+            viabilityTrend: getViabilityTrend(cellLineId),
+            confluenceProfile: getConfluenceProfile(cellLineId),
+            optimalWindow: getOptimalPassageWindow(cellLineId),
+            senescenceRisk: getSenescenceRisk(cellLineId),
+            recentPassages: getPassageHistory(cellLineId, { limit: 5 }),
+            alerts: alerts.filter(function (a) { return a.cellLineId === cellLineId; })
+        };
+    }
+
+    function getFleetReport() {
+        var ids = Object.keys(cellLines);
+        if (ids.length === 0) return { cellLines: 0, summary: 'No cell lines registered' };
+
+        var riskCounts = { low: 0, moderate: 0, high: 0, critical: 0, unknown: 0 };
+        var reports = ids.map(function (id) {
+            var risk = getSenescenceRisk(id);
+            riskCounts[risk.risk]++;
+            return {
+                id: id,
+                name: cellLines[id].name,
+                currentPassage: risk.currentPassage,
+                maxPassage: risk.maxPassage,
+                risk: risk.risk,
+                status: getCellLineStatus(id)
+            };
+        });
+
+        return {
+            cellLines: ids.length,
+            riskDistribution: riskCounts,
+            needsAttention: reports.filter(function (r) {
+                return r.risk === 'high' || r.risk === 'critical';
+            }),
+            allLines: reports,
+            pendingAlerts: alerts.filter(function (a) { return !a.acknowledged; }).length
+        };
+    }
+
+    // --- Export ---
+
+    function exportPassageData(cellLineId, format) {
+        if (!cellLines[cellLineId]) throw new Error('Cell line not found: ' + cellLineId);
+        var ps = passages[cellLineId];
+        format = format || 'json';
+
+        if (format === 'json') {
+            return JSON.stringify({
+                cellLine: cellLines[cellLineId],
+                passages: ps,
+                exportedAt: new Date().toISOString()
+            }, null, 2);
+        }
+
+        if (format === 'csv') {
+            var header = 'passage,viability,confluence,cellCount,splitRatio,date,operator,medium,notes';
+            var rows = ps.map(function (p) {
+                return [
+                    p.passage, p.viability, p.confluence, p.cellCount,
+                    p.splitRatio, p.date, p.operator, p.medium,
+                    '"' + (p.notes || '').replace(/"/g, '""') + '"'
+                ].join(',');
+            });
+            return header + '\n' + rows.join('\n');
+        }
+
+        throw new Error('Unsupported format: ' + format + '. Use json or csv.');
+    }
+
+    // --- Alerts ---
+
+    function getAlerts(opts) {
+        var result = alerts.slice();
+        if (opts && opts.cellLineId) result = result.filter(function (a) { return a.cellLineId === opts.cellLineId; });
+        if (opts && opts.unacknowledged) result = result.filter(function (a) { return !a.acknowledged; });
+        if (opts && opts.severity) result = result.filter(function (a) { return a.severity === opts.severity; });
+        return result;
+    }
+
+    function acknowledgeAlert(index) {
+        if (index < 0 || index >= alerts.length) throw new Error('Invalid alert index');
+        alerts[index].acknowledged = true;
+        alerts[index].acknowledgedAt = new Date().toISOString();
+        return alerts[index];
+    }
+
+    // --- Internal Helpers ---
+
+    function getCellLineStatus(id) {
+        var ps = passages[id] || [];
+        if (ps.length === 0) return 'new';
+        var cl = cellLines[id];
+        var current = ps[ps.length - 1].passage;
+        if (current >= cl.maxPassage) return 'exhausted';
+        if (current >= cl.maxPassage * 0.9) return 'near_limit';
+        var latestViability = ps[ps.length - 1].viability;
+        if (latestViability !== null && latestViability < 70) return 'low_viability';
+        return 'active';
+    }
+
+    function checkAlerts(cellLineId, record) {
+        var cl = cellLines[cellLineId];
+        var newAlerts = [];
+
+        // High passage alert
+        if (record.passage >= cl.maxPassage * 0.8) {
+            newAlerts.push({
+                cellLineId: cellLineId,
+                type: 'high_passage',
+                severity: record.passage >= cl.maxPassage * 0.9 ? 'critical' : 'warning',
+                message: cl.name + ' at passage ' + record.passage + '/' + cl.maxPassage,
+                date: record.date,
+                acknowledged: false
+            });
+        }
+
+        // Low viability alert
+        if (record.viability !== null && record.viability < 80) {
+            newAlerts.push({
+                cellLineId: cellLineId,
+                type: 'low_viability',
+                severity: record.viability < 70 ? 'critical' : 'warning',
+                message: cl.name + ' viability dropped to ' + record.viability + '%',
+                date: record.date,
+                acknowledged: false
+            });
+        }
+
+        // Over-confluence alert
+        if (record.confluence !== null && record.confluence > cl.optimalConfluence.max) {
+            newAlerts.push({
+                cellLineId: cellLineId,
+                type: 'over_confluence',
+                severity: record.confluence > 95 ? 'critical' : 'warning',
+                message: cl.name + ' confluence at ' + record.confluence + '% (optimal: ' + cl.optimalConfluence.min + '-' + cl.optimalConfluence.max + '%)',
+                date: record.date,
+                acknowledged: false
+            });
+        }
+
+        return newAlerts;
+    }
+
+    function getViabilityRecommendation(trend, currentViability) {
+        if (trend === 'critical_decline') return 'URGENT: Thaw fresh stock. Viability declining rapidly.';
+        if (trend === 'declining') return 'Monitor closely. Consider thawing backup stock soon.';
+        if (currentViability < 80) return 'Viability below threshold. Check culture conditions.';
+        if (trend === 'stable') return 'Cell line performing well. Continue current protocol.';
+        return 'Viability trending upward. Current protocol is effective.';
+    }
+
+    function getSenescenceAction(risk, viabilityTrend) {
+        if (risk === 'critical') return 'STOP: Thaw new vial immediately. Do not use for experiments.';
+        if (risk === 'high' && viabilityTrend === 'declining') return 'Thaw new vial within 1-2 passages.';
+        if (risk === 'high') return 'Plan thaw of fresh stock. Current cells nearing limit.';
+        if (risk === 'moderate') return 'Monitor passage count. Prepare backup vials.';
+        return 'No action needed. Cells within safe passage range.';
+    }
+
+    return {
+        addCellLine: addCellLine,
+        getCellLine: getCellLine,
+        listCellLines: listCellLines,
+        removeCellLine: removeCellLine,
+        recordPassage: recordPassage,
+        getPassageHistory: getPassageHistory,
+        getViabilityTrend: getViabilityTrend,
+        getConfluenceProfile: getConfluenceProfile,
+        getOptimalPassageWindow: getOptimalPassageWindow,
+        getSenescenceRisk: getSenescenceRisk,
+        getCellLineReport: getCellLineReport,
+        getFleetReport: getFleetReport,
+        exportPassageData: exportPassageData,
+        getAlerts: getAlerts,
+        acknowledgeAlert: acknowledgeAlert
+    };
+}
+
+module.exports = { createPassageTracker: createPassageTracker };
