@@ -301,8 +301,8 @@ function createPassageTracker() {
             var rows = ps.map(function (p) {
                 return [
                     p.passage, p.viability, p.confluence, p.cellCount,
-                    p.splitRatio, p.date, p.operator, p.medium,
-                    '"' + (p.notes || '').replace(/"/g, '""') + '"'
+                    p.splitRatio, escapeCSVField(p.date), escapeCSVField(p.operator),
+                    escapeCSVField(p.medium), escapeCSVField(p.notes)
                 ].join(',');
             });
             return header + '\n' + rows.join('\n');
@@ -329,6 +329,33 @@ function createPassageTracker() {
     }
 
     // --- Internal Helpers ---
+
+    /**
+     * Escape a value for safe CSV inclusion.
+     * Defends against CSV formula injection (OWASP) and handles
+     * commas, quotes, and newlines per RFC 4180.
+     */
+    function escapeCSVField(value) {
+        if (value == null) return '';
+        var str = String(value);
+
+        // CSV formula injection defense (OWASP): prefix dangerous
+        // leading characters with a single-quote to force text mode.
+        var firstChar = str.charAt(0);
+        if (firstChar === '=' || firstChar === '+' || firstChar === '-' ||
+            firstChar === '@' || firstChar === '\t' || firstChar === '\r') {
+            str = "'" + str;
+        }
+
+        // Quote if contains comma, double-quote, newline, or
+        // leading/trailing whitespace
+        if (str.indexOf(',') !== -1 || str.indexOf('"') !== -1 ||
+            str.indexOf('\n') !== -1 || str.indexOf('\r') !== -1 ||
+            str !== str.trim()) {
+            return '"' + str.replace(/"/g, '""') + '"';
+        }
+        return str;
+    }
 
     function getCellLineStatus(id) {
         var ps = passages[id] || [];
