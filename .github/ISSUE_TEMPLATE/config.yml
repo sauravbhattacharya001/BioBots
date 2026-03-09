@@ -1,5 +1,8 @@
 blank_issues: false
 contact_links:
-  - name: 📖 Documentation Site
+  - name: 📚 Documentation Site
     url: https://sauravbhattacharya001.github.io/BioBots/
     about: Browse the docs site for API reference, architecture, and usage guides
+  - name: 🧬 Protocol Library Docs
+    url: https://sauravbhattacharya001.github.io/BioBots/api.html
+    about: View existing protocols and API documentation before submitting a new one
