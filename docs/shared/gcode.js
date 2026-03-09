@@ -269,11 +269,14 @@ function createGCodeAnalyzer() {
 
             } else if (cmd === 'G90') {
                 isAbsoluteXYZ = true;
-                isAbsoluteE = true;
+                // Note: G90 only affects XYZ axes. The extruder (E axis)
+                // mode is controlled independently by M82/M83. Setting
+                // isAbsoluteE here would break the common G90+M83 combo
+                // (absolute positioning with relative extrusion).
 
             } else if (cmd === 'G91') {
                 isAbsoluteXYZ = false;
-                isAbsoluteE = false;
+                // Same as above: G91 does not affect E axis mode.
 
             } else if (cmd === 'M82') {
                 isAbsoluteE = true;

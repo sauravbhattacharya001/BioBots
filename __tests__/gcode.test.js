@@ -429,11 +429,14 @@ describe('createGCodeAnalyzer', function () {
 
         test('handles absolute/relative mode switches', function () {
             var gcode = [
-                'G90',                // absolute
+                'G90',                // absolute XYZ
+                'M82',                // absolute E
                 'G1 X10 E2 F1000',   // abs: x=10, e=2
-                'G91',                // relative
+                'G91',                // relative XYZ
+                'M83',                // relative E
                 'G1 X5 E1 F1000',    // rel: x=15, e=3
-                'G90',                // back to absolute
+                'G90',                // back to absolute XYZ (E stays relative per M83)
+                'M82',                // back to absolute E
                 'G1 X20 E5 F1000'    // abs: x=20, e=5
             ].join('\n');
             var result = analyzer.analyze(gcode);
