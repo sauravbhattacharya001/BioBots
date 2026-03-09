@@ -1,0 +1,720 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>BioBots 1 — Sterilization Protocol Planner</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧬</text></svg>">
+    <style>
+        :root {
+            --bg: #0f172a; --surface: #1e293b; --border: #334155;
+            --text: #e2e8f0; --muted: #94a3b8;
+            --accent: #38bdf8; --accent-hover: #7dd3fc;
+            --success: #4ade80; --error: #f87171; --warning: #fbbf24;
+            --purple: #a78bfa;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg); color: var(--text);
+            min-height: 100vh; padding: 2rem 1rem;
+        }
+        nav { display: flex; gap: 0.5rem; margin-bottom: 2rem; flex-wrap: wrap; justify-content: center; }
+        nav a { color: var(--muted); padding: 0.5rem 1rem; border-radius: 8px; text-decoration: none; font-size: 0.9rem; transition: all 0.2s; }
+        nav a:hover { color: var(--accent); background: var(--surface); }
+        nav a.active { color: var(--accent); background: var(--surface); border: 1px solid var(--border); }
+        header { text-align: center; margin-bottom: 2rem; }
+        header h1 {
+            font-size: 2rem; font-weight: 700;
+            background: linear-gradient(135deg, var(--accent), var(--purple));
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+        }
+        header p { color: var(--muted); margin-top: 0.5rem; }
+        .container { max-width: 1200px; margin: 0 auto; }
+        .card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 1.5rem; margin-bottom: 1.5rem; }
+        .card h2 { font-size: 1.2rem; margin-bottom: 1rem; display: flex; align-items: center; gap: 0.5rem; }
+        .card h3 { font-size: 1rem; margin-bottom: 0.75rem; color: var(--accent); }
+
+        .tabs { display: flex; gap: 0.5rem; margin-bottom: 1.5rem; flex-wrap: wrap; }
+        .tab { background: transparent; border: 1px solid var(--border); color: var(--muted); padding: 0.5rem 1rem; border-radius: 8px; cursor: pointer; font-size: 0.9rem; transition: all 0.2s; }
+        .tab:hover { color: var(--text); border-color: var(--accent); }
+        .tab.active { background: var(--accent); color: var(--bg); border-color: var(--accent); font-weight: 600; }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+
+        .grid-2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 1.5rem; }
+        .grid-3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1rem; }
+
+        label { display: block; font-size: 0.85rem; color: var(--muted); margin-bottom: 0.3rem; }
+        select, input { width: 100%; padding: 0.6rem; background: var(--bg); border: 1px solid var(--border); border-radius: 8px; color: var(--text); font-size: 0.9rem; }
+        select:focus, input:focus { outline: none; border-color: var(--accent); }
+
+        .btn { padding: 0.6rem 1.25rem; border: none; border-radius: 8px; cursor: pointer; font-size: 0.9rem; font-weight: 600; transition: all 0.2s; }
+        .btn-primary { background: var(--accent); color: var(--bg); }
+        .btn-primary:hover { background: var(--accent-hover); }
+        .btn-secondary { background: var(--surface); color: var(--text); border: 1px solid var(--border); }
+        .btn-secondary:hover { border-color: var(--accent); }
+        .btn-row { display: flex; gap: 0.5rem; margin-top: 1rem; flex-wrap: wrap; }
+
+        table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+        th, td { padding: 0.6rem 0.75rem; text-align: left; border-bottom: 1px solid var(--border); }
+        th { color: var(--muted); font-weight: 600; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.05em; }
+        td { color: var(--text); }
+
+        .badge { display: inline-block; padding: 0.2rem 0.6rem; border-radius: 12px; font-size: 0.75rem; font-weight: 600; }
+        .badge-success { background: rgba(74,222,128,0.15); color: var(--success); }
+        .badge-warning { background: rgba(251,191,36,0.15); color: var(--warning); }
+        .badge-error { background: rgba(248,113,113,0.15); color: var(--error); }
+        .badge-info { background: rgba(56,189,248,0.15); color: var(--accent); }
+
+        .compat-bar { height: 8px; border-radius: 4px; background: var(--border); overflow: hidden; }
+        .compat-fill { height: 100%; border-radius: 4px; transition: width 0.3s; }
+
+        .method-card { background: var(--bg); border: 1px solid var(--border); border-radius: 10px; padding: 1rem; cursor: pointer; transition: all 0.2s; }
+        .method-card:hover { border-color: var(--accent); }
+        .method-card.selected { border-color: var(--accent); background: rgba(56,189,248,0.05); }
+        .method-card h4 { font-size: 0.95rem; margin-bottom: 0.3rem; }
+        .method-card p { font-size: 0.8rem; color: var(--muted); }
+        .method-card .temp { color: var(--accent); font-weight: 600; font-size: 0.85rem; }
+
+        .kill-curve { width: 100%; height: 280px; background: var(--bg); border-radius: 8px; border: 1px solid var(--border); position: relative; }
+        .curve-label { position: absolute; font-size: 0.7rem; color: var(--muted); }
+
+        .result-box { background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 1rem; margin-bottom: 0.75rem; }
+        .result-box h4 { color: var(--accent); margin-bottom: 0.5rem; }
+        .result-row { display: flex; justify-content: space-between; margin-bottom: 0.3rem; font-size: 0.85rem; }
+        .result-row .label { color: var(--muted); }
+
+        .step-list { counter-reset: step; }
+        .step-item { display: flex; gap: 1rem; margin-bottom: 1rem; }
+        .step-number { flex-shrink: 0; width: 32px; height: 32px; border-radius: 50%; background: var(--accent); color: var(--bg); display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 0.85rem; }
+        .step-body { flex: 1; }
+        .step-body h4 { font-size: 0.9rem; margin-bottom: 0.25rem; }
+        .step-body p { font-size: 0.8rem; color: var(--muted); }
+
+        .pros-cons { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-top: 0.75rem; }
+        .pros li { color: var(--success); }
+        .cons li { color: var(--error); }
+        .pros li::marker, .cons li::marker { font-size: 0.7rem; }
+        .pros, .cons { font-size: 0.8rem; list-style: none; padding: 0; }
+        .pros li::before { content: '✓ '; color: var(--success); }
+        .cons li::before { content: '✗ '; color: var(--error); }
+
+        .empty-state { text-align: center; padding: 3rem 1rem; color: var(--muted); }
+        .empty-state .icon { font-size: 2.5rem; margin-bottom: 0.5rem; }
+
+        @media (max-width: 600px) {
+            .grid-2 { grid-template-columns: 1fr; }
+            .grid-3 { grid-template-columns: 1fr; }
+            .pros-cons { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <nav>
+        <a href="index.html">API</a>
+        <a href="table.html">Batches</a>
+        <a href="calculator.html">Formulation</a>
+        <a href="failure.html">Diagnostics</a>
+        <a href="calibration.html">Calibration</a>
+        <a href="rheology.html">Rheology</a>
+        <a href="protocol.html">Protocols</a>
+        <a href="sterilization.html" class="active">Sterilization</a>
+        <a href="cost.html">Cost</a>
+    </nav>
+
+    <header>
+        <h1>🧫 Sterilization Protocol Planner</h1>
+        <p>Plan, compare, and validate sterilization protocols for bioprinting workflows</p>
+    </header>
+
+    <div class="container">
+        <div class="tabs">
+            <button class="tab active" data-tab="planner">Protocol Planner</button>
+            <button class="tab" data-tab="compare">Method Comparison</button>
+            <button class="tab" data-tab="compatibility">Material Compatibility</button>
+            <button class="tab" data-tab="killcurve">Kill Curves</button>
+        </div>
+
+        <!-- ═══ Tab 1: Protocol Planner ═══ -->
+        <div class="tab-content active" id="tab-planner">
+            <div class="grid-2">
+                <div class="card">
+                    <h2>⚙️ Configuration</h2>
+                    <div style="margin-bottom: 1rem;">
+                        <label for="plannerMaterial">Material</label>
+                        <select id="plannerMaterial">
+                            <option value="">Select material...</option>
+                        </select>
+                    </div>
+                    <div style="margin-bottom: 1rem;">
+                        <label for="plannerPathogen">Target Pathogen</label>
+                        <select id="plannerPathogen">
+                            <option value="">Select pathogen...</option>
+                        </select>
+                    </div>
+                    <div style="margin-bottom: 1rem;">
+                        <label for="plannerSAL">Target SAL (Sterility Assurance Level)</label>
+                        <select id="plannerSAL">
+                            <option value="1e-3">10⁻³ (Industrial)</option>
+                            <option value="1e-6" selected>10⁻⁶ (Medical device standard)</option>
+                            <option value="1e-9">10⁻⁹ (Ultra-sterile)</option>
+                            <option value="1e-12">10⁻¹² (Extreme)</option>
+                        </select>
+                    </div>
+                    <div style="margin-bottom: 1rem;">
+                        <label for="plannerBioburden">Initial Bioburden (CFU)</label>
+                        <input type="number" id="plannerBioburden" value="1000" min="1" max="1000000">
+                    </div>
+                    <div class="btn-row">
+                        <button class="btn btn-primary" id="btnRecommend">Get Recommendation</button>
+                        <button class="btn btn-secondary" id="btnMultiStep">Multi-Step Plan</button>
+                    </div>
+                </div>
+                <div class="card" id="recommendResult">
+                    <h2>📋 Recommendation</h2>
+                    <div class="empty-state">
+                        <div class="icon">🧫</div>
+                        <p>Configure your parameters and click "Get Recommendation"</p>
+                    </div>
+                </div>
+            </div>
+            <div class="card" id="multiStepResult" style="display:none;">
+                <h2>📐 Multi-Step Protocol</h2>
+                <div id="multiStepContent"></div>
+            </div>
+        </div>
+
+        <!-- ═══ Tab 2: Method Comparison ═══ -->
+        <div class="tab-content" id="tab-compare">
+            <div class="card">
+                <h2>⚖️ Compare Sterilization Methods</h2>
+                <div style="margin-bottom: 1rem;">
+                    <label>Select Material for Compatibility Check</label>
+                    <select id="compareMaterial">
+                        <option value="">All methods (no material filter)</option>
+                    </select>
+                </div>
+                <div id="methodGrid" class="grid-3"></div>
+            </div>
+            <div class="card" id="methodDetail" style="display:none;">
+                <h2 id="methodDetailTitle">Method Details</h2>
+                <div id="methodDetailContent"></div>
+            </div>
+        </div>
+
+        <!-- ═══ Tab 3: Material Compatibility ═══ -->
+        <div class="tab-content" id="tab-compatibility">
+            <div class="card">
+                <h2>🧪 Material × Method Compatibility Matrix</h2>
+                <p style="color:var(--muted);font-size:0.85rem;margin-bottom:1rem;">
+                    Values show fraction of material properties retained after a standard sterilization cycle (1.0 = fully compatible, 0.0 = destroyed).
+                </p>
+                <div style="overflow-x:auto;">
+                    <table id="compatTable"></table>
+                </div>
+            </div>
+        </div>
+
+        <!-- ═══ Tab 4: Kill Curves ═══ -->
+        <div class="tab-content" id="tab-killcurve">
+            <div class="card">
+                <h2>📈 Pathogen Kill Kinetics</h2>
+                <div class="grid-2" style="margin-bottom:1rem;">
+                    <div>
+                        <label for="kcMethod">Method</label>
+                        <select id="kcMethod"></select>
+                    </div>
+                    <div>
+                        <label for="kcPathogen">Pathogen</label>
+                        <select id="kcPathogen"></select>
+                    </div>
+                </div>
+                <div style="margin-bottom:1rem;">
+                    <label for="kcDuration">Duration (minutes)</label>
+                    <input type="range" id="kcDuration" min="1" max="120" value="30" style="width:100%;">
+                    <div style="display:flex;justify-content:space-between;font-size:0.8rem;color:var(--muted);">
+                        <span>1 min</span>
+                        <span id="kcDurationLabel">30 min</span>
+                        <span>120 min</span>
+                    </div>
+                </div>
+                <div id="kcResults"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+    (function () {
+        'use strict';
+
+        // ── Inline sterilization engine (subset of sterilization.js) ────
+
+        var PATHOGENS = {
+            'B. stearothermophilus': { type: 'spore', autoclave121: 1.5, autoclave134: 0.4, uvC: 12.0, ethanol: null, gamma: 2.8, eto: 5.0, h2o2Plasma: 6.0 },
+            'B. atrophaeus':        { type: 'spore', autoclave121: 0.5, autoclave134: 0.15, uvC: 15.0, ethanol: null, gamma: 2.2, eto: 3.0, h2o2Plasma: 4.5 },
+            'S. aureus':            { type: 'vegetative', autoclave121: 0.12, autoclave134: 0.03, uvC: 1.6, ethanol: 0.5, gamma: 0.2, eto: 0.8, h2o2Plasma: 0.4 },
+            'E. coli':              { type: 'vegetative', autoclave121: 0.1, autoclave134: 0.025, uvC: 1.3, ethanol: 0.3, gamma: 0.18, eto: 0.6, h2o2Plasma: 0.3 },
+            'P. aeruginosa':        { type: 'vegetative', autoclave121: 0.08, autoclave134: 0.02, uvC: 2.2, ethanol: 0.4, gamma: 0.15, eto: 0.7, h2o2Plasma: 0.35 },
+            'A. niger':             { type: 'fungal', autoclave121: 0.8, autoclave134: 0.2, uvC: 8.0, ethanol: 2.0, gamma: 1.8, eto: 3.5, h2o2Plasma: 3.0 },
+            'C. sporogenes':        { type: 'spore', autoclave121: 1.2, autoclave134: 0.35, uvC: 14.0, ethanol: null, gamma: 2.5, eto: 4.5, h2o2Plasma: 5.5 },
+            'M. tuberculosis':      { type: 'mycobacterium', autoclave121: 0.2, autoclave134: 0.06, uvC: 3.0, ethanol: 1.0, gamma: 0.4, eto: 1.5, h2o2Plasma: 1.2 }
+        };
+
+        var METHODS = {
+            autoclave121: { name: 'Autoclave 121°C', temp: 121, defaultMin: 20, cat: 'heat', pros: ['All organisms','No residuals','Validated'], cons: ['Heat damage','Moisture','Not for electronics'] },
+            autoclave134: { name: 'Autoclave 134°C', temp: 134, defaultMin: 4, cat: 'heat', pros: ['Very fast','Prion-capable','High kill'], cons: ['Higher damage','Material stress','Load limits'] },
+            uvC:          { name: 'UV-C (254nm)', temp: 25, defaultMin: 30, cat: 'radiation', pros: ['Low temp','No residuals','Surface-safe'], cons: ['Surface only','Shadowing','Weak on spores'] },
+            ethanol:      { name: 'Ethanol 70%', temp: 25, defaultMin: 10, cat: 'chemical', pros: ['Easy','Fast on vegetative','Low cost'], cons: ['No spore kill','Protein fixation','Fire hazard'] },
+            gamma:        { name: 'Gamma Irradiation', temp: 25, defaultMin: 0, cat: 'radiation', pros: ['Deep penetration','Through packaging','No heat'], cons: ['Polymer damage','Special facility','Dose damage'] },
+            eto:          { name: 'Ethylene Oxide', temp: 55, defaultMin: 180, cat: 'chemical', pros: ['Low temp','Good penetration','Polymer-safe'], cons: ['Toxic residuals','Long cycle','Carcinogenic'] },
+            h2o2Plasma:   { name: 'H₂O₂ Plasma', temp: 50, defaultMin: 45, cat: 'chemical', pros: ['Low temp','No residuals','Fast','Material-friendly'], cons: ['No cellulose','Limited lumens','Higher cost'] }
+        };
+
+        var MATERIALS = {
+            'GelMA':    { autoclave121: 0.0, autoclave134: 0.0, uvC: 0.85, ethanol: 0.7, gamma: 0.5, eto: 0.6, h2o2Plasma: 0.8 },
+            'Alginate': { autoclave121: 0.3, autoclave134: 0.1, uvC: 0.95, ethanol: 0.85, gamma: 0.6, eto: 0.9, h2o2Plasma: 0.9 },
+            'Collagen': { autoclave121: 0.0, autoclave134: 0.0, uvC: 0.75, ethanol: 0.6, gamma: 0.4, eto: 0.55, h2o2Plasma: 0.7 },
+            'PCL':      { autoclave121: 0.65, autoclave134: 0.3, uvC: 0.9, ethanol: 0.95, gamma: 0.7, eto: 0.95, h2o2Plasma: 0.95 },
+            'PLA':      { autoclave121: 0.1, autoclave134: 0.0, uvC: 0.9, ethanol: 0.95, gamma: 0.75, eto: 0.9, h2o2Plasma: 0.9 },
+            'PLGA':     { autoclave121: 0.05, autoclave134: 0.0, uvC: 0.85, ethanol: 0.9, gamma: 0.5, eto: 0.85, h2o2Plasma: 0.85 },
+            'Fibrin':   { autoclave121: 0.0, autoclave134: 0.0, uvC: 0.7, ethanol: 0.5, gamma: 0.35, eto: 0.5, h2o2Plasma: 0.65 },
+            'Silk':     { autoclave121: 0.55, autoclave134: 0.2, uvC: 0.8, ethanol: 0.85, gamma: 0.6, eto: 0.75, h2o2Plasma: 0.8 },
+            'PEEK':     { autoclave121: 0.95, autoclave134: 0.9, uvC: 0.95, ethanol: 0.95, gamma: 0.85, eto: 0.95, h2o2Plasma: 0.95 },
+            'Titanium': { autoclave121: 1.0, autoclave134: 1.0, uvC: 0.95, ethanol: 0.95, gamma: 1.0, eto: 0.95, h2o2Plasma: 0.95 }
+        };
+
+        // ── Kill kinetics calculator ────────────────────────────────
+
+        function calcLogReduction(dValue, durationMin) {
+            if (!dValue || dValue <= 0) return null;
+            return durationMin / dValue;
+        }
+
+        function calcSurvivors(initial, logReduction) {
+            return initial * Math.pow(10, -logReduction);
+        }
+
+        function calcTimeForSAL(dValue, initial, sal) {
+            if (!dValue || dValue <= 0) return Infinity;
+            var targetLog = Math.log10(initial) - Math.log10(sal);
+            return dValue * targetLog;
+        }
+
+        function recommendMethod(material, pathogen, sal, bioburden) {
+            var matCompat = material ? MATERIALS[material] : null;
+            var p = PATHOGENS[pathogen];
+            var results = [];
+
+            for (var mKey in METHODS) {
+                var dValue = p ? p[mKey] : null;
+                if (dValue === null) continue;
+                var time = calcTimeForSAL(dValue, bioburden, sal);
+                var compat = matCompat ? matCompat[mKey] : 1.0;
+                var score = compat * (1 / (1 + time / 60)); // balance compat vs speed
+
+                results.push({
+                    method: mKey,
+                    name: METHODS[mKey].name,
+                    timeNeeded: Math.ceil(time),
+                    logReduction: calcLogReduction(dValue, time),
+                    compatibility: compat,
+                    score: score
+                });
+            }
+
+            results.sort(function (a, b) { return b.score - a.score; });
+            return results;
+        }
+
+        // ── Helper functions ────────────────────────────────────────
+
+        function esc(str) {
+            var d = document.createElement('div');
+            d.textContent = str;
+            return d.innerHTML;
+        }
+
+        function compatColor(val) {
+            if (val >= 0.8) return 'var(--success)';
+            if (val >= 0.5) return 'var(--warning)';
+            return 'var(--error)';
+        }
+
+        function compatBadge(val) {
+            if (val >= 0.8) return '<span class="badge badge-success">' + (val * 100).toFixed(0) + '%</span>';
+            if (val >= 0.5) return '<span class="badge badge-warning">' + (val * 100).toFixed(0) + '%</span>';
+            if (val > 0)    return '<span class="badge badge-error">' + (val * 100).toFixed(0) + '%</span>';
+            return '<span class="badge badge-error">Destroyed</span>';
+        }
+
+        function fmtNum(n, decimals) {
+            if (n === null || n === undefined || isNaN(n)) return '—';
+            if (n === Infinity) return '∞';
+            if (n < 0.001 && n > 0) return n.toExponential(1);
+            return n.toFixed(decimals || 1);
+        }
+
+        // ── Tab switching ───────────────────────────────────────────
+
+        var tabs = document.querySelectorAll('.tab');
+        for (var i = 0; i < tabs.length; i++) {
+            tabs[i].addEventListener('click', function () {
+                var target = this.getAttribute('data-tab');
+                document.querySelectorAll('.tab').forEach(function (t) { t.classList.remove('active'); });
+                document.querySelectorAll('.tab-content').forEach(function (c) { c.classList.remove('active'); });
+                this.classList.add('active');
+                document.getElementById('tab-' + target).classList.add('active');
+            });
+        }
+
+        // ── Populate dropdowns ──────────────────────────────────────
+
+        function populateSelect(id, items) {
+            var sel = document.getElementById(id);
+            var firstOpt = sel.options[0];
+            sel.innerHTML = '';
+            sel.appendChild(firstOpt);
+            for (var k in items) {
+                var opt = document.createElement('option');
+                opt.value = k;
+                opt.textContent = items[k].name || k;
+                sel.appendChild(opt);
+            }
+        }
+
+        function populateSimpleSelect(id, items) {
+            var sel = document.getElementById(id);
+            sel.innerHTML = '';
+            for (var k in items) {
+                var opt = document.createElement('option');
+                opt.value = k;
+                opt.textContent = items[k].name || k;
+                sel.appendChild(opt);
+            }
+        }
+
+        // Materials
+        var matSelects = ['plannerMaterial', 'compareMaterial'];
+        matSelects.forEach(function (sid) {
+            var sel = document.getElementById(sid);
+            if (!sel) return;
+            var firstOpt = sel.options[0];
+            sel.innerHTML = '';
+            sel.appendChild(firstOpt);
+            for (var k in MATERIALS) {
+                var opt = document.createElement('option');
+                opt.value = k;
+                opt.textContent = k;
+                sel.appendChild(opt);
+            }
+        });
+
+        // Pathogens
+        var pathSel = document.getElementById('plannerPathogen');
+        var firstOpt = pathSel.options[0];
+        pathSel.innerHTML = '';
+        pathSel.appendChild(firstOpt);
+        for (var pk in PATHOGENS) {
+            var opt = document.createElement('option');
+            opt.value = pk;
+            opt.textContent = pk + ' (' + PATHOGENS[pk].type + ')';
+            pathSel.appendChild(opt);
+        }
+
+        // Kill curve selects
+        populateSimpleSelect('kcMethod', METHODS);
+        var kcPSel = document.getElementById('kcPathogen');
+        kcPSel.innerHTML = '';
+        for (var kp in PATHOGENS) {
+            var o = document.createElement('option');
+            o.value = kp;
+            o.textContent = kp;
+            kcPSel.appendChild(o);
+        }
+
+        // ── Tab 1: Protocol Planner ─────────────────────────────────
+
+        document.getElementById('btnRecommend').addEventListener('click', function () {
+            var material = document.getElementById('plannerMaterial').value;
+            var pathogen = document.getElementById('plannerPathogen').value;
+            var sal = parseFloat(document.getElementById('plannerSAL').value);
+            var bioburden = parseInt(document.getElementById('plannerBioburden').value) || 1000;
+
+            if (!pathogen) {
+                alert('Please select a target pathogen.');
+                return;
+            }
+
+            var results = recommendMethod(material || null, pathogen, sal, bioburden);
+            var container = document.getElementById('recommendResult');
+
+            if (results.length === 0) {
+                container.innerHTML = '<h2>📋 Recommendation</h2><div class="empty-state"><p>No effective methods found for this combination.</p></div>';
+                return;
+            }
+
+            var best = results[0];
+            var html = '<h2>📋 Recommendation</h2>';
+            html += '<div class="result-box" style="border-color:var(--accent);">';
+            html += '<h4>✅ Recommended: ' + esc(best.name) + '</h4>';
+            html += '<div class="result-row"><span class="label">Time needed</span><span>' + fmtNum(best.timeNeeded) + ' min</span></div>';
+            html += '<div class="result-row"><span class="label">Log reduction</span><span>' + fmtNum(best.logReduction) + '</span></div>';
+            if (material) {
+                html += '<div class="result-row"><span class="label">Material retention</span><span>' + compatBadge(best.compatibility) + '</span></div>';
+            }
+            html += '<div class="result-row"><span class="label">Score</span><span>' + fmtNum(best.score, 3) + '</span></div>';
+
+            var m = METHODS[best.method];
+            html += '<div class="pros-cons"><ul class="pros">';
+            m.pros.forEach(function (p) { html += '<li>' + esc(p) + '</li>'; });
+            html += '</ul><ul class="cons">';
+            m.cons.forEach(function (c) { html += '<li>' + esc(c) + '</li>'; });
+            html += '</ul></div></div>';
+
+            // Alternatives
+            if (results.length > 1) {
+                html += '<h3 style="margin-top:1rem;">Alternatives</h3>';
+                html += '<table><thead><tr><th>Method</th><th>Time</th>';
+                if (material) html += '<th>Compat</th>';
+                html += '<th>Score</th></tr></thead><tbody>';
+                for (var i = 1; i < results.length; i++) {
+                    var r = results[i];
+                    html += '<tr><td>' + esc(r.name) + '</td><td>' + fmtNum(r.timeNeeded) + ' min</td>';
+                    if (material) html += '<td>' + compatBadge(r.compatibility) + '</td>';
+                    html += '<td>' + fmtNum(r.score, 3) + '</td></tr>';
+                }
+                html += '</tbody></table>';
+            }
+
+            container.innerHTML = html;
+        });
+
+        // Multi-step protocol
+        document.getElementById('btnMultiStep').addEventListener('click', function () {
+            var material = document.getElementById('plannerMaterial').value;
+            var pathogen = document.getElementById('plannerPathogen').value;
+            var sal = parseFloat(document.getElementById('plannerSAL').value);
+            var bioburden = parseInt(document.getElementById('plannerBioburden').value) || 1000;
+
+            if (!pathogen) { alert('Please select a target pathogen.'); return; }
+
+            var panel = document.getElementById('multiStepResult');
+            var content = document.getElementById('multiStepContent');
+            panel.style.display = 'block';
+
+            // Build a 2-step protocol: pre-clean + main sterilization
+            var results = recommendMethod(material || null, pathogen, sal, bioburden);
+            if (results.length < 2) {
+                content.innerHTML = '<p style="color:var(--muted);">Not enough compatible methods for a multi-step plan.</p>';
+                return;
+            }
+
+            var preClean = null;
+            var mainSteril = results[0];
+
+            // Pick ethanol for pre-clean if available, otherwise second-best
+            for (var i = 0; i < results.length; i++) {
+                if (results[i].method === 'ethanol' && results[i].method !== mainSteril.method) {
+                    preClean = results[i];
+                    break;
+                }
+            }
+            if (!preClean) preClean = results[1];
+
+            var html = '<div class="step-list">';
+            html += '<div class="step-item"><div class="step-number">1</div><div class="step-body">';
+            html += '<h4>Pre-Clean: ' + esc(preClean.name) + '</h4>';
+            html += '<p>Duration: ~' + Math.min(preClean.timeNeeded, 10) + ' min · Reduces initial bioburden by ~' + fmtNum(Math.min(calcLogReduction(PATHOGENS[pathogen][preClean.method] || 1, 10), 6)) + ' log</p>';
+            html += '</div></div>';
+
+            html += '<div class="step-item"><div class="step-number">2</div><div class="step-body">';
+            html += '<h4>Main Sterilization: ' + esc(mainSteril.name) + '</h4>';
+            html += '<p>Duration: ' + fmtNum(mainSteril.timeNeeded) + ' min · Achieves target SAL ' + sal.toExponential(0) + '</p>';
+            if (material) {
+                html += '<p>Material retention: ' + compatBadge(mainSteril.compatibility) + '</p>';
+            }
+            html += '</div></div>';
+
+            html += '<div class="step-item"><div class="step-number">3</div><div class="step-body">';
+            html += '<h4>Post-Processing</h4>';
+            if (mainSteril.method === 'eto') {
+                html += '<p>Aeration: 12-48 hours to remove EtO residuals</p>';
+            } else if (mainSteril.method === 'ethanol') {
+                html += '<p>Rinse with sterile PBS or media to remove ethanol residuals</p>';
+            } else {
+                html += '<p>Allow cooling/stabilization before use. Verify with biological indicators.</p>';
+            }
+            html += '</div></div></div>';
+
+            var totalTime = Math.min(preClean.timeNeeded, 10) + mainSteril.timeNeeded;
+            html += '<div class="result-box"><div class="result-row"><span class="label">Total active time</span><span>' + fmtNum(totalTime) + ' min</span></div>';
+            html += '<div class="result-row"><span class="label">Target SAL</span><span>' + sal.toExponential(0) + '</span></div></div>';
+
+            content.innerHTML = html;
+        });
+
+        // ── Tab 2: Method Comparison ────────────────────────────────
+
+        function renderMethodGrid() {
+            var material = document.getElementById('compareMaterial').value;
+            var grid = document.getElementById('methodGrid');
+            var html = '';
+
+            for (var mKey in METHODS) {
+                var m = METHODS[mKey];
+                var compat = material && MATERIALS[material] ? MATERIALS[material][mKey] : null;
+                var catIcon = m.cat === 'heat' ? '🔥' : m.cat === 'radiation' ? '☢️' : '🧪';
+
+                html += '<div class="method-card" data-method="' + mKey + '">';
+                html += '<h4>' + catIcon + ' ' + esc(m.name) + '</h4>';
+                html += '<p class="temp">Operating temp: ' + m.temp + '°C</p>';
+                if (m.defaultMin > 0) html += '<p>Typical cycle: ' + m.defaultMin + ' min</p>';
+                if (compat !== null) {
+                    html += '<div style="margin-top:0.5rem;"><span style="font-size:0.8rem;color:var(--muted);">Material compat: </span>' + compatBadge(compat) + '</div>';
+                    html += '<div class="compat-bar" style="margin-top:0.3rem;"><div class="compat-fill" style="width:' + (compat * 100) + '%;background:' + compatColor(compat) + ';"></div></div>';
+                }
+                html += '</div>';
+            }
+
+            grid.innerHTML = html;
+
+            // Click handlers
+            grid.querySelectorAll('.method-card').forEach(function (card) {
+                card.addEventListener('click', function () {
+                    grid.querySelectorAll('.method-card').forEach(function (c) { c.classList.remove('selected'); });
+                    this.classList.add('selected');
+                    showMethodDetail(this.getAttribute('data-method'));
+                });
+            });
+        }
+
+        function showMethodDetail(mKey) {
+            var m = METHODS[mKey];
+            var panel = document.getElementById('methodDetail');
+            var title = document.getElementById('methodDetailTitle');
+            var content = document.getElementById('methodDetailContent');
+            panel.style.display = 'block';
+            title.textContent = '🔍 ' + m.name;
+
+            var html = '<div class="grid-2">';
+            html += '<div><h3>Advantages</h3><ul class="pros">';
+            m.pros.forEach(function (p) { html += '<li>' + esc(p) + '</li>'; });
+            html += '</ul></div>';
+            html += '<div><h3>Limitations</h3><ul class="cons">';
+            m.cons.forEach(function (c) { html += '<li>' + esc(c) + '</li>'; });
+            html += '</ul></div></div>';
+
+            // Kill times per pathogen
+            html += '<h3 style="margin-top:1rem;">Kill Times by Pathogen (6-log reduction)</h3>';
+            html += '<table><thead><tr><th>Pathogen</th><th>Type</th><th>D-value</th><th>Time for 6-log</th></tr></thead><tbody>';
+            for (var pk in PATHOGENS) {
+                var p = PATHOGENS[pk];
+                var dVal = p[mKey];
+                var time6log = dVal ? (dVal * 6).toFixed(1) : '—';
+                html += '<tr><td>' + esc(pk) + '</td><td><span class="badge badge-info">' + p.type + '</span></td>';
+                html += '<td>' + (dVal ? fmtNum(dVal) + ' min' : 'N/A') + '</td>';
+                html += '<td>' + (dVal ? time6log + ' min' : '<span class="badge badge-error">Ineffective</span>') + '</td></tr>';
+            }
+            html += '</tbody></table>';
+
+            content.innerHTML = html;
+        }
+
+        document.getElementById('compareMaterial').addEventListener('change', renderMethodGrid);
+        renderMethodGrid();
+
+        // ── Tab 3: Compatibility Matrix ─────────────────────────────
+
+        function renderCompatMatrix() {
+            var table = document.getElementById('compatTable');
+            var html = '<thead><tr><th>Material</th>';
+            for (var mKey in METHODS) {
+                html += '<th>' + METHODS[mKey].name.replace(' ', '<br>') + '</th>';
+            }
+            html += '</tr></thead><tbody>';
+
+            for (var mat in MATERIALS) {
+                html += '<tr><td><strong>' + esc(mat) + '</strong></td>';
+                for (var mk in METHODS) {
+                    var val = MATERIALS[mat][mk];
+                    html += '<td>' + compatBadge(val) + '</td>';
+                }
+                html += '</tr>';
+            }
+            html += '</tbody>';
+            table.innerHTML = html;
+        }
+        renderCompatMatrix();
+
+        // ── Tab 4: Kill Curves ──────────────────────────────────────
+
+        function renderKillCurve() {
+            var method = document.getElementById('kcMethod').value;
+            var pathogen = document.getElementById('kcPathogen').value;
+            var duration = parseInt(document.getElementById('kcDuration').value);
+            document.getElementById('kcDurationLabel').textContent = duration + ' min';
+
+            var p = PATHOGENS[pathogen];
+            var dVal = p ? p[method] : null;
+            var container = document.getElementById('kcResults');
+
+            if (!dVal) {
+                container.innerHTML = '<div class="result-box"><p style="color:var(--error);">This method is ineffective against ' + esc(pathogen) + ' (no D-value data).</p></div>';
+                return;
+            }
+
+            var initialCFU = 1000000; // 10^6
+            var logRed = calcLogReduction(dVal, duration);
+            var survivors = calcSurvivors(initialCFU, logRed);
+            var timeFor6log = dVal * 6;
+            var timeForSAL6 = calcTimeForSAL(dVal, initialCFU, 1e-6);
+
+            var html = '<div class="grid-2">';
+
+            // Curve visualization (text-based chart)
+            html += '<div class="result-box"><h4>📊 Log Reduction Over Time</h4>';
+            html += '<table><thead><tr><th>Time (min)</th><th>Log₁₀(CFU)</th><th>Survivors</th><th>Visualization</th></tr></thead><tbody>';
+            var steps = 8;
+            var stepSize = Math.max(1, Math.floor(duration / steps));
+            for (var t = 0; t <= duration; t += stepSize) {
+                var lr = calcLogReduction(dVal, t);
+                var surv = calcSurvivors(initialCFU, lr);
+                var log10 = surv > 0 ? Math.log10(Math.max(surv, 1e-12)) : -12;
+                var barWidth = Math.max(0, Math.min(100, ((log10 + 12) / 18) * 100));
+                var color = log10 <= 0 ? 'var(--success)' : log10 <= 3 ? 'var(--warning)' : 'var(--error)';
+                html += '<tr><td>' + t + '</td><td>' + fmtNum(log10) + '</td><td>' + (surv < 1 ? surv.toExponential(1) : Math.round(surv).toLocaleString()) + '</td>';
+                html += '<td><div class="compat-bar" style="width:120px;"><div class="compat-fill" style="width:' + barWidth + '%;background:' + color + ';"></div></div></td></tr>';
+            }
+            html += '</tbody></table></div>';
+
+            // Summary
+            html += '<div class="result-box"><h4>📋 Summary</h4>';
+            html += '<div class="result-row"><span class="label">Method</span><span>' + esc(METHODS[method].name) + '</span></div>';
+            html += '<div class="result-row"><span class="label">Pathogen</span><span>' + esc(pathogen) + '</span></div>';
+            html += '<div class="result-row"><span class="label">D-value</span><span>' + fmtNum(dVal) + ' min</span></div>';
+            html += '<div class="result-row"><span class="label">Duration</span><span>' + duration + ' min</span></div>';
+            html += '<div class="result-row"><span class="label">Log reduction</span><span><strong>' + fmtNum(logRed) + '</strong></span></div>';
+            html += '<div class="result-row"><span class="label">Survivors (from 10⁶)</span><span>' + (survivors < 1 ? survivors.toExponential(1) : Math.round(survivors).toLocaleString()) + '</span></div>';
+            html += '<div class="result-row"><span class="label">Time for 6-log</span><span>' + fmtNum(timeFor6log) + ' min</span></div>';
+            html += '<div class="result-row"><span class="label">Time for SAL 10⁻⁶</span><span>' + fmtNum(timeForSAL6) + ' min</span></div>';
+
+            var adequate = logRed >= 6;
+            html += '<div style="margin-top:0.75rem;padding:0.6rem;border-radius:6px;background:' + (adequate ? 'rgba(74,222,128,0.1)' : 'rgba(248,113,113,0.1)') + ';">';
+            html += '<span style="color:' + (adequate ? 'var(--success)' : 'var(--error)') + ';font-weight:600;">';
+            html += adequate ? '✅ Adequate sterilization (≥ 6-log reduction)' : '⚠️ Insufficient — increase duration to ' + Math.ceil(timeFor6log) + ' min for 6-log kill';
+            html += '</span></div></div>';
+
+            html += '</div>';
+            container.innerHTML = html;
+        }
+
+        document.getElementById('kcMethod').addEventListener('change', renderKillCurve);
+        document.getElementById('kcPathogen').addEventListener('change', renderKillCurve);
+        document.getElementById('kcDuration').addEventListener('input', renderKillCurve);
+        renderKillCurve();
+
+    })();
+    </script>
+</body>
+</html>
