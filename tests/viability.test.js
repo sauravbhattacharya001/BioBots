@@ -1,327 +1,306 @@
 // tests/viability.test.js — Cell Viability Estimator Tests
+// Converted from IIFE/assert to Jest describe/test blocks so Jest
+// can discover, count, and report each test individually.
 'use strict';
 
 const { createViabilityEstimator } = require('../docs/shared/viability.js');
-const assert = require('assert');
 
 const est = createViabilityEstimator();
 
-// ── Helper ──────────────────────────────────────────────────
+// ── Helpers ─────────────────────────────────────────────────
 
 function approx(actual, expected, tolerance, msg) {
-    const diff = Math.abs(actual - expected);
-    assert.ok(diff <= tolerance,
-        (msg || '') + ' expected ~' + expected + ' ±' + tolerance + ', got ' + actual);
-}
-
-function throws(fn, pattern, msg) {
-    let threw = false;
-    try { fn(); } catch (e) {
-        threw = true;
-        if (pattern) {
-            assert.ok(e.message.includes(pattern) || (typeof pattern === 'object' && pattern.test(e.message)),
-                msg + ': expected error matching "' + pattern + '", got "' + e.message + '"');
-        }
-    }
-    assert.ok(threw, msg || 'Expected function to throw');
+    expect(Math.abs(actual - expected)).toBeLessThanOrEqual(tolerance);
 }
 
 // ── Individual Damage Models ────────────────────────────────
 
-// Shear survival
-(function testShearSurvivalZero() {
-    assert.strictEqual(est.shearSurvival(0), 1.0, 'zero shear = full survival');
-})();
+describe('shearSurvival', () => {
+    test('zero shear = full survival', () => {
+        expect(est.shearSurvival(0)).toBe(1.0);
+    });
 
-(function testShearSurvivalNegative() {
-    assert.strictEqual(est.shearSurvival(-10), 1.0, 'negative shear = full survival');
-})();
+    test('negative shear = full survival', () => {
+        expect(est.shearSurvival(-10)).toBe(1.0);
+    });
 
-(function testShearSurvivalAtCritical() {
-    const s = est.shearSurvival(500);  // gammaCrit = 500
-    assert.ok(s > 0 && s < 1, 'at critical shear, survival between 0 and 1');
-    approx(s, Math.exp(-0.5), 0.001, 'S(γ_crit) = exp(-alpha)');
-})();
+    test('at critical shear, survival between 0 and 1', () => {
+        const s = est.shearSurvival(500);  // gammaCrit = 500
+        expect(s).toBeGreaterThan(0);
+        expect(s).toBeLessThan(1);
+        approx(s, Math.exp(-0.5), 0.001);
+    });
 
-(function testShearSurvivalHighRate() {
-    const s = est.shearSurvival(2000);
-    assert.ok(s < 0.01, 'very high shear rate should kill most cells');
-})();
+    test('very high shear rate kills most cells', () => {
+        expect(est.shearSurvival(2000)).toBeLessThan(0.01);
+    });
 
-(function testShearSurvivalMonotonic() {
-    const s1 = est.shearSurvival(100);
-    const s2 = est.shearSurvival(200);
-    const s3 = est.shearSurvival(500);
-    assert.ok(s1 > s2 && s2 > s3, 'shear survival decreases with rate');
-})();
+    test('monotonically decreasing', () => {
+        const s1 = est.shearSurvival(100);
+        const s2 = est.shearSurvival(200);
+        const s3 = est.shearSurvival(500);
+        expect(s1).toBeGreaterThan(s2);
+        expect(s2).toBeGreaterThan(s3);
+    });
 
-(function testShearSurvivalCustomParams() {
-    const s = est.shearSurvival(100, { alpha: 1, beta: 1, gammaCrit: 100 });
-    approx(s, Math.exp(-1), 0.001, 'custom params');
-})();
+    test('custom params', () => {
+        const s = est.shearSurvival(100, { alpha: 1, beta: 1, gammaCrit: 100 });
+        approx(s, Math.exp(-1), 0.001);
+    });
+});
 
-// Pressure survival
-(function testPressureSurvivalZero() {
-    assert.strictEqual(est.pressureSurvival(0), 1.0, 'zero pressure = full survival');
-})();
+describe('pressureSurvival', () => {
+    test('zero pressure = full survival', () => {
+        expect(est.pressureSurvival(0)).toBe(1.0);
+    });
 
-(function testPressureSurvivalNegative() {
-    assert.strictEqual(est.pressureSurvival(-50), 1.0, 'negative pressure = full survival');
-})();
+    test('negative pressure = full survival', () => {
+        expect(est.pressureSurvival(-50)).toBe(1.0);
+    });
 
-(function testPressureSurvivalAtP50() {
-    const s = est.pressureSurvival(150);  // p50 = 150
-    approx(s, 0.5, 0.001, 'at p50, survival should be 0.5');
-})();
+    test('at p50, survival should be 0.5', () => {
+        approx(est.pressureSurvival(150), 0.5, 0.001);
+    });
 
-(function testPressureSurvivalLow() {
-    const s = est.pressureSurvival(50);
-    assert.ok(s > 0.95, 'low pressure = high survival');
-})();
+    test('low pressure = high survival', () => {
+        expect(est.pressureSurvival(50)).toBeGreaterThan(0.95);
+    });
 
-(function testPressureSurvivalHigh() {
-    const s = est.pressureSurvival(300);
-    assert.ok(s < 0.05, 'very high pressure = low survival');
-})();
+    test('very high pressure = low survival', () => {
+        expect(est.pressureSurvival(300)).toBeLessThan(0.05);
+    });
 
-(function testPressureSurvivalMonotonic() {
-    const s1 = est.pressureSurvival(50);
-    const s2 = est.pressureSurvival(100);
-    const s3 = est.pressureSurvival(200);
-    assert.ok(s1 > s2 && s2 > s3, 'pressure survival decreases monotonically');
-})();
+    test('monotonically decreasing', () => {
+        const s1 = est.pressureSurvival(50);
+        const s2 = est.pressureSurvival(100);
+        const s3 = est.pressureSurvival(200);
+        expect(s1).toBeGreaterThan(s2);
+        expect(s2).toBeGreaterThan(s3);
+    });
+});
 
-// Crosslink survival
-(function testCrosslinkSurvivalZeroDuration() {
-    assert.strictEqual(est.crosslinkSurvival(0, 50), 1.0, 'zero duration = no UV damage');
-})();
+describe('crosslinkSurvival', () => {
+    test('zero duration = no UV damage', () => {
+        expect(est.crosslinkSurvival(0, 50)).toBe(1.0);
+    });
 
-(function testCrosslinkSurvivalZeroIntensity() {
-    assert.strictEqual(est.crosslinkSurvival(5000, 0), 1.0, 'zero intensity = no UV damage');
-})();
+    test('zero intensity = no UV damage', () => {
+        expect(est.crosslinkSurvival(5000, 0)).toBe(1.0);
+    });
 
-(function testCrosslinkSurvivalAtEC50() {
-    // EC50 = 15000, dose = duration * intensity
-    // dose = 15000 → 50% damage → 50% survival
-    const s = est.crosslinkSurvival(1500, 10);  // dose = 15000
-    approx(s, 0.5, 0.001, 'at EC50 dose, survival = 0.5');
-})();
+    test('at EC50 dose, survival = 0.5', () => {
+        // EC50 = 15000, dose = duration * intensity
+        approx(est.crosslinkSurvival(1500, 10), 0.5, 0.001);
+    });
 
-(function testCrosslinkSurvivalHighDose() {
-    const s = est.crosslinkSurvival(30000, 100);  // dose = 3M
-    assert.ok(s < 0.01, 'massive UV dose kills nearly all cells');
-})();
+    test('massive UV dose kills nearly all cells', () => {
+        expect(est.crosslinkSurvival(30000, 100)).toBeLessThan(0.01);
+    });
 
-(function testCrosslinkSurvivalModerate() {
-    const s = est.crosslinkSurvival(500, 10);  // dose = 5000
-    assert.ok(s > 0.5, 'moderate dose should leave majority alive');
-})();
+    test('moderate dose leaves majority alive', () => {
+        expect(est.crosslinkSurvival(500, 10)).toBeGreaterThan(0.5);
+    });
+});
 
-// Thermal survival
-(function testThermalOptimal() {
-    approx(est.thermalSurvival(37), 1.0, 0.001, '37°C is optimal');
-})();
+describe('thermalSurvival', () => {
+    test('37°C is optimal', () => {
+        approx(est.thermalSurvival(37), 1.0, 0.001);
+    });
 
-(function testThermalCold() {
-    const s = est.thermalSurvival(25);
-    assert.ok(s < 1 && s > 0, 'cold = reduced but nonzero');
-})();
+    test('cold = reduced but nonzero', () => {
+        const s = est.thermalSurvival(25);
+        expect(s).toBeLessThan(1);
+        expect(s).toBeGreaterThan(0);
+    });
 
-(function testThermalHot() {
-    const s = est.thermalSurvival(50);
-    assert.ok(s < 0.5, 'very hot = significant damage');
-})();
+    test('very hot = significant damage', () => {
+        expect(est.thermalSurvival(50)).toBeLessThan(0.5);
+    });
 
-(function testThermalSymmetric() {
-    const cold = est.thermalSurvival(32);
-    const hot = est.thermalSurvival(42);
-    approx(cold, hot, 0.001, 'symmetric around 37°C');
-})();
+    test('symmetric around 37°C', () => {
+        approx(est.thermalSurvival(32), est.thermalSurvival(42), 0.001);
+    });
+});
 
-// Duration survival
-(function testDurationZero() {
-    assert.strictEqual(est.durationSurvival(0), 1.0, 'zero time = full survival');
-})();
+describe('durationSurvival', () => {
+    test('zero time = full survival', () => {
+        expect(est.durationSurvival(0)).toBe(1.0);
+    });
 
-(function testDurationNegative() {
-    assert.strictEqual(est.durationSurvival(-10), 1.0, 'negative time = full survival');
-})();
+    test('negative time = full survival', () => {
+        expect(est.durationSurvival(-10)).toBe(1.0);
+    });
 
-(function testDurationLinear() {
-    approx(est.durationSurvival(500), 0.5, 0.001, '500s = 50% survival');
-})();
+    test('500s = 50% survival', () => {
+        approx(est.durationSurvival(500), 0.5, 0.001);
+    });
 
-(function testDurationMax() {
-    assert.strictEqual(est.durationSurvival(1000), 0, '1000s = 0% survival');
-})();
+    test('1000s = 0% survival', () => {
+        expect(est.durationSurvival(1000)).toBe(0);
+    });
 
-(function testDurationBeyondMax() {
-    assert.strictEqual(est.durationSurvival(2000), 0, 'beyond max = clamped to 0');
-})();
+    test('beyond max = clamped to 0', () => {
+        expect(est.durationSurvival(2000)).toBe(0);
+    });
+});
 
-// Shear rate estimation
-(function testShearRateFromPressure() {
-    const params = { pressure: 100, nozzleDiameter: 0.4, flowRate: null };
-    const gamma = est.estimateShearRate(params);
-    assert.ok(gamma > 0, 'should produce positive shear rate');
-    assert.ok(isFinite(gamma), 'should be finite');
-})();
+describe('estimateShearRate', () => {
+    test('pressure-based produces positive shear rate', () => {
+        const gamma = est.estimateShearRate({ pressure: 100, nozzleDiameter: 0.4, flowRate: null });
+        expect(gamma).toBeGreaterThan(0);
+        expect(isFinite(gamma)).toBe(true);
+    });
 
-(function testShearRateFromFlowRate() {
-    const params = { pressure: 100, nozzleDiameter: 0.4, flowRate: 1.0 };
-    const gamma = est.estimateShearRate(params);
-    assert.ok(gamma > 0, 'flow-rate based should produce positive shear');
-})();
+    test('flow-rate based produces positive shear', () => {
+        const gamma = est.estimateShearRate({ pressure: 100, nozzleDiameter: 0.4, flowRate: 1.0 });
+        expect(gamma).toBeGreaterThan(0);
+    });
 
-(function testShearRateHigherPressure() {
-    const p1 = { pressure: 50, nozzleDiameter: 0.4, flowRate: null };
-    const p2 = { pressure: 150, nozzleDiameter: 0.4, flowRate: null };
-    assert.ok(est.estimateShearRate(p2) > est.estimateShearRate(p1),
-        'higher pressure = higher shear rate');
-})();
+    test('higher pressure = higher shear rate', () => {
+        const p1 = { pressure: 50, nozzleDiameter: 0.4, flowRate: null };
+        const p2 = { pressure: 150, nozzleDiameter: 0.4, flowRate: null };
+        expect(est.estimateShearRate(p2)).toBeGreaterThan(est.estimateShearRate(p1));
+    });
 
-(function testShearRateNozzleSizeWithFlowRate() {
-    // At constant flow rate, smaller nozzle = higher shear rate
-    const p1 = { pressure: 100, nozzleDiameter: 0.8, flowRate: 1.0 };
-    const p2 = { pressure: 100, nozzleDiameter: 0.2, flowRate: 1.0 };
-    assert.ok(est.estimateShearRate(p2) > est.estimateShearRate(p1),
-        'smaller nozzle at constant flow = higher shear rate');
-})();
+    test('smaller nozzle at constant flow = higher shear rate', () => {
+        const p1 = { pressure: 100, nozzleDiameter: 0.8, flowRate: 1.0 };
+        const p2 = { pressure: 100, nozzleDiameter: 0.2, flowRate: 1.0 };
+        expect(est.estimateShearRate(p2)).toBeGreaterThan(est.estimateShearRate(p1));
+    });
 
-(function testShearRateNozzleSizeWithPressure() {
-    // At constant pressure, Hagen-Poiseuille: Q ∝ D⁴, γ ∝ Q/D³ ∝ D
-    // So larger nozzle = higher shear rate (more flow, net positive)
-    const p1 = { pressure: 100, nozzleDiameter: 0.2, flowRate: null };
-    const p2 = { pressure: 100, nozzleDiameter: 0.8, flowRate: null };
-    assert.ok(est.estimateShearRate(p2) > est.estimateShearRate(p1),
-        'larger nozzle at constant pressure = higher flow = higher shear');
-})();
+    test('larger nozzle at constant pressure = higher flow = higher shear', () => {
+        const p1 = { pressure: 100, nozzleDiameter: 0.2, flowRate: null };
+        const p2 = { pressure: 100, nozzleDiameter: 0.8, flowRate: null };
+        expect(est.estimateShearRate(p2)).toBeGreaterThan(est.estimateShearRate(p1));
+    });
+});
 
 // ── Combined Estimation ─────────────────────────────────────
 
-(function testEstimateBasic() {
-    const result = est.estimate({ pressure: 80 });
-    assert.ok(result.viabilityPercent > 0 && result.viabilityPercent <= 95,
-        'viability in valid range');
-    assert.ok(['excellent', 'good', 'acceptable', 'poor', 'critical'].includes(result.quality));
-    assert.ok(result.breakdown);
-    assert.strictEqual(result.breakdown.baseline, 0.95);
-    assert.ok(result.estimatedShearRate > 0);
-})();
-
-(function testEstimateWithAllParams() {
-    const result = est.estimate({
-        pressure: 80,
-        crosslinkDuration: 5000,
-        crosslinkIntensity: 20,
-        layerHeight: 0.4,
-        nozzleDiameter: 0.4,
-        temperature: 37,
-        printDuration: 300,
+describe('estimate', () => {
+    test('basic estimation in valid range', () => {
+        const result = est.estimate({ pressure: 80 });
+        expect(result.viabilityPercent).toBeGreaterThan(0);
+        expect(result.viabilityPercent).toBeLessThanOrEqual(95);
+        expect(['excellent', 'good', 'acceptable', 'poor', 'critical']).toContain(result.quality);
+        expect(result.breakdown).toBeDefined();
+        expect(result.breakdown.baseline).toBe(0.95);
+        expect(result.estimatedShearRate).toBeGreaterThan(0);
     });
-    assert.ok(result.viabilityPercent > 0);
-    assert.notStrictEqual(result.breakdown.thermal, null);
-    assert.notStrictEqual(result.breakdown.duration, null);
-})();
 
-(function testEstimateLimitingFactor() {
-    // Very high crosslink dose should make crosslink the limiting factor
-    const result = est.estimate({
-        pressure: 50,
-        crosslinkDuration: 20000,
-        crosslinkIntensity: 80,
+    test('with all params', () => {
+        const result = est.estimate({
+            pressure: 80,
+            crosslinkDuration: 5000,
+            crosslinkIntensity: 20,
+            layerHeight: 0.4,
+            nozzleDiameter: 0.4,
+            temperature: 37,
+            printDuration: 300,
+        });
+        expect(result.viabilityPercent).toBeGreaterThan(0);
+        expect(result.breakdown.thermal).not.toBeNull();
+        expect(result.breakdown.duration).not.toBeNull();
     });
-    assert.strictEqual(result.limitingFactor, 'crosslink', 'crosslink should be limiting');
-})();
 
-(function testEstimateHighPressureLimiting() {
-    const result = est.estimate({
-        pressure: 200,
-        crosslinkDuration: 0,
-        crosslinkIntensity: 0,
+    test('crosslink limiting factor', () => {
+        const result = est.estimate({
+            pressure: 50,
+            crosslinkDuration: 20000,
+            crosslinkIntensity: 80,
+        });
+        expect(result.limitingFactor).toBe('crosslink');
     });
-    // With very high pressure, either pressure or shear should be limiting
-    assert.ok(result.limitingFactor === 'pressure' || result.limitingFactor === 'shear',
-        'high pressure: limiting should be pressure or shear');
-})();
 
-(function testEstimateWarnings() {
-    const result = est.estimate({
-        pressure: 200,
-        crosslinkDuration: 25000,
-        crosslinkIntensity: 90,
-        temperature: 50,
-        printDuration: 800,
+    test('high pressure limiting factor', () => {
+        const result = est.estimate({
+            pressure: 200,
+            crosslinkDuration: 0,
+            crosslinkIntensity: 0,
+        });
+        expect(['pressure', 'shear']).toContain(result.limitingFactor);
     });
-    assert.ok(result.warnings.length > 0, 'extreme params should generate warnings');
-})();
 
-(function testEstimateNoWarnings() {
-    const result = est.estimate({
-        pressure: 30,
-        crosslinkDuration: 0,
-        crosslinkIntensity: 0,
+    test('extreme params generate warnings', () => {
+        const result = est.estimate({
+            pressure: 200,
+            crosslinkDuration: 25000,
+            crosslinkIntensity: 90,
+            temperature: 50,
+            printDuration: 800,
+        });
+        expect(result.warnings.length).toBeGreaterThan(0);
     });
-    // Low pressure, no crosslinking — should be mostly fine
-    assert.ok(result.warnings.length === 0 || result.quality === 'excellent' || result.quality === 'good',
-        'gentle params should have few/no warnings');
-})();
+
+    test('gentle params have few/no warnings', () => {
+        const result = est.estimate({
+            pressure: 30,
+            crosslinkDuration: 0,
+            crosslinkIntensity: 0,
+        });
+        expect(
+            result.warnings.length === 0 ||
+            result.quality === 'excellent' ||
+            result.quality === 'good'
+        ).toBe(true);
+    });
+});
 
 // ── Input Validation ────────────────────────────────────────
 
-(function testEstimateNullParams() {
-    throws(function() { est.estimate(null); }, 'non-null object', 'null params');
-})();
+describe('estimate input validation', () => {
+    test('null params throws', () => {
+        expect(() => est.estimate(null)).toThrow('non-null object');
+    });
 
-(function testEstimateStringParams() {
-    throws(function() { est.estimate('hello'); }, 'non-null object', 'string params');
-})();
+    test('string params throws', () => {
+        expect(() => est.estimate('hello')).toThrow('non-null object');
+    });
 
-(function testEstimateNegativePressure() {
-    throws(function() { est.estimate({ pressure: -10 }); }, '>= 0', 'negative pressure');
-})();
+    test('negative pressure throws', () => {
+        expect(() => est.estimate({ pressure: -10 })).toThrow('>= 0');
+    });
 
-(function testEstimateNaNPressure() {
-    throws(function() { est.estimate({ pressure: NaN }); }, 'finite number', 'NaN pressure');
-})();
+    test('NaN pressure throws', () => {
+        expect(() => est.estimate({ pressure: NaN })).toThrow('finite number');
+    });
 
-(function testEstimateInfinityPressure() {
-    throws(function() { est.estimate({ pressure: Infinity }); }, 'finite number', 'infinite pressure');
-})();
+    test('Infinity pressure throws', () => {
+        expect(() => est.estimate({ pressure: Infinity })).toThrow('finite number');
+    });
 
-(function testEstimateCrosslinkIntensityOver100() {
-    throws(function() { est.estimate({ pressure: 50, crosslinkIntensity: 150 }); },
-        '<= 100', 'intensity over 100');
-})();
+    test('crosslinkIntensity over 100 throws', () => {
+        expect(() => est.estimate({ pressure: 50, crosslinkIntensity: 150 })).toThrow('<= 100');
+    });
+});
 
 // ── Sensitivity Analysis ────────────────────────────────────
 
-(function testSensitivityBasic() {
-    const sa = est.sensitivityAnalysis({ pressure: 80 }, { steps: 5 });
-    assert.ok(sa.pressure, 'should have pressure analysis');
-    assert.ok(sa.crosslinkDuration, 'should have crosslink analysis');
-    assert.ok(sa._ranking, 'should have ranking');
-    assert.ok(Array.isArray(sa._ranking));
-    assert.ok(sa.pressure.curve.length > 0, 'should have curve points');
-    assert.ok(sa.pressure.sensitivityIndex >= 0, 'index should be non-negative');
-})();
+describe('sensitivityAnalysis', () => {
+    test('basic analysis', () => {
+        const sa = est.sensitivityAnalysis({ pressure: 80 }, { steps: 5 });
+        expect(sa.pressure).toBeDefined();
+        expect(sa.crosslinkDuration).toBeDefined();
+        expect(sa._ranking).toBeDefined();
+        expect(Array.isArray(sa._ranking)).toBe(true);
+        expect(sa.pressure.curve.length).toBeGreaterThan(0);
+        expect(sa.pressure.sensitivityIndex).toBeGreaterThanOrEqual(0);
+    });
 
-(function testSensitivityRanking() {
-    const sa = est.sensitivityAnalysis({ pressure: 80 }, { steps: 10 });
-    // Ranking should be sorted by decreasing sensitivity index
-    for (var i = 1; i < sa._ranking.length; i++) {
-        var prev = sa[sa._ranking[i - 1]].sensitivityIndex;
-        var curr = sa[sa._ranking[i]].sensitivityIndex;
-        assert.ok(prev >= curr, 'ranking should be sorted by sensitivity');
-    }
-})();
+    test('ranking sorted by decreasing sensitivity', () => {
+        const sa = est.sensitivityAnalysis({ pressure: 80 }, { steps: 10 });
+        for (let i = 1; i < sa._ranking.length; i++) {
+            const prev = sa[sa._ranking[i - 1]].sensitivityIndex;
+            const curr = sa[sa._ranking[i]].sensitivityIndex;
+            expect(prev).toBeGreaterThanOrEqual(curr);
+        }
+    });
 
-(function testSensitivityInvalidSteps() {
-    throws(function() { est.sensitivityAnalysis({ pressure: 80 }, { steps: 1 }); },
-        'between 2 and 200', 'steps too low');
-    throws(function() { est.sensitivityAnalysis({ pressure: 80 }, { steps: 201 }); },
-        'between 2 and 200', 'steps too high');
-})();
+    test('invalid steps throws', () => {
+        expect(() => est.sensitivityAnalysis({ pressure: 80 }, { steps: 1 })).toThrow('between 2 and 200');
+        expect(() => est.sensitivityAnalysis({ pressure: 80 }, { steps: 201 })).toThrow('between 2 and 200');
+    });
+});
 
 // ── Optimal Window Finder ───────────────────────────────────
 
@@ -358,205 +337,199 @@ const sampleData = [
       user_info: { serial: 5 } },
 ];
 
-(function testOptimalWindowBasic() {
-    const ow = est.findOptimalWindow(sampleData);
-    assert.strictEqual(ow.totalRecords, 6);
-    assert.ok(ow.topPercentileCount > 0);
-    assert.ok(ow.optimalRanges.pressure);
-    assert.ok(ow.recommendations.length > 0);
-})();
+describe('findOptimalWindow', () => {
+    test('basic optimal window', () => {
+        const ow = est.findOptimalWindow(sampleData);
+        expect(ow.totalRecords).toBe(6);
+        expect(ow.topPercentileCount).toBeGreaterThan(0);
+        expect(ow.optimalRanges.pressure).toBeDefined();
+        expect(ow.recommendations.length).toBeGreaterThan(0);
+    });
 
-(function testOptimalWindowThreshold() {
-    const ow = est.findOptimalWindow(sampleData, { viabilityThreshold: 80 });
-    assert.ok(ow.aboveThresholdCount <= ow.totalRecords);
-    assert.strictEqual(ow.viabilityThreshold, 80);
-})();
+    test('with viability threshold', () => {
+        const ow = est.findOptimalWindow(sampleData, { viabilityThreshold: 80 });
+        expect(ow.aboveThresholdCount).toBeLessThanOrEqual(ow.totalRecords);
+        expect(ow.viabilityThreshold).toBe(80);
+    });
 
-(function testOptimalWindowPercentile() {
-    const ow = est.findOptimalWindow(sampleData, { topPercentile: 50 });
-    assert.strictEqual(ow.topPercentile, 50);
-    assert.ok(ow.topPercentileCount >= Math.ceil(6 * 0.5));
-})();
+    test('with percentile', () => {
+        const ow = est.findOptimalWindow(sampleData, { topPercentile: 50 });
+        expect(ow.topPercentile).toBe(50);
+        expect(ow.topPercentileCount).toBeGreaterThanOrEqual(Math.ceil(6 * 0.5));
+    });
 
-(function testOptimalWindowEmpty() {
-    throws(function() { est.findOptimalWindow([]); }, 'non-empty array', 'empty data');
-})();
+    test('empty data throws', () => {
+        expect(() => est.findOptimalWindow([])).toThrow('non-empty array');
+    });
 
-(function testOptimalWindowInvalid() {
-    throws(function() { est.findOptimalWindow(null); }, 'non-empty array', 'null data');
-})();
+    test('null data throws', () => {
+        expect(() => est.findOptimalWindow(null)).toThrow('non-empty array');
+    });
+});
 
 // ── Batch Analysis ──────────────────────────────────────────
 
-(function testBatchAnalyzeBasic() {
-    const batch = est.batchAnalyze(sampleData);
-    assert.strictEqual(batch.count, 6);
-    assert.ok(batch.accuracy.rmse >= 0);
-    assert.ok(batch.accuracy.mae >= 0);
-    assert.ok(batch.accuracy.correlation >= -1 && batch.accuracy.correlation <= 1);
-    assert.ok(batch.results.length === 6);
-})();
+describe('batchAnalyze', () => {
+    test('basic batch analysis', () => {
+        const batch = est.batchAnalyze(sampleData);
+        expect(batch.count).toBe(6);
+        expect(batch.accuracy.rmse).toBeGreaterThanOrEqual(0);
+        expect(batch.accuracy.mae).toBeGreaterThanOrEqual(0);
+        expect(batch.accuracy.correlation).toBeGreaterThanOrEqual(-1);
+        expect(batch.accuracy.correlation).toBeLessThanOrEqual(1);
+        expect(batch.results.length).toBe(6);
+    });
 
-(function testBatchAnalyzeResultFields() {
-    const batch = est.batchAnalyze(sampleData);
-    const r = batch.results[0];
-    assert.ok('predicted' in r);
-    assert.ok('actual' in r);
-    assert.ok('error' in r);
-    assert.ok('absError' in r);
-    assert.ok('quality' in r);
-    assert.ok('limitingFactor' in r);
-})();
+    test('result fields', () => {
+        const batch = est.batchAnalyze(sampleData);
+        const r = batch.results[0];
+        expect(r).toHaveProperty('predicted');
+        expect(r).toHaveProperty('actual');
+        expect(r).toHaveProperty('error');
+        expect(r).toHaveProperty('absError');
+        expect(r).toHaveProperty('quality');
+        expect(r).toHaveProperty('limitingFactor');
+    });
 
-(function testBatchAnalyzeQualityDist() {
-    const batch = est.batchAnalyze(sampleData);
-    const total = Object.values(batch.qualityDistribution).reduce(function(s, v) { return s + v; }, 0);
-    assert.strictEqual(total, 6, 'quality distribution should account for all records');
-})();
+    test('quality distribution accounts for all records', () => {
+        const batch = est.batchAnalyze(sampleData);
+        const total = Object.values(batch.qualityDistribution).reduce((s, v) => s + v, 0);
+        expect(total).toBe(6);
+    });
 
-(function testBatchAnalyzeEmpty() {
-    throws(function() { est.batchAnalyze([]); }, 'non-empty array', 'empty batch');
-})();
+    test('empty batch throws', () => {
+        expect(() => est.batchAnalyze([])).toThrow('non-empty array');
+    });
 
-(function testBatchAnalyzeSkipsInvalid() {
-    const data = [null, { print_data: null }, sampleData[0]];
-    const batch = est.batchAnalyze(data);
-    assert.strictEqual(batch.count, 1, 'should skip invalid records');
-})();
+    test('skips invalid records', () => {
+        const data = [null, { print_data: null }, sampleData[0]];
+        const batch = est.batchAnalyze(data);
+        expect(batch.count).toBe(1);
+    });
+});
 
 // ── Parameter Sweep ─────────────────────────────────────────
 
-(function testParameterSweepBasic() {
-    const sweep = est.parameterSweep(
-        { pressure: 80, nozzleDiameter: 0.4 },
-        'pressure', { min: 20, max: 200 },
-        'crosslinkIntensity', { min: 0, max: 100 },
-        { resolution: 3 }
-    );
-    assert.strictEqual(sweep.param1, 'pressure');
-    assert.strictEqual(sweep.param2, 'crosslinkIntensity');
-    assert.strictEqual(sweep.resolution, 3);
-    assert.strictEqual(sweep.grid.length, 4);  // resolution + 1
-    assert.ok(sweep.peak.viability > sweep.trough.viability, 'peak > trough');
-})();
+describe('parameterSweep', () => {
+    test('basic sweep', () => {
+        const sweep = est.parameterSweep(
+            { pressure: 80, nozzleDiameter: 0.4 },
+            'pressure', { min: 20, max: 200 },
+            'crosslinkIntensity', { min: 0, max: 100 },
+            { resolution: 3 }
+        );
+        expect(sweep.param1).toBe('pressure');
+        expect(sweep.param2).toBe('crosslinkIntensity');
+        expect(sweep.resolution).toBe(3);
+        expect(sweep.grid.length).toBe(4);  // resolution + 1
+        expect(sweep.peak.viability).toBeGreaterThan(sweep.trough.viability);
+    });
 
-(function testParameterSweepPeakLocation() {
-    const sweep = est.parameterSweep(
-        { pressure: 80, nozzleDiameter: 0.4 },
-        'pressure', { min: 20, max: 200 },
-        'crosslinkDuration', { min: 0, max: 30000 },
-        { resolution: 5 }
-    );
-    // Peak should be at low pressure and low crosslink duration
-    assert.ok(sweep.peak.pressure <= 100, 'optimal pressure should be low-moderate');
-    assert.ok(sweep.peak.crosslinkDuration <= 10000, 'optimal crosslink should be low-moderate');
-})();
+    test('peak at low pressure and low crosslink', () => {
+        const sweep = est.parameterSweep(
+            { pressure: 80, nozzleDiameter: 0.4 },
+            'pressure', { min: 20, max: 200 },
+            'crosslinkDuration', { min: 0, max: 30000 },
+            { resolution: 5 }
+        );
+        expect(sweep.peak.pressure).toBeLessThanOrEqual(100);
+        expect(sweep.peak.crosslinkDuration).toBeLessThanOrEqual(10000);
+    });
 
-(function testParameterSweepInvalidRange() {
-    throws(function() {
-        est.parameterSweep({pressure: 80}, 'pressure', null, 'crosslinkDuration', {min: 0, max: 100});
-    }, 'range1 must have numeric', 'null range1');
-})();
+    test('null range throws', () => {
+        expect(() => {
+            est.parameterSweep({pressure: 80}, 'pressure', null, 'crosslinkDuration', {min: 0, max: 100});
+        }).toThrow('range1 must have numeric');
+    });
 
-(function testParameterSweepInvalidResolution() {
-    throws(function() {
-        est.parameterSweep({pressure: 80}, 'pressure', {min: 0, max: 100},
-            'crosslinkDuration', {min: 0, max: 100}, {resolution: 1});
-    }, 'between 2 and 50', 'resolution too low');
-})();
+    test('invalid resolution throws', () => {
+        expect(() => {
+            est.parameterSweep({pressure: 80}, 'pressure', {min: 0, max: 100},
+                'crosslinkDuration', {min: 0, max: 100}, {resolution: 1});
+        }).toThrow('between 2 and 50');
+    });
+});
 
 // ── Calibration ─────────────────────────────────────────────
 
-(function testCalibrateBasic() {
-    const cal = est.calibrate(sampleData, { steps: 2 });
-    assert.ok(cal.calibratedParams.pressure.p50 > 0);
-    assert.ok(cal.calibratedParams.crosslink.ec50 > 0);
-    assert.ok(cal.accuracy.rmse >= 0);
-    assert.ok(cal.searchSpace.combinations > 0);
-})();
+describe('calibrate', () => {
+    test('basic calibration', () => {
+        const cal = est.calibrate(sampleData, { steps: 2 });
+        expect(cal.calibratedParams.pressure.p50).toBeGreaterThan(0);
+        expect(cal.calibratedParams.crosslink.ec50).toBeGreaterThan(0);
+        expect(cal.accuracy.rmse).toBeGreaterThanOrEqual(0);
+        expect(cal.searchSpace.combinations).toBeGreaterThan(0);
+    });
 
-(function testCalibrateTooFewRecords() {
-    throws(function() { est.calibrate(sampleData.slice(0, 3)); },
-        'at least 5 records', 'too few records');
-})();
+    test('too few records throws', () => {
+        expect(() => est.calibrate(sampleData.slice(0, 3))).toThrow('at least 5 records');
+    });
+});
 
 // ── Report Generation ───────────────────────────────────────
 
-(function testGenerateReportBasic() {
-    const report = est.generateReport({ pressure: 80 });
-    assert.ok(report.timestamp);
-    assert.ok(report.estimation);
-    assert.ok(Array.isArray(report.recommendations));
-    assert.ok(report.sensitivity, 'should include sensitivity by default');
-})();
-
-(function testGenerateReportNoSensitivity() {
-    const report = est.generateReport({ pressure: 80 }, { includeSensitivity: false });
-    assert.ok(!report.sensitivity, 'sensitivity should be excluded');
-})();
-
-(function testGenerateReportRecommendations() {
-    // High pressure and high UV should generate recommendations
-    const report = est.generateReport({
-        pressure: 200,
-        crosslinkDuration: 25000,
-        crosslinkIntensity: 80,
-    }, { includeSensitivity: false });
-    assert.ok(report.recommendations.length > 0, 'extreme params should trigger recommendations');
-    var hasShearOrPressure = report.recommendations.some(function(r) {
-        return r.parameter === 'shear' || r.parameter === 'pressure';
+describe('generateReport', () => {
+    test('basic report', () => {
+        const report = est.generateReport({ pressure: 80 });
+        expect(report.timestamp).toBeDefined();
+        expect(report.estimation).toBeDefined();
+        expect(Array.isArray(report.recommendations)).toBe(true);
+        expect(report.sensitivity).toBeDefined();
     });
-    assert.ok(hasShearOrPressure, 'should recommend pressure/shear adjustment');
-})();
+
+    test('excludes sensitivity when asked', () => {
+        const report = est.generateReport({ pressure: 80 }, { includeSensitivity: false });
+        expect(report.sensitivity).toBeFalsy();
+    });
+
+    test('extreme params trigger recommendations', () => {
+        const report = est.generateReport({
+            pressure: 200,
+            crosslinkDuration: 25000,
+            crosslinkIntensity: 80,
+        }, { includeSensitivity: false });
+        expect(report.recommendations.length).toBeGreaterThan(0);
+        const hasShearOrPressure = report.recommendations.some(
+            r => r.parameter === 'shear' || r.parameter === 'pressure'
+        );
+        expect(hasShearOrPressure).toBe(true);
+    });
+});
 
 // ── Edge Cases ──────────────────────────────────────────────
 
-(function testEstimateZeroPressure() {
-    var result = est.estimate({ pressure: 0 });
-    assert.ok(result.viabilityPercent > 90, 'zero pressure should give near-max viability');
-})();
+describe('edge cases', () => {
+    test('zero pressure gives near-max viability', () => {
+        expect(est.estimate({ pressure: 0 }).viabilityPercent).toBeGreaterThan(90);
+    });
 
-(function testEstimateVeryHighPressure() {
-    var result = est.estimate({ pressure: 500 });
-    assert.ok(result.viabilityPercent < 10, 'extreme pressure should near-zero viability');
-})();
+    test('extreme pressure gives near-zero viability', () => {
+        expect(est.estimate({ pressure: 500 }).viabilityPercent).toBeLessThan(10);
+    });
 
-(function testEstimateNoCrosslinking() {
-    var result = est.estimate({ pressure: 80, crosslinkDuration: 0, crosslinkIntensity: 0 });
-    assert.strictEqual(result.breakdown.crosslink, 1, 'no crosslinking = 1.0 survival');
-})();
+    test('no crosslinking = 1.0 survival', () => {
+        const result = est.estimate({ pressure: 80, crosslinkDuration: 0, crosslinkIntensity: 0 });
+        expect(result.breakdown.crosslink).toBe(1);
+    });
 
-(function testEstimateMultiplicativeModel() {
-    // Verify multiplicative: V = baseline * shear * pressure * crosslink
-    var result = est.estimate({ pressure: 80, crosslinkDuration: 5000, crosslinkIntensity: 20 });
-    var expected = result.breakdown.baseline * result.breakdown.shear *
-                   result.breakdown.pressure * result.breakdown.crosslink * 100;
-    approx(result.viabilityPercent, expected, 0.1, 'multiplicative model check');
-})();
+    test('multiplicative model check', () => {
+        const result = est.estimate({ pressure: 80, crosslinkDuration: 5000, crosslinkIntensity: 20 });
+        const expected = result.breakdown.baseline * result.breakdown.shear *
+                         result.breakdown.pressure * result.breakdown.crosslink * 100;
+        approx(result.viabilityPercent, expected, 0.1);
+    });
 
-(function testDefaultParamsFrozen() {
-    assert.ok(Object.isFrozen(est.DEFAULT_PARAMS), 'DEFAULT_PARAMS should be frozen');
-    assert.ok(Object.isFrozen(est.DEFAULT_PARAMS.shear), 'shear params should be frozen');
-    assert.ok(Object.isFrozen(est.DEFAULT_PARAMS.pressure), 'pressure params should be frozen');
-})();
+    test('DEFAULT_PARAMS are frozen', () => {
+        expect(Object.isFrozen(est.DEFAULT_PARAMS)).toBe(true);
+        expect(Object.isFrozen(est.DEFAULT_PARAMS.shear)).toBe(true);
+        expect(Object.isFrozen(est.DEFAULT_PARAMS.pressure)).toBe(true);
+    });
 
-// ── Custom Model Params ─────────────────────────────────────
-
-(function testEstimateCustomBaseline() {
-    var result = est.estimate({ pressure: 0 }, { baseline: 1.0,
-        shear: est.DEFAULT_PARAMS.shear,
-        pressure: est.DEFAULT_PARAMS.pressure,
-        crosslink: est.DEFAULT_PARAMS.crosslink });
-    assert.ok(result.viabilityPercent > 95, 'baseline 1.0 with zero stress should give ~100%');
-})();
-
-// ── Summary ─────────────────────────────────────────────────
-
-var testCount = 0;
-// Count tests by pattern matching (each IIFE is a test)
-var fs = require('fs');
-var src = fs.readFileSync(__filename, 'utf8');
-var matches = src.match(/\(function test/g);
-testCount = matches ? matches.length : 0;
-
-console.log('All ' + testCount + ' viability estimator tests passed ✓');
+    test('custom baseline with zero stress gives ~100%', () => {
+        const result = est.estimate({ pressure: 0 }, { baseline: 1.0,
+            shear: est.DEFAULT_PARAMS.shear,
+            pressure: est.DEFAULT_PARAMS.pressure,
+            crosslink: est.DEFAULT_PARAMS.crosslink });
+        expect(result.viabilityPercent).toBeGreaterThan(95);
+    });
+});
