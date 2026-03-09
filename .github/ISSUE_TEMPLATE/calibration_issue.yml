@@ -1,0 +1,128 @@
+---
+name: 🔧 Calibration Issue
+description: Report printer calibration problems, parameter drift, or unexpected print behavior
+title: "[Calibration]: "
+labels: ["calibration", "bug"]
+assignees: []
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use this template to report calibration-related issues — when the printer behaves differently than expected despite correct protocol settings.
+
+  - type: dropdown
+    id: issue-category
+    attributes:
+      label: Issue Category
+      description: What type of calibration problem are you experiencing?
+      options:
+        - Extrusion rate mismatch (over/under-extrusion)
+        - Temperature control drift
+        - Pressure regulation inconsistency
+        - Nozzle clogging / blockage
+        - Layer adhesion failure
+        - Print speed inaccuracy
+        - XYZ positioning error
+        - Crosslinking timing/intensity
+        - Bioink viscosity mismatch
+        - Multiple / combined issues
+    validations:
+      required: true
+
+  - type: dropdown
+    id: severity
+    attributes:
+      label: Severity
+      description: How severely does this affect print quality?
+      options:
+        - Critical — prints fail completely
+        - Major — significant quality degradation
+        - Moderate — noticeable but functional
+        - Minor — cosmetic or marginal impact
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected-vs-actual
+    attributes:
+      label: Expected vs. Actual Behavior
+      description: What should happen vs. what actually happens?
+      value: |
+        **Expected:** 
+        **Actual:** 
+    validations:
+      required: true
+
+  - type: textarea
+    id: parameters
+    attributes:
+      label: Current Calibration Parameters
+      description: Provide the relevant parameters when the issue occurs
+      value: |
+        - **Nozzle diameter:** 
+        - **Set temperature (°C):** 
+        - **Measured temperature (°C):** 
+        - **Set pressure (kPa):** 
+        - **Print speed (mm/s):** 
+        - **Layer height (μm):** 
+        - **Bioink type:** 
+        - **Bioink batch/lot:** 
+    validations:
+      required: true
+
+  - type: dropdown
+    id: frequency
+    attributes:
+      label: Frequency
+      description: How often does this issue occur?
+      options:
+        - Every print
+        - Most prints (>50%)
+        - Intermittent (<50%)
+        - Rare / happened once
+        - Only with specific bioink
+        - Only after extended use
+    validations:
+      required: true
+
+  - type: textarea
+    id: troubleshooting
+    attributes:
+      label: Troubleshooting Already Attempted
+      description: What have you tried to fix the issue?
+      placeholder: |
+        e.g., 
+        - Cleaned nozzle with enzymatic solution
+        - Recalibrated temperature sensor
+        - Adjusted pressure by ±5 kPa
+        - Tried fresh bioink batch
+
+  - type: textarea
+    id: diagnostic-output
+    attributes:
+      label: Diagnostic Output
+      description: Paste any relevant output from the failure diagnostic or ML diagnostic modules
+      render: json
+      placeholder: |
+        {
+          "symptoms": ["under_extrusion", "nozzle_clog"],
+          "diagnosis": { ... }
+        }
+
+  - type: dropdown
+    id: environment
+    attributes:
+      label: Print Environment
+      description: Where is the printer operating?
+      options:
+        - Biosafety cabinet (BSC)
+        - Clean room
+        - Standard lab bench
+        - Temperature-controlled chamber
+        - Other
+
+  - type: textarea
+    id: additional-context
+    attributes:
+      label: Additional Context
+      description: Photos, log files, or any other relevant information

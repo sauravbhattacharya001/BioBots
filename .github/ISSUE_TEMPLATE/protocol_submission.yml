@@ -1,0 +1,137 @@
+---
+name: 🧪 Protocol Submission
+description: Submit a new bioprinting protocol for the protocol library (protocolLibrary.js)
+title: "[Protocol]: "
+labels: ["protocol", "enhancement"]
+assignees: []
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for contributing a bioprinting protocol! Protocols help the community reproduce results and share best practices. Please provide as much detail as possible.
+
+  - type: input
+    id: protocol-name
+    attributes:
+      label: Protocol Name
+      description: A concise, descriptive name for this protocol
+      placeholder: "e.g., GelMA-LAP Cartilage Scaffold at 37°C"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: bioink-type
+    attributes:
+      label: Primary Bioink Type
+      description: What bioink does this protocol use?
+      options:
+        - GelMA (Gelatin Methacryloyl)
+        - Alginate
+        - Collagen
+        - Fibrin
+        - Hyaluronic Acid
+        - PCL (Polycaprolactone)
+        - PLGA
+        - Silk Fibroin
+        - Decellularized ECM
+        - Composite / Multi-material
+        - Other (specify below)
+    validations:
+      required: true
+
+  - type: dropdown
+    id: application
+    attributes:
+      label: Target Application
+      description: What is this protocol designed for?
+      options:
+        - Cartilage tissue engineering
+        - Bone tissue engineering
+        - Skin / wound healing
+        - Vascular constructs
+        - Neural tissue
+        - Cardiac tissue
+        - Liver / organoid
+        - Drug delivery scaffold
+        - Research / general purpose
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: parameters
+    attributes:
+      label: Print Parameters
+      description: Key printing parameters for this protocol
+      value: |
+        - **Nozzle diameter:** 
+        - **Print speed (mm/s):** 
+        - **Layer height (μm):** 
+        - **Temperature (°C):** 
+        - **Pressure (kPa):** 
+        - **Crosslinking method:** 
+        - **Crosslinking duration:** 
+        - **Infill pattern:** 
+        - **Number of layers:** 
+    validations:
+      required: true
+
+  - type: textarea
+    id: bioink-preparation
+    attributes:
+      label: Bioink Preparation
+      description: How to prepare the bioink (concentrations, mixing, sterilization, etc.)
+      placeholder: "e.g., Dissolve 5% w/v GelMA in PBS at 37°C, add 0.05% LAP photoinitiator..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected-results
+    attributes:
+      label: Expected Results
+      description: What should a successful print look like? Include cell viability, mechanical properties, or structural metrics if available.
+      placeholder: "e.g., >90% cell viability at 24h, compressive modulus 15-25 kPa, continuous filament with <10% deviation..."
+
+  - type: dropdown
+    id: cell-type
+    attributes:
+      label: Cell Type (if applicable)
+      description: What cells are used in this protocol?
+      options:
+        - None (acellular scaffold)
+        - Chondrocytes
+        - MSCs (Mesenchymal Stem Cells)
+        - Fibroblasts
+        - Osteoblasts
+        - Endothelial cells
+        - Keratinocytes
+        - iPSCs
+        - HepG2 / hepatocytes
+        - Cardiomyocytes
+        - Other (specify in notes)
+
+  - type: dropdown
+    id: validation-level
+    attributes:
+      label: Validation Level
+      description: How thoroughly has this protocol been tested?
+      options:
+        - Preliminary (1-2 prints)
+        - Validated (5+ prints, reproducible)
+        - Published (peer-reviewed paper)
+        - Clinical-grade (GMP validated)
+    validations:
+      required: true
+
+  - type: textarea
+    id: references
+    attributes:
+      label: References
+      description: Any papers, DOIs, or resources this protocol is based on
+      placeholder: "e.g., Smith et al., Biofabrication 2025, DOI: 10.1088/..."
+
+  - type: textarea
+    id: additional-notes
+    attributes:
+      label: Additional Notes
+      description: Any tips, failure modes to avoid, or other context
