@@ -1,5 +1,7 @@
 'use strict';
 
+const { round } = require('./scriptUtils');
+
 /**
  * Bioink Formulation Calculator for BioBots
  *
@@ -890,11 +892,6 @@ function createFormulationCalculator() {
         if (density >= 1e6) return `${round(density / 1e6, 1)} × 10⁶ cells/mL`;
         if (density >= 1e3) return `${round(density / 1e3, 1)} × 10³ cells/mL`;
         return `${density} cells/mL`;
-    }
-
-    function round(val, decimals) {
-        const f = Math.pow(10, decimals);
-        return Math.round(val * f) / f;
     }
 
     // ── List Materials ──────────────────────────────────────────

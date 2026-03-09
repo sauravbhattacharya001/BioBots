@@ -1,5 +1,7 @@
 'use strict';
 
+const { clamp } = require('./scriptUtils');
+
 /**
  * Multi-Nozzle Coordination Planner for BioBots
  *
@@ -670,7 +672,7 @@ function createNozzlePlanner(userConfig) {
         score -= overhead * 0.8;
         score -= pingPongs * 5;
         score -= heavyLayers * 3;
-        return Math.max(0, Math.min(100, Math.round(score)));
+        return clamp(Math.round(score), 0, 100);
     }
 
     // ── Material compatibility check ───────────────────────────

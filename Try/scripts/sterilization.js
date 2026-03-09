@@ -1,5 +1,7 @@
 'use strict';
 
+const { validatePositive, validateNonNegative } = require('./scriptUtils');
+
 /**
  * Sterilization Protocol Analyzer for BioBots
  *
@@ -364,9 +366,7 @@ function createSterilizationAnalyzer(userConfig) {
      */
     function calculateKillKinetics(method, duration, pathogenName) {
         _validateMethod(method);
-        if (typeof duration !== 'number' || duration < 0) {
-            throw new Error('Duration must be a non-negative number');
-        }
+        validateNonNegative(duration, 'Duration');
         var lookup = _lookupPathogen(pathogenName);
         var dValue = lookup.data[method];
         if (dValue == null) {
@@ -415,9 +415,7 @@ function createSterilizationAnalyzer(userConfig) {
      */
     function generateKillCurve(method, maxDuration, steps, pathogenName) {
         _validateMethod(method);
-        if (typeof maxDuration !== 'number' || maxDuration <= 0) {
-            throw new Error('maxDuration must be a positive number');
-        }
+        validatePositive(maxDuration, 'maxDuration');
         var nSteps = (typeof steps === 'number' && steps >= 2) ? steps : 20;
         var lookup = _lookupPathogen(pathogenName);
 
