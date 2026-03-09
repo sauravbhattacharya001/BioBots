@@ -1,0 +1,846 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>BioBots 1 — Scaffold Architecture Planner</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧬</text></svg>">
+    <style>
+        :root {
+            --bg: #0f172a; --surface: #1e293b; --border: #334155;
+            --text: #e2e8f0; --muted: #94a3b8;
+            --accent: #38bdf8; --accent-hover: #7dd3fc;
+            --success: #4ade80; --error: #f87171; --warning: #fbbf24;
+            --purple: #a78bfa;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg); color: var(--text);
+            min-height: 100vh; padding: 2rem 1rem;
+        }
+        nav { display: flex; gap: 0.5rem; margin-bottom: 2rem; flex-wrap: wrap; justify-content: center; }
+        nav a { color: var(--muted); padding: 0.5rem 1rem; border-radius: 8px; text-decoration: none; font-size: 0.9rem; transition: all 0.2s; }
+        nav a:hover { color: var(--accent); background: var(--surface); }
+        nav a.active { color: var(--accent); background: var(--surface); border: 1px solid var(--border); }
+        header { text-align: center; margin-bottom: 2rem; }
+        header h1 {
+            font-size: 2rem; font-weight: 700;
+            background: linear-gradient(135deg, var(--accent), var(--purple));
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+        }
+        header p { color: var(--muted); margin-top: 0.5rem; }
+        .container { max-width: 1200px; margin: 0 auto; }
+        .card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 1.5rem; margin-bottom: 1.5rem; }
+        .card h2 { font-size: 1.2rem; margin-bottom: 1rem; display: flex; align-items: center; gap: 0.5rem; }
+        .card h3 { font-size: 1rem; margin-bottom: 0.75rem; color: var(--accent); }
+
+        /* Tabs */
+        .tabs { display: flex; gap: 0.5rem; margin-bottom: 1.5rem; flex-wrap: wrap; }
+        .tab { background: transparent; border: 1px solid var(--border); color: var(--muted); padding: 0.5rem 1rem; border-radius: 8px; cursor: pointer; font-size: 0.9rem; transition: all 0.2s; }
+        .tab:hover { color: var(--text); border-color: var(--accent); }
+        .tab.active { background: var(--accent); color: var(--bg); border-color: var(--accent); font-weight: 600; }
+        .tab-panel { display: none; }
+        .tab-panel.active { display: block; }
+
+        /* Form */
+        .form-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 1rem; }
+        label { display: block; font-size: 0.85rem; color: var(--muted); margin-bottom: 0.25rem; }
+        input, select { width: 100%; background: var(--bg); border: 1px solid var(--border); color: var(--text); padding: 0.5rem; border-radius: 6px; font-size: 0.9rem; }
+        input:focus, select:focus { outline: none; border-color: var(--accent); }
+        .unit { font-size: 0.75rem; color: var(--muted); }
+
+        /* Buttons */
+        .btn { background: var(--accent); color: var(--bg); border: none; padding: 0.6rem 1.2rem; border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 0.9rem; transition: all 0.2s; }
+        .btn:hover { background: var(--accent-hover); }
+        .btn-secondary { background: transparent; color: var(--accent); border: 1px solid var(--accent); }
+        .btn-secondary:hover { background: rgba(56, 189, 248, 0.1); }
+        .btn-row { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+
+        /* Presets */
+        .preset-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 0.75rem; margin-bottom: 1.5rem; }
+        .preset-card { background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 1rem; cursor: pointer; transition: all 0.2s; }
+        .preset-card:hover { border-color: var(--accent); transform: translateY(-2px); }
+        .preset-card.selected { border-color: var(--accent); background: rgba(56, 189, 248, 0.05); }
+        .preset-name { font-weight: 600; margin-bottom: 0.25rem; }
+        .preset-desc { font-size: 0.8rem; color: var(--muted); margin-bottom: 0.5rem; }
+        .preset-params { font-size: 0.75rem; color: var(--accent); font-family: 'Consolas', monospace; }
+
+        /* Results */
+        .results-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 1rem; margin-top: 1rem; }
+        .result-box { background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 1rem; text-align: center; }
+        .result-value { font-size: 1.5rem; font-weight: 700; color: var(--accent); }
+        .result-label { font-size: 0.8rem; color: var(--muted); margin-top: 0.25rem; }
+        .result-value.good { color: var(--success); }
+        .result-value.warn { color: var(--warning); }
+        .result-value.bad { color: var(--error); }
+
+        /* Canvas */
+        .chart-container { width: 100%; max-width: 600px; margin: 0 auto; position: relative; }
+        .chart-canvas { width: 100%; background: var(--bg); border: 1px solid var(--border); border-radius: 8px; }
+
+        /* Comparison table */
+        .data-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; margin-top: 1rem; }
+        .data-table th, .data-table td { padding: 0.5rem; text-align: left; border-bottom: 1px solid var(--border); }
+        .data-table th { color: var(--accent); font-weight: 600; }
+        .data-table td { color: var(--text); font-family: 'Consolas', monospace; }
+
+        /* Rating bar */
+        .rating-bar { height: 8px; background: var(--bg); border-radius: 4px; overflow: hidden; margin-top: 0.25rem; }
+        .rating-fill { height: 100%; border-radius: 4px; transition: width 0.3s; }
+
+        /* Footer */
+        .footer { text-align: center; color: var(--muted); font-size: 0.8rem; margin-top: 3rem; padding-top: 1.5rem; border-top: 1px solid var(--border); }
+        @media (max-width: 600px) {
+            .form-grid { grid-template-columns: 1fr; }
+            .preset-grid { grid-template-columns: 1fr; }
+            .results-grid { grid-template-columns: repeat(2, 1fr); }
+        }
+    </style>
+</head>
+<body>
+    <nav id="topNav"></nav>
+
+    <div class="container">
+        <header>
+            <h1>🏗️ Scaffold Architecture Planner</h1>
+            <p>Design 3D scaffold geometries for tissue engineering — pore sizing, porosity, mechanical estimation, and cross-section visualization</p>
+        </header>
+
+        <!-- Tabs -->
+        <div class="tabs" role="tablist">
+            <button class="tab active" role="tab" data-tab="designer">📐 Scaffold Designer</button>
+            <button class="tab" role="tab" data-tab="porosity">🔬 Porosity Calculator</button>
+            <button class="tab" role="tab" data-tab="mechanical">💪 Mechanical Properties</button>
+            <button class="tab" role="tab" data-tab="comparison">📊 Pattern Comparison</button>
+        </div>
+
+        <!-- Tab 1: Scaffold Designer -->
+        <div class="tab-panel active" id="panel-designer">
+            <div class="card">
+                <h2>🧬 Tissue Presets</h2>
+                <div class="preset-grid" id="tissuePresets"></div>
+            </div>
+
+            <div class="card">
+                <h2>📐 Scaffold Parameters</h2>
+                <div class="form-grid">
+                    <div>
+                        <label>Infill Pattern</label>
+                        <select id="pattern">
+                            <option value="rectilinear">Rectilinear (0°/90°)</option>
+                            <option value="diagonal">Diagonal (45°/135°)</option>
+                            <option value="honeycomb">Honeycomb</option>
+                            <option value="gyroid">Gyroid-Inspired</option>
+                            <option value="triangular">Triangular</option>
+                            <option value="concentric">Concentric</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label>Strut Diameter <span class="unit">(µm)</span></label>
+                        <input type="number" id="strutDiam" value="300" min="50" max="1000" step="10">
+                    </div>
+                    <div>
+                        <label>Pore Size <span class="unit">(µm)</span></label>
+                        <input type="number" id="poreSize" value="400" min="50" max="2000" step="10">
+                    </div>
+                    <div>
+                        <label>Layer Height <span class="unit">(µm)</span></label>
+                        <input type="number" id="layerH" value="200" min="50" max="500" step="10">
+                    </div>
+                    <div>
+                        <label>Scaffold Width <span class="unit">(mm)</span></label>
+                        <input type="number" id="scaffWidth" value="10" min="1" max="50" step="0.5">
+                    </div>
+                    <div>
+                        <label>Scaffold Height <span class="unit">(mm)</span></label>
+                        <input type="number" id="scaffHeight" value="5" min="1" max="30" step="0.5">
+                    </div>
+                    <div>
+                        <label>Material</label>
+                        <select id="material">
+                            <option value="pla">PLA</option>
+                            <option value="pcl">PCL (Polycaprolactone)</option>
+                            <option value="plga">PLGA</option>
+                            <option value="gelma" selected>GelMA Hydrogel</option>
+                            <option value="alginate">Alginate</option>
+                            <option value="collagen">Collagen</option>
+                            <option value="ha">Hydroxyapatite</option>
+                            <option value="titanium">Titanium (Ti-6Al-4V)</option>
+                            <option value="custom">Custom</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label>Bulk Modulus <span class="unit">(MPa)</span></label>
+                        <input type="number" id="bulkModulus" value="0.5" min="0.001" max="120000" step="0.1">
+                    </div>
+                </div>
+                <div class="btn-row">
+                    <button class="btn" id="btnDesign">Generate Design</button>
+                    <button class="btn btn-secondary" id="btnExportJSON">Export JSON</button>
+                </div>
+            </div>
+
+            <!-- Cross-Section Visualization -->
+            <div class="card" id="vizCard" style="display:none;">
+                <h2>🔍 Cross-Section View (Top-Down, Single Layer)</h2>
+                <div class="chart-container">
+                    <canvas id="crossSection" class="chart-canvas" width="600" height="600"></canvas>
+                </div>
+                <div class="results-grid" id="designResults"></div>
+            </div>
+        </div>
+
+        <!-- Tab 2: Porosity Calculator -->
+        <div class="tab-panel" id="panel-porosity">
+            <div class="card">
+                <h2>🔬 Porosity Analysis</h2>
+                <p style="color:var(--muted);margin-bottom:1rem;">Calculate scaffold porosity from geometry. Optimal porosity varies by tissue type: bone (50–90%), cartilage (70–90%), skin (60–90%), vasculature (>90%).</p>
+                <div class="form-grid">
+                    <div>
+                        <label>Strut Diameter <span class="unit">(µm)</span></label>
+                        <input type="number" id="pStrut" value="300" min="50" max="1000" step="10">
+                    </div>
+                    <div>
+                        <label>Pore Size <span class="unit">(µm)</span></label>
+                        <input type="number" id="pPore" value="400" min="50" max="2000" step="10">
+                    </div>
+                    <div>
+                        <label>Layer Height <span class="unit">(µm)</span></label>
+                        <input type="number" id="pLayer" value="200" min="50" max="500" step="10">
+                    </div>
+                    <div>
+                        <label>Number of Layers</label>
+                        <input type="number" id="pLayers" value="25" min="1" max="200" step="1">
+                    </div>
+                </div>
+                <button class="btn" id="btnPorosity">Calculate Porosity</button>
+                <div id="porosityResults" style="display:none;margin-top:1.5rem;">
+                    <div class="results-grid" id="porosityGrid"></div>
+                    <div id="porosityGuidance" style="margin-top:1rem;"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab 3: Mechanical Properties -->
+        <div class="tab-panel" id="panel-mechanical">
+            <div class="card">
+                <h2>💪 Mechanical Property Estimation</h2>
+                <p style="color:var(--muted);margin-bottom:1rem;">Estimate effective modulus and yield strength of porous scaffolds using Gibson-Ashby relations.</p>
+                <div class="form-grid">
+                    <div>
+                        <label>Bulk Elastic Modulus <span class="unit">(MPa)</span></label>
+                        <input type="number" id="mBulkE" value="0.5" min="0.001" max="120000" step="0.1">
+                    </div>
+                    <div>
+                        <label>Bulk Yield Strength <span class="unit">(MPa)</span></label>
+                        <input type="number" id="mBulkY" value="0.1" min="0.001" max="10000" step="0.1">
+                    </div>
+                    <div>
+                        <label>Porosity <span class="unit">(%)</span></label>
+                        <input type="number" id="mPorosity" value="65" min="5" max="98" step="1">
+                    </div>
+                    <div>
+                        <label>Scaffold Type</label>
+                        <select id="mType">
+                            <option value="open">Open-Cell Foam</option>
+                            <option value="closed">Closed-Cell Foam</option>
+                            <option value="strut">Strut-Based Lattice</option>
+                        </select>
+                    </div>
+                </div>
+                <button class="btn" id="btnMech">Estimate Properties</button>
+                <div id="mechResults" style="display:none;margin-top:1.5rem;">
+                    <div class="results-grid" id="mechGrid"></div>
+                    <div id="mechTissueMatch" style="margin-top:1rem;"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab 4: Pattern Comparison -->
+        <div class="tab-panel" id="panel-comparison">
+            <div class="card">
+                <h2>📊 Infill Pattern Comparison</h2>
+                <p style="color:var(--muted);margin-bottom:1rem;">Compare mechanical performance, porosity uniformity, and printability of different infill patterns for a given strut/pore geometry.</p>
+                <div class="form-grid">
+                    <div>
+                        <label>Strut Diameter <span class="unit">(µm)</span></label>
+                        <input type="number" id="cStrut" value="300" min="50" max="1000" step="10">
+                    </div>
+                    <div>
+                        <label>Pore Size <span class="unit">(µm)</span></label>
+                        <input type="number" id="cPore" value="400" min="50" max="2000" step="10">
+                    </div>
+                </div>
+                <button class="btn" id="btnCompare">Compare All Patterns</button>
+                <div id="compareResults" style="display:none;margin-top:1.5rem;">
+                    <table class="data-table" id="compareTable">
+                        <thead>
+                            <tr>
+                                <th>Pattern</th>
+                                <th>Porosity (%)</th>
+                                <th>Uniformity</th>
+                                <th>Stiffness</th>
+                                <th>Printability</th>
+                                <th>Cell Ingrowth</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                    <p id="compareRecommendation" style="margin-top:1rem;color:var(--success);font-weight:600;"></p>
+                </div>
+            </div>
+        </div>
+
+        <div class="footer">BioBots 1 — Scaffold Architecture Planner</div>
+    </div>
+
+    <script>
+    /* ═══════════════════════════════════════════════════════════
+       Scaffold Architecture Planner — Pure JS, no dependencies
+       ═══════════════════════════════════════════════════════════ */
+
+    /* ── Material Database ──────────────────────────────────── */
+    var MATERIALS = {
+        pla:      { name: 'PLA',              E: 3500,   yield: 60,    degradeMonths: 24  },
+        pcl:      { name: 'PCL',              E: 400,    yield: 15,    degradeMonths: 24  },
+        plga:     { name: 'PLGA',             E: 2000,   yield: 45,    degradeMonths: 6   },
+        gelma:    { name: 'GelMA Hydrogel',   E: 0.5,    yield: 0.1,   degradeMonths: 1   },
+        alginate: { name: 'Alginate',         E: 0.15,   yield: 0.03,  degradeMonths: 1   },
+        collagen: { name: 'Collagen',         E: 0.8,    yield: 0.05,  degradeMonths: 2   },
+        ha:       { name: 'Hydroxyapatite',   E: 80000,  yield: 40,    degradeMonths: 120 },
+        titanium: { name: 'Titanium Ti-6Al-4V', E: 114000, yield: 880, degradeMonths: Infinity },
+        custom:   { name: 'Custom',           E: 1,      yield: 0.5,   degradeMonths: 12  }
+    };
+
+    /* ── Tissue Presets ─────────────────────────────────────── */
+    var TISSUE_PRESETS = [
+        {
+            name: 'Cancellous Bone',
+            desc: 'Load-bearing, high porosity for vascularization',
+            pore: 300, strut: 350, layer: 250, material: 'ha',
+            targetPorosity: [50, 90], icon: '🦴'
+        },
+        {
+            name: 'Cortical Bone',
+            desc: 'Dense, strong, low porosity for structural support',
+            pore: 150, strut: 500, layer: 200, material: 'ha',
+            targetPorosity: [5, 30], icon: '💀'
+        },
+        {
+            name: 'Articular Cartilage',
+            desc: 'Soft, hydrated, gradient pore structure',
+            pore: 250, strut: 200, layer: 150, material: 'gelma',
+            targetPorosity: [70, 90], icon: '🦵'
+        },
+        {
+            name: 'Skin / Dermal',
+            desc: 'Thin layers, moderate porosity for cell migration',
+            pore: 200, strut: 150, layer: 100, material: 'collagen',
+            targetPorosity: [60, 90], icon: '🩹'
+        },
+        {
+            name: 'Vascular Graft',
+            desc: 'Tubular scaffold, very high porosity for endothelial cells',
+            pore: 500, strut: 100, layer: 100, material: 'pcl',
+            targetPorosity: [90, 97], icon: '🫀'
+        },
+        {
+            name: 'Neural Conduit',
+            desc: 'Aligned channels for axonal guidance',
+            pore: 200, strut: 150, layer: 150, material: 'gelma',
+            targetPorosity: [80, 95], icon: '🧠'
+        },
+        {
+            name: 'Cardiac Patch',
+            desc: 'Elastic, anisotropic, cell-laden hydrogel',
+            pore: 350, strut: 200, layer: 200, material: 'gelma',
+            targetPorosity: [70, 90], icon: '❤️'
+        },
+        {
+            name: 'Liver Organoid',
+            desc: 'High cell density, nutrient diffusion critical',
+            pore: 400, strut: 250, layer: 200, material: 'alginate',
+            targetPorosity: [80, 95], icon: '🫁'
+        }
+    ];
+
+    /* ── Pattern Properties ─────────────────────────────────── */
+    var PATTERNS = {
+        rectilinear: {
+            name: 'Rectilinear (0°/90°)', uniformity: 0.85, stiffnessMultiplier: 1.0,
+            printability: 0.95, cellIngrowth: 0.75, porosityFactor: 1.0
+        },
+        diagonal: {
+            name: 'Diagonal (45°/135°)', uniformity: 0.88, stiffnessMultiplier: 0.95,
+            printability: 0.90, cellIngrowth: 0.80, porosityFactor: 1.0
+        },
+        honeycomb: {
+            name: 'Honeycomb', uniformity: 0.95, stiffnessMultiplier: 1.15,
+            printability: 0.75, cellIngrowth: 0.90, porosityFactor: 1.1
+        },
+        gyroid: {
+            name: 'Gyroid-Inspired', uniformity: 0.98, stiffnessMultiplier: 1.10,
+            printability: 0.60, cellIngrowth: 0.95, porosityFactor: 1.05
+        },
+        triangular: {
+            name: 'Triangular', uniformity: 0.90, stiffnessMultiplier: 1.20,
+            printability: 0.80, cellIngrowth: 0.70, porosityFactor: 0.92
+        },
+        concentric: {
+            name: 'Concentric', uniformity: 0.70, stiffnessMultiplier: 0.80,
+            printability: 0.85, cellIngrowth: 0.65, porosityFactor: 0.95
+        }
+    };
+
+    /* ── Tissue Target Moduli (MPa) ─────────────────────────── */
+    var TISSUE_TARGETS = [
+        { name: 'Cancellous Bone',  Emin: 100,    Emax: 5000   },
+        { name: 'Cortical Bone',    Emin: 7000,   Emax: 30000  },
+        { name: 'Articular Cartilage', Emin: 0.5, Emax: 30     },
+        { name: 'Tendon/Ligament',  Emin: 100,    Emax: 2000   },
+        { name: 'Skin',             Emin: 0.02,   Emax: 0.5    },
+        { name: 'Cardiac Tissue',   Emin: 0.01,   Emax: 0.5    },
+        { name: 'Liver',            Emin: 0.0003, Emax: 0.006  },
+        { name: 'Brain',            Emin: 0.0001, Emax: 0.001  }
+    ];
+
+    /* ── Core Calculations ──────────────────────────────────── */
+    function calcPorosity(strutUm, poreUm, pattern) {
+        var p = poreUm / (poreUm + strutUm);
+        // For rectilinear: porosity ≈ 1 - (d/L)² where L = pore+strut
+        var lineFraction = strutUm / (strutUm + poreUm);
+        var basePorosity = 1 - lineFraction * lineFraction;
+        var factor = PATTERNS[pattern] ? PATTERNS[pattern].porosityFactor : 1.0;
+        return Math.min(0.99, Math.max(0.01, basePorosity * factor));
+    }
+
+    function calcSurfaceAreaToVolume(strutUm, poreUm) {
+        // SA:V ratio for cylindrical struts in a grid (mm⁻¹)
+        var d = strutUm / 1000; // mm
+        var L = (strutUm + poreUm) / 1000; // unit cell mm
+        var strutLength = L; // per unit cell per direction
+        var strutSA = Math.PI * d * strutLength; // surface of one strut
+        var strutVol = Math.PI * (d / 2) * (d / 2) * strutLength;
+        var cellVol = L * L * (d); // approximate unit cell volume
+        return (2 * strutSA) / cellVol; // two directions
+    }
+
+    function gibsonAshby(bulkE, bulkY, porosity, type) {
+        var rho = 1 - porosity; // relative density
+        var C1, n1, C2, n2;
+        if (type === 'closed') {
+            C1 = 1.0; n1 = 2; C2 = 0.3; n2 = 1.5;
+        } else if (type === 'strut') {
+            C1 = 0.3; n1 = 1.5; C2 = 0.2; n2 = 1.5;
+        } else { // open
+            C1 = 1.0; n1 = 2; C2 = 0.3; n2 = 1.5;
+        }
+        var effE = C1 * bulkE * Math.pow(rho, n1);
+        var effY = C2 * bulkY * Math.pow(rho, n2);
+        return { effectiveE: effE, effectiveYield: effY, relativeDensity: rho };
+    }
+
+    function formatSI(val) {
+        if (val >= 1000) return (val / 1000).toFixed(1) + ' GPa';
+        if (val >= 1) return val.toFixed(2) + ' MPa';
+        if (val >= 0.001) return (val * 1000).toFixed(1) + ' kPa';
+        return (val * 1e6).toFixed(1) + ' Pa';
+    }
+
+    /* ── Nav ────────────────────────────────────────────────── */
+    (function () {
+        var pages = [
+            ['index.html', 'Home'], ['api.html', 'API'], ['materials.html', 'Materials'],
+            ['cost.html', 'Cost'], ['nozzle.html', 'Nozzle'], ['environment.html', 'Env'],
+            ['shelf-life.html', 'Shelf Life'], ['quality.html', 'QC'], ['rheology.html', 'Rheology'],
+            ['scaffold.html', 'Scaffold']
+        ];
+        var nav = document.getElementById('topNav');
+        pages.forEach(function (p) {
+            var a = document.createElement('a');
+            a.href = p[0]; a.textContent = p[1];
+            if (p[0] === 'scaffold.html') a.className = 'active';
+            nav.appendChild(a);
+        });
+    })();
+
+    /* ── Tabs ───────────────────────────────────────────────── */
+    (function () {
+        var tabs = document.querySelectorAll('.tab');
+        tabs.forEach(function (tab) {
+            tab.addEventListener('click', function () {
+                tabs.forEach(function (t) { t.classList.remove('active'); });
+                document.querySelectorAll('.tab-panel').forEach(function (p) { p.classList.remove('active'); });
+                tab.classList.add('active');
+                document.getElementById('panel-' + tab.getAttribute('data-tab')).classList.add('active');
+            });
+        });
+    })();
+
+    /* ── Tissue Presets ─────────────────────────────────────── */
+    (function () {
+        var grid = document.getElementById('tissuePresets');
+        TISSUE_PRESETS.forEach(function (preset, idx) {
+            var card = document.createElement('div');
+            card.className = 'preset-card';
+            card.innerHTML = '<div class="preset-name">' + preset.icon + ' ' + preset.name + '</div>' +
+                '<div class="preset-desc">' + preset.desc + '</div>' +
+                '<div class="preset-params">Pore: ' + preset.pore + 'µm | Strut: ' + preset.strut + 'µm | ' + MATERIALS[preset.material].name + '</div>';
+            card.addEventListener('click', function () {
+                document.querySelectorAll('.preset-card').forEach(function (c) { c.classList.remove('selected'); });
+                card.classList.add('selected');
+                document.getElementById('strutDiam').value = preset.strut;
+                document.getElementById('poreSize').value = preset.pore;
+                document.getElementById('layerH').value = preset.layer;
+                document.getElementById('material').value = preset.material;
+                var mat = MATERIALS[preset.material];
+                document.getElementById('bulkModulus').value = mat.E;
+            });
+            grid.appendChild(card);
+        });
+    })();
+
+    /* ── Material Sync ──────────────────────────────────────── */
+    document.getElementById('material').addEventListener('change', function () {
+        var mat = MATERIALS[this.value];
+        if (mat && this.value !== 'custom') {
+            document.getElementById('bulkModulus').value = mat.E;
+        }
+    });
+
+    /* ── Designer: Generate ─────────────────────────────────── */
+    document.getElementById('btnDesign').addEventListener('click', function () {
+        var pattern = document.getElementById('pattern').value;
+        var strut = parseFloat(document.getElementById('strutDiam').value);
+        var pore = parseFloat(document.getElementById('poreSize').value);
+        var layer = parseFloat(document.getElementById('layerH').value);
+        var width = parseFloat(document.getElementById('scaffWidth').value);
+        var height = parseFloat(document.getElementById('scaffHeight').value);
+        var matKey = document.getElementById('material').value;
+        var bulkE = parseFloat(document.getElementById('bulkModulus').value);
+
+        if (isNaN(strut) || isNaN(pore) || strut <= 0 || pore <= 0) {
+            alert('Please enter valid strut diameter and pore size.'); return;
+        }
+
+        var porosity = calcPorosity(strut, pore, pattern);
+        var saVol = calcSurfaceAreaToVolume(strut, pore);
+        var numLayers = Math.ceil((height * 1000) / layer);
+        var unitCell = (strut + pore) / 1000; // mm
+        var cellsPerRow = Math.floor(width / unitCell);
+        var totalVol = width * width * height; // mm³
+        var materialVol = totalVol * (1 - porosity);
+        var ga = gibsonAshby(bulkE, 0, porosity, 'open');
+        var patProps = PATTERNS[pattern];
+
+        // Draw cross-section
+        drawCrossSection(pattern, strut, pore, width);
+
+        // Show results
+        var vizCard = document.getElementById('vizCard');
+        vizCard.style.display = 'block';
+
+        var resultsDiv = document.getElementById('designResults');
+        var porosityClass = porosity > 0.5 ? 'good' : porosity > 0.3 ? 'warn' : 'bad';
+        resultsDiv.innerHTML =
+            makeResultBox('' + (porosity * 100).toFixed(1) + '%', 'Porosity', porosityClass) +
+            makeResultBox(saVol.toFixed(1) + ' mm⁻¹', 'SA:Volume', saVol > 10 ? 'good' : 'warn') +
+            makeResultBox('' + numLayers, 'Layers', '') +
+            makeResultBox('' + cellsPerRow + '×' + cellsPerRow, 'Unit Cells/Layer', '') +
+            makeResultBox(materialVol.toFixed(1) + ' mm³', 'Material Volume', '') +
+            makeResultBox(formatSI(ga.effectiveE), 'Eff. Modulus', '') +
+            makeResultBox((patProps.uniformity * 100).toFixed(0) + '%', 'Pore Uniformity', patProps.uniformity > 0.85 ? 'good' : 'warn') +
+            makeResultBox((patProps.printability * 100).toFixed(0) + '%', 'Printability', patProps.printability > 0.8 ? 'good' : patProps.printability > 0.6 ? 'warn' : 'bad');
+
+        vizCard.scrollIntoView({ behavior: 'smooth' });
+    });
+
+    function makeResultBox(value, label, cls) {
+        return '<div class="result-box"><div class="result-value ' + cls + '">' + value + '</div><div class="result-label">' + label + '</div></div>';
+    }
+
+    /* ── Cross-Section Drawing ──────────────────────────────── */
+    function drawCrossSection(pattern, strutUm, poreUm, widthMm) {
+        var canvas = document.getElementById('crossSection');
+        var ctx = canvas.getContext('2d');
+        var W = canvas.width;
+        var H = canvas.height;
+
+        ctx.fillStyle = '#0f172a';
+        ctx.fillRect(0, 0, W, H);
+
+        var unitMm = (strutUm + poreUm) / 1000;
+        var scale = W / widthMm;
+        var strutPx = (strutUm / 1000) * scale;
+        var porePx = (poreUm / 1000) * scale;
+        var unitPx = strutPx + porePx;
+
+        ctx.strokeStyle = '#38bdf8';
+        ctx.lineWidth = Math.max(1, strutPx);
+        ctx.lineCap = 'round';
+
+        if (pattern === 'rectilinear') {
+            // Horizontal lines
+            for (var y = strutPx / 2; y < H; y += unitPx) {
+                ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke();
+            }
+            // Vertical lines (next layer offset)
+            ctx.strokeStyle = '#a78bfa';
+            ctx.globalAlpha = 0.5;
+            for (var x = strutPx / 2; x < W; x += unitPx) {
+                ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke();
+            }
+            ctx.globalAlpha = 1.0;
+        } else if (pattern === 'diagonal') {
+            for (var d = -W; d < W + H; d += unitPx) {
+                ctx.beginPath(); ctx.moveTo(d, 0); ctx.lineTo(d + H, H); ctx.stroke();
+            }
+            ctx.strokeStyle = '#a78bfa';
+            ctx.globalAlpha = 0.5;
+            for (var d = -W; d < W + H; d += unitPx) {
+                ctx.beginPath(); ctx.moveTo(W - d, 0); ctx.lineTo(W - d - H, H); ctx.stroke();
+            }
+            ctx.globalAlpha = 1.0;
+        } else if (pattern === 'honeycomb') {
+            var r = unitPx * 0.6;
+            var dx = r * Math.sqrt(3);
+            var dy = r * 1.5;
+            var row = 0;
+            for (var cy = 0; cy < H + r; cy += dy) {
+                var offset = (row % 2) * (dx / 2);
+                for (var cx = offset; cx < W + r; cx += dx) {
+                    drawHexagon(ctx, cx, cy, r * 0.8, strutPx);
+                }
+                row++;
+            }
+        } else if (pattern === 'gyroid') {
+            ctx.lineWidth = Math.max(1, strutPx * 0.7);
+            var freq = (2 * Math.PI) / unitPx;
+            for (var phase = 0; phase < H; phase += unitPx * 0.5) {
+                ctx.beginPath();
+                for (var x = 0; x <= W; x += 2) {
+                    var y = phase + Math.sin(x * freq) * (unitPx * 0.4) + Math.cos(x * freq * 0.5) * (unitPx * 0.2);
+                    if (x === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+                }
+                ctx.stroke();
+            }
+            ctx.strokeStyle = '#a78bfa';
+            ctx.globalAlpha = 0.5;
+            for (var phase = 0; phase < W; phase += unitPx * 0.5) {
+                ctx.beginPath();
+                for (var y = 0; y <= H; y += 2) {
+                    var x = phase + Math.cos(y * freq) * (unitPx * 0.4) + Math.sin(y * freq * 0.5) * (unitPx * 0.2);
+                    if (y === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+                }
+                ctx.stroke();
+            }
+            ctx.globalAlpha = 1.0;
+        } else if (pattern === 'triangular') {
+            var side = unitPx * 1.2;
+            var h = side * Math.sqrt(3) / 2;
+            var row = 0;
+            for (var y = 0; y < H + h; y += h) {
+                var offset = (row % 2) * (side / 2);
+                for (var x = offset; x < W + side; x += side) {
+                    // Upward triangle
+                    ctx.beginPath();
+                    ctx.moveTo(x, y + h);
+                    ctx.lineTo(x + side / 2, y);
+                    ctx.lineTo(x + side, y + h);
+                    ctx.closePath();
+                    ctx.stroke();
+                }
+                row++;
+            }
+        } else if (pattern === 'concentric') {
+            var cx = W / 2, cy = H / 2;
+            var maxR = Math.sqrt(cx * cx + cy * cy);
+            for (var r = unitPx / 2; r < maxR; r += unitPx) {
+                ctx.beginPath();
+                ctx.arc(cx, cy, r, 0, Math.PI * 2);
+                ctx.stroke();
+            }
+        }
+
+        // Scale bar
+        var barMm = Math.max(1, Math.floor(widthMm / 5));
+        var barPx = barMm * scale;
+        ctx.fillStyle = '#e2e8f0';
+        ctx.fillRect(W - barPx - 20, H - 30, barPx, 4);
+        ctx.font = '12px sans-serif';
+        ctx.fillText(barMm + ' mm', W - barPx - 20, H - 10);
+
+        // Legend
+        ctx.fillStyle = '#94a3b8';
+        ctx.font = '11px sans-serif';
+        ctx.fillText('Layer 1 (blue) + Layer 2 (purple)', 10, H - 10);
+    }
+
+    function drawHexagon(ctx, cx, cy, r, lw) {
+        ctx.beginPath();
+        for (var i = 0; i < 6; i++) {
+            var angle = (Math.PI / 3) * i - Math.PI / 6;
+            var x = cx + r * Math.cos(angle);
+            var y = cy + r * Math.sin(angle);
+            if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+        }
+        ctx.closePath();
+        ctx.stroke();
+    }
+
+    /* ── Porosity Calculator ────────────────────────────────── */
+    document.getElementById('btnPorosity').addEventListener('click', function () {
+        var strut = parseFloat(document.getElementById('pStrut').value);
+        var pore = parseFloat(document.getElementById('pPore').value);
+        var layer = parseFloat(document.getElementById('pLayer').value);
+        var numLayers = parseInt(document.getElementById('pLayers').value);
+
+        if (isNaN(strut) || isNaN(pore) || strut <= 0 || pore <= 0) {
+            alert('Enter valid values.'); return;
+        }
+
+        var porosity = calcPorosity(strut, pore, 'rectilinear');
+        var totalH = (numLayers * layer) / 1000; // mm
+        var poreVol = porosity;
+        var intercon = Math.min(1.0, pore / strut); // interconnectivity estimate
+        var diffusionLimit = pore < 200 ? 'Limited' : pore < 500 ? 'Moderate' : 'Good';
+
+        document.getElementById('porosityResults').style.display = 'block';
+        var grid = document.getElementById('porosityGrid');
+        var cls = porosity > 0.6 ? 'good' : porosity > 0.3 ? 'warn' : 'bad';
+        grid.innerHTML =
+            makeResultBox((porosity * 100).toFixed(1) + '%', 'Porosity', cls) +
+            makeResultBox((intercon * 100).toFixed(0) + '%', 'Interconnectivity', intercon > 0.7 ? 'good' : 'warn') +
+            makeResultBox(diffusionLimit, 'Nutrient Diffusion', diffusionLimit === 'Good' ? 'good' : diffusionLimit === 'Moderate' ? 'warn' : 'bad') +
+            makeResultBox(totalH.toFixed(1) + ' mm', 'Total Height', '') +
+            makeResultBox(pore + ' µm', 'Pore Size', pore >= 100 && pore <= 500 ? 'good' : 'warn') +
+            makeResultBox((strut / pore).toFixed(2), 'Strut:Pore Ratio', '');
+
+        // Tissue suitability
+        var guidance = document.getElementById('porosityGuidance');
+        var html = '<div class="card" style="margin-top:0"><h3>Tissue Suitability</h3>';
+        TISSUE_PRESETS.forEach(function (t) {
+            var match = (porosity * 100 >= t.targetPorosity[0] && porosity * 100 <= t.targetPorosity[1]);
+            var pct = Math.min(100, Math.max(0, ((porosity * 100 - t.targetPorosity[0]) / (t.targetPorosity[1] - t.targetPorosity[0])) * 100));
+            var color = match ? 'var(--success)' : 'var(--error)';
+            html += '<div style="margin-bottom:0.75rem;">' +
+                '<div style="display:flex;justify-content:space-between;font-size:0.85rem;">' +
+                '<span>' + t.icon + ' ' + t.name + ' (' + t.targetPorosity[0] + '–' + t.targetPorosity[1] + '%)</span>' +
+                '<span style="color:' + color + ';font-weight:600;">' + (match ? '✓ Compatible' : '✗ Outside Range') + '</span></div>' +
+                '<div class="rating-bar"><div class="rating-fill" style="width:' + (match ? '100' : '30') + '%;background:' + color + ';"></div></div></div>';
+        });
+        html += '</div>';
+        guidance.innerHTML = html;
+    });
+
+    /* ── Mechanical Properties ──────────────────────────────── */
+    document.getElementById('btnMech').addEventListener('click', function () {
+        var bulkE = parseFloat(document.getElementById('mBulkE').value);
+        var bulkY = parseFloat(document.getElementById('mBulkY').value);
+        var porosity = parseFloat(document.getElementById('mPorosity').value) / 100;
+        var type = document.getElementById('mType').value;
+
+        if (isNaN(bulkE) || isNaN(bulkY) || isNaN(porosity)) {
+            alert('Enter valid values.'); return;
+        }
+
+        var ga = gibsonAshby(bulkE, bulkY, porosity, type);
+
+        document.getElementById('mechResults').style.display = 'block';
+        var grid = document.getElementById('mechGrid');
+        grid.innerHTML =
+            makeResultBox(formatSI(ga.effectiveE), 'Effective Modulus', '') +
+            makeResultBox(formatSI(ga.effectiveYield), 'Effective Yield', '') +
+            makeResultBox((ga.relativeDensity * 100).toFixed(1) + '%', 'Relative Density', '') +
+            makeResultBox((porosity * 100).toFixed(1) + '%', 'Porosity', '') +
+            makeResultBox(formatSI(bulkE), 'Bulk Modulus', '') +
+            makeResultBox((ga.effectiveE / bulkE * 100).toFixed(1) + '%', 'Stiffness Retention', ga.effectiveE / bulkE > 0.1 ? 'good' : 'warn');
+
+        // Tissue match
+        var matchDiv = document.getElementById('mechTissueMatch');
+        var html = '<div class="card" style="margin-top:0"><h3>Tissue Modulus Match</h3>';
+        TISSUE_TARGETS.forEach(function (t) {
+            var match = ga.effectiveE >= t.Emin && ga.effectiveE <= t.Emax;
+            var color = match ? 'var(--success)' : 'var(--muted)';
+            html += '<div style="margin-bottom:0.5rem;display:flex;justify-content:space-between;font-size:0.85rem;">' +
+                '<span>' + t.name + ' (' + formatSI(t.Emin) + ' – ' + formatSI(t.Emax) + ')</span>' +
+                '<span style="color:' + color + ';font-weight:600;">' +
+                (match ? '✓ Match' : '—') + '</span></div>';
+        });
+        html += '</div>';
+        matchDiv.innerHTML = html;
+    });
+
+    /* ── Pattern Comparison ─────────────────────────────────── */
+    document.getElementById('btnCompare').addEventListener('click', function () {
+        var strut = parseFloat(document.getElementById('cStrut').value);
+        var pore = parseFloat(document.getElementById('cPore').value);
+
+        if (isNaN(strut) || isNaN(pore) || strut <= 0 || pore <= 0) {
+            alert('Enter valid values.'); return;
+        }
+
+        document.getElementById('compareResults').style.display = 'block';
+        var tbody = document.querySelector('#compareTable tbody');
+        tbody.innerHTML = '';
+
+        var bestScore = 0, bestPattern = '';
+
+        Object.keys(PATTERNS).forEach(function (key) {
+            var p = PATTERNS[key];
+            var porosity = calcPorosity(strut, pore, key);
+            var score = p.uniformity * 0.25 + p.stiffnessMultiplier * 0.25 + p.printability * 0.25 + p.cellIngrowth * 0.25;
+            if (score > bestScore) { bestScore = score; bestPattern = p.name; }
+
+            var row = document.createElement('tr');
+            row.innerHTML =
+                '<td>' + p.name + '</td>' +
+                '<td>' + (porosity * 100).toFixed(1) + '</td>' +
+                '<td>' + ratingBar(p.uniformity) + '</td>' +
+                '<td>' + ratingBar(p.stiffnessMultiplier / 1.2) + '</td>' +
+                '<td>' + ratingBar(p.printability) + '</td>' +
+                '<td>' + ratingBar(p.cellIngrowth) + '</td>';
+            tbody.appendChild(row);
+        });
+
+        document.getElementById('compareRecommendation').textContent =
+            '⭐ Recommended: ' + bestPattern + ' (balanced score: ' + (bestScore * 100).toFixed(0) + '/100)';
+    });
+
+    function ratingBar(val) {
+        var pct = Math.round(val * 100);
+        var color = pct >= 80 ? 'var(--success)' : pct >= 60 ? 'var(--warning)' : 'var(--error)';
+        return '<div style="display:flex;align-items:center;gap:0.5rem;"><div style="flex:1;height:8px;background:var(--bg);border-radius:4px;overflow:hidden;">' +
+            '<div style="width:' + pct + '%;height:100%;background:' + color + ';border-radius:4px;"></div></div>' +
+            '<span style="font-size:0.8rem;min-width:30px;">' + pct + '%</span></div>';
+    }
+
+    /* ── Export JSON ─────────────────────────────────────────── */
+    document.getElementById('btnExportJSON').addEventListener('click', function () {
+        var config = {
+            pattern: document.getElementById('pattern').value,
+            strutDiameterUm: parseFloat(document.getElementById('strutDiam').value),
+            poreSizeUm: parseFloat(document.getElementById('poreSize').value),
+            layerHeightUm: parseFloat(document.getElementById('layerH').value),
+            scaffoldWidthMm: parseFloat(document.getElementById('scaffWidth').value),
+            scaffoldHeightMm: parseFloat(document.getElementById('scaffHeight').value),
+            material: document.getElementById('material').value,
+            bulkModulusMPa: parseFloat(document.getElementById('bulkModulus').value),
+            porosity: calcPorosity(
+                parseFloat(document.getElementById('strutDiam').value),
+                parseFloat(document.getElementById('poreSize').value),
+                document.getElementById('pattern').value
+            ),
+            generatedAt: new Date().toISOString()
+        };
+        var blob = new Blob([JSON.stringify(config, null, 2)], { type: 'application/json' });
+        var url = URL.createObjectURL(blob);
+        var a = document.createElement('a');
+        a.href = url; a.download = 'scaffold-design-' + Date.now() + '.json';
+        a.click();
+        URL.revokeObjectURL(url);
+    });
+    </script>
+</body>
+</html>
