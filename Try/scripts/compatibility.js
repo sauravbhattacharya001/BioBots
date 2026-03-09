@@ -161,29 +161,38 @@ function rangeOverlapScore(a1, a2, b1, b2) {
 
 /**
  * Score difference between two values relative to a scale. Closer = higher.
+ * Returns 0 when scale is zero or negative to avoid division by zero.
  */
 function proxScore(a, b, scale) {
+  if (scale <= 0) return 0;
   return Math.max(0, 1 - Math.abs(a - b) / scale);
 }
 
 // ── Pairwise analysis dimensions ──
 
 function rheologyScore(a, b) {
-  const viscRatio = a.viscosityPas > b.viscosityPas
-    ? b.viscosityPas / a.viscosityPas
-    : a.viscosityPas / b.viscosityPas;
+  const aVisc = a.viscosityPas || 0;
+  const bVisc = b.viscosityPas || 0;
+  var viscRatio, rawRatio;
+  if (aVisc <= 0 || bVisc <= 0) {
+    viscRatio = 0;
+    rawRatio = aVisc <= 0 && bVisc <= 0 ? 1 : 0;
+  } else {
+    viscRatio = aVisc > bVisc ? bVisc / aVisc : aVisc / bVisc;
+    rawRatio = +(aVisc / bVisc).toFixed(3);
+  }
   const shearDiff = Math.abs(a.shearThinningIndex - b.shearThinningIndex);
   // Viscosity within 3x is good; shear thinning index within 0.3 is ideal
   const viscScore = clamp(viscRatio, 0, 1);
   const shearScore = Math.max(0, 1 - shearDiff / 0.5);
   return {
     score: 0.6 * viscScore + 0.4 * shearScore,
-    viscosityRatio: +(a.viscosityPas / b.viscosityPas).toFixed(3),
+    viscosityRatio: rawRatio,
     shearThinningDiff: +shearDiff.toFixed(3),
     detail: viscRatio < 0.2
-      ? 'Large viscosity mismatch — may cause interface instability'
+      ? 'Large viscosity mismatch - may cause interface instability'
       : viscRatio < 0.5
-        ? 'Moderate viscosity difference — consider interface gradient'
+        ? 'Moderate viscosity difference - consider interface gradient'
         : 'Good viscosity match',
   };
 }
@@ -197,20 +206,20 @@ function crosslinkScore(a, b) {
       const wlDiff = Math.abs(a.crosslinkWavelength - b.crosslinkWavelength);
       if (wlDiff === 0) {
         score = 1.0;
-        detail = 'Same UV wavelength — single-step crosslinking possible';
+        detail = 'Same UV wavelength - single-step crosslinking possible';
       } else if (wlDiff <= 40) {
         score = 0.7;
-        detail = `UV wavelengths differ by ${wlDiff}nm — sequential crosslinking recommended`;
+        detail = `UV wavelengths differ by ${wlDiff}nm - sequential crosslinking recommended`;
       } else {
         score = 0.4;
-        detail = `UV wavelengths differ by ${wlDiff}nm — may need separate crosslinking steps`;
+        detail = `UV wavelengths differ by ${wlDiff}nm - may need separate crosslinking steps`;
       }
     } else {
       score = 0.9;
-      detail = `Both use ${a.crosslinkMethod} crosslinking — compatible workflow`;
+      detail = `Both use ${a.crosslinkMethod} crosslinking - compatible workflow`;
     }
   } else {
-    // Different methods — orthogonal crosslinking can be advantageous
+    // Different methods - orthogonal crosslinking can be advantageous
     const orthogonalPairs = [
       ['uv', 'ionic'], ['uv', 'enzymatic'], ['thermal', 'ionic'],
       ['thermal', 'uv'], ['enzymatic', 'ionic'],
@@ -221,10 +230,10 @@ function crosslinkScore(a, b) {
     );
     if (isOrthogonal) {
       score = 0.75;
-      detail = `Orthogonal crosslinking (${a.crosslinkMethod}/${b.crosslinkMethod}) — independent gelation possible`;
+      detail = `Orthogonal crosslinking (${a.crosslinkMethod}/${b.crosslinkMethod}) - independent gelation possible`;
     } else {
       score = 0.5;
-      detail = `Different crosslinking methods (${a.crosslinkMethod}/${b.crosslinkMethod}) — verify compatibility`;
+      detail = `Different crosslinking methods (${a.crosslinkMethod}/${b.crosslinkMethod}) - verify compatibility`;
     }
   }
 
@@ -244,9 +253,9 @@ function thermalScore(a, b) {
     overlapRange: overlapMin < overlapMax ? [overlapMin, overlapMax] : null,
     printTempDiffC: printTempDiff,
     detail: overlap === 0
-      ? 'No thermal window overlap — cannot co-print'
+      ? 'No thermal window overlap - cannot co-print'
       : overlap < 0.3
-        ? 'Narrow thermal window — tight temperature control required'
+        ? 'Narrow thermal window - tight temperature control required'
         : 'Good thermal compatibility',
   };
 }
@@ -263,8 +272,8 @@ function phScore(a, b) {
       : null,
     optimalPhDiff: +optDiff.toFixed(2),
     detail: overlap === 0
-      ? 'No pH overlap — incompatible'
-      : 'pH ranges overlap — compatible',
+      ? 'No pH overlap - incompatible'
+      : 'pH ranges overlap - compatible',
   };
 }
 
@@ -278,7 +287,7 @@ function interfaceScore(a, b) {
     ? Math.min(a.swellingRatio, b.swellingRatio) / Math.max(a.swellingRatio, b.swellingRatio)
     : 0.5;
 
-  // Mechanical modulus matching — large mismatches cause stress concentrations
+  // Mechanical modulus matching - large mismatches cause stress concentrations
   const modA = a.mechanicalModulusKPa || 10;
   const modB = b.mechanicalModulusKPa || 10;
   const modRatio = Math.min(modA, modB) / Math.max(modA, modB);
@@ -294,8 +303,8 @@ function interfaceScore(a, b) {
     detail: score > 0.7
       ? 'Good interface adhesion predicted'
       : score > 0.4
-        ? 'Moderate interface — consider adhesion promoter'
-        : 'Poor interface — significant delamination risk',
+        ? 'Moderate interface - consider adhesion promoter'
+        : 'Poor interface - significant delamination risk',
   };
 }
 
@@ -307,10 +316,10 @@ function degradationScore(a, b) {
     score: clamp(ratio, 0, 1),
     rateRatio: +(dA / dB).toFixed(3),
     detail: ratio > 0.7
-      ? 'Similar degradation rates — good structural balance'
+      ? 'Similar degradation rates - good structural balance'
       : ratio > 0.3
-        ? 'Different degradation rates — staged remodeling possible'
-        : 'Very different degradation rates — early structural compromise risk',
+        ? 'Different degradation rates - staged remodeling possible'
+        : 'Very different degradation rates - early structural compromise risk',
   };
 }
 
@@ -438,7 +447,7 @@ function createCompatibilityMatrix(opts = {}) {
         dimensions: {},
         blockers: [],
         recommendations: [],
-        note: 'Same material — fully compatible',
+        note: 'Same material - fully compatible',
       };
     }
     return analyzePairDetail(a, b);
@@ -453,7 +462,7 @@ function createCompatibilityMatrix(opts = {}) {
         if (a === b) {
           matrix[a][b] = { composite: 1.0, classification: 'excellent' };
         } else if (matrix[b] && matrix[b][a]) {
-          // Symmetric — copy
+          // Symmetric - copy
           matrix[a][b] = { composite: matrix[b][a].composite, classification: matrix[b][a].classification };
         } else {
           const result = analyzePair(a, b);

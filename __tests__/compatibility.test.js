@@ -47,6 +47,12 @@ describe('proxScore', () => {
   test('half scale returns 0.5', () => {
     expect(_proxScore(0, 5, 10)).toBe(0.5);
   });
+  test('zero scale returns 0 instead of Infinity', () => {
+    expect(_proxScore(5, 10, 0)).toBe(0);
+  });
+  test('negative scale returns 0', () => {
+    expect(_proxScore(5, 10, -5)).toBe(0);
+  });
 });
 
 describe('classifyCompatibility', () => {
@@ -77,6 +83,21 @@ describe('rheologyScore', () => {
     const r = _rheologyScore(a, b);
     expect(r.detail).toBeTruthy();
     expect(typeof r.viscosityRatio).toBe('number');
+  });
+  test('zero viscosity does not produce Infinity or NaN', () => {
+    const a = { viscosityPas: 0, shearThinningIndex: 0.5 };
+    const b = { viscosityPas: 1, shearThinningIndex: 0.5 };
+    const r = _rheologyScore(a, b);
+    expect(Number.isFinite(r.score)).toBe(true);
+    expect(Number.isFinite(r.viscosityRatio)).toBe(true);
+    expect(r.score).toBeGreaterThanOrEqual(0);
+  });
+  test('both zero viscosity does not produce NaN', () => {
+    const a = { viscosityPas: 0, shearThinningIndex: 0.4 };
+    const b = { viscosityPas: 0, shearThinningIndex: 0.4 };
+    const r = _rheologyScore(a, b);
+    expect(Number.isFinite(r.score)).toBe(true);
+    expect(Number.isFinite(r.viscosityRatio)).toBe(true);
   });
 });
 
