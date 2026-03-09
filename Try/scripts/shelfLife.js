@@ -1,5 +1,7 @@
 'use strict';
 
+const { clamp } = require('./scriptUtils');
+
 /**
  * Bioink Shelf Life Tracker for BioBots
  *
@@ -282,8 +284,8 @@ function createShelfLifeTracker(userConfig) {
         var remainingDays = effectiveTotalDays - elapsedDays;
         if (remainingDays < 0) remainingDays = 0;
 
-        var qualityPercent = Math.max(0, Math.min(100,
-            (remainingDays / effectiveTotalDays) * 100));
+        var qualityPercent = clamp(
+            (remainingDays / effectiveTotalDays) * 100, 0, 100);
 
         var status;
         if (remainingDays <= 0) {

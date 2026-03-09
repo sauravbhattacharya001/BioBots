@@ -1,3 +1,7 @@
+'use strict';
+
+const { clamp } = require('./scriptUtils');
+
 /**
  * ML-Based Pattern Recognition for Print Failure Diagnostics
  *
@@ -319,7 +323,7 @@ function createMLDiagnostic(options) {
 
     const cOpts = clusterOpts || {};
     // Auto-select k: sqrt(n/2), bounded 2..8
-    const autoK = Math.max(2, Math.min(8, Math.round(Math.sqrt(diagnosisVectors.length / 2))));
+    const autoK = clamp(Math.round(Math.sqrt(diagnosisVectors.length / 2)), 2, 8);
     const k = cOpts.k || autoK;
     const maxIter = cOpts.maxIterations || 50;
 
