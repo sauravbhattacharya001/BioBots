@@ -780,9 +780,16 @@ function createViabilityEstimator() {
                 var count = 0;
                 var valid = true;
 
+                // Store predictions for correlation if this turns
+                // out to be the best grid point — avoids a redundant
+                // second pass over all records (was O(2n) per improved
+                // point, now O(n) total).
+                var predictions = new Array(preExtracted.length);
+
                 for (var xi = 0; xi < preExtracted.length; xi++) {
                     try {
                         var est = estimate(preExtracted[xi].params, testModelParams);
+                        predictions[xi] = est.viabilityPercent;
                         var error = est.viabilityPercent - preExtracted[xi].actual;
                         sumSquaredError += error * error;
                         sumAbsError += Math.abs(error);
@@ -790,7 +797,7 @@ function createViabilityEstimator() {
                         totalActual += preExtracted[xi].actual;
                         count++;
                     } catch (e) {
-                        // Skip records that fail estimation
+                        predictions[xi] = null;
                     }
                 }
 
@@ -802,17 +809,16 @@ function createViabilityEstimator() {
                     var meanA = totalActual / count;
                     var mae = sumAbsError / count;
 
-                    // Compute correlation
+                    // Compute correlation from stored predictions
+                    // (no second estimate() pass needed).
                     var sXY = 0, sX2 = 0, sY2 = 0;
                     for (var ci = 0; ci < preExtracted.length; ci++) {
-                        try {
-                            var e2 = estimate(preExtracted[ci].params, testModelParams);
-                            var dx = e2.viabilityPercent - meanP;
-                            var dy = preExtracted[ci].actual - meanA;
-                            sXY += dx * dy;
-                            sX2 += dx * dx;
-                            sY2 += dy * dy;
-                        } catch (e) { /* skip */ }
+                        if (predictions[ci] === null) continue;
+                        var dx = predictions[ci] - meanP;
+                        var dy = preExtracted[ci].actual - meanA;
+                        sXY += dx * dy;
+                        sX2 += dx * dx;
+                        sY2 += dy * dy;
                     }
                     var corr = (sX2 > 0 && sY2 > 0) ? sXY / Math.sqrt(sX2 * sY2) : 0;
 
