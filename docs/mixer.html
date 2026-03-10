@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>BioBots 1 — Bioink Mixer</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧬</text></svg>">
+    <style>
+        :root {
+            --bg: #0f172a; --surface: #1e293b; --border: #334155;
+            --text: #e2e8f0; --muted: #94a3b8; --accent: #38bdf8;
+            --accent-hover: #7dd3fc; --success: #4ade80; --error: #f87171;
+            --warning: #fbbf24; --purple: #a78bfa;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; display: flex; flex-direction: column; align-items: center; padding: 2rem 1rem; }
+        nav { display: flex; gap: 0.5rem; margin-bottom: 2rem; flex-wrap: wrap; justify-content: center; }
+        nav a { color: var(--muted); padding: 0.5rem 1rem; border-radius: 8px; text-decoration: none; font-size: 0.9rem; transition: all 0.2s; }
+        nav a:hover { color: var(--accent); background: var(--surface); }
+        nav a.active { color: var(--accent); background: var(--surface); border: 1px solid var(--border); }
+        header { text-align: center; margin-bottom: 2rem; }
+        header h1 { font-size: 2rem; font-weight: 700; background: linear-gradient(135deg, var(--purple), var(--accent)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+        header p { color: var(--muted); margin-top: 0.5rem; }
+        .container { width: 100%; max-width: 1000px; }
+        .layout { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; }
+        @media (max-width: 768px) { .layout { grid-template-columns: 1fr; } }
+        .card { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 1.5rem; margin-bottom: 1.5rem; }
+        .card h2 { font-size: 1.1rem; margin-bottom: 1rem; color: var(--muted); font-weight: 500; }
+        .form-group { display: flex; flex-direction: column; gap: 0.3rem; margin-bottom: 0.8rem; }
+        label { font-size: 0.8rem; color: var(--muted); font-weight: 500; }
+        select, input[type="number"], input[type="range"] { background: var(--bg); border: 1px solid var(--border); color: var(--text); padding: 0.5rem 0.7rem; border-radius: 8px; font-size: 0.9rem; outline: none; transition: border-color 0.2s; width: 100%; }
+        select:focus, input:focus { border-color: var(--accent); }
+        .btn { background: var(--accent); color: var(--bg); border: none; padding: 0.7rem 1.5rem; border-radius: 8px; font-size: 0.95rem; font-weight: 600; cursor: pointer; transition: background 0.2s; width: 100%; margin-top: 0.5rem; }
+        .btn:hover { background: var(--accent-hover); }
+        .btn-secondary { background: var(--surface); color: var(--accent); border: 1px solid var(--border); }
+        .btn-secondary:hover { background: var(--border); }
+        .btn-danger { background: transparent; color: var(--error); border: 1px solid var(--error); }
+        .btn-danger:hover { background: var(--error); color: var(--bg); }
+        .result-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.8rem; }
+        @media (max-width: 500px) { .result-grid { grid-template-columns: 1fr 1fr; } }
+        .result-item { background: var(--bg); border: 1px solid var(--border); border-radius: 10px; padding: 0.8rem; text-align: center; }
+        .result-item .value { font-size: 1.3rem; font-weight: 700; color: var(--accent); }
+        .result-item .label { font-size: 0.7rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; margin-top: 0.2rem; }
+        .result-item.good .value { color: var(--success); }
+        .result-item.warn .value { color: var(--warning); }
+        .result-item.bad .value { color: var(--error); }
+        .component-row { display: grid; grid-template-columns: 1fr 80px 40px; gap: 0.5rem; align-items: end; margin-bottom: 0.6rem; padding: 0.6rem; background: var(--bg); border-radius: 10px; border: 1px solid var(--border); }
+        .component-row .remove-btn { background: none; border: none; color: var(--error); font-size: 1.2rem; cursor: pointer; padding: 0.3rem; border-radius: 6px; }
+        .component-row .remove-btn:hover { background: rgba(248,113,113,0.15); }
+        .fraction-display { font-size: 0.85rem; color: var(--accent); font-weight: 600; text-align: center; padding-top: 0.3rem; }
+        .compat-badge { display: inline-block; padding: 0.2rem 0.6rem; border-radius: 20px; font-size: 0.75rem; font-weight: 600; }
+        .compat-badge.synergistic { background: rgba(74,222,128,0.15); color: var(--success); }
+        .compat-badge.antagonistic { background: rgba(248,113,113,0.15); color: var(--error); }
+        .compat-badge.neutral { background: rgba(148,163,184,0.15); color: var(--muted); }
+        .pair-list { list-style: none; margin-top: 0.5rem; }
+        .pair-list li { padding: 0.4rem 0; font-size: 0.85rem; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); }
+        .pair-list li:last-child { border-bottom: none; }
+        .donut-container { display: flex; justify-content: center; margin: 1rem 0; }
+        .temp-bar { height: 8px; border-radius: 4px; background: var(--border); position: relative; margin: 0.5rem 0; }
+        .temp-fill { height: 100%; border-radius: 4px; background: linear-gradient(90deg, var(--accent), var(--success)); position: absolute; }
+        .temp-labels { display: flex; justify-content: space-between; font-size: 0.75rem; color: var(--muted); }
+        .printability-badge { display: inline-block; padding: 0.3rem 0.8rem; border-radius: 20px; font-size: 0.85rem; font-weight: 600; }
+        .printability-badge.good { background: rgba(74,222,128,0.15); color: var(--success); }
+        .printability-badge.acceptable { background: rgba(251,191,36,0.15); color: var(--warning); }
+        .printability-badge.poor { background: rgba(248,113,113,0.15); color: var(--error); }
+        .printability-badge.challenging { background: rgba(167,139,250,0.15); color: var(--purple); }
+        .error-msg { color: var(--error); font-size: 0.85rem; padding: 0.5rem; background: rgba(248,113,113,0.1); border-radius: 8px; margin-top: 0.5rem; }
+        #results { display: none; }
+        .preset-chips { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 1rem; }
+        .preset-chip { background: var(--bg); border: 1px solid var(--border); color: var(--muted); padding: 0.3rem 0.7rem; border-radius: 20px; font-size: 0.8rem; cursor: pointer; transition: all 0.2s; }
+        .preset-chip:hover { border-color: var(--accent); color: var(--accent); }
+    </style>
+</head>
+<body>
+    <nav>
+        <a href="index.html">Dashboard</a>
+        <a href="explorer.html">Explorer</a>
+        <a href="calculator.html">Calculator</a>
+        <a href="mixer.html" class="active">Mixer</a>
+        <a href="cost.html">Cost</a>
+        <a href="quality.html">Quality</a>
+        <a href="protocol.html">Protocol</a>
+        <a href="calibration.html">Calibration</a>
+        <a href="compare.html">Compare</a>
+        <a href="trends.html">Trends</a>
+        <a href="batch.html">Batch</a>
+    </nav>
+
+    <header>
+        <h1>🧪 Bioink Mixer</h1>
+        <p>Blend multiple bioinks and analyze composite properties, compatibility, and printability</p>
+    </header>
+
+    <div class="container">
+        <!-- Presets -->
+        <div class="card">
+            <h2>Quick Presets</h2>
+            <div class="preset-chips">
+                <span class="preset-chip" onclick="loadPreset('skin')">🧫 Skin Tissue</span>
+                <span class="preset-chip" onclick="loadPreset('cartilage')">🦴 Cartilage</span>
+                <span class="preset-chip" onclick="loadPreset('vascular')">🫀 Vascular</span>
+                <span class="preset-chip" onclick="loadPreset('bone')">🦷 Bone Scaffold</span>
+                <span class="preset-chip" onclick="loadPreset('neural')">🧠 Neural</span>
+            </div>
+        </div>
+
+        <div class="layout">
+            <!-- Input -->
+            <div>
+                <div class="card">
+                    <h2>Blend Components</h2>
+                    <div id="components"></div>
+                    <button class="btn btn-secondary" onclick="addComponent()" style="margin-bottom:0.8rem">+ Add Component</button>
+                    <div class="form-group">
+                        <label>Total Volume (mL)</label>
+                        <input type="number" id="totalVolume" value="5" min="0.1" max="1000" step="0.1" />
+                    </div>
+                    <div id="fractionStatus" style="font-size:0.85rem; margin-bottom:0.5rem;"></div>
+                    <button class="btn" onclick="calculate()">Mix &amp; Analyze</button>
+                    <div id="errorBox"></div>
+                </div>
+            </div>
+
+            <!-- Results -->
+            <div id="results">
+                <div class="card">
+                    <h2>Composite Properties</h2>
+                    <div class="result-grid" id="propsGrid"></div>
+                </div>
+                <div class="card">
+                    <h2>Printability</h2>
+                    <div id="printabilityResult"></div>
+                </div>
+                <div class="card">
+                    <h2>Temperature Range</h2>
+                    <div id="tempResult"></div>
+                </div>
+                <div class="card">
+                    <h2>Compatibility</h2>
+                    <div id="compatResult"></div>
+                </div>
+                <div class="card">
+                    <h2>Volume Breakdown</h2>
+                    <div class="donut-container"><canvas id="donutChart" width="200" height="200"></canvas></div>
+                    <div id="breakdownList"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="shared/mixer.js"></script>
+    <script>
+    (function() {
+        var mixer = createBioinkMixer();
+        var materials = mixer.getMaterials();
+        var materialKeys = Object.keys(materials);
+        var components = [];
+        var nextId = 0;
+
+        var PRESETS = {
+            skin: [
+                { material: 'gelatin-methacrylate', fraction: 0.5 },
+                { material: 'collagen-type-1', fraction: 0.3 },
+                { material: 'hyaluronic-acid', fraction: 0.2 }
+            ],
+            cartilage: [
+                { material: 'alginate', fraction: 0.4 },
+                { material: 'gelatin-methacrylate', fraction: 0.35 },
+                { material: 'hyaluronic-acid', fraction: 0.25 }
+            ],
+            vascular: [
+                { material: 'collagen-type-1', fraction: 0.4 },
+                { material: 'fibrin', fraction: 0.4 },
+                { material: 'gelatin-methacrylate', fraction: 0.2 }
+            ],
+            bone: [
+                { material: 'alginate', fraction: 0.3 },
+                { material: 'silk-fibroin', fraction: 0.4 },
+                { material: 'pectin', fraction: 0.3 }
+            ],
+            neural: [
+                { material: 'hyaluronic-acid', fraction: 0.5 },
+                { material: 'gelatin-methacrylate', fraction: 0.3 },
+                { material: 'fibrin', fraction: 0.2 }
+            ]
+        };
+
+        function escapeHtml(s) {
+            if (s == null) return '';
+            return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+        }
+
+        function renderComponents() {
+            var container = document.getElementById('components');
+            container.innerHTML = '';
+            components.forEach(function(c) {
+                var row = document.createElement('div');
+                row.className = 'component-row';
+                var selHtml = '<div class="form-group"><label>Material</label><select data-id="' + c.id + '" onchange="window._setMaterial(' + c.id + ', this.value)">';
+                materialKeys.forEach(function(k) {
+                    selHtml += '<option value="' + k + '"' + (k === c.material ? ' selected' : '') + '>' + escapeHtml(materials[k].name) + '</option>';
+                });
+                selHtml += '</select></div>';
+                var fracHtml = '<div class="form-group"><label>%</label><input type="number" min="1" max="100" value="' + Math.round(c.fraction * 100) + '" onchange="window._setFraction(' + c.id + ', this.value)" /></div>';
+                var removeHtml = '<button class="remove-btn" onclick="window._removeComponent(' + c.id + ')" title="Remove">✕</button>';
+                row.innerHTML = selHtml + fracHtml + removeHtml;
+                container.appendChild(row);
+            });
+            updateFractionStatus();
+        }
+
+        function updateFractionStatus() {
+            var sum = 0;
+            components.forEach(function(c) { sum += c.fraction; });
+            var pct = Math.round(sum * 100);
+            var el = document.getElementById('fractionStatus');
+            if (Math.abs(pct - 100) <= 1) {
+                el.innerHTML = '<span style="color:var(--success)">✓ Total: ' + pct + '%</span>';
+            } else {
+                el.innerHTML = '<span style="color:var(--error)">⚠ Total: ' + pct + '% (must equal 100%)</span>';
+            }
+        }
+
+        window.addComponent = function(mat, frac) {
+            components.push({ id: nextId++, material: mat || materialKeys[components.length % materialKeys.length], fraction: frac || 0.5 });
+            renderComponents();
+        };
+
+        window._setMaterial = function(id, val) {
+            components.forEach(function(c) { if (c.id === id) c.material = val; });
+        };
+
+        window._setFraction = function(id, val) {
+            components.forEach(function(c) { if (c.id === id) c.fraction = parseInt(val, 10) / 100; });
+            updateFractionStatus();
+        };
+
+        window._removeComponent = function(id) {
+            components = components.filter(function(c) { return c.id !== id; });
+            renderComponents();
+        };
+
+        window.loadPreset = function(name) {
+            var preset = PRESETS[name];
+            if (!preset) return;
+            components = [];
+            nextId = 0;
+            preset.forEach(function(p) {
+                components.push({ id: nextId++, material: p.material, fraction: p.fraction });
+            });
+            renderComponents();
+            calculate();
+        };
+
+        window.calculate = function() {
+            var errorBox = document.getElementById('errorBox');
+            errorBox.innerHTML = '';
+            try {
+                var input = components.map(function(c) { return { material: c.material, fraction: c.fraction }; });
+                var vol = parseFloat(document.getElementById('totalVolume').value) || 1;
+                var result = mixer.mix(input, { totalVolumeMl: vol });
+                showResults(result);
+            } catch(e) {
+                errorBox.innerHTML = '<div class="error-msg">' + escapeHtml(e.message) + '</div>';
+                document.getElementById('results').style.display = 'none';
+            }
+        };
+
+        function showResults(r) {
+            document.getElementById('results').style.display = 'block';
+
+            // Props grid
+            var comp = r.composite;
+            var propsHtml = '';
+            propsHtml += '<div class="result-item"><div class="value">' + comp.density + '</div><div class="label">Density (g/mL)</div></div>';
+            propsHtml += '<div class="result-item"><div class="value">' + comp.viscosity + '</div><div class="label">Viscosity (mPa·s)</div></div>';
+            propsHtml += '<div class="result-item warn"><div class="value">$' + comp.totalCost.toFixed(2) + '</div><div class="label">Total Cost</div></div>';
+            propsHtml += '<div class="result-item' + (comp.cellAdhesion >= 0.6 ? ' good' : '') + '"><div class="value">' + (comp.cellAdhesion * 100).toFixed(0) + '%</div><div class="label">Cell Adhesion</div></div>';
+            propsHtml += '<div class="result-item"><div class="value">' + (comp.degradability * 100).toFixed(0) + '%</div><div class="label">Degradability</div></div>';
+            propsHtml += '<div class="result-item"><div class="value">$' + comp.costPerMl.toFixed(2) + '</div><div class="label">Cost / mL</div></div>';
+            document.getElementById('propsGrid').innerHTML = propsHtml;
+
+            // Printability
+            var p = r.printability;
+            var pClass = p.rating;
+            document.getElementById('printabilityResult').innerHTML =
+                '<span class="printability-badge ' + pClass + '">' + escapeHtml(p.rating.toUpperCase()) + '</span>' +
+                '<p style="margin-top:0.5rem;font-size:0.85rem;color:var(--muted)">' + escapeHtml(p.recommendation) + '</p>';
+
+            // Temperature
+            var t = r.temperatureRange;
+            var tempHtml;
+            if (t.feasible) {
+                var range = 50;
+                var left = (t.min / range) * 100;
+                var width = ((t.max - t.min) / range) * 100;
+                tempHtml = '<div class="temp-bar"><div class="temp-fill" style="left:' + left + '%;width:' + width + '%"></div></div>';
+                tempHtml += '<div class="temp-labels"><span>0°C</span><span>' + t.min + '–' + t.max + '°C</span><span>50°C</span></div>';
+            } else {
+                tempHtml = '<div class="error-msg">⚠ ' + escapeHtml(t.warning) + ' (' + t.min + '°C min vs ' + t.max + '°C max)</div>';
+            }
+            document.getElementById('tempResult').innerHTML = tempHtml;
+
+            // Compatibility
+            var c = r.compatibility;
+            var compatHtml = '<div style="font-size:1.5rem;font-weight:700;color:var(--accent);margin-bottom:0.5rem">' + c.score.toFixed(2) + '</div>';
+            compatHtml += '<p style="font-size:0.8rem;color:var(--muted);margin-bottom:0.5rem">1.0 = neutral · &gt;1 synergistic · &lt;1 antagonistic</p>';
+            if (c.pairs.length > 0) {
+                compatHtml += '<ul class="pair-list">';
+                c.pairs.forEach(function(pair) {
+                    var nameA = materials[pair.a] ? materials[pair.a].name : pair.a;
+                    var nameB = materials[pair.b] ? materials[pair.b].name : pair.b;
+                    compatHtml += '<li><span>' + escapeHtml(nameA) + ' + ' + escapeHtml(nameB) + '</span><span class="compat-badge ' + pair.synergy + '">' + pair.factor.toFixed(2) + '</span></li>';
+                });
+                compatHtml += '</ul>';
+            }
+            document.getElementById('compatResult').innerHTML = compatHtml;
+
+            // Donut chart
+            drawDonut(r.breakdown);
+
+            // Breakdown list
+            var blHtml = '';
+            r.breakdown.forEach(function(b) {
+                blHtml += '<div style="display:flex;justify-content:space-between;align-items:center;padding:0.4rem 0;border-bottom:1px solid var(--border);font-size:0.85rem">';
+                blHtml += '<span><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:' + b.color + ';margin-right:0.5rem"></span>' + escapeHtml(b.name) + ' (' + (b.fraction * 100).toFixed(0) + '%)</span>';
+                blHtml += '<span>' + b.volumeMl.toFixed(2) + ' mL · $' + b.costContribution.toFixed(2) + '</span>';
+                blHtml += '</div>';
+            });
+            document.getElementById('breakdownList').innerHTML = blHtml;
+        }
+
+        function drawDonut(breakdown) {
+            var canvas = document.getElementById('donutChart');
+            var ctx = canvas.getContext('2d');
+            var cx = 100, cy = 100, r = 80, inner = 50;
+            ctx.clearRect(0, 0, 200, 200);
+            var startAngle = -Math.PI / 2;
+            breakdown.forEach(function(b) {
+                var sliceAngle = b.fraction * 2 * Math.PI;
+                ctx.beginPath();
+                ctx.arc(cx, cy, r, startAngle, startAngle + sliceAngle);
+                ctx.arc(cx, cy, inner, startAngle + sliceAngle, startAngle, true);
+                ctx.closePath();
+                ctx.fillStyle = b.color;
+                ctx.fill();
+                startAngle += sliceAngle;
+            });
+            // Center text
+            ctx.fillStyle = '#e2e8f0';
+            ctx.font = 'bold 14px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(breakdown.length + ' inks', cx, cy);
+        }
+
+        // Init with 2 components
+        addComponent('alginate', 0.6);
+        addComponent('gelatin-methacrylate', 0.4);
+    })();
+    </script>
+</body>
+</html>
