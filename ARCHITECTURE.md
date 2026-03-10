@@ -17,12 +17,13 @@ BioBots/
 │   │   ├── rheology.js      # Bioink rheology modeler
 │   │   ├── utils.js         # DOM helpers, formatting, rounding
 │   │   └── viability.js     # Cell viability estimator
-│   ├── *.html               # Dashboard pages (27 pages)
+│   ├── *.html               # Dashboard pages (42 pages)
 │   └── bioprint-data.json   # Sample print dataset
-├── __tests__/               # Jest test suite (31 files, ~16k lines)
+├── __tests__/               # Jest test suite (64 files, 3342 tests)
 ├── tests/                   # Assert-based tests (viability)
-├── src/                     # Source entry point
-└── Try/                     # Experimental prototypes
+├── Try/                     # ASP.NET Web API project
+│   └── scripts/             # 23 bioprinting simulation modules
+└── src/                     # Source entry point
 ```
 
 ## Architecture Layers
@@ -38,8 +39,11 @@ for encapsulation and testability.
 | `calculator.js` | `createCalculator()` | Bioink volume, cost, time estimation | 9 |
 | `constants.js` | (exports) | Physical constants, material defaults | — |
 | `crosslink.js` | `createCrosslinkAnalyzer()` | UV/radical cross-linking kinetics | 12 |
+| `data-loader.js` | `createDataLoader()` | Dataset loading, validation, caching | 6 |
 | `export.js` | `createExporter()` | Multi-format data export (CSV/JSON/PDF) | 8 |
 | `gcode.js` | `createGCodeAnalyzer()` | G-code parsing, layer analysis, costing | 11 |
+| `mixer.js` | `createMixer()` | Bioink mixing ratio optimization | 7 |
+| `passage.js` | `createPassageTracker()` | Cell passage tracking & growth curves | 8 |
 | `rheology.js` | `createRheologyModeler()` | Viscosity models, printability scoring | 11 |
 | `utils.js` | (exports) | DOM helpers, number formatting | 5 |
 | `viability.js` | `createViabilityEstimator()` | Multi-stressor cell survival modeling | 9 |
@@ -52,18 +56,20 @@ for encapsulation and testability.
 
 ### 2. Dashboard Layer (`docs/*.html`)
 
-27 single-page HTML dashboards, each focused on one analysis domain. Pages
+42 single-page HTML dashboards, each focused on one analysis domain. Pages
 load shared modules via `<script>` and use vanilla JavaScript for interactivity.
 
 | Category | Pages | Description |
 |----------|-------|-------------|
-| **Data Management** | `table`, `explorer`, `api` | View, filter, search print records |
-| **Analysis** | `trends`, `correlation`, `cluster`, `compare` | Statistical analysis of print data |
-| **Quality** | `quality`, `spc`, `anomaly`, `reproducibility` | Quality control & SPC charting |
-| **Optimization** | `optimizer`, `predictor`, `recommender`, `pareto` | Parameter optimization & prediction |
-| **Calibration** | `calibration`, `doe` | Guided calibration, design of experiments |
-| **Bioprinting** | `calculator`, `failure`, `protocol`, `profile` | Print planning & protocol management |
-| **Reports** | `report`, `coverage`, `evolution` | Report generation & coverage tracking |
+| **Data Management** | `table`, `explorer`, `api`, `logbook` | View, filter, search, and log print records |
+| **Analysis** | `trends`, `correlation`, `cluster`, `compare`, `batch` | Statistical analysis, comparison, batch analytics |
+| **Quality** | `quality`, `spc`, `anomaly`, `reproducibility` | Quality control, SPC charting, reproducibility scoring |
+| **Optimization** | `optimizer`, `predictor`, `recommender`, `pareto`, `doe` | Parameter optimization, prediction, design of experiments |
+| **Calibration** | `calibration`, `nozzle` | Guided calibration, nozzle coordination |
+| **Bioprinting** | `calculator`, `failure`, `protocol`, `profile`, `scaffold`, `queue` | Print planning, protocols, scaffold analysis, job queue |
+| **Materials** | `materials`, `mixer`, `rheology`, `shelf-life`, `sterilization`, `waste` | Material database, mixing, rheology, shelf life, waste tracking |
+| **Simulation** | `environment`, `maintenance`, `cost` | Environment monitoring, maintenance scheduling, cost estimation |
+| **Reports** | `report`, `coverage`, `evolution` | Report generation, coverage tracking, evolution analysis |
 | **Well Plates** | `wellplate` | 96-well plate layout & analysis |
 | **Reference** | `guide`, `architecture` | User guide & architecture diagram |
 
@@ -75,16 +81,29 @@ load shared modules via `<script>` and use vanilla JavaScript for interactivity.
 
 ### 3. Test Layer
 
-**Jest suite** (`__tests__/`, 31 files): Tests for all shared modules plus
-HTML dashboard logic extracted into testable functions. Uses `jsdom`
-environment for DOM-dependent tests.
+**Jest suite** (`__tests__/`, 64 files): Tests for all shared modules,
+simulation scripts, and dashboard logic. Uses `jsdom` environment for
+DOM-dependent tests. Organized by category:
+
+| Category | Test Files | Coverage |
+|----------|-----------|----------|
+| Core API & Utils | 5 | `runMethod`, `utils`, `constants`, `shared`, `data-loader` |
+| Shared Modules | 8 | `calculator`, `crosslink`, `gcode`, `rheology`, `viability`, `export`, `mixer`, `passage` |
+| Analysis | 9 | `compare`, `trends`, `correlation`, `cluster`, `predictor`, `recommender`, `pareto`, `optimizer`, `doe` |
+| Quality & SPC | 6 | `quality`, `spc`, `anomaly`, `reproducibility`, `batch`, `batchStats` |
+| Bioprinting Sim | 6 | `porosity`, `layerAdhesion`, `vascularization`, `maturation`, `degradation`, `cellSeeding` |
+| Lab Operations | 6 | `printQueue`, `protocolLibrary`, `sessionLogger`, `labAuditTrail`, `riskAssessor`, `scriptUtils` |
+| Diagnostics | 5 | `failureDiagnostic`, `mlDiagnostic`, `mlDiagnostic-extended`, `mlDiagnosticDeep`, `failure` |
+| Materials | 6 | `compatibility`, `formulationCalculator`, `costEstimator`, `shelfLife`, `sterilization`, `waste` |
+| Infrastructure | 5 | `nozzlePlanner`, `environment`, `maintenance`, `calibration`, `printComparator` |
+| Dashboards | 8 | `index`, `table`, `explorer`, `profile`, `coverage`, `wellplate`, `logbook`, `shelf-life` |
 
 **Assert suite** (`tests/`, 1 file): Standalone `node`-runnable test for the
 viability estimator (72 tests) using Node's built-in `assert` module.
 
 **Running tests:**
 ```bash
-npm test                    # Jest (all 1736+ tests)
+npm test                    # Jest (all 3342 tests across 64 suites)
 node tests/viability.test.js  # Assert-based viability tests
 ```
 
@@ -138,8 +157,13 @@ The site is deployed via **GitHub Pages** from the `docs/` directory. No build
 step required — all assets are static HTML/JS/CSS served directly.
 
 **CI/CD pipeline** (`.github/workflows/`):
-- `ci.yml`: Jest tests on every push/PR
-- `codeql.yml`: Security scanning
+- `ci.yml`: Jest tests + .NET build on every push/PR
+- `coverage.yml`: Code coverage with threshold enforcement
+- `codeql.yml`: Security scanning (JavaScript + C#)
+- `docker.yml`: Docker image build & push
+- `npm-publish.yml`: npm package publishing
+- `nuget-publish.yml`: NuGet package publishing
+- `auto-labeler.yml`: Automatic PR labeling
 - `pages.yml`: GitHub Pages deployment
 
 ## Contributing
