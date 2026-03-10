@@ -1,0 +1,553 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>BioBots — Cell Seeding Calculator</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧬</text></svg>">
+    <style>
+        :root {
+            --bg: #0f172a; --surface: #1e293b; --border: #334155;
+            --text: #e2e8f0; --muted: #94a3b8; --accent: #38bdf8;
+            --accent-hover: #7dd3fc; --success: #4ade80; --error: #f87171;
+            --warning: #fbbf24; --purple: #a78bfa;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; display: flex; flex-direction: column; align-items: center; padding: 2rem 1rem; }
+        nav { display: flex; gap: 0.5rem; margin-bottom: 2rem; flex-wrap: wrap; justify-content: center; }
+        nav a { color: var(--muted); padding: 0.5rem 1rem; border-radius: 8px; text-decoration: none; font-size: 0.9rem; transition: all 0.2s; }
+        nav a:hover { color: var(--accent); background: var(--surface); }
+        nav a.active { color: var(--accent); background: var(--surface); border: 1px solid var(--border); }
+        header { text-align: center; margin-bottom: 2rem; }
+        header h1 { font-size: 2rem; font-weight: 700; background: linear-gradient(135deg, var(--purple), var(--accent)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+        header p { color: var(--muted); margin-top: 0.5rem; }
+        .container { width: 100%; max-width: 1100px; }
+        .tabs { display: flex; gap: 0.5rem; margin-bottom: 1.5rem; flex-wrap: wrap; justify-content: center; }
+        .tabs button { background: var(--surface); color: var(--muted); border: 1px solid var(--border); padding: 0.6rem 1.2rem; border-radius: 8px; font-size: 0.9rem; cursor: pointer; transition: all 0.2s; }
+        .tabs button:hover { color: var(--accent); border-color: var(--accent); }
+        .tabs button.active { color: var(--accent); border-color: var(--accent); background: rgba(56,189,248,0.1); }
+        .layout { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; }
+        @media (max-width: 768px) { .layout { grid-template-columns: 1fr; } }
+        .card { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 1.5rem; margin-bottom: 1.5rem; }
+        .card h2 { font-size: 1.1rem; margin-bottom: 1rem; color: var(--muted); font-weight: 500; }
+        .form-group { display: flex; flex-direction: column; gap: 0.3rem; margin-bottom: 0.8rem; }
+        label { font-size: 0.8rem; color: var(--muted); font-weight: 500; }
+        select, input[type="number"] { background: var(--bg); border: 1px solid var(--border); color: var(--text); padding: 0.5rem 0.7rem; border-radius: 8px; font-size: 0.9rem; outline: none; transition: border-color 0.2s; width: 100%; }
+        select:focus, input:focus { border-color: var(--accent); }
+        .btn { background: var(--accent); color: var(--bg); border: none; padding: 0.7rem 1.5rem; border-radius: 8px; font-size: 0.95rem; font-weight: 600; cursor: pointer; transition: background 0.2s; width: 100%; margin-top: 0.5rem; }
+        .btn:hover { background: var(--accent-hover); }
+        .result-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.8rem; }
+        @media (max-width: 500px) { .result-grid { grid-template-columns: 1fr 1fr; } }
+        .result-item { background: var(--bg); border: 1px solid var(--border); border-radius: 10px; padding: 0.8rem; text-align: center; }
+        .result-item .value { font-size: 1.3rem; font-weight: 700; color: var(--accent); }
+        .result-item .label { font-size: 0.7rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; margin-top: 0.2rem; }
+        .result-item.good .value { color: var(--success); }
+        .result-item.warn .value { color: var(--warning); }
+        .result-item.bad .value { color: var(--error); }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+        .dim-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; }
+        .dim-fields .form-group { margin-bottom: 0.4rem; }
+        .warning-box { background: rgba(251,191,36,0.1); border: 1px solid var(--warning); border-radius: 10px; padding: 0.8rem; margin-top: 0.8rem; color: var(--warning); font-size: 0.85rem; }
+        .dilution-table { width: 100%; border-collapse: collapse; margin-top: 0.8rem; font-size: 0.85rem; }
+        .dilution-table th { background: var(--bg); color: var(--muted); padding: 0.5rem; text-align: left; font-weight: 500; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 1px solid var(--border); }
+        .dilution-table td { padding: 0.5rem; border-bottom: 1px solid var(--border); }
+        .dilution-table tr:last-child td { border-bottom: none; }
+        .passage-table { width: 100%; border-collapse: collapse; margin-top: 0.8rem; font-size: 0.85rem; }
+        .passage-table th { background: var(--bg); color: var(--muted); padding: 0.5rem; text-align: left; font-weight: 500; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 1px solid var(--border); }
+        .passage-table td { padding: 0.5rem; border-bottom: 1px solid var(--border); }
+        .passage-table tr:last-child td { border-bottom: none; }
+        .info-text { font-size: 0.8rem; color: var(--muted); margin-top: 0.3rem; }
+    </style>
+</head>
+<body>
+    <nav>
+        <a href="index.html">Home</a>
+        <a href="explorer.html">Explorer</a>
+        <a href="calculator.html">Calculator</a>
+        <a href="mixer.html">Mixer</a>
+        <a href="cost.html">Cost</a>
+        <a href="seeding.html" class="active">Seeding</a>
+        <a href="rheology.html">Rheology</a>
+        <a href="scaffold.html">Scaffold</a>
+    </nav>
+
+    <header>
+        <h1>🔬 Cell Seeding Calculator</h1>
+        <p>Scaffold seeding plans, well plate layouts, serial dilutions, and passage expansion</p>
+    </header>
+
+    <div class="container">
+        <div class="tabs">
+            <button class="active" data-tab="scaffold">🧫 Scaffold Seeding</button>
+            <button data-tab="wellplate">🧪 Well Plate</button>
+            <button data-tab="dilution">💧 Serial Dilution</button>
+            <button data-tab="expansion">📈 Passage Expansion</button>
+        </div>
+
+        <!-- Tab 1: Scaffold Seeding Plan -->
+        <div id="tab-scaffold" class="tab-content active">
+            <div class="layout">
+                <div class="card">
+                    <h2>📐 Scaffold Parameters</h2>
+                    <div class="form-group">
+                        <label>Scaffold Type</label>
+                        <select id="scaffold-type">
+                            <option value="cylinder">Cylinder</option>
+                            <option value="cube">Cube</option>
+                            <option value="rectangle">Rectangle</option>
+                            <option value="sphere">Sphere</option>
+                            <option value="disc" selected>Disc</option>
+                        </select>
+                    </div>
+                    <div id="scaffold-dims">
+                        <!-- Dynamic dimension inputs -->
+                    </div>
+                    <div class="form-group">
+                        <label>Density Mode</label>
+                        <select id="density-mode">
+                            <option value="surface">Surface (cells/cm²)</option>
+                            <option value="volume">Volumetric (cells/cm³)</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Target Density</label>
+                        <input type="number" id="target-density" value="100000" min="1" step="10000">
+                        <span class="info-text" id="density-unit">cells/cm²</span>
+                    </div>
+                    <div class="form-group">
+                        <label>Stock Concentration (cells/mL)</label>
+                        <input type="number" id="stock-conc" value="5000000" min="1" step="100000">
+                    </div>
+                    <div class="form-group">
+                        <label>Cell Viability (%)</label>
+                        <input type="number" id="viability" value="90" min="1" max="100">
+                    </div>
+                    <div class="form-group">
+                        <label>Seeding Efficiency (%)</label>
+                        <input type="number" id="efficiency" value="80" min="1" max="100">
+                    </div>
+                    <div class="form-group">
+                        <label>Replicates</label>
+                        <input type="number" id="replicates" value="3" min="1" max="100">
+                    </div>
+                    <button class="btn" id="calc-seeding">Calculate Seeding Plan</button>
+                </div>
+                <div class="card">
+                    <h2>📊 Results</h2>
+                    <div id="seeding-results">
+                        <p style="color: var(--muted); text-align: center; padding: 2rem 0;">
+                            Configure parameters and click Calculate
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab 2: Well Plate Seeding -->
+        <div id="tab-wellplate" class="tab-content">
+            <div class="layout">
+                <div class="card">
+                    <h2>🧪 Well Plate Setup</h2>
+                    <div class="form-group">
+                        <label>Plate Format</label>
+                        <select id="well-plate">
+                            <option value="6">6-well (9.50 cm²/well)</option>
+                            <option value="12">12-well (3.83 cm²/well)</option>
+                            <option value="24" selected>24-well (1.91 cm²/well)</option>
+                            <option value="48">48-well (0.95 cm²/well)</option>
+                            <option value="96">96-well (0.32 cm²/well)</option>
+                            <option value="384">384-well (0.056 cm²/well)</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Wells to Seed</label>
+                        <input type="number" id="wells-to-seed" value="24" min="1">
+                    </div>
+                    <div class="form-group">
+                        <label>Target Density (cells/cm²)</label>
+                        <input type="number" id="wp-density" value="50000" min="1" step="5000">
+                    </div>
+                    <div class="form-group">
+                        <label>Stock Concentration (cells/mL)</label>
+                        <input type="number" id="wp-stock" value="1000000" min="1" step="100000">
+                    </div>
+                    <div class="form-group">
+                        <label>Cell Viability (%)</label>
+                        <input type="number" id="wp-viability" value="95" min="1" max="100">
+                    </div>
+                    <div class="form-group">
+                        <label>Dead Volume Multiplier</label>
+                        <input type="number" id="wp-dead-vol" value="1.1" min="1" max="2" step="0.05">
+                    </div>
+                    <button class="btn" id="calc-wellplate">Calculate Well Plate Plan</button>
+                </div>
+                <div class="card">
+                    <h2>📊 Well Plate Results</h2>
+                    <div id="wellplate-results">
+                        <p style="color: var(--muted); text-align: center; padding: 2rem 0;">
+                            Configure parameters and click Calculate
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab 3: Serial Dilution -->
+        <div id="tab-dilution" class="tab-content">
+            <div class="layout">
+                <div class="card">
+                    <h2>💧 Dilution Parameters</h2>
+                    <div class="form-group">
+                        <label>Stock Concentration (cells/mL)</label>
+                        <input type="number" id="dil-stock" value="10000000" min="1" step="1000000">
+                    </div>
+                    <div class="form-group">
+                        <label>Target Concentration (cells/mL)</label>
+                        <input type="number" id="dil-target" value="100000" min="1" step="10000">
+                    </div>
+                    <div class="form-group">
+                        <label>Dilution Factor</label>
+                        <input type="number" id="dil-factor" value="2" min="1.5" max="100" step="0.5">
+                    </div>
+                    <div class="form-group">
+                        <label>Volume per Tube (mL)</label>
+                        <input type="number" id="dil-volume" value="1.0" min="0.1" max="50" step="0.1">
+                    </div>
+                    <button class="btn" id="calc-dilution">Generate Dilution Plan</button>
+                </div>
+                <div class="card">
+                    <h2>📊 Dilution Steps</h2>
+                    <div id="dilution-results">
+                        <p style="color: var(--muted); text-align: center; padding: 2rem 0;">
+                            Configure parameters and click Generate
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab 4: Passage Expansion -->
+        <div id="tab-expansion" class="tab-content">
+            <div class="layout">
+                <div class="card">
+                    <h2>📈 Expansion Parameters</h2>
+                    <div class="form-group">
+                        <label>Current Cell Count</label>
+                        <input type="number" id="exp-current" value="500000" min="1" step="100000">
+                    </div>
+                    <div class="form-group">
+                        <label>Target Cell Count</label>
+                        <input type="number" id="exp-target" value="50000000" min="1" step="1000000">
+                    </div>
+                    <div class="form-group">
+                        <label>Doubling Time (hours)</label>
+                        <input type="number" id="exp-doubling" value="24" min="1" max="200" step="1">
+                    </div>
+                    <div class="form-group">
+                        <label>Split Ratio</label>
+                        <input type="number" id="exp-split" value="3" min="2" max="20" step="1">
+                    </div>
+                    <div class="form-group">
+                        <label>Confluency at Passage (%)</label>
+                        <input type="number" id="exp-confluency" value="80" min="50" max="100">
+                    </div>
+                    <div class="form-group">
+                        <label>Flask Area (cm²)</label>
+                        <input type="number" id="exp-flask" value="75" min="1" step="25">
+                    </div>
+                    <div class="form-group">
+                        <label>Max Density (cells/cm²)</label>
+                        <input type="number" id="exp-max-density" value="100000" min="1000" step="10000">
+                    </div>
+                    <button class="btn" id="calc-expansion">Plan Expansion</button>
+                </div>
+                <div class="card">
+                    <h2>📊 Expansion Plan</h2>
+                    <div id="expansion-results">
+                        <p style="color: var(--muted); text-align: center; padding: 2rem 0;">
+                            Configure parameters and click Plan
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+    // ── Inline cell seeding calculator (browser-compatible) ──────
+    var WELL_PLATE_SPECS = {
+        6:   { wellDiameterCm: 3.48, wellAreaCm2: 9.50,  wellVolumeMl: 2.0 },
+        12:  { wellDiameterCm: 2.22, wellAreaCm2: 3.83,  wellVolumeMl: 1.0 },
+        24:  { wellDiameterCm: 1.56, wellAreaCm2: 1.91,  wellVolumeMl: 0.5 },
+        48:  { wellDiameterCm: 1.13, wellAreaCm2: 0.95,  wellVolumeMl: 0.3 },
+        96:  { wellDiameterCm: 0.64, wellAreaCm2: 0.32,  wellVolumeMl: 0.2 },
+        384: { wellDiameterCm: 0.34, wellAreaCm2: 0.056, wellVolumeMl: 0.05 },
+    };
+
+    function round(val, decimals) {
+        var f = Math.pow(10, decimals);
+        return Math.round(val * f) / f;
+    }
+
+    function fmtNum(n) {
+        if (n >= 1e9) return round(n / 1e9, 2) + 'B';
+        if (n >= 1e6) return round(n / 1e6, 2) + 'M';
+        if (n >= 1e3) return round(n / 1e3, 1) + 'K';
+        return n.toLocaleString();
+    }
+
+    function scaffoldSurfaceArea(type, dims) {
+        switch (type) {
+            case 'cylinder': return 2 * Math.PI * dims.radiusCm * dims.heightCm + 2 * Math.PI * dims.radiusCm * dims.radiusCm;
+            case 'cube': return 6 * dims.sideCm * dims.sideCm;
+            case 'rectangle': return 2 * (dims.lengthCm * dims.widthCm + dims.lengthCm * dims.heightCm + dims.widthCm * dims.heightCm);
+            case 'sphere': return 4 * Math.PI * dims.radiusCm * dims.radiusCm;
+            case 'disc': return Math.PI * dims.radiusCm * dims.radiusCm;
+            default: throw new Error('Unknown type');
+        }
+    }
+
+    function scaffoldVolume(type, dims) {
+        switch (type) {
+            case 'cylinder': return Math.PI * dims.radiusCm * dims.radiusCm * dims.heightCm;
+            case 'cube': return dims.sideCm * dims.sideCm * dims.sideCm;
+            case 'rectangle': return dims.lengthCm * dims.widthCm * dims.heightCm;
+            case 'sphere': return (4/3) * Math.PI * Math.pow(dims.radiusCm, 3);
+            case 'disc': return Math.PI * dims.radiusCm * dims.radiusCm * (dims.thicknessCm || 0.1);
+            default: throw new Error('Unknown type');
+        }
+    }
+
+    // ── Tab switching ────────────────────────────────────────────
+    document.querySelectorAll('.tabs button').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            document.querySelectorAll('.tabs button').forEach(function(b) { b.classList.remove('active'); });
+            document.querySelectorAll('.tab-content').forEach(function(t) { t.classList.remove('active'); });
+            btn.classList.add('active');
+            document.getElementById('tab-' + btn.dataset.tab).classList.add('active');
+        });
+    });
+
+    // ── Dynamic scaffold dimension fields ────────────────────────
+    var dimConfigs = {
+        cylinder: [{ id: 'dim-radius', label: 'Radius (cm)', value: 0.5 }, { id: 'dim-height', label: 'Height (cm)', value: 0.2 }],
+        cube: [{ id: 'dim-side', label: 'Side (cm)', value: 1.0 }],
+        rectangle: [{ id: 'dim-length', label: 'Length (cm)', value: 2.0 }, { id: 'dim-width', label: 'Width (cm)', value: 1.0 }, { id: 'dim-height', label: 'Height (cm)', value: 0.5 }],
+        sphere: [{ id: 'dim-radius', label: 'Radius (cm)', value: 0.5 }],
+        disc: [{ id: 'dim-radius', label: 'Radius (cm)', value: 0.75 }, { id: 'dim-thickness', label: 'Thickness (cm)', value: 0.1 }],
+    };
+
+    function updateDimFields() {
+        var type = document.getElementById('scaffold-type').value;
+        var container = document.getElementById('scaffold-dims');
+        var fields = dimConfigs[type] || [];
+        container.innerHTML = '<div class="dim-fields">' + fields.map(function(f) {
+            return '<div class="form-group"><label>' + f.label + '</label>' +
+                   '<input type="number" id="' + f.id + '" value="' + f.value + '" min="0.01" step="0.1"></div>';
+        }).join('') + '</div>';
+    }
+
+    document.getElementById('scaffold-type').addEventListener('change', updateDimFields);
+    document.getElementById('density-mode').addEventListener('change', function() {
+        document.getElementById('density-unit').textContent =
+            this.value === 'surface' ? 'cells/cm²' : 'cells/cm³';
+    });
+    updateDimFields();
+
+    // ── Scaffold seeding calculation ─────────────────────────────
+    document.getElementById('calc-seeding').addEventListener('click', function() {
+        try {
+            var type = document.getElementById('scaffold-type').value;
+            var dims = {};
+            if (type === 'cylinder') { dims.radiusCm = +document.getElementById('dim-radius').value; dims.heightCm = +document.getElementById('dim-height').value; }
+            else if (type === 'cube') { dims.sideCm = +document.getElementById('dim-side').value; }
+            else if (type === 'rectangle') { dims.lengthCm = +document.getElementById('dim-length').value; dims.widthCm = +document.getElementById('dim-width').value; dims.heightCm = +document.getElementById('dim-height').value; }
+            else if (type === 'sphere') { dims.radiusCm = +document.getElementById('dim-radius').value; }
+            else if (type === 'disc') { dims.radiusCm = +document.getElementById('dim-radius').value; dims.thicknessCm = +document.getElementById('dim-thickness').value; }
+
+            var densityMode = document.getElementById('density-mode').value;
+            var targetDensity = +document.getElementById('target-density').value;
+            var stockConc = +document.getElementById('stock-conc').value;
+            var viability = +document.getElementById('viability').value;
+            var efficiency = +document.getElementById('efficiency').value;
+            var replicates = +document.getElementById('replicates').value;
+
+            var area = scaffoldSurfaceArea(type, dims);
+            var volume = scaffoldVolume(type, dims);
+            var viabFrac = Math.min(100, Math.max(1, viability)) / 100;
+            var effFrac = Math.min(100, Math.max(1, efficiency)) / 100;
+            var adjustFactor = viabFrac * effFrac;
+
+            var cellsPerScaffold = densityMode === 'surface' ? targetDensity * area : targetDensity * volume;
+            var adjustedCells = cellsPerScaffold / adjustFactor;
+            var suspVol = adjustedCells / stockConc;
+            var totalCells = adjustedCells * replicates;
+            var totalVol = suspVol * replicates * 1.1;
+
+            var container = document.getElementById('seeding-results');
+            container.innerHTML =
+                '<div class="result-grid">' +
+                '<div class="result-item"><div class="value">' + round(area, 3) + '</div><div class="label">Surface Area (cm²)</div></div>' +
+                '<div class="result-item"><div class="value">' + round(volume, 5) + '</div><div class="label">Volume (cm³)</div></div>' +
+                '<div class="result-item"><div class="value">' + fmtNum(round(cellsPerScaffold, 0)) + '</div><div class="label">Cells/Scaffold (ideal)</div></div>' +
+                '<div class="result-item' + (adjustFactor < 0.5 ? ' warn' : ' good') + '"><div class="value">' + fmtNum(round(adjustedCells, 0)) + '</div><div class="label">Cells/Scaffold (adjusted)</div></div>' +
+                '<div class="result-item"><div class="value">' + round(suspVol * 1000, 1) + ' µL</div><div class="label">Volume/Scaffold</div></div>' +
+                '<div class="result-item"><div class="value">' + round(adjustFactor * 100, 1) + '%</div><div class="label">Adjustment Factor</div></div>' +
+                '<div class="result-item"><div class="value">' + replicates + '</div><div class="label">Replicates</div></div>' +
+                '<div class="result-item' + (totalCells > 1e8 ? ' warn' : ' good') + '"><div class="value">' + fmtNum(round(totalCells, 0)) + '</div><div class="label">Total Cells Needed</div></div>' +
+                '<div class="result-item"><div class="value">' + round(totalVol, 3) + ' mL</div><div class="label">Total Suspension (incl. dead vol)</div></div>' +
+                '</div>';
+        } catch (e) {
+            document.getElementById('seeding-results').innerHTML =
+                '<div class="warning-box">⚠️ ' + e.message + '</div>';
+        }
+    });
+
+    // ── Well plate calculation ───────────────────────────────────
+    document.getElementById('well-plate').addEventListener('change', function() {
+        document.getElementById('wells-to-seed').value = this.value;
+    });
+
+    document.getElementById('calc-wellplate').addEventListener('click', function() {
+        try {
+            var wellPlate = +document.getElementById('well-plate').value;
+            var wells = +document.getElementById('wells-to-seed').value;
+            var density = +document.getElementById('wp-density').value;
+            var stock = +document.getElementById('wp-stock').value;
+            var viab = +document.getElementById('wp-viability').value;
+            var deadVol = +document.getElementById('wp-dead-vol').value;
+
+            var spec = WELL_PLATE_SPECS[wellPlate];
+            var viabFrac = Math.min(100, Math.max(1, viab)) / 100;
+            var adjDensity = density / viabFrac;
+            var cellsPerWell = adjDensity * spec.wellAreaCm2;
+            var volPerWell = cellsPerWell / stock;
+            var mediaPerWell = Math.max(0, spec.wellVolumeMl - volPerWell);
+            var totalCells = cellsPerWell * wells;
+            var totalSusp = volPerWell * wells * deadVol;
+
+            var warnings = '';
+            if (volPerWell > spec.wellVolumeMl) {
+                warnings = '<div class="warning-box">⚠️ Cell suspension volume (' + round(volPerWell * 1000, 1) +
+                    ' µL) exceeds well capacity (' + spec.wellVolumeMl * 1000 + ' µL). Increase stock concentration or reduce target density.</div>';
+            }
+
+            var container = document.getElementById('wellplate-results');
+            container.innerHTML =
+                '<div class="result-grid">' +
+                '<div class="result-item"><div class="value">' + wellPlate + '-well</div><div class="label">Plate Format</div></div>' +
+                '<div class="result-item"><div class="value">' + wells + '</div><div class="label">Wells to Seed</div></div>' +
+                '<div class="result-item"><div class="value">' + spec.wellAreaCm2 + '</div><div class="label">Area/Well (cm²)</div></div>' +
+                '<div class="result-item"><div class="value">' + fmtNum(round(adjDensity, 0)) + '</div><div class="label">Adjusted Density</div></div>' +
+                '<div class="result-item"><div class="value">' + fmtNum(round(cellsPerWell, 0)) + '</div><div class="label">Cells/Well</div></div>' +
+                '<div class="result-item"><div class="value">' + round(volPerWell * 1000, 1) + ' µL</div><div class="label">Suspension/Well</div></div>' +
+                '<div class="result-item"><div class="value">' + round(mediaPerWell * 1000, 1) + ' µL</div><div class="label">Media Top-up/Well</div></div>' +
+                '<div class="result-item' + (totalCells > 5e7 ? ' warn' : ' good') + '"><div class="value">' + fmtNum(round(totalCells, 0)) + '</div><div class="label">Total Cells Needed</div></div>' +
+                '<div class="result-item"><div class="value">' + round(totalSusp, 3) + ' mL</div><div class="label">Total Suspension</div></div>' +
+                '</div>' + warnings;
+        } catch (e) {
+            document.getElementById('wellplate-results').innerHTML =
+                '<div class="warning-box">⚠️ ' + e.message + '</div>';
+        }
+    });
+
+    // ── Serial dilution calculation ──────────────────────────────
+    document.getElementById('calc-dilution').addEventListener('click', function() {
+        try {
+            var stock = +document.getElementById('dil-stock').value;
+            var target = +document.getElementById('dil-target').value;
+            var factor = +document.getElementById('dil-factor').value;
+            var volume = +document.getElementById('dil-volume').value;
+
+            if (stock <= 0 || target <= 0) throw new Error('Concentrations must be positive');
+            if (target >= stock) throw new Error('Target must be less than stock concentration');
+            if (factor <= 1) throw new Error('Dilution factor must be > 1');
+
+            var steps = [];
+            var currentConc = stock;
+            var step = 0;
+            while (currentConc > target && step < 20) {
+                step++;
+                var nextConc = currentConc / factor;
+                var sampleVol = volume / factor;
+                var diluentVol = volume - sampleVol;
+                steps.push({ step: step, input: currentConc, output: nextConc, sample: round(sampleVol * 1000, 1), diluent: round(diluentVol * 1000, 1) });
+                currentConc = nextConc;
+            }
+
+            var html = '<div class="result-grid">' +
+                '<div class="result-item"><div class="value">' + steps.length + '</div><div class="label">Total Steps</div></div>' +
+                '<div class="result-item"><div class="value">' + fmtNum(round(currentConc, 0)) + '</div><div class="label">Final Concentration</div></div>' +
+                '<div class="result-item' + (currentConc <= target ? ' good' : ' warn') + '"><div class="value">' + round(stock / currentConc, 1) + '×</div><div class="label">Overall Dilution</div></div>' +
+                '</div>' +
+                '<table class="dilution-table"><thead><tr><th>Step</th><th>Input (cells/mL)</th><th>Sample (µL)</th><th>Diluent (µL)</th><th>Output (cells/mL)</th></tr></thead><tbody>';
+
+            steps.forEach(function(s) {
+                html += '<tr><td>' + s.step + '</td><td>' + fmtNum(round(s.input, 0)) + '</td><td>' + s.sample + '</td><td>' + s.diluent + '</td><td>' + fmtNum(round(s.output, 0)) + '</td></tr>';
+            });
+            html += '</tbody></table>';
+
+            document.getElementById('dilution-results').innerHTML = html;
+        } catch (e) {
+            document.getElementById('dilution-results').innerHTML =
+                '<div class="warning-box">⚠️ ' + e.message + '</div>';
+        }
+    });
+
+    // ── Passage expansion calculation ────────────────────────────
+    document.getElementById('calc-expansion').addEventListener('click', function() {
+        try {
+            var current = +document.getElementById('exp-current').value;
+            var target = +document.getElementById('exp-target').value;
+            var doubling = +document.getElementById('exp-doubling').value;
+            var split = +document.getElementById('exp-split').value;
+            var confluency = +document.getElementById('exp-confluency').value;
+            var flask = +document.getElementById('exp-flask').value;
+            var maxDensity = +document.getElementById('exp-max-density').value;
+
+            if (current <= 0 || target <= 0) throw new Error('Cell counts must be positive');
+            if (doubling <= 0) throw new Error('Doubling time must be positive');
+
+            if (current >= target) {
+                document.getElementById('expansion-results').innerHTML =
+                    '<div class="result-grid"><div class="result-item good"><div class="value">✓</div><div class="label">Already have enough cells!</div></div></div>';
+                return;
+            }
+
+            var passages = [];
+            var cells = current;
+            var totalHrs = 0;
+            while (cells < target && passages.length < 50) {
+                var confCells = flask * maxDensity * (confluency / 100);
+                var flasksNeeded = Math.ceil(cells / (confCells / split));
+                var seedPerFlask = cells / flasksNeeded;
+                var doublingsNeeded = Math.log2(confCells / seedPerFlask);
+                var timeHrs = doublingsNeeded * doubling;
+                cells = confCells * flasksNeeded;
+                totalHrs += timeHrs;
+                passages.push({ p: passages.length + 1, flasks: flasksNeeded, seed: round(seedPerFlask, 0), harvest: round(confCells, 0), total: round(cells, 0), time: round(timeHrs, 1) });
+                if (cells >= target) break;
+            }
+
+            var html = '<div class="result-grid">' +
+                '<div class="result-item"><div class="value">' + passages.length + '</div><div class="label">Passages Needed</div></div>' +
+                '<div class="result-item"><div class="value">' + round(totalHrs / 24, 1) + '</div><div class="label">Total Days</div></div>' +
+                '<div class="result-item' + (cells >= target ? ' good' : ' warn') + '"><div class="value">' + fmtNum(round(cells, 0)) + '</div><div class="label">Final Cell Count</div></div>' +
+                '</div>' +
+                '<table class="passage-table"><thead><tr><th>P#</th><th>Flasks</th><th>Seed/Flask</th><th>Harvest/Flask</th><th>Total Cells</th><th>Time (h)</th></tr></thead><tbody>';
+
+            passages.forEach(function(p) {
+                html += '<tr><td>P' + p.p + '</td><td>' + p.flasks + '</td><td>' + fmtNum(p.seed) + '</td><td>' + fmtNum(p.harvest) + '</td><td>' + fmtNum(p.total) + '</td><td>' + p.time + '</td></tr>';
+            });
+            html += '</tbody></table>';
+
+            document.getElementById('expansion-results').innerHTML = html;
+        } catch (e) {
+            document.getElementById('expansion-results').innerHTML =
+                '<div class="warning-box">⚠️ ' + e.message + '</div>';
+        }
+    });
+    </script>
+</body>
+</html>
