@@ -1,0 +1,543 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>BioBots 1 — GCode Toolpath Visualizer</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧬</text></svg>">
+    <style>
+        :root {
+            --bg: #0f172a; --surface: #1e293b; --border: #334155;
+            --text: #e2e8f0; --muted: #94a3b8; --accent: #38bdf8;
+            --accent-hover: #7dd3fc; --success: #4ade80; --error: #f87171;
+            --warning: #fbbf24; --purple: #a78bfa;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; padding: 2rem 1rem; }
+        nav { display: flex; gap: 0.5rem; margin-bottom: 2rem; flex-wrap: wrap; justify-content: center; }
+        nav a { color: var(--muted); padding: 0.5rem 1rem; border-radius: 8px; text-decoration: none; font-size: 0.9rem; transition: all 0.2s; }
+        nav a:hover { color: var(--accent); background: var(--surface); }
+        nav a.active { color: var(--accent); background: var(--surface); border: 1px solid var(--border); }
+        header { text-align: center; margin-bottom: 2rem; }
+        header h1 { font-size: 2rem; font-weight: 700; background: linear-gradient(135deg, var(--accent), var(--success)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+        header p { color: var(--muted); margin-top: 0.5rem; }
+        .container { max-width: 1100px; margin: 0 auto; }
+        .card { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 1.5rem; margin-bottom: 1.5rem; }
+        .card h2 { font-size: 1.1rem; margin-bottom: 1rem; color: var(--muted); font-weight: 500; }
+        textarea { width: 100%; height: 120px; background: var(--bg); border: 1px solid var(--border); color: var(--text); padding: 0.7rem; border-radius: 8px; font-family: 'Cascadia Code', 'Fira Code', monospace; font-size: 0.85rem; resize: vertical; outline: none; }
+        textarea:focus { border-color: var(--accent); }
+        .btn { border: none; padding: 0.6rem 1.2rem; border-radius: 8px; font-size: 0.9rem; font-weight: 600; cursor: pointer; transition: all 0.2s; }
+        .btn-primary { background: var(--accent); color: var(--bg); }
+        .btn-primary:hover { background: var(--accent-hover); }
+        .btn-outline { background: transparent; color: var(--muted); border: 1px solid var(--border); }
+        .btn-outline:hover { color: var(--text); border-color: var(--text); }
+        .btn-group { display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center; margin-top: 0.8rem; }
+        .canvas-wrap { position: relative; background: var(--bg); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
+        canvas { display: block; width: 100%; cursor: grab; }
+        canvas:active { cursor: grabbing; }
+        .controls { display: flex; gap: 1rem; align-items: center; flex-wrap: wrap; margin-bottom: 1rem; }
+        .controls label { font-size: 0.8rem; color: var(--muted); }
+        .controls input[type="range"] { width: 200px; accent-color: var(--accent); }
+        .layer-display { font-size: 0.9rem; font-weight: 600; color: var(--accent); min-width: 120px; }
+        .legend { display: flex; gap: 1.5rem; font-size: 0.8rem; color: var(--muted); margin-top: 0.8rem; }
+        .legend-item { display: flex; align-items: center; gap: 0.4rem; }
+        .legend-swatch { width: 20px; height: 3px; border-radius: 2px; }
+        .stats-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 0.8rem; margin-top: 1rem; }
+        .stat-box { background: var(--bg); border: 1px solid var(--border); border-radius: 10px; padding: 0.8rem; text-align: center; }
+        .stat-box .value { font-size: 1.2rem; font-weight: 700; color: var(--accent); }
+        .stat-box .label { font-size: 0.7rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; margin-top: 0.2rem; }
+        .empty-state { text-align: center; padding: 3rem; color: var(--muted); }
+        .empty-state .icon { font-size: 3rem; margin-bottom: 1rem; }
+        .checkbox-label { display: flex; align-items: center; gap: 0.4rem; font-size: 0.85rem; color: var(--muted); cursor: pointer; }
+        .checkbox-label input { accent-color: var(--accent); }
+        select { background: var(--bg); border: 1px solid var(--border); color: var(--text); padding: 0.4rem 0.6rem; border-radius: 8px; font-size: 0.85rem; outline: none; }
+        select:focus { border-color: var(--accent); }
+        .drop-zone { border: 2px dashed var(--border); border-radius: 12px; padding: 1.5rem; text-align: center; color: var(--muted); transition: all 0.2s; cursor: pointer; }
+        .drop-zone:hover, .drop-zone.drag-over { border-color: var(--accent); color: var(--accent); }
+        .hidden { display: none; }
+        table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+        th { text-align: left; padding: 0.6rem; color: var(--muted); font-weight: 500; border-bottom: 1px solid var(--border); font-size: 0.75rem; text-transform: uppercase; }
+        td { padding: 0.6rem; border-bottom: 1px solid rgba(51,65,85,0.5); }
+        tr:hover td { background: rgba(56,189,248,0.05); }
+    </style>
+</head>
+<body>
+    <nav>
+        <a href="index.html">Query Tool</a>
+        <a href="explorer.html">Data Explorer</a>
+        <a href="table.html">Data Table</a>
+        <a href="compare.html">Compare</a>
+        <a href="quality.html">🔬 Quality</a>
+        <a href="anomaly.html">⚠️ Anomaly</a>
+        <a href="trends.html">Trends</a>
+        <a href="optimizer.html">⚡ Optimizer</a>
+        <a href="cluster.html">🔮 Clusters</a>
+        <a href="correlation.html">📊 Correlation</a>
+        <a href="calculator.html">🧮 Calculator</a>
+        <a href="batch.html">📋 Batch Planner</a>
+        <a href="toolpath.html" class="active">🛤️ Toolpath</a>
+        <a href="guide.html">📖 Guide</a>
+        <a href="api.html">🔌 API</a>
+        <a href="architecture.html">🏗️ Architecture</a>
+        <a href="evolution.html">🧬 Evolution</a>
+    </nav>
+
+    <header>
+        <h1>🛤️ GCode Toolpath Visualizer</h1>
+        <p>Paste or drop GCode to see a 2D layer-by-layer toolpath with zoom, pan, and color-coded moves</p>
+    </header>
+
+    <div class="container">
+        <div class="card" id="input-card">
+            <h2>Load GCode</h2>
+            <div class="drop-zone" id="drop-zone">
+                📁 Drop a .gcode file here, or click to browse
+                <input type="file" id="file-input" accept=".gcode,.gco,.g,.nc,.txt" style="display:none">
+            </div>
+            <div style="text-align:center; color:var(--muted); margin: 0.8rem 0; font-size:0.85rem;">— or paste below —</div>
+            <textarea id="gcode-input" placeholder="G28&#10;G1 Z5 F3000&#10;G1 X10 Y10 E1 F1500&#10;G1 X50 Y10 E3&#10;G1 X50 Y50 E5&#10;G1 X10 Y50 E7&#10;G1 X10 Y10 E9&#10;..."></textarea>
+            <div class="btn-group">
+                <button class="btn btn-primary" id="btn-render">Render Toolpath</button>
+                <button class="btn btn-outline" id="btn-sample">Load Sample</button>
+                <button class="btn btn-outline" id="btn-clear">Clear</button>
+            </div>
+        </div>
+
+        <div id="viz-section" class="hidden">
+            <div class="card">
+                <h2>Toolpath View</h2>
+                <div class="controls">
+                    <label>Layer:</label>
+                    <input type="range" id="layer-slider" min="0" max="0" value="0">
+                    <span class="layer-display" id="layer-label">All Layers</span>
+                    <label class="checkbox-label"><input type="checkbox" id="show-all" checked> Show all layers</label>
+                    <label class="checkbox-label"><input type="checkbox" id="show-travel"> Show travel</label>
+                    <select id="color-mode">
+                        <option value="type">Color by type</option>
+                        <option value="speed">Color by speed</option>
+                        <option value="layer">Color by layer</option>
+                    </select>
+                    <button class="btn btn-outline" id="btn-reset-view" style="padding:0.3rem 0.8rem; font-size:0.8rem;">Reset View</button>
+                </div>
+                <div class="canvas-wrap">
+                    <canvas id="toolpath-canvas" width="1000" height="600"></canvas>
+                </div>
+                <div class="legend" id="legend">
+                    <div class="legend-item"><div class="legend-swatch" style="background:#4ade80"></div> Extrusion</div>
+                    <div class="legend-item"><div class="legend-swatch" style="background:#f8717180"></div> Travel</div>
+                    <div class="legend-item"><div class="legend-swatch" style="background:#fbbf24"></div> Retraction</div>
+                </div>
+            </div>
+
+            <div class="card">
+                <h2>Print Statistics</h2>
+                <div class="stats-grid" id="stats-grid"></div>
+            </div>
+
+            <div class="card">
+                <h2>Layer Details</h2>
+                <div id="layer-details" style="max-height:300px; overflow-y:auto;"></div>
+            </div>
+        </div>
+    </div>
+
+    <script src="shared/gcode.js"></script>
+    <script>
+    (function() {
+        'use strict';
+
+        var canvas = document.getElementById('toolpath-canvas');
+        var ctx = canvas.getContext('2d');
+        var slider = document.getElementById('layer-slider');
+        var layerLabel = document.getElementById('layer-label');
+        var showAllCb = document.getElementById('show-all');
+        var showTravelCb = document.getElementById('show-travel');
+        var colorMode = document.getElementById('color-mode');
+        var vizSection = document.getElementById('viz-section');
+        var gcodeInput = document.getElementById('gcode-input');
+        var statsGrid = document.getElementById('stats-grid');
+        var layerDetails = document.getElementById('layer-details');
+        var dropZone = document.getElementById('drop-zone');
+        var fileInput = document.getElementById('file-input');
+
+        var parsedMoves = [];
+        var layerCount = 0;
+        var bounds = { minX: 0, maxX: 0, minY: 0, maxY: 0 };
+        var analysisResult = null;
+        var maxSpeed = 1;
+
+        var view = { offsetX: 0, offsetY: 0, scale: 1 };
+        var drag = { active: false, startX: 0, startY: 0, origOX: 0, origOY: 0 };
+
+        function parseGCodeMoves(gcode) {
+            var lines = gcode.split(/\r?\n/);
+            var moves = [];
+            var pos = { x: 0, y: 0, z: 0, e: 0 };
+            var feedrate = 1500;
+            var absXYZ = true, absE = true;
+            var currentLayer = 0;
+            var lastZ = 0;
+            var bMinX = Infinity, bMaxX = -Infinity, bMinY = Infinity, bMaxY = -Infinity;
+            var mSpeed = 0;
+
+            for (var i = 0; i < lines.length; i++) {
+                var line = lines[i];
+                var ci = line.indexOf(';');
+                var comment = '';
+                if (ci >= 0) { comment = line.substring(ci + 1).trim(); line = line.substring(0, ci); }
+                line = line.trim();
+                if (!line) {
+                    if (comment) {
+                        var lm = comment.match(/layer\s*[:=]?\s*(\d+)/i);
+                        if (lm) currentLayer = parseInt(lm[1], 10);
+                    }
+                    continue;
+                }
+
+                var parts = line.split(/\s+/);
+                var cmd = parts[0].toUpperCase();
+                var p = {};
+                for (var j = 1; j < parts.length; j++) {
+                    if (parts[j].length < 2) continue;
+                    var k = parts[j][0].toUpperCase();
+                    var v = parseFloat(parts[j].substring(1));
+                    if (!isNaN(v)) p[k] = v;
+                }
+
+                if (cmd === 'G0' || cmd === 'G1') {
+                    var nx = pos.x, ny = pos.y, nz = pos.z, ne = pos.e;
+                    if (absXYZ) {
+                        if ('X' in p) nx = p.X;
+                        if ('Y' in p) ny = p.Y;
+                        if ('Z' in p) nz = p.Z;
+                    } else {
+                        if ('X' in p) nx += p.X;
+                        if ('Y' in p) ny += p.Y;
+                        if ('Z' in p) nz += p.Z;
+                    }
+                    if ('E' in p) ne = absE ? p.E : pos.e + p.E;
+                    if ('F' in p) feedrate = p.F;
+
+                    if (nz !== pos.z && nz > lastZ) { currentLayer++; lastZ = nz; }
+
+                    var eDelta = ne - pos.e;
+                    var hasMoveXY = (nx !== pos.x || ny !== pos.y);
+
+                    if (hasMoveXY) {
+                        moves.push({
+                            x1: pos.x, y1: pos.y, x2: nx, y2: ny,
+                            layer: currentLayer,
+                            extrusion: eDelta > 0,
+                            retraction: eDelta < 0,
+                            speed: feedrate
+                        });
+                        if (eDelta > 0) {
+                            if (pos.x < bMinX) bMinX = pos.x; if (pos.x > bMaxX) bMaxX = pos.x;
+                            if (pos.y < bMinY) bMinY = pos.y; if (pos.y > bMaxY) bMaxY = pos.y;
+                            if (nx < bMinX) bMinX = nx; if (nx > bMaxX) bMaxX = nx;
+                            if (ny < bMinY) bMinY = ny; if (ny > bMaxY) bMaxY = ny;
+                        }
+                        if (feedrate > mSpeed) mSpeed = feedrate;
+                    }
+
+                    pos.x = nx; pos.y = ny; pos.z = nz; pos.e = ne;
+                } else if (cmd === 'G28') {
+                    pos.x = 0; pos.y = 0; pos.z = 0;
+                } else if (cmd === 'G90') { absXYZ = true; absE = true; }
+                else if (cmd === 'G91') { absXYZ = false; absE = false; }
+                else if (cmd === 'M82') { absE = true; }
+                else if (cmd === 'M83') { absE = false; }
+                else if (cmd === 'G92') {
+                    if ('X' in p) pos.x = p.X;
+                    if ('Y' in p) pos.y = p.Y;
+                    if ('Z' in p) pos.z = p.Z;
+                    if ('E' in p) pos.e = p.E;
+                }
+            }
+
+            if (bMinX === Infinity) { bMinX = 0; bMaxX = 100; bMinY = 0; bMaxY = 100; }
+
+            var maxLayer = 0;
+            for (var m = 0; m < moves.length; m++) {
+                if (moves[m].layer > maxLayer) maxLayer = moves[m].layer;
+            }
+
+            return {
+                moves: moves,
+                bounds: { minX: bMinX, maxX: bMaxX, minY: bMinY, maxY: bMaxY },
+                layerCount: maxLayer + 1,
+                maxSpeed: mSpeed || 1
+            };
+        }
+
+        function hslToRgb(h, s, l) {
+            s /= 100; l /= 100;
+            var c = (1 - Math.abs(2 * l - 1)) * s;
+            var x = c * (1 - Math.abs((h / 60) % 2 - 1));
+            var m = l - c / 2;
+            var r, g, b;
+            if (h < 60) { r = c; g = x; b = 0; }
+            else if (h < 120) { r = x; g = c; b = 0; }
+            else if (h < 180) { r = 0; g = c; b = x; }
+            else if (h < 240) { r = 0; g = x; b = c; }
+            else if (h < 300) { r = x; g = 0; b = c; }
+            else { r = c; g = 0; b = x; }
+            return 'rgb(' + Math.round((r + m) * 255) + ',' + Math.round((g + m) * 255) + ',' + Math.round((b + m) * 255) + ')';
+        }
+
+        function speedColor(speed) {
+            var t = Math.min(speed / maxSpeed, 1);
+            var h = (1 - t) * 240;
+            return hslToRgb(h, 80, 55);
+        }
+
+        function layerColor(layer) {
+            var h = (layer * 37) % 360;
+            return hslToRgb(h, 70, 55);
+        }
+
+        function render() {
+            var dpr = window.devicePixelRatio || 1;
+            var rect = canvas.getBoundingClientRect();
+            canvas.width = rect.width * dpr;
+            canvas.height = rect.height * dpr;
+            ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+            var w = rect.width;
+            var h = rect.height;
+
+            ctx.fillStyle = '#0f172a';
+            ctx.fillRect(0, 0, w, h);
+
+            if (parsedMoves.length === 0) return;
+
+            var showAll = showAllCb.checked;
+            var currentLayerIdx = parseInt(slider.value, 10);
+            var showTravel = showTravelCb.checked;
+            var mode = colorMode.value;
+
+            var bw = bounds.maxX - bounds.minX || 1;
+            var bh = bounds.maxY - bounds.minY || 1;
+            var padding = 40;
+            var fitScale = Math.min((w - 2 * padding) / bw, (h - 2 * padding) / bh);
+            var cx = (bounds.minX + bounds.maxX) / 2;
+            var cy = (bounds.minY + bounds.maxY) / 2;
+
+            var sc = fitScale * view.scale;
+            var ox = w / 2 - cx * sc + view.offsetX;
+            var oy = h / 2 + cy * sc + view.offsetY;
+
+            // Grid
+            ctx.strokeStyle = '#1e293b';
+            ctx.lineWidth = 0.5;
+            var gridStep = Math.pow(10, Math.floor(Math.log10(bw / 4)));
+            if (gridStep < 1) gridStep = 1;
+            var gMinX = Math.floor(bounds.minX / gridStep) * gridStep;
+            var gMaxX = Math.ceil(bounds.maxX / gridStep) * gridStep;
+            var gMinY = Math.floor(bounds.minY / gridStep) * gridStep;
+            var gMaxY = Math.ceil(bounds.maxY / gridStep) * gridStep;
+
+            for (var gx = gMinX; gx <= gMaxX; gx += gridStep) {
+                var sx = gx * sc + ox;
+                ctx.beginPath(); ctx.moveTo(sx, 0); ctx.lineTo(sx, h); ctx.stroke();
+            }
+            for (var gy = gMinY; gy <= gMaxY; gy += gridStep) {
+                var sy = -gy * sc + oy;
+                ctx.beginPath(); ctx.moveTo(0, sy); ctx.lineTo(w, sy); ctx.stroke();
+            }
+
+            function drawMoves(filterFn, colorFn, lineW, alpha) {
+                ctx.lineWidth = lineW;
+                ctx.globalAlpha = alpha;
+                ctx.lineCap = 'round';
+                for (var i = 0; i < parsedMoves.length; i++) {
+                    var m = parsedMoves[i];
+                    if (!showAll && m.layer !== currentLayerIdx) continue;
+                    if (!filterFn(m)) continue;
+                    ctx.strokeStyle = colorFn(m);
+                    ctx.beginPath();
+                    ctx.moveTo(m.x1 * sc + ox, -m.y1 * sc + oy);
+                    ctx.lineTo(m.x2 * sc + ox, -m.y2 * sc + oy);
+                    ctx.stroke();
+                }
+                ctx.globalAlpha = 1;
+            }
+
+            if (showTravel) {
+                drawMoves(function(m) { return !m.extrusion; }, function() { return '#f87171'; }, 0.5, 0.3);
+            }
+
+            var extColorFn;
+            if (mode === 'speed') { extColorFn = function(m) { return speedColor(m.speed); }; }
+            else if (mode === 'layer') { extColorFn = function(m) { return layerColor(m.layer); }; }
+            else { extColorFn = function() { return '#4ade80'; }; }
+
+            drawMoves(function(m) { return m.extrusion; }, extColorFn, 1.2, 1);
+
+            // Origin crosshair
+            var originSX = 0 * sc + ox;
+            var originSY = 0 * sc + oy;
+            ctx.strokeStyle = '#38bdf880';
+            ctx.lineWidth = 1;
+            ctx.beginPath(); ctx.moveTo(originSX - 8, originSY); ctx.lineTo(originSX + 8, originSY); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(originSX, originSY - 8); ctx.lineTo(originSX, originSY + 8); ctx.stroke();
+
+            // Scale bar
+            var scaleLen = gridStep;
+            var scalePx = scaleLen * sc;
+            ctx.strokeStyle = '#94a3b8';
+            ctx.lineWidth = 2;
+            ctx.beginPath(); ctx.moveTo(15, h - 20); ctx.lineTo(15 + scalePx, h - 20); ctx.stroke();
+            ctx.fillStyle = '#94a3b8';
+            ctx.font = '11px sans-serif';
+            ctx.fillText(scaleLen + ' mm', 15, h - 26);
+        }
+
+        function showStats(analysis) {
+            var s = analysis.summary;
+            var e = analysis.extrusion;
+            var mv = analysis.movement;
+            var items = [
+                { label: 'Layers', value: s.layerCount },
+                { label: 'Est. Time', value: s.estimatedTimeMin < 60 ? s.estimatedTimeMin + ' min' : (s.estimatedTimeMin / 60).toFixed(1) + ' hr' },
+                { label: 'Filament', value: e.filamentLengthMm < 1000 ? e.filamentLengthMm + ' mm' : (e.filamentLengthMm / 1000).toFixed(2) + ' m' },
+                { label: 'Volume', value: e.volumeMl + ' mL' },
+                { label: 'Print Dist', value: mv.totalPrintDistMm < 1000 ? mv.totalPrintDistMm + ' mm' : (mv.totalPrintDistMm / 1000).toFixed(2) + ' m' },
+                { label: 'Travel Dist', value: mv.totalTravelDistMm < 1000 ? mv.totalTravelDistMm + ' mm' : (mv.totalTravelDistMm / 1000).toFixed(2) + ' m' },
+                { label: 'Commands', value: s.commandCount },
+                { label: 'Retractions', value: analysis.retraction.count },
+            ];
+            statsGrid.innerHTML = items.map(function(it) {
+                return '<div class="stat-box"><div class="value">' + it.value + '</div><div class="label">' + it.label + '</div></div>';
+            }).join('');
+        }
+
+        function showLayerDetails(analysis) {
+            if (!analysis.layers || analysis.layers.length === 0) {
+                layerDetails.innerHTML = '<div class="empty-state">No layer data</div>';
+                return;
+            }
+            var html = '<table><thead><tr><th>Layer</th><th>Z (mm)</th><th>Moves</th><th>Extrusion (mm)</th><th>Print (mm)</th><th>Travel (mm)</th><th>Time (s)</th></tr></thead><tbody>';
+            analysis.layers.forEach(function(l) {
+                html += '<tr><td>' + l.index + '</td><td>' + l.z.toFixed(2) + '</td><td>' + l.moves + '</td><td>' + l.extrusionLength.toFixed(1) + '</td><td>' + l.printDist.toFixed(1) + '</td><td>' + l.travelDist.toFixed(1) + '</td><td>' + (l.timeMin * 60).toFixed(1) + '</td></tr>';
+            });
+            html += '</tbody></table>';
+            layerDetails.innerHTML = html;
+        }
+
+        function processGCode(gcode) {
+            if (!gcode || !gcode.trim()) return;
+
+            var result = parseGCodeMoves(gcode);
+            parsedMoves = result.moves;
+            bounds = result.bounds;
+            layerCount = result.layerCount;
+            maxSpeed = result.maxSpeed;
+
+            var analyzer = createGCodeAnalyzer();
+            analysisResult = analyzer.analyze(gcode);
+
+            slider.max = Math.max(0, layerCount - 1);
+            slider.value = 0;
+            updateLayerLabel();
+
+            view = { offsetX: 0, offsetY: 0, scale: 1 };
+
+            vizSection.classList.remove('hidden');
+            showStats(analysisResult);
+            showLayerDetails(analysisResult);
+            render();
+        }
+
+        function updateLayerLabel() {
+            if (showAllCb.checked) {
+                layerLabel.textContent = 'All Layers (' + layerCount + ')';
+            } else {
+                var idx = parseInt(slider.value, 10);
+                layerLabel.textContent = 'Layer ' + idx + ' / ' + (layerCount - 1);
+            }
+        }
+
+        function sampleGCode() {
+            var g = [];
+            g.push('; Sample bioprint - 3-layer grid scaffold');
+            g.push('G28');
+            g.push('M104 S37');
+            g.push('G90');
+            g.push('G92 E0');
+            g.push('');
+            var e = 0;
+            var lh = 0.2;
+            for (var layer = 0; layer < 3; layer++) {
+                var z = (layer + 1) * lh;
+                g.push('; Layer ' + layer);
+                g.push('G1 Z' + z.toFixed(2) + ' F3000');
+                if (layer % 2 === 0) {
+                    for (var y = 5; y <= 45; y += 5) {
+                        e += 0.5; g.push('G0 X5 Y' + y + ' F3000');
+                        e += 2; g.push('G1 X45 Y' + y + ' E' + e.toFixed(3) + ' F1200');
+                    }
+                } else {
+                    for (var x = 5; x <= 45; x += 5) {
+                        e += 0.5; g.push('G0 X' + x + ' Y5 F3000');
+                        e += 2; g.push('G1 X' + x + ' Y45 E' + e.toFixed(3) + ' F1200');
+                    }
+                }
+            }
+            g.push('G28 X Y');
+            g.push('M84');
+            return g.join('\n');
+        }
+
+        document.getElementById('btn-render').addEventListener('click', function() { processGCode(gcodeInput.value); });
+        document.getElementById('btn-sample').addEventListener('click', function() { gcodeInput.value = sampleGCode(); processGCode(gcodeInput.value); });
+        document.getElementById('btn-clear').addEventListener('click', function() { gcodeInput.value = ''; parsedMoves = []; vizSection.classList.add('hidden'); });
+
+        slider.addEventListener('input', function() { updateLayerLabel(); render(); });
+        showAllCb.addEventListener('change', function() { slider.disabled = this.checked; updateLayerLabel(); render(); });
+        showTravelCb.addEventListener('change', function() { render(); });
+        colorMode.addEventListener('change', function() { render(); });
+        document.getElementById('btn-reset-view').addEventListener('click', function() { view = { offsetX: 0, offsetY: 0, scale: 1 }; render(); });
+
+        canvas.addEventListener('mousedown', function(e) {
+            drag.active = true; drag.startX = e.clientX; drag.startY = e.clientY;
+            drag.origOX = view.offsetX; drag.origOY = view.offsetY;
+        });
+        window.addEventListener('mousemove', function(e) {
+            if (!drag.active) return;
+            view.offsetX = drag.origOX + (e.clientX - drag.startX);
+            view.offsetY = drag.origOY + (e.clientY - drag.startY);
+            render();
+        });
+        window.addEventListener('mouseup', function() { drag.active = false; });
+
+        canvas.addEventListener('wheel', function(e) {
+            e.preventDefault();
+            var factor = e.deltaY < 0 ? 1.15 : 1 / 1.15;
+            view.scale *= factor;
+            if (view.scale < 0.1) view.scale = 0.1;
+            if (view.scale > 50) view.scale = 50;
+            render();
+        }, { passive: false });
+
+        dropZone.addEventListener('click', function() { fileInput.click(); });
+        dropZone.addEventListener('dragover', function(e) { e.preventDefault(); dropZone.classList.add('drag-over'); });
+        dropZone.addEventListener('dragleave', function() { dropZone.classList.remove('drag-over'); });
+        dropZone.addEventListener('drop', function(e) {
+            e.preventDefault(); dropZone.classList.remove('drag-over');
+            var file = e.dataTransfer.files[0];
+            if (file) readFile(file);
+        });
+        fileInput.addEventListener('change', function() { if (this.files[0]) readFile(this.files[0]); });
+
+        function readFile(file) {
+            var reader = new FileReader();
+            reader.onload = function(e) { gcodeInput.value = e.target.result; processGCode(e.target.result); };
+            reader.readAsText(file);
+        }
+
+        window.addEventListener('resize', function() { if (parsedMoves.length) render(); });
+    })();
+    </script>
+</body>
+</html>
