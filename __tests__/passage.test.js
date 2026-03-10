@@ -222,6 +222,21 @@ describe('Cell Passage Tracker', function () {
             var trend = tracker.getViabilityTrend('V');
             expect(trend.trend).toBe('improving');
         });
+
+        test('handles identical passage numbers without NaN (fixes #45)', function () {
+            tracker.addCellLine({ id: 'V' });
+            tracker.recordPassage('V', { passage: 5, viability: 90 });
+            tracker.recordPassage('V', { passage: 5, viability: 85 });
+            tracker.recordPassage('V', { passage: 5, viability: 88 });
+            var trend = tracker.getViabilityTrend('V');
+            expect(trend.trend).toBe('insufficient_data');
+            expect(trend.reason).toBe('all_same_passage');
+            expect(trend.slope).toBe(0);
+            expect(isNaN(trend.slope)).toBe(false);
+            expect(isNaN(trend.intercept)).toBe(false);
+            expect(trend.currentViability).toBe(88);
+            expect(trend.projectedLimitPassage).toBeNull();
+        });
     });
 
     describe('getConfluenceProfile', function () {
