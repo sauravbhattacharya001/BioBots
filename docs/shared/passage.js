@@ -127,7 +127,20 @@ function createPassageTracker() {
             sumXY += p.passage * p.viability;
             sumXX += p.passage * p.passage;
         });
-        var slope = (n * sumXY - sumX * sumY) / (n * sumXX - sumX * sumX);
+        var denominator = n * sumXX - sumX * sumX;
+        if (denominator === 0) {
+            return {
+                trend: 'insufficient_data',
+                points: n,
+                slope: 0,
+                intercept: 0,
+                currentViability: ps[ps.length - 1].viability,
+                projectedLimitPassage: null,
+                reason: 'all_same_passage',
+                recommendation: 'Record passages at different passage numbers for trend analysis'
+            };
+        }
+        var slope = (n * sumXY - sumX * sumY) / denominator;
         var intercept = (sumY - slope * sumX) / n;
 
         var trend = 'stable';
