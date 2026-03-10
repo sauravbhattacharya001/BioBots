@@ -10,7 +10,7 @@ BioBots Tool is a REST API and interactive web frontend for querying BioBot 1 3D
 - **Language:** C# (backend) + JavaScript (frontend)
 - **Build:** MSBuild + NuGet (not .NET Core — uses `packages.config`, not PackageReference)
 - **Data:** JSON file (`bioprint-data.json`) stream-deserialized via Newtonsoft.Json into typed models
-- **Frontend tests:** Jest + jsdom (970+ tests across 20 suites with coverage thresholds)
+- **Frontend tests:** Jest + jsdom (3342 tests across 64 suites with coverage thresholds)
 - **Python module:** `evolution_tracker.py` — population genetics analysis with pytest tests
 - **Hosting:** IIS Express (development) / IIS (production) / GitHub Pages (docs site)
 
@@ -34,24 +34,41 @@ Try/                         # Main web project ("BioBots 1 tool.csproj")
   Global.asax(.cs)           # Application startup
   Web.config                 # Configuration (appSettings, connection strings)
   packages.config            # NuGet package manifest
-  scripts/
+  scripts/                   # 23 bioprinting modules
     runMethod.js             # Frontend API query client (jQuery, CommonJS-exportable for testing)
+    cellSeeding.js           # Cell seeding & density calculator
+    costEstimator.js         # Bioprint cost estimator
+    failureDiagnostic.js     # Print failure diagnostic system
+    labAuditTrail.js         # Hash-chained audit trail
+    mlDiagnostic.js          # ML-based failure pattern recognition
+    parameterOptimizer.js    # Print parameter optimizer
+    printQueue.js            # Print queue manager
+    protocolLibrary.js       # Protocol template library
+    riskAssessor.js          # Print risk assessor
+    vascularization.js       # Vascularization planner
+    ... 12 more modules      # See docs/architecture.html
   index.html                 # Original landing page
 
-docs/                        # GitHub Pages documentation site
-  index.html                 # Interactive query tool (standalone, fetches bioprint-data.json)
-  explorer.html              # Distribution histograms + correlation scatter plots
-  table.html                 # Sortable/filterable data table
-  compare.html               # Multi-print comparison with radar charts + insights
-  quality.html               # Quality control dashboard with scoring, grading, correlation heatmap
-  api.html                   # API reference documentation
-  architecture.html          # Architecture documentation
-  guide.html                 # Developer guide
-  bioprint-data.json         # Copy of data for Pages (loaded client-side)
+docs/                        # GitHub Pages documentation site (42 pages)
+  index.html                 # Landing page / dashboard hub
+  shared/                    # 11 core computation modules
+    calculator.js            # Bioink volume & cost calculator
+    constants.js             # Physical constants & defaults
+    crosslink.js             # Cross-linking kinetics analyzer
+    data-loader.js           # Dataset loading & validation
+    export.js                # CSV/JSON/PDF export utilities
+    gcode.js                 # G-code parser & print analyzer
+    mixer.js                 # Bioink mixing ratio optimizer
+    passage.js               # Cell passage tracker
+    rheology.js              # Bioink rheology modeler
+    utils.js                 # DOM helpers, formatting, rounding
+    viability.js             # Cell viability estimator
+  *.html                     # 42 dashboard pages (see Architecture)
+  bioprint-data.json         # Sample print dataset
   style.css                  # Shared styles
 
 __tests__/                   # Jest test suite
-  runMethod.test.js          # 87 tests: isNumeric, setButtonsEnabled, runMethod (URL construction, validation, response handling)
+  runMethod.test.js          # 87+ tests: isNumeric, setButtonsEnabled, runMethod (URL construction, validation, response handling)
   compare.test.js            # 40+ tests: METRICS, formatNum, selection manager, search, radar normalization, insights
   quality.test.js            # 100+ tests: quality scoring, grading, Pearson correlation, optimal ranges, edge cases
 ```
@@ -142,11 +159,20 @@ npx jest --watch
 
 ### Test Files
 
-| File | Tests | What It Covers |
-|------|-------|----------------|
-| `runMethod.test.js` | ~87 | `isNumeric()`, `setButtonsEnabled()`, `runMethod()` — URL construction, input validation, button state management, response handling, jQuery integration |
-| `compare.test.js` | ~40+ | `METRICS` constant, `formatNum()`, selection manager (add/remove/clear/random), search filtering, radar chart normalization, table best/worst highlighting, insight generation |
-| `quality.test.js` | ~100+ | Quality scoring (`computeQualityScore`), normalization, grade assignment (`getGrade`), color functions, Pearson correlation (`pearsonR`), correlation heatmap colors, optimal parameter ranges, weight customization, performer ranking, edge cases (empty data, single record, uniform values) |
+| Category | Files | What They Cover |
+|----------|-------|-----------------|
+| **Core API** | `runMethod`, `utils`, `constants`, `shared`, `data-loader` | API query client, DOM helpers, formatting, constants, data loading |
+| **Analysis** | `compare`, `trends`, `correlation`, `cluster`, `predictor`, `recommender`, `pareto`, `optimizer`, `doe` | Statistical analysis, comparison, optimization, design of experiments |
+| **Quality** | `quality`, `spc`, `anomaly`, `reproducibility`, `batch`, `batchStats` | Quality scoring, SPC charting, anomaly detection, batch stats |
+| **Shared Modules** | `calculator`, `crosslink`, `gcode`, `rheology`, `viability`, `export`, `mixer`, `passage` | Bioink computation, G-code parsing, rheology, viability, export |
+| **Bioprinting** | `porosity`, `layerAdhesion`, `vascularization`, `maturation`, `degradation`, `scaffold` | Physical simulation modules |
+| **Lab Ops** | `printQueue`, `protocolLibrary`, `sessionLogger`, `labAuditTrail`, `riskAssessor`, `cellSeeding` | Queue management, protocols, audit trail, risk assessment |
+| **Diagnostics** | `failureDiagnostic`, `mlDiagnostic`, `mlDiagnostic-extended`, `mlDiagnosticDeep`, `failure` | Print failure diagnosis, ML pattern recognition |
+| **Materials** | `compatibility`, `formulationCalculator`, `costEstimator`, `shelfLife`, `sterilization`, `waste` | Material compatibility, cost, shelf life, sterilization |
+| **Infrastructure** | `nozzlePlanner`, `environment`, `maintenance`, `calibration`, `scriptUtils` | Nozzle coordination, environment monitoring, calibration |
+| **Dashboards** | `index`, `table`, `explorer`, `profile`, `coverage`, `wellplate`, `logbook` | Dashboard page logic |
+
+**64 test files, 3342 tests** across all modules (as of March 2026).
 
 ### Manual Testing Checklist
 
