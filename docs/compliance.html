@@ -1,0 +1,688 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>BioBots 1 — GLP Compliance Checker</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧬</text></svg>">
+    <style>
+        :root {
+            --bg: #0f172a;
+            --surface: #1e293b;
+            --border: #334155;
+            --text: #e2e8f0;
+            --muted: #94a3b8;
+            --accent: #38bdf8;
+            --accent-hover: #7dd3fc;
+            --success: #4ade80;
+            --error: #f87171;
+            --warning: #fbbf24;
+            --purple: #a78bfa;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg); color: var(--text);
+            min-height: 100vh; padding: 2rem 1rem;
+        }
+        nav { display: flex; gap: 0.5rem; margin-bottom: 2rem; flex-wrap: wrap; justify-content: center; }
+        nav a { color: var(--muted); padding: 0.5rem 1rem; border-radius: 8px; text-decoration: none; font-size: 0.9rem; transition: all 0.2s; }
+        nav a:hover { color: var(--accent); background: var(--surface); }
+        nav a.active { color: var(--accent); background: var(--surface); border: 1px solid var(--border); }
+        header { text-align: center; margin-bottom: 2rem; }
+        header h1 {
+            font-size: 2rem; font-weight: 700;
+            background: linear-gradient(135deg, var(--accent), var(--purple));
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+        }
+        header p { color: var(--muted); margin-top: 0.5rem; }
+        .container { max-width: 1200px; margin: 0 auto; }
+        .card {
+            background: var(--surface); border: 1px solid var(--border);
+            border-radius: 12px; padding: 1.5rem; margin-bottom: 1.5rem;
+        }
+        .card h2 { font-size: 1.1rem; margin-bottom: 1rem; }
+        .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; }
+        .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1.5rem; }
+        @media (max-width: 768px) { .grid-2, .grid-3 { grid-template-columns: 1fr; } }
+        .form-row { display: flex; gap: 1rem; flex-wrap: wrap; margin-bottom: 0.75rem; }
+        .form-group { display: flex; flex-direction: column; gap: 0.3rem; flex: 1; min-width: 140px; }
+        .form-group label { font-size: 0.8rem; color: var(--muted); font-weight: 500; }
+        .form-group select, .form-group input {
+            background: var(--bg); color: var(--text); border: 1px solid var(--border);
+            border-radius: 8px; padding: 0.5rem 0.75rem; font-size: 0.9rem;
+        }
+        .form-group select:focus, .form-group input:focus { outline: none; border-color: var(--accent); }
+        .btn {
+            background: var(--accent); color: var(--bg); border: none;
+            padding: 0.6rem 1.5rem; border-radius: 8px; font-size: 0.9rem;
+            font-weight: 600; cursor: pointer; transition: background 0.2s;
+        }
+        .btn:hover { background: var(--accent-hover); }
+        .btn-secondary {
+            background: transparent; color: var(--accent); border: 1px solid var(--accent);
+        }
+        .btn-secondary:hover { background: var(--accent); color: var(--bg); }
+
+        /* Compliance-specific styles */
+        .score-ring {
+            width: 120px; height: 120px; margin: 0 auto 1rem;
+            position: relative;
+        }
+        .score-ring svg { width: 100%; height: 100%; transform: rotate(-90deg); }
+        .score-ring circle { fill: none; stroke-width: 8; }
+        .score-ring .bg { stroke: var(--border); }
+        .score-ring .fg { stroke-linecap: round; transition: stroke-dashoffset 0.8s ease; }
+        .score-value {
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            font-size: 1.5rem; font-weight: 700;
+        }
+
+        .check-list { list-style: none; }
+        .check-item {
+            display: flex; align-items: flex-start; gap: 0.75rem;
+            padding: 0.75rem 0; border-bottom: 1px solid var(--border);
+        }
+        .check-item:last-child { border-bottom: none; }
+        .check-icon {
+            width: 24px; height: 24px; border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 0.75rem; flex-shrink: 0; margin-top: 0.1rem;
+        }
+        .check-icon.pass { background: rgba(74, 222, 128, 0.15); color: var(--success); }
+        .check-icon.fail { background: rgba(248, 113, 113, 0.15); color: var(--error); }
+        .check-icon.warn { background: rgba(251, 191, 36, 0.15); color: var(--warning); }
+        .check-icon.na { background: rgba(148, 163, 184, 0.15); color: var(--muted); }
+        .check-text { flex: 1; }
+        .check-text .title { font-weight: 600; font-size: 0.9rem; }
+        .check-text .detail { font-size: 0.8rem; color: var(--muted); margin-top: 0.2rem; }
+        .check-text .ref { font-size: 0.75rem; color: var(--purple); margin-top: 0.15rem; }
+
+        .summary-bar {
+            display: flex; height: 8px; border-radius: 4px; overflow: hidden;
+            background: var(--border); margin: 1rem 0;
+        }
+        .summary-bar .seg { transition: width 0.5s ease; }
+        .summary-bar .seg.pass { background: var(--success); }
+        .summary-bar .seg.warn { background: var(--warning); }
+        .summary-bar .seg.fail { background: var(--error); }
+
+        .legend { display: flex; gap: 1.5rem; font-size: 0.8rem; color: var(--muted); margin-top: 0.5rem; flex-wrap: wrap; }
+        .legend span::before {
+            content: ''; display: inline-block; width: 10px; height: 10px;
+            border-radius: 50%; margin-right: 0.4rem; vertical-align: middle;
+        }
+        .legend .l-pass::before { background: var(--success); }
+        .legend .l-warn::before { background: var(--warning); }
+        .legend .l-fail::before { background: var(--error); }
+        .legend .l-na::before { background: var(--muted); }
+
+        .standard-tabs {
+            display: flex; gap: 0.5rem; margin-bottom: 1.5rem; flex-wrap: wrap;
+        }
+        .standard-tabs button {
+            background: var(--bg); color: var(--muted); border: 1px solid var(--border);
+            padding: 0.5rem 1rem; border-radius: 8px; cursor: pointer; font-size: 0.85rem;
+            transition: all 0.2s;
+        }
+        .standard-tabs button:hover { color: var(--text); border-color: var(--accent); }
+        .standard-tabs button.active { color: var(--accent); border-color: var(--accent); background: var(--surface); }
+
+        .print-select { display: flex; gap: 1rem; align-items: flex-end; flex-wrap: wrap; margin-bottom: 1.5rem; }
+        table.results { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+        table.results th, table.results td { padding: 0.6rem 0.75rem; text-align: left; border-bottom: 1px solid var(--border); }
+        table.results th { color: var(--muted); font-weight: 500; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.03em; }
+        .badge {
+            display: inline-block; padding: 0.2rem 0.6rem; border-radius: 999px;
+            font-size: 0.75rem; font-weight: 600;
+        }
+        .badge.pass { background: rgba(74,222,128,0.15); color: var(--success); }
+        .badge.warn { background: rgba(251,191,36,0.15); color: var(--warning); }
+        .badge.fail { background: rgba(248,113,113,0.15); color: var(--error); }
+        .badge.na { background: rgba(148,163,184,0.15); color: var(--muted); }
+
+        .export-bar { display: flex; gap: 0.75rem; justify-content: flex-end; margin-top: 1rem; }
+    </style>
+</head>
+<body>
+    <nav>
+        <a href="index.html">Query Tool</a>
+        <a href="explorer.html">Data Explorer</a>
+        <a href="table.html">Data Table</a>
+        <a href="compare.html">Compare</a>
+        <a href="quality.html">🔬 Quality</a>
+        <a href="anomaly.html">⚠️ Anomaly</a>
+        <a href="trends.html">Trends</a>
+        <a href="optimizer.html">⚡ Optimizer</a>
+        <a href="cluster.html">🔮 Clusters</a>
+        <a href="correlation.html">📊 Correlation</a>
+        <a href="calculator.html">🧮 Calculator</a>
+        <a href="batch.html">📋 Batch Planner</a>
+        <a href="cost.html">💰 Cost Estimator</a>
+        <a href="compliance.html" class="active">✅ Compliance</a>
+        <a href="guide.html">📖 Guide</a>
+        <a href="api.html">🔌 API</a>
+    </nav>
+
+    <header>
+        <h1>✅ GLP Compliance Checker</h1>
+        <p>Verify print runs against regulatory standards — ISO 10993, GLP (21 CFR 58), and FDA 21 CFR Part 11</p>
+    </header>
+
+    <div class="container">
+        <!-- Print Selection -->
+        <div class="card">
+            <h2>Select Print Run</h2>
+            <div class="print-select">
+                <div class="form-group">
+                    <label>Print Run</label>
+                    <select id="print-select">
+                        <option value="">Loading...</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Intended Use</label>
+                    <select id="intended-use">
+                        <option value="research">Research Only</option>
+                        <option value="preclinical">Preclinical Testing</option>
+                        <option value="clinical">Clinical Application</option>
+                    </select>
+                </div>
+                <button class="btn" onclick="runCheck()">Run Compliance Check</button>
+                <button class="btn btn-secondary" onclick="runBatchCheck()">Batch Check All</button>
+            </div>
+        </div>
+
+        <!-- Overall Score -->
+        <div id="score-section" class="card" style="display:none">
+            <div class="grid-3">
+                <div style="text-align:center">
+                    <div class="score-ring">
+                        <svg viewBox="0 0 44 44">
+                            <circle class="bg" cx="22" cy="22" r="18" />
+                            <circle class="fg" id="score-arc" cx="22" cy="22" r="18"
+                                stroke-dasharray="113.1" stroke-dashoffset="113.1" />
+                        </svg>
+                        <div class="score-value" id="score-pct">—</div>
+                    </div>
+                    <div style="font-weight:600" id="score-label">Overall Score</div>
+                </div>
+                <div>
+                    <h2>Summary</h2>
+                    <div class="summary-bar" id="summary-bar"></div>
+                    <div class="legend">
+                        <span class="l-pass" id="count-pass">0 Passed</span>
+                        <span class="l-warn" id="count-warn">0 Warnings</span>
+                        <span class="l-fail" id="count-fail">0 Failed</span>
+                        <span class="l-na" id="count-na">0 N/A</span>
+                    </div>
+                </div>
+                <div>
+                    <h2>Risk Level</h2>
+                    <div id="risk-level" style="font-size:1.5rem;font-weight:700;margin-top:0.5rem">—</div>
+                    <div id="risk-detail" style="font-size:0.85rem;color:var(--muted);margin-top:0.5rem"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Standard Tabs -->
+        <div id="checks-section" style="display:none">
+            <div class="standard-tabs" id="std-tabs">
+                <button class="active" onclick="showTab('all')">All Checks</button>
+                <button onclick="showTab('glp')">GLP (21 CFR 58)</button>
+                <button onclick="showTab('iso')">ISO 10993</button>
+                <button onclick="showTab('cfr11')">21 CFR Part 11</button>
+                <button onclick="showTab('fail')">⚠️ Issues Only</button>
+            </div>
+
+            <div class="card">
+                <ul class="check-list" id="check-list"></ul>
+            </div>
+
+            <div class="export-bar">
+                <button class="btn btn-secondary" onclick="exportCSV()">Export CSV</button>
+                <button class="btn btn-secondary" onclick="exportJSON()">Export JSON</button>
+            </div>
+        </div>
+
+        <!-- Batch Results -->
+        <div id="batch-section" class="card" style="display:none">
+            <h2>Batch Compliance Results</h2>
+            <div class="summary-bar" id="batch-bar"></div>
+            <div class="legend" id="batch-legend"></div>
+            <table class="results" id="batch-table">
+                <thead>
+                    <tr>
+                        <th>Print #</th>
+                        <th>Score</th>
+                        <th>Pass</th>
+                        <th>Warn</th>
+                        <th>Fail</th>
+                        <th>Risk</th>
+                        <th>Top Issue</th>
+                    </tr>
+                </thead>
+                <tbody id="batch-body"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+    /* ============================================================
+       GLP Compliance Checker — client-side regulatory check engine
+       Checks: GLP (21 CFR 58), ISO 10993, FDA 21 CFR Part 11
+       ============================================================ */
+
+    let DATA = [];
+    let lastResult = null;
+    let activeTab = 'all';
+
+    // ── Compliance Rules ──────────────────────────────────
+    // Each rule returns { status: 'pass'|'warn'|'fail'|'na', detail, ref }
+
+    const RULES = [
+        // ── GLP (21 CFR 58) ──
+        {
+            id: 'glp-viability',
+            standard: 'glp',
+            title: 'Cell Viability Threshold',
+            check(p, use) {
+                const live = p.print_data.livePercent;
+                const thresholds = { research: 50, preclinical: 70, clinical: 85 };
+                const t = thresholds[use];
+                if (live >= t) return { status: 'pass', detail: `Live cells ${live.toFixed(1)}% ≥ ${t}% threshold for ${use}`, ref: '21 CFR 58.81(a) — Study results documentation' };
+                if (live >= t * 0.85) return { status: 'warn', detail: `Live cells ${live.toFixed(1)}% — marginal (${t}% required for ${use})`, ref: '21 CFR 58.81(a)' };
+                return { status: 'fail', detail: `Live cells ${live.toFixed(1)}% < ${t}% required for ${use}`, ref: '21 CFR 58.81(a) — Study results documentation' };
+            }
+        },
+        {
+            id: 'glp-dead-cell',
+            standard: 'glp',
+            title: 'Dead Cell Fraction Limit',
+            check(p, use) {
+                const dead = p.print_data.deadPercent;
+                const limits = { research: 60, preclinical: 40, clinical: 20 };
+                const lim = limits[use];
+                if (dead <= lim) return { status: 'pass', detail: `Dead cells ${dead.toFixed(1)}% ≤ ${lim}% limit`, ref: '21 CFR 58.90 — Final report' };
+                return { status: 'fail', detail: `Dead cells ${dead.toFixed(1)}% exceeds ${lim}% limit for ${use}`, ref: '21 CFR 58.90' };
+            }
+        },
+        {
+            id: 'glp-crosslink',
+            standard: 'glp',
+            title: 'Crosslinking Documentation',
+            check(p) {
+                const cl = p.print_info.crosslinking;
+                if (!cl.cl_enabled) return { status: 'na', detail: 'Crosslinking not used in this run', ref: '21 CFR 58.185 — SOPs' };
+                if (cl.cl_duration > 0 && cl.cl_intensity > 0) {
+                    if (cl.cl_duration > 60000) return { status: 'warn', detail: `Crosslink duration ${(cl.cl_duration/1000).toFixed(0)}s — extended exposure may affect viability`, ref: '21 CFR 58.185' };
+                    return { status: 'pass', detail: `Crosslink: ${cl.cl_intensity}% intensity, ${(cl.cl_duration/1000).toFixed(0)}s duration — parameters recorded`, ref: '21 CFR 58.185 — SOPs' };
+                }
+                return { status: 'fail', detail: 'Crosslinking enabled but parameters incomplete', ref: '21 CFR 58.185' };
+            }
+        },
+        {
+            id: 'glp-pressure',
+            standard: 'glp',
+            title: 'Extruder Pressure Range',
+            check(p) {
+                const p1 = p.print_info.pressure.extruder1;
+                const p2 = p.print_info.pressure.extruder2;
+                const issues = [];
+                if (p1 < 5 || p1 > 150) issues.push(`Ext1: ${p1} psi out of range [5–150]`);
+                if (p2 < 5 || p2 > 150) issues.push(`Ext2: ${p2} psi out of range [5–150]`);
+                if (Math.abs(p1 - p2) > 80) issues.push(`Pressure differential ${Math.abs(p1-p2).toFixed(0)} psi exceeds 80 psi limit`);
+                if (issues.length === 0) return { status: 'pass', detail: `Ext1: ${p1} psi, Ext2: ${p2} psi — within operating range`, ref: '21 CFR 58.61 — Equipment' };
+                return { status: issues.length > 1 ? 'fail' : 'warn', detail: issues.join('; '), ref: '21 CFR 58.61 — Equipment design and calibration' };
+            }
+        },
+        {
+            id: 'glp-file-output',
+            standard: 'glp',
+            title: 'Output File Documentation',
+            check(p) {
+                const f = p.print_info.files;
+                if (f.input && f.output && f.input !== f.output) return { status: 'pass', detail: `Input: ${f.input} → Output: ${f.output} — audit trail maintained`, ref: '21 CFR 58.81(b) — Raw data documentation' };
+                return { status: 'fail', detail: 'Missing or identical input/output file names — traceability compromised', ref: '21 CFR 58.81(b)' };
+            }
+        },
+        {
+            id: 'glp-serial',
+            standard: 'glp',
+            title: 'Device Serial Number Recorded',
+            check(p) {
+                if (p.user_info.serial !== undefined && p.user_info.serial !== null) return { status: 'pass', detail: `Serial #${p.user_info.serial} recorded`, ref: '21 CFR 58.63 — Equipment identification' };
+                return { status: 'fail', detail: 'No device serial number recorded', ref: '21 CFR 58.63' };
+            }
+        },
+
+        // ── ISO 10993 (Biocompatibility) ──
+        {
+            id: 'iso-elasticity',
+            standard: 'iso',
+            title: 'Scaffold Elasticity Range',
+            check(p, use) {
+                const e = p.print_data.elasticity;
+                const min = use === 'clinical' ? 30 : 20;
+                const max = use === 'clinical' ? 70 : 80;
+                if (e >= min && e <= max) return { status: 'pass', detail: `Elasticity ${e.toFixed(1)} kPa within [${min}–${max}] range`, ref: 'ISO 10993-18 — Material characterization' };
+                if (e < min * 0.8 || e > max * 1.2) return { status: 'fail', detail: `Elasticity ${e.toFixed(1)} kPa far outside acceptable range [${min}–${max}]`, ref: 'ISO 10993-18' };
+                return { status: 'warn', detail: `Elasticity ${e.toFixed(1)} kPa — borderline (target: [${min}–${max}])`, ref: 'ISO 10993-18 — Material characterization' };
+            }
+        },
+        {
+            id: 'iso-layer-height',
+            standard: 'iso',
+            title: 'Layer Height Precision',
+            check(p) {
+                const lh = p.print_info.resolution.layerHeight;
+                if (lh >= 0.05 && lh <= 1.0) return { status: 'pass', detail: `Layer height ${lh} mm within precision range [0.05–1.0]`, ref: 'ISO 10993-6 — Implant site preparation' };
+                if (lh < 0.05) return { status: 'warn', detail: `Layer height ${lh} mm — extremely thin, may compromise structural integrity`, ref: 'ISO 10993-6' };
+                return { status: 'fail', detail: `Layer height ${lh} mm exceeds 1.0 mm — insufficient resolution`, ref: 'ISO 10993-6' };
+            }
+        },
+        {
+            id: 'iso-layer-count',
+            standard: 'iso',
+            title: 'Minimum Layer Count',
+            check(p, use) {
+                const ln = p.print_info.resolution.layerNum;
+                const min = use === 'research' ? 5 : 10;
+                if (ln >= min) return { status: 'pass', detail: `${ln} layers ≥ ${min} minimum for ${use}`, ref: 'ISO 10993-12 — Sample preparation' };
+                return { status: 'fail', detail: `${ln} layers < ${min} minimum for ${use}`, ref: 'ISO 10993-12' };
+            }
+        },
+        {
+            id: 'iso-wellplate',
+            standard: 'iso',
+            title: 'Wellplate Format Validation',
+            check(p) {
+                const wp = p.print_info.wellplate;
+                const valid = [6, 12, 24, 48, 96, 384];
+                if (valid.includes(wp)) return { status: 'pass', detail: `${wp}-well plate — standard format`, ref: 'ISO 10993-5 — In vitro cytotoxicity' };
+                return { status: 'fail', detail: `${wp}-well plate — non-standard format`, ref: 'ISO 10993-5' };
+            }
+        },
+        {
+            id: 'iso-viability-ratio',
+            standard: 'iso',
+            title: 'Live/Dead Ratio Accounting',
+            check(p) {
+                const live = p.print_data.livePercent;
+                const dead = p.print_data.deadPercent;
+                const gap = 100 - live - dead;
+                if (Math.abs(gap) <= 15) return { status: 'pass', detail: `Live+Dead = ${(live+dead).toFixed(1)}% — ${gap.toFixed(1)}% unaccounted (within 15% tolerance)`, ref: 'ISO 10993-5 — Cytotoxicity assessment' };
+                if (Math.abs(gap) <= 30) return { status: 'warn', detail: `${gap.toFixed(1)}% unaccounted cells — consider re-staining`, ref: 'ISO 10993-5' };
+                return { status: 'fail', detail: `${gap.toFixed(1)}% unaccounted cells — data integrity concern`, ref: 'ISO 10993-5 — Cytotoxicity assessment' };
+            }
+        },
+
+        // ── 21 CFR Part 11 (Electronic Records) ──
+        {
+            id: 'cfr11-user-id',
+            standard: 'cfr11',
+            title: 'User Identification',
+            check(p) {
+                if (p.user_info.email && p.user_info.email.includes('@')) return { status: 'pass', detail: `User identified: ${p.user_info.email}`, ref: '21 CFR 11.10(d) — Authority checks' };
+                return { status: 'fail', detail: 'No valid user email recorded — electronic signature missing', ref: '21 CFR 11.10(d)' };
+            }
+        },
+        {
+            id: 'cfr11-gcode-trace',
+            standard: 'cfr11',
+            title: 'G-code File Traceability',
+            check(p) {
+                const f = p.print_info.files;
+                if (f.input && f.input.endsWith('.gcode') && f.output && f.output.endsWith('.gcode')) {
+                    return { status: 'pass', detail: `Input: ${f.input}, Output: ${f.output} — file chain intact`, ref: '21 CFR 11.10(e) — Audit trail' };
+                }
+                return { status: 'warn', detail: 'G-code file naming does not follow traceability convention', ref: '21 CFR 11.10(e)' };
+            }
+        },
+        {
+            id: 'cfr11-data-integrity',
+            standard: 'cfr11',
+            title: 'Data Field Completeness',
+            check(p) {
+                const missing = [];
+                if (p.print_data.livePercent === undefined) missing.push('livePercent');
+                if (p.print_data.deadPercent === undefined) missing.push('deadPercent');
+                if (p.print_data.elasticity === undefined) missing.push('elasticity');
+                if (p.print_info.pressure.extruder1 === undefined) missing.push('extruder1');
+                if (p.print_info.resolution.layerHeight === undefined) missing.push('layerHeight');
+                if (missing.length === 0) return { status: 'pass', detail: 'All required data fields present', ref: '21 CFR 11.10(a) — System validation' };
+                return { status: 'fail', detail: `Missing fields: ${missing.join(', ')}`, ref: '21 CFR 11.10(a)' };
+            }
+        },
+        {
+            id: 'cfr11-crosslink-record',
+            standard: 'cfr11',
+            title: 'Crosslink Parameter Recording',
+            check(p) {
+                const cl = p.print_info.crosslinking;
+                if (cl.cl_enabled === true && cl.cl_duration > 0 && cl.cl_intensity > 0) return { status: 'pass', detail: 'Crosslink parameters fully documented', ref: '21 CFR 11.10(b) — Record generation' };
+                if (cl.cl_enabled === false) return { status: 'pass', detail: 'Crosslinking disabled — documented as not applicable', ref: '21 CFR 11.10(b)' };
+                return { status: 'warn', detail: 'Crosslinking enabled but parameters incomplete', ref: '21 CFR 11.10(b)' };
+            }
+        },
+    ];
+
+    // ── Data Loading ──────────────────────────────────
+    async function loadData() {
+        try {
+            const resp = await fetch('bioprint-data.json');
+            DATA = await resp.json();
+            const sel = document.getElementById('print-select');
+            sel.innerHTML = DATA.map((p, i) =>
+                `<option value="${i}">Print #${i + 1} — ${p.user_info.email} (Live: ${p.print_data.livePercent.toFixed(1)}%)</option>`
+            ).join('');
+        } catch (e) {
+            document.getElementById('print-select').innerHTML = '<option>Error loading data</option>';
+        }
+    }
+
+    // ── Run Single Check ──────────────────────────────
+    function runCheck() {
+        const idx = parseInt(document.getElementById('print-select').value);
+        const use = document.getElementById('intended-use').value;
+        if (isNaN(idx) || !DATA[idx]) return;
+
+        const print = DATA[idx];
+        const results = RULES.map(rule => ({
+            ...rule,
+            result: rule.check(print, use)
+        }));
+
+        lastResult = { printIdx: idx, use, results };
+        renderResults(results);
+        document.getElementById('batch-section').style.display = 'none';
+    }
+
+    // ── Batch Check ──────────────────────────────────
+    function runBatchCheck() {
+        const use = document.getElementById('intended-use').value;
+        const batchResults = DATA.map((print, idx) => {
+            const results = RULES.map(rule => ({
+                ...rule,
+                result: rule.check(print, use)
+            }));
+            const counts = countResults(results);
+            const score = calcScore(counts);
+            const topIssue = results.find(r => r.result.status === 'fail');
+            return { idx, results, counts, score, topIssue };
+        });
+
+        renderBatch(batchResults);
+        document.getElementById('score-section').style.display = 'none';
+        document.getElementById('checks-section').style.display = 'none';
+        document.getElementById('batch-section').style.display = 'block';
+    }
+
+    // ── Scoring ──────────────────────────────────
+    function countResults(results) {
+        const c = { pass: 0, warn: 0, fail: 0, na: 0 };
+        results.forEach(r => c[r.result.status]++);
+        return c;
+    }
+
+    function calcScore(counts) {
+        const applicable = counts.pass + counts.warn + counts.fail;
+        if (applicable === 0) return 100;
+        return Math.round(((counts.pass + counts.warn * 0.5) / applicable) * 100);
+    }
+
+    function riskLevel(score) {
+        if (score >= 90) return { text: '✅ Low Risk', color: 'var(--success)', detail: 'Print run meets regulatory requirements. Suitable for intended use with standard documentation.' };
+        if (score >= 70) return { text: '⚠️ Medium Risk', color: 'var(--warning)', detail: 'Some compliance gaps identified. Review warnings and address before proceeding.' };
+        if (score >= 50) return { text: '🟠 High Risk', color: '#fb923c', detail: 'Significant compliance issues. Corrective actions required before use.' };
+        return { text: '🔴 Critical Risk', color: 'var(--error)', detail: 'Major regulatory violations. Do not use for intended application without remediation.' };
+    }
+
+    // ── Render Results ──────────────────────────────────
+    function renderResults(results) {
+        const counts = countResults(results);
+        const score = calcScore(counts);
+        const total = results.length;
+        const risk = riskLevel(score);
+
+        // Score ring
+        const arc = document.getElementById('score-arc');
+        const offset = 113.1 * (1 - score / 100);
+        arc.style.strokeDashoffset = offset;
+        arc.style.stroke = risk.color;
+        document.getElementById('score-pct').textContent = score + '%';
+        document.getElementById('score-pct').style.color = risk.color;
+
+        // Summary bar
+        const bar = document.getElementById('summary-bar');
+        bar.innerHTML = ['pass', 'warn', 'fail'].map(s =>
+            `<div class="seg ${s}" style="width:${(counts[s]/total*100).toFixed(1)}%"></div>`
+        ).join('');
+
+        // Counts
+        document.getElementById('count-pass').textContent = `${counts.pass} Passed`;
+        document.getElementById('count-warn').textContent = `${counts.warn} Warnings`;
+        document.getElementById('count-fail').textContent = `${counts.fail} Failed`;
+        document.getElementById('count-na').textContent = `${counts.na} N/A`;
+
+        // Risk
+        document.getElementById('risk-level').textContent = risk.text;
+        document.getElementById('risk-level').style.color = risk.color;
+        document.getElementById('risk-detail').textContent = risk.detail;
+
+        // Checklist
+        renderChecklist(results);
+
+        document.getElementById('score-section').style.display = 'block';
+        document.getElementById('checks-section').style.display = 'block';
+    }
+
+    function renderChecklist(results) {
+        const list = document.getElementById('check-list');
+        const filtered = results.filter(r => {
+            if (activeTab === 'all') return true;
+            if (activeTab === 'fail') return r.result.status === 'fail' || r.result.status === 'warn';
+            return r.standard === activeTab;
+        });
+
+        const icons = { pass: '✓', warn: '!', fail: '✗', na: '—' };
+        list.innerHTML = filtered.map(r => `
+            <li class="check-item">
+                <div class="check-icon ${r.result.status}">${icons[r.result.status]}</div>
+                <div class="check-text">
+                    <div class="title">${esc(r.title)}</div>
+                    <div class="detail">${esc(r.result.detail)}</div>
+                    <div class="ref">${esc(r.result.ref)}</div>
+                </div>
+            </li>
+        `).join('');
+
+        if (filtered.length === 0) {
+            list.innerHTML = '<li class="check-item"><div class="check-text"><div class="title" style="color:var(--muted)">No checks match this filter.</div></div></li>';
+        }
+    }
+
+    function showTab(tab) {
+        activeTab = tab;
+        document.querySelectorAll('#std-tabs button').forEach(b => b.classList.remove('active'));
+        event.target.classList.add('active');
+        if (lastResult) renderChecklist(lastResult.results);
+    }
+
+    // ── Batch Rendering ──────────────────────────────
+    function renderBatch(batchResults) {
+        const tbody = document.getElementById('batch-body');
+        tbody.innerHTML = batchResults.map(b => `
+            <tr>
+                <td>Print #${b.idx + 1}</td>
+                <td><span class="badge ${b.score >= 90 ? 'pass' : b.score >= 70 ? 'warn' : 'fail'}">${b.score}%</span></td>
+                <td>${b.counts.pass}</td>
+                <td>${b.counts.warn}</td>
+                <td>${b.counts.fail}</td>
+                <td>${riskLevel(b.score).text}</td>
+                <td style="font-size:0.8rem;color:var(--muted)">${b.topIssue ? esc(b.topIssue.title) : '—'}</td>
+            </tr>
+        `).join('');
+
+        // Batch summary bar
+        const total = batchResults.length;
+        const low = batchResults.filter(b => b.score >= 90).length;
+        const med = batchResults.filter(b => b.score >= 70 && b.score < 90).length;
+        const high = batchResults.filter(b => b.score < 70).length;
+        document.getElementById('batch-bar').innerHTML = `
+            <div class="seg pass" style="width:${(low/total*100).toFixed(1)}%"></div>
+            <div class="seg warn" style="width:${(med/total*100).toFixed(1)}%"></div>
+            <div class="seg fail" style="width:${(high/total*100).toFixed(1)}%"></div>
+        `;
+        document.getElementById('batch-legend').innerHTML = `
+            <span class="l-pass">${low} Low Risk</span>
+            <span class="l-warn">${med} Medium Risk</span>
+            <span class="l-fail">${high} High Risk</span>
+        `;
+    }
+
+    // ── Export ──────────────────────────────────
+    function exportCSV() {
+        if (!lastResult) return;
+        const rows = [['Check', 'Standard', 'Status', 'Detail', 'Reference']];
+        lastResult.results.forEach(r => {
+            rows.push([r.title, r.standard.toUpperCase(), r.result.status, r.result.detail, r.result.ref]);
+        });
+        const csv = rows.map(r => r.map(c => `"${(c||'').replace(/"/g, '""')}"`).join(',')).join('\n');
+        download('compliance-report.csv', csv, 'text/csv');
+    }
+
+    function exportJSON() {
+        if (!lastResult) return;
+        const obj = {
+            printIndex: lastResult.printIdx,
+            intendedUse: lastResult.use,
+            score: calcScore(countResults(lastResult.results)),
+            checks: lastResult.results.map(r => ({
+                id: r.id, title: r.title, standard: r.standard,
+                status: r.result.status, detail: r.result.detail, ref: r.result.ref
+            }))
+        };
+        download('compliance-report.json', JSON.stringify(obj, null, 2), 'application/json');
+    }
+
+    function download(filename, content, type) {
+        const blob = new Blob([content], { type });
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = filename;
+        a.click();
+        URL.revokeObjectURL(a.href);
+    }
+
+    function esc(s) {
+        const d = document.createElement('div');
+        d.textContent = s || '';
+        return d.innerHTML;
+    }
+
+    // ── Init ──────────────────────────────────
+    loadData();
+    </script>
+</body>
+</html>
