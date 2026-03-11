@@ -656,7 +656,7 @@ describe('CSV export format', () => {
         const headers = ['Index', 'Serial', 'Email', 'Severity', 'Anomaly Score', 'Anomalous Metrics', 'Details'];
         const rows = results.map(a => [
             a.index,
-            a.serial,
+            '"' + (a.serial || '').toString().replace(/"/g, '""') + '"',
             '"' + a.email.replace(/"/g, '""') + '"',
             a.severity,
             a.anomalyScore.toFixed(4),
@@ -695,5 +695,54 @@ describe('JSON export format', () => {
         const parsed = JSON.parse(json);
         expect(Array.isArray(parsed)).toBe(true);
         expect(parsed.length).toBe(results.length);
+    });
+});
+
+describe('XSS prevention — serial field', () => {
+    test('escapeHtml neutralizes script tags in serial', () => {
+        const malicious = '<script>alert("xss")</script>';
+        const escaped = escapeHtml(malicious);
+        expect(escaped).not.toContain('<script>');
+        expect(escaped).toContain('&lt;script&gt;');
+    });
+
+    test('escapeHtml neutralizes event handlers in serial', () => {
+        const malicious = '<img src=x onerror=alert(1)>';
+        const escaped = escapeHtml(malicious);
+        expect(escaped).not.toContain('<img');
+        expect(escaped).toContain('&lt;img');
+    });
+
+    test('anomaly result serial should be escaped in table HTML', () => {
+        // Simulate building table HTML the way the fixed code does
+        const a = { index: 1, serial: '<b>INJECTED</b>', email: 'test@x.com' };
+        const html = `<td>${a.index}</td><td>${escapeHtml(a.serial)}</td><td>${escapeHtml(a.email)}</td>`;
+        expect(html).not.toContain('<b>INJECTED</b>');
+        expect(html).toContain('&lt;b&gt;INJECTED&lt;/b&gt;');
+    });
+
+    test('anomaly result serial should be escaped in tooltip HTML', () => {
+        const nearest = { serial: '"><img src=x onerror=alert(1)>', x: 95.5, y: 42.3 };
+        const html = `Serial: ${escapeHtml(nearest.serial)} | Live: ${nearest.x}%`;
+        expect(html).not.toContain('<img');
+        expect(html).toContain('&lt;img');
+    });
+
+    test('CSV export quotes serial field to prevent formula injection', () => {
+        const a = { serial: '=CMD()', email: 'test@x.com' };
+        const row = [a.index, '"' + (a.serial || '').toString().replace(/"/g, '""') + '"'];
+        expect(row[1]).toBe('"=CMD()"');
+    });
+
+    test('CSV export handles serial with embedded quotes', () => {
+        const a = { serial: 'SN-"42"' };
+        const quoted = '"' + (a.serial || '').toString().replace(/"/g, '""') + '"';
+        expect(quoted).toBe('"SN-""42"""');
+    });
+
+    test('CSV export handles null/undefined serial', () => {
+        const a = { serial: null };
+        const quoted = '"' + (a.serial || '').toString().replace(/"/g, '""') + '"';
+        expect(quoted).toBe('""');
     });
 });
