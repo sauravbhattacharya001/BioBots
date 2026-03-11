@@ -1057,7 +1057,7 @@
 
         const tip = document.getElementById('scatterTooltip');
         if (nearest) {
-            let html = `Serial: ${nearest.serial} | Live: ${formatNum(nearest.x)}% | Elasticity: ${formatNum(nearest.y)} kPa`;
+            let html = `Serial: ${escapeHtml(nearest.serial)} | Live: ${formatNum(nearest.x)}% | Elasticity: ${formatNum(nearest.y)} kPa`;
             if (nearest.isAnomaly) {
                 html += `<br><span style="color:var(--error)">⚠️ ${nearest.anomaly.severity.toUpperCase()} anomaly (${nearest.anomaly.metricCount} metric${nearest.anomaly.metricCount > 1 ? 's' : ''})</span>`;
             }
@@ -1332,7 +1332,7 @@
 
             tr.innerHTML = `
                 <td>${a.index}</td>
-                <td>${a.serial}</td>
+                <td>${escapeHtml(a.serial)}</td>
                 <td>${escapeHtml(a.email)}</td>
                 <td><span class="severity-badge ${severityClass}">${severityLabel}</span></td>
                 <td>${a.anomalyScore.toFixed(2)}</td>
@@ -1390,7 +1390,7 @@
         const headers = ['Index', 'Serial', 'Email', 'Severity', 'Anomaly Score', 'Anomalous Metrics', 'Details'];
         const rows = anomalyResults.map(a => [
             a.index,
-            a.serial,
+            '"' + (a.serial || '').replace(/"/g, '""') + '"',
             '"' + a.email.replace(/"/g, '""') + '"',
             a.severity,
             a.anomalyScore.toFixed(4),
