@@ -526,25 +526,30 @@
         // ── Tab switching ───────────────────────────────────────
 
         window.switchTab = function(tabId) {
-            document.querySelectorAll('.tab-btn').forEach(function(btn) { btn.classList.remove('active'); });
-            document.querySelectorAll('.tab-content').forEach(function(tc) { tc.classList.remove('active'); });
-            document.getElementById('tab-' + tabId).classList.add('active');
-            // Activate matching button
-            document.querySelectorAll('.tab-btn').forEach(function(btn) {
-                if (btn.textContent.toLowerCase().indexOf(tabId.substring(0, 4)) !== -1 ||
+            var btns = document.querySelectorAll('.tab-btn');
+            btns.forEach(function(btn) {
+                var match = btn.textContent.toLowerCase().indexOf(tabId.substring(0, 4)) !== -1 ||
                     (tabId === 'register' && btn.textContent.indexOf('Register') !== -1) ||
                     (tabId === 'inventory' && btn.textContent.indexOf('Inventory') !== -1) ||
                     (tabId === 'materials' && btn.textContent.indexOf('Material Guide') !== -1) ||
-                    (tabId === 'degradation' && btn.textContent.indexOf('Degradation') !== -1)) {
-                    btn.classList.add('active');
-                }
+                    (tabId === 'degradation' && btn.textContent.indexOf('Degradation') !== -1);
+                btn.classList.toggle('active', match);
             });
+            document.querySelectorAll('.tab-content').forEach(function(tc) { tc.classList.remove('active'); });
+            document.getElementById('tab-' + tabId).classList.add('active');
             if (tabId === 'degradation') populateCurveBatchSelect();
         };
 
         // ── Refresh all views ───────────────────────────────────
 
+        // Cache shelf-life results to avoid redundant computation across render passes
+        var _slCache = [];
+
         function refresh() {
+            // Compute shelf life once per batch, reuse across all render functions
+            _slCache = batches.map(function(b) {
+                return { batch: b, sl: calcShelfLife(b) };
+            });
             renderSummary();
             renderAlerts();
             renderInventory();
@@ -552,8 +557,9 @@
 
         function renderSummary() {
             var totalVol = 0, totalVal = 0, expiring = 0, expired = 0;
-            batches.forEach(function(b) {
-                var sl = calcShelfLife(b);
+            _slCache.forEach(function(item) {
+                var sl = item.sl;
+                var b = item.batch;
                 if (!sl) return;
                 if (sl.status !== 'expired') {
                     totalVol += b.remainingMl;
@@ -572,27 +578,27 @@
 
         function renderAlerts() {
             var container = document.getElementById('alertsContainer');
-            container.innerHTML = '';
-            batches.forEach(function(b) {
-                var sl = calcShelfLife(b);
+            var parts = [];
+            _slCache.forEach(function(item) {
+                var sl = item.sl;
+                var b = item.batch;
                 if (!sl) return;
                 var mat = materials[b.materialId];
                 var name = mat ? mat.name : b.materialId;
                 if (sl.status === 'expired') {
-                    container.innerHTML += '<div class="alert alert-urgent">⚠️ <strong>Batch #' + b.id + ' (' + esc(name) + ')</strong> — EXPIRED. Discard or verify quality before use.</div>';
+                    parts.push('<div class="alert alert-urgent">⚠️ <strong>Batch #' + b.id + ' (' + esc(name) + ')</strong> — EXPIRED. Discard or verify quality before use.</div>');
                 } else if (sl.status === 'urgent') {
-                    container.innerHTML += '<div class="alert alert-urgent">🔴 <strong>Batch #' + b.id + ' (' + esc(name) + ')</strong> — Expires in ' + sl.remaining + ' days. Use immediately.</div>';
+                    parts.push('<div class="alert alert-urgent">🔴 <strong>Batch #' + b.id + ' (' + esc(name) + ')</strong> — Expires in ' + sl.remaining + ' days. Use immediately.</div>');
                 }
             });
+            container.innerHTML = parts.join('');
         }
 
         window.renderInventory = function() {
             var statusFilter = document.getElementById('filterStatus').value;
             var matFilter = document.getElementById('filterMaterial').value;
 
-            var items = batches.map(function(b) {
-                return { batch: b, sl: calcShelfLife(b) };
-            }).filter(function(item) {
+            var items = _slCache.filter(function(item) {
                 if (!item.sl) return false;
                 if (statusFilter !== 'all' && item.sl.status !== statusFilter) return false;
                 if (matFilter !== 'all' && item.batch.materialId !== matFilter) return false;
