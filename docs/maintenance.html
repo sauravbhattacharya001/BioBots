@@ -529,7 +529,7 @@
                 html += '<div class="tl-entry type-' + escHtml(e.type) + '"><div class="tl-header"><span class="tl-type"><span class="tag tag-' + escHtml(e.type) + '">' + TYPE_LABELS[e.type] + '</span>' + costStr + '</span><span class="tl-date">' + d.toLocaleDateString() + '</span></div>' +
                     (e.printer ? '<div class="tl-notes">Printer: ' + escHtml(e.printer) + '</div>' : '') +
                     (e.notes ? '<div class="tl-notes">' + escHtml(e.notes) + '</div>' : '') +
-                    '<div class="tl-actions"><button class="btn btn-outline" style="padding:0.25rem 0.6rem;font-size:0.75rem;" onclick="deleteEvent(\'' + e.id + '\')">Delete</button></div></div>';
+                    '<div class="tl-actions"><button class="btn btn-outline" style="padding:0.25rem 0.6rem;font-size:0.75rem;" onclick="deleteEvent(\'' + escHtml(e.id) + '\')">Delete</button></div></div>';
             }
             html += '</div>';
             container.innerHTML = html;
@@ -721,7 +721,7 @@
                     if (!Array.isArray(imported)) { alert('Invalid format: expected JSON array.'); return; }
                     var existingIds = {}; for (var i = 0; i < events.length; i++) existingIds[events[i].id] = true;
                     var added = 0;
-                    for (var j = 0; j < imported.length; j++) { var item = imported[j]; if (!item.id) item.id = generateId(); if (!existingIds[item.id]) { events.push(item); added++; } }
+                    for (var j = 0; j < imported.length; j++) { var item = imported[j]; if (!item.id || typeof item.id !== 'string' || !/^[a-zA-Z0-9_-]+$/.test(item.id)) item.id = generateId(); if (typeof item.notes === 'string') item.notes = item.notes.slice(0, 2000); if (!existingIds[item.id]) { events.push(item); added++; } }
                     saveEvents(); refresh(); alert('Imported ' + added + ' event(s).');
                 } catch (err) { alert('Failed to parse JSON file.'); }
             };

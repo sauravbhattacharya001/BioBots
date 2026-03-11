@@ -424,6 +424,9 @@
     // Save/restore wizard state from localStorage
     var STORAGE_KEY = 'biobots_calibration';
 
+    var _escEl = document.createElement('div');
+    function escHtml(s) { _escEl.textContent = s; return _escEl.innerHTML; }
+
     function saveState() {
         try {
             localStorage.setItem(STORAGE_KEY, JSON.stringify({
@@ -832,7 +835,7 @@
 
             var wrapper = document.createElement('div');
             wrapper.style.cssText = 'margin-bottom:1.5rem;';
-            wrapper.innerHTML = '<h3 style="font-size:0.9rem;margin-bottom:0.5rem;">' + paramName + '</h3>';
+            wrapper.innerHTML = '<h3 style="font-size:0.9rem;margin-bottom:0.5rem;">' + escHtml(paramName) + '</h3>';
 
             var canvas = document.createElement('canvas');
             canvas.width = 400;
