@@ -314,4 +314,271 @@ describe('createParameterOptimizer', () => {
       expect(() => narrowOpt.evaluate({ ...BASE_PARAMS, speed: 2 })).toThrow(/out of range/);
     });
   });
+
+
+  // ── Additional Tests ─────────────────────────────────────────────
+
+  describe('getWeights', () => {
+    test('returns default weights', () => {
+      const w = opt.getWeights();
+      expect(w.viability).toBe(0.30);
+      expect(w.structural).toBe(0.25);
+      expect(w.resolution).toBe(0.25);
+      expect(w.throughput).toBe(0.20);
+    });
+
+    test('returns a copy not a reference', () => {
+      const w1 = opt.getWeights();
+      w1.viability = 999;
+      const w2 = opt.getWeights();
+      expect(w2.viability).toBe(0.30);
+    });
+  });
+
+  describe('getConstraints', () => {
+    test('returns all 6 parameter constraints', () => {
+      const c = opt.getConstraints();
+      expect(Object.keys(c)).toHaveLength(6);
+      for (const key of Object.keys(PARAMETER_DEFS)) {
+        expect(c[key].min).toBeDefined();
+        expect(c[key].max).toBeDefined();
+      }
+    });
+
+    test('returns a deep copy', () => {
+      const c1 = opt.getConstraints();
+      c1.speed.min = 999;
+      const c2 = opt.getConstraints();
+      expect(c2.speed.min).toBe(PARAMETER_DEFS.speed.min);
+    });
+  });
+
+  describe('getHistory', () => {
+    test('starts empty', () => {
+      expect(opt.getHistory()).toHaveLength(0);
+    });
+
+    test('accumulates grid search entries', () => {
+      opt.gridSearch({ steps: 2 });
+      opt.gridSearch({ steps: 2, fixedParams: { speed: 10 } });
+      const h = opt.getHistory();
+      expect(h).toHaveLength(2);
+      expect(h[0].method).toBe('gridSearch');
+      expect(h[1].fixedParams.speed).toBe(10);
+    });
+  });
+
+  describe('scoring edge cases', () => {
+    test('viabilityScore at minimum pressure returns > 0.5', () => {
+      const score = viabilityScore({ ...BASE_PARAMS, pressure: 5, speed: 1 });
+      expect(score).toBeGreaterThan(0.5);
+    });
+
+    test('viabilityScore at maximum pressure is lower than at minimum', () => {
+      const high = viabilityScore({ ...BASE_PARAMS, pressure: 300, speed: 50 });
+      const low = viabilityScore({ ...BASE_PARAMS, pressure: 5, speed: 1 });
+      expect(high).toBeLessThan(low);
+    });
+
+    test('structuralScore with 100% infill returns > 0.5', () => {
+      const score = structuralScore({ ...BASE_PARAMS, infill: 100, speed: 1 });
+      expect(score).toBeGreaterThan(0.5);
+    });
+
+    test('resolutionScore with smallest nozzle+layer is near 1.0', () => {
+      const score = resolutionScore({ ...BASE_PARAMS, nozzleDiameter: 0.1, layerHeight: 0.05, speed: 1 });
+      expect(score).toBeGreaterThan(0.8);
+    });
+
+    test('throughputScore with largest+fastest params is near 1.0', () => {
+      const score = throughputScore({ ...BASE_PARAMS, speed: 50, nozzleDiameter: 1.5, layerHeight: 1.0 });
+      expect(score).toBeGreaterThan(0.8);
+    });
+
+    test('throughputScore with slowest+smallest params is near 0', () => {
+      const score = throughputScore({ ...BASE_PARAMS, speed: 1, nozzleDiameter: 0.1, layerHeight: 0.05 });
+      expect(score).toBeLessThan(0.1);
+    });
+  });
+
+  describe('sensitivityAnalysis details', () => {
+    test('peakValue differs from baseValue for some params', () => {
+      const result = opt.sensitivityAnalysis(BASE_PARAMS);
+      const hasDifferentPeak = result.ranking.some(r => r.peakValue !== r.baseValue);
+      expect(hasDifferentPeak).toBe(true);
+    });
+
+    test('custom delta changes sweep range', () => {
+      const narrow = opt.sensitivityAnalysis(BASE_PARAMS, { delta: 0.05, steps: 5 });
+      const wide = opt.sensitivityAnalysis(BASE_PARAMS, { delta: 0.3, steps: 5 });
+      // Wider delta should generally produce larger ranges
+      const narrowMax = Math.max(...narrow.ranking.map(r => r.range));
+      const wideMax = Math.max(...wide.ranking.map(r => r.range));
+      expect(wideMax).toBeGreaterThanOrEqual(narrowMax);
+    });
+
+    test('each sweep entry has value, composite, delta fields', () => {
+      const result = opt.sensitivityAnalysis(BASE_PARAMS, { steps: 5 });
+      for (const r of result.ranking) {
+        for (const entry of r.sweep) {
+          expect(entry).toHaveProperty('value');
+          expect(entry).toHaveProperty('composite');
+          expect(entry).toHaveProperty('delta');
+          expect(typeof entry.value).toBe('number');
+        }
+      }
+    });
+  });
+
+  describe('paretoFront edge cases', () => {
+    test('pareto with empty results returns empty front', () => {
+      const result = opt.paretoFront([]);
+      expect(result.front).toHaveLength(0);
+      expect(result.frontSize).toBe(0);
+    });
+
+    test('pareto with single result returns it as the front', () => {
+      const eval1 = opt.evaluate(BASE_PARAMS);
+      const result = opt.paretoFront([eval1]);
+      expect(result.frontSize).toBe(1);
+    });
+
+    test('pareto with custom objectives', () => {
+      const search = opt.gridSearch({ steps: 3 });
+      const result = opt.paretoFront(search.top5, 'structural', 'resolution');
+      expect(result.objective1).toBe('structural');
+      expect(result.objective2).toBe('resolution');
+    });
+  });
+
+  describe('fullOptimize', () => {
+    test('returns all three analysis components', () => {
+      const result = opt.fullOptimize({ steps: 3 });
+      expect(result.search).toBeDefined();
+      expect(result.sensitivity).toBeDefined();
+      expect(result.pareto).toBeDefined();
+    });
+
+    test('pareto uses custom objectives when provided', () => {
+      const result = opt.fullOptimize({
+        steps: 3,
+        paretoObj1: 'structural',
+        paretoObj2: 'resolution'
+      });
+      expect(result.pareto.objective1).toBe('structural');
+      expect(result.pareto.objective2).toBe('resolution');
+    });
+
+    test('cleans up _allResults from history', () => {
+      opt.fullOptimize({ steps: 3 });
+      const history = opt.getHistory();
+      const lastEntry = history[history.length - 1];
+      expect(lastEntry._allResults).toBeUndefined();
+    });
+  });
+
+  describe('compare', () => {
+    test('compare detects parameter and score differences', () => {
+      const paramsA = { ...BASE_PARAMS, speed: 5 };
+      const paramsB = { ...BASE_PARAMS, speed: 45 };
+      const result = opt.compare(paramsA, paramsB);
+      expect(result.paramDiff.speed.delta).toBe(40);
+      expect(result.a.scores.composite).not.toBe(result.b.scores.composite);
+    });
+
+    test('compare identical params has zero deltas', () => {
+      const result = opt.compare(BASE_PARAMS, { ...BASE_PARAMS });
+      expect(result.paramDiff.speed.delta).toBe(0);
+      expect(result.scoreDiff.composite.delta).toBeCloseTo(0, 10);
+    });
+  });
+
+  describe('textReport', () => {
+    test('includes all report sections', () => {
+      const result = opt.fullOptimize({ steps: 3 });
+      const report = opt.textReport(result);
+      expect(report).toContain('OPTIMAL PARAMETERS');
+      expect(report).toContain('SCORES');
+      expect(report).toContain('SENSITIVITY RANKING');
+      expect(report).toContain('PARETO FRONT');
+      expect(report).toContain('Cell Viability');
+      expect(report).toContain('COMPOSITE');
+    });
+
+    test('report includes parameter units', () => {
+      const result = opt.fullOptimize({ steps: 3 });
+      const report = opt.textReport(result);
+      expect(report).toContain('mm/s');
+      expect(report).toContain('kPa');
+    });
+  });
+
+  describe('forBioink factory', () => {
+    test('all 6 presets create valid optimizers', () => {
+      const presetKeys = Object.keys(BIOINK_PRESETS);
+      expect(presetKeys).toHaveLength(6);
+      for (const key of presetKeys) {
+        const bioOpt = opt.forBioink(key);
+        expect(() => bioOpt.evaluate({
+          speed: 5,
+          pressure: 30,
+          temperature: 25,
+          nozzleDiameter: 0.4,
+          layerHeight: 0.2,
+          infill: 50
+        })).not.toThrow();
+      }
+    });
+
+    test('bioink constraints limit search space', () => {
+      const colOpt = opt.forBioink('collagen');
+      const c = colOpt.getConstraints();
+      expect(c.temperature.max).toBeLessThanOrEqual(25);
+      expect(c.pressure.max).toBeLessThanOrEqual(80);
+    });
+
+    test('bioink optimizer uses bioink-specific weights', () => {
+      const gelOpt = createParameterOptimizer({
+        weights: BIOINK_PRESETS.gelatin_methacrylate.weights
+      });
+      const w = gelOpt.getWeights();
+      expect(w.viability).toBe(0.35);
+    });
+  });
+
+  describe('evaluate edge cases', () => {
+    test('minimum valid params do not throw', () => {
+      const minParams = {
+        speed: 1,
+        pressure: 5,
+        temperature: 4,
+        nozzleDiameter: 0.1,
+        layerHeight: 0.05,
+        infill: 10,
+      };
+      expect(() => opt.evaluate(minParams)).not.toThrow();
+    });
+
+    test('maximum valid params do not throw', () => {
+      const maxParams = {
+        speed: 50,
+        pressure: 300,
+        temperature: 42,
+        nozzleDiameter: 1.5,
+        layerHeight: 1.0,
+        infill: 100,
+      };
+      expect(() => opt.evaluate(maxParams)).not.toThrow();
+    });
+
+    test('composite score is between 0 and 1', () => {
+      const minParams = { speed: 1, pressure: 5, temperature: 4, nozzleDiameter: 0.1, layerHeight: 0.05, infill: 10 };
+      const maxParams = { speed: 50, pressure: 300, temperature: 42, nozzleDiameter: 1.5, layerHeight: 1.0, infill: 100 };
+      expect(opt.evaluate(minParams).scores.composite).toBeGreaterThanOrEqual(0);
+      expect(opt.evaluate(minParams).scores.composite).toBeLessThanOrEqual(1);
+      expect(opt.evaluate(maxParams).scores.composite).toBeGreaterThanOrEqual(0);
+      expect(opt.evaluate(maxParams).scores.composite).toBeLessThanOrEqual(1);
+    });
+  });
+
 });

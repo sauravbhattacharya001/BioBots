@@ -298,7 +298,6 @@ class ProtocolLibrary {
     if (!source) throw new Error(`Protocol not found: ${sourceId}`);
 
     const newId = overrides.id || `${source.id}-custom-${Date.now()}`;
-    if (this.getById(newId)) throw new Error(`Protocol ID already exists: ${newId}`);
 
     const cloned = {
       ...JSON.parse(JSON.stringify(source)),
@@ -309,13 +308,7 @@ class ProtocolLibrary {
       _createdAt: new Date().toISOString()
     };
 
-    const validation = validateParameters(cloned.parameters);
-    if (!validation.valid) {
-      throw new Error(`Invalid parameters: ${validation.errors.map(e => e.message).join('; ')}`);
-    }
-
-    this._custom.push(cloned);
-    return cloned;
+    return this._addCustomProtocol(cloned);
   }
 
   /** Remove a custom protocol. Built-in protocols cannot be removed. */
@@ -328,6 +321,28 @@ class ProtocolLibrary {
       throw new Error(`Protocol not found: ${id}`);
     }
     return this._custom.splice(idx, 1)[0];
+  }
+
+  /**
+   * Internal: validate and register a custom protocol.
+   * Shared by clone() and importJSON() to avoid duplicated
+   * ID-uniqueness checking, parameter validation, and array insertion.
+   * @param {Object} data - Full protocol object with id, name, parameters.
+   * @returns {Object} The added protocol.
+   */
+  _addCustomProtocol(data) {
+    if (!data.id || !data.name || !data.parameters) {
+      throw new Error('Missing required fields: id, name, parameters');
+    }
+    if (this.getById(data.id)) {
+      throw new Error(`Protocol ID already exists: ${data.id}`);
+    }
+    const validation = validateParameters(data.parameters);
+    if (!validation.valid) {
+      throw new Error(`Invalid parameters: ${validation.errors.map(e => e.message).join('; ')}`);
+    }
+    this._custom.push(data);
+    return data;
   }
 
   /** Compare two protocols side-by-side. */
@@ -412,17 +427,7 @@ class ProtocolLibrary {
     } catch (e) {
       throw new Error('Invalid JSON');
     }
-    if (!data.id || !data.name || !data.parameters) {
-      throw new Error('Missing required fields: id, name, parameters');
-    }
-    if (this.getById(data.id)) {
-      throw new Error(`Protocol ID already exists: ${data.id}`);
-    }
-    const validation = validateParameters(data.parameters);
-    if (!validation.valid) {
-      throw new Error(`Invalid parameters: ${validation.errors.map(e => e.message).join('; ')}`);
-    }
-    // Ensure required fields
+    // Ensure required fields with defaults
     data.materials = data.materials || [];
     data.postProcessing = data.postProcessing || [];
     data.tags = data.tags || [];
@@ -431,8 +436,7 @@ class ProtocolLibrary {
     data.estimatedTime = data.estimatedTime || 0;
     data.citations = data.citations || [];
     data._importedAt = new Date().toISOString();
-    this._custom.push(data);
-    return data;
+    return this._addCustomProtocol(data);
   }
 }
 
