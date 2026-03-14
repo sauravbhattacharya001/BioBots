@@ -1,778 +1,383 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>BioBots 1 - Print Success Predictor</title>
-    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧬</text></svg>">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Print Outcome Predictor — BioBots</title>
     <style>
         :root {
-            --bg: #0f172a;
-            --surface: #1e293b;
-            --border: #334155;
-            --text: #e2e8f0;
-            --muted: #94a3b8;
-            --accent: #38bdf8;
-            --accent-hover: #7dd3fc;
-            --success: #4ade80;
-            --warning: #fbbf24;
-            --error: #f87171;
+            --bg: #0f172a; --surface: #1e293b; --border: #334155;
+            --text: #e2e8f0; --muted: #94a3b8; --accent: #3b82f6;
+            --accent-hover: #2563eb; --green: #22c55e; --red: #ef4444;
+            --yellow: #eab308; --radius: 8px;
         }
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: var(--bg);
-            color: var(--text);
-            min-height: 100vh;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            padding: 2rem 1rem;
-        }
-        .container { width: 100%; max-width: 800px; }
-        h1 {
-            font-size: 1.8rem;
-            font-weight: 700;
-            background: linear-gradient(135deg, var(--accent), var(--success));
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-            text-align: center;
-            margin-bottom: 0.5rem;
-        }
-        .subtitle {
-            text-align: center;
-            color: var(--muted);
-            margin-bottom: 2rem;
-            font-size: 0.95rem;
-        }
-        .nav {
-            display: flex;
-            gap: 0.5rem;
-            flex-wrap: wrap;
-            justify-content: center;
-            margin-bottom: 2rem;
-        }
-        .nav a {
-            color: var(--muted);
-            padding: 0.5rem 1rem;
-            border-radius: 8px;
-            text-decoration: none;
-            font-size: 0.9rem;
-            transition: all 0.2s;
-        }
-        .nav a:hover { color: var(--text); background: var(--surface); }
-        .nav a.active {
-            color: var(--accent);
-            background: var(--surface);
-            border: 1px solid var(--border);
-        }
-        .card {
-            background: var(--surface);
-            border: 1px solid var(--border);
-            border-radius: 16px;
-            padding: 2rem;
-            margin-bottom: 1.5rem;
-        }
-        .card h2 {
-            font-size: 1.1rem;
-            margin-bottom: 1rem;
-            color: var(--muted);
-            font-weight: 500;
-        }
-        .param-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 1rem;
-        }
-        @media (max-width: 600px) {
-            .param-grid { grid-template-columns: 1fr; }
-        }
-        .form-group { display: flex; flex-direction: column; gap: 0.3rem; }
-        .form-group label {
-            font-size: 0.8rem;
-            color: var(--muted);
-            font-weight: 500;
-        }
-        .form-group .hint {
-            font-size: 0.7rem;
-            color: var(--muted);
-            opacity: 0.7;
-        }
-        input[type="number"], select {
-            background: var(--bg);
-            border: 1px solid var(--border);
-            color: var(--text);
-            padding: 0.5rem 0.7rem;
-            border-radius: 8px;
-            font-size: 0.9rem;
-            outline: none;
-            transition: border-color 0.2s;
-            width: 100%;
-        }
-        input:focus, select:focus { border-color: var(--accent); }
-        .btn-row {
-            display: flex;
-            gap: 0.5rem;
-            margin-top: 1.5rem;
-            flex-wrap: wrap;
-        }
-        button {
-            border: none;
-            padding: 0.6rem 1.2rem;
-            border-radius: 8px;
-            font-size: 0.9rem;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.2s;
-        }
-        .btn-primary {
-            background: var(--accent);
-            color: var(--bg);
-        }
-        .btn-primary:hover { background: var(--accent-hover); transform: translateY(-1px); }
-        .btn-outline {
-            background: transparent;
-            color: var(--muted);
-            border: 1px solid var(--border);
-        }
-        .btn-outline:hover { color: var(--text); border-color: var(--muted); }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
 
-        /* Results */
+        .header { background: var(--surface); border-bottom: 1px solid var(--border); padding: 20px 32px; }
+        .header h1 { font-size: 24px; font-weight: 700; }
+        .header h1 span { color: var(--accent); }
+        .header p { color: var(--muted); margin-top: 4px; font-size: 14px; }
+
+        .container { max-width: 1200px; margin: 0 auto; padding: 32px; display: grid; grid-template-columns: 1fr 1fr; gap: 32px; }
+        @media (max-width: 800px) { .container { grid-template-columns: 1fr; padding: 16px; } }
+
+        .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 24px; }
+        .card h2 { font-size: 18px; font-weight: 600; margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
+
+        .param-group { margin-bottom: 20px; }
+        .param-group label { display: block; font-size: 13px; color: var(--muted); margin-bottom: 6px; font-weight: 500; }
+        .param-group .input-row { display: flex; align-items: center; gap: 12px; }
+        .param-group input[type="range"] { flex: 1; accent-color: var(--accent); }
+        .param-group input[type="number"] { width: 90px; background: var(--bg); border: 1px solid var(--border); border-radius: 4px; color: var(--text); padding: 6px 8px; font-size: 14px; text-align: right; }
+        .param-group input[type="number"]:focus { outline: none; border-color: var(--accent); }
+        .param-group .range-label { font-size: 11px; color: var(--muted); margin-top: 2px; }
+
+        .toggle-row { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; }
+        .toggle { position: relative; width: 44px; height: 24px; cursor: pointer; }
+        .toggle input { opacity: 0; width: 0; height: 0; }
+        .toggle .slider { position: absolute; inset: 0; background: var(--border); border-radius: 12px; transition: .2s; }
+        .toggle .slider::before { content: ''; position: absolute; width: 18px; height: 18px; left: 3px; bottom: 3px; background: var(--text); border-radius: 50%; transition: .2s; }
+        .toggle input:checked + .slider { background: var(--accent); }
+        .toggle input:checked + .slider::before { transform: translateX(20px); }
+
+        .k-selector { display: flex; align-items: center; gap: 10px; margin-bottom: 20px; }
+        .k-selector label { font-size: 13px; color: var(--muted); font-weight: 500; }
+        .k-selector select { background: var(--bg); border: 1px solid var(--border); border-radius: 4px; color: var(--text); padding: 6px 10px; font-size: 14px; }
+
+        .btn { display: inline-flex; align-items: center; gap: 8px; padding: 12px 28px; background: var(--accent); color: #fff; border: none; border-radius: var(--radius); font-size: 15px; font-weight: 600; cursor: pointer; transition: background .2s; width: 100%; justify-content: center; }
+        .btn:hover { background: var(--accent-hover); }
+        .btn:disabled { opacity: .5; cursor: not-allowed; }
+
         .results { display: none; }
         .results.visible { display: block; }
-        .prediction-cards {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 1rem;
-            margin-bottom: 1.5rem;
-        }
-        @media (max-width: 500px) {
-            .prediction-cards { grid-template-columns: 1fr; }
-        }
-        .pred-card {
-            background: var(--bg);
-            border: 1px solid var(--border);
-            border-radius: 12px;
-            padding: 1.2rem;
-            text-align: center;
-        }
-        .pred-card .pred-label {
-            font-size: 0.8rem;
-            color: var(--muted);
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-            margin-bottom: 0.3rem;
-        }
-        .pred-card .pred-value {
-            font-size: 2rem;
-            font-weight: 700;
-        }
-        .pred-card .pred-range {
-            font-size: 0.75rem;
-            color: var(--muted);
-            margin-top: 0.3rem;
-        }
-        .grade {
-            display: inline-block;
-            padding: 0.15rem 0.6rem;
-            border-radius: 6px;
-            font-weight: 700;
-            font-size: 0.85rem;
-            margin-left: 0.3rem;
-        }
-        .grade-excellent { background: rgba(74,222,128,0.2); color: var(--success); }
-        .grade-good { background: rgba(56,189,248,0.2); color: var(--accent); }
-        .grade-fair { background: rgba(251,191,36,0.2); color: var(--warning); }
-        .grade-poor { background: rgba(248,113,113,0.2); color: var(--error); }
 
-        .confidence-bar {
-            width: 100%;
-            height: 8px;
-            background: var(--bg);
-            border-radius: 4px;
-            overflow: hidden;
-            margin-top: 0.5rem;
-        }
-        .confidence-fill {
-            height: 100%;
-            border-radius: 4px;
-            transition: width 0.5s ease;
-        }
+        .prediction-cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 20px; }
+        .pred-card { background: var(--bg); border-radius: var(--radius); padding: 16px; text-align: center; }
+        .pred-card .label { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: .5px; }
+        .pred-card .value { font-size: 28px; font-weight: 700; margin: 6px 0; }
+        .pred-card .range { font-size: 11px; color: var(--muted); }
+        .pred-card.live .value { color: var(--green); }
+        .pred-card.dead .value { color: var(--red); }
+        .pred-card.elasticity .value { color: var(--yellow); }
 
-        .neighbor-list {
-            margin-top: 1rem;
-        }
-        .neighbor-item {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 0.6rem 0.8rem;
-            border-bottom: 1px solid var(--border);
-            font-size: 0.85rem;
-        }
-        .neighbor-item:last-child { border-bottom: none; }
-        .neighbor-rank {
-            color: var(--muted);
-            font-weight: 600;
-            width: 2rem;
-        }
-        .neighbor-details { flex: 1; color: var(--muted); }
-        .neighbor-dist {
-            color: var(--muted);
-            font-size: 0.75rem;
-        }
-        .neighbor-live { font-weight: 600; width: 4rem; text-align: right; }
+        .confidence-bar { margin-bottom: 16px; }
+        .confidence-bar .bar-label { font-size: 12px; color: var(--muted); margin-bottom: 4px; display: flex; justify-content: space-between; }
+        .confidence-bar .bar-track { height: 8px; background: var(--bg); border-radius: 4px; position: relative; overflow: hidden; }
+        .confidence-bar .bar-fill { height: 100%; border-radius: 4px; transition: width .5s ease; }
+        .confidence-bar .bar-marker { position: absolute; top: -3px; width: 3px; height: 14px; background: #fff; border-radius: 2px; transition: left .5s ease; }
 
-        .loading-msg {
-            text-align: center;
-            color: var(--muted);
-            padding: 2rem;
-        }
-        .error-msg {
-            text-align: center;
-            color: var(--error);
-            padding: 1rem;
-            background: rgba(248,113,113,0.1);
-            border-radius: 8px;
-        }
-        .footer {
-            text-align: center;
-            color: var(--muted);
-            font-size: 0.75rem;
-            margin-top: 2rem;
-            opacity: 0.6;
-        }
+        .meta-info { display: flex; gap: 16px; margin-bottom: 20px; flex-wrap: wrap; }
+        .meta-chip { background: var(--bg); border-radius: 16px; padding: 6px 14px; font-size: 12px; color: var(--muted); }
+        .meta-chip strong { color: var(--text); }
+
+        .neighbor-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+        .neighbor-table th { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--border); color: var(--muted); font-weight: 500; font-size: 11px; text-transform: uppercase; letter-spacing: .5px; }
+        .neighbor-table td { padding: 8px 10px; border-bottom: 1px solid var(--border); }
+        .neighbor-table tr:last-child td { border-bottom: none; }
+        .neighbor-table tr:hover td { background: rgba(59,130,246,.05); }
+        .dist-bar { display: inline-block; height: 6px; background: var(--accent); border-radius: 3px; min-width: 4px; vertical-align: middle; margin-right: 6px; }
+
+        .error-msg { background: rgba(239,68,68,.1); border: 1px solid rgba(239,68,68,.3); border-radius: var(--radius); padding: 12px 16px; color: var(--red); font-size: 14px; margin-top: 16px; display: none; }
+
+        .footer { text-align: center; padding: 20px; color: var(--muted); font-size: 12px; }
     </style>
 </head>
 <body>
+    <div class="header">
+        <h1>🔮 Print Outcome <span>Predictor</span></h1>
+        <p>Predict bioprint outcomes using K-Nearest Neighbors analysis of historical print data</p>
+    </div>
+
     <div class="container">
-        <h1>🔮 Print Success Predictor</h1>
-        <p class="subtitle">Predict cell viability and elasticity outcomes using k-nearest neighbor analysis on 10,000 historical prints</p>
-
-        <nav class="nav" role="navigation" aria-label="Page navigation">
-            <a href="index.html">🔍 Query</a>
-            <a href="explorer.html">📊 Explorer</a>
-            <a href="table.html">📋 Table</a>
-            <a href="compare.html">⚖️ Compare</a>
-            <a href="quality.html">✅ Quality</a>
-            <a href="anomaly.html">⚠️ Anomaly</a>
-            <a href="trends.html">📈 Trends</a>
-            <a href="optimizer.html">⚙️ Optimizer</a>
-            <a href="predictor.html" class="active">🔮 Predictor</a>
-            <a href="cluster.html">🧩 Clusters</a>
-            <a href="correlation.html">🔗 Correlation</a>
-            <a href="profile.html">🪪 Profile</a>
-            <a href="api.html">📡 API</a>
-                <a href="evolution.html">&#x1F9EC; Evolution</a>
-    </nav>
-
         <div class="card">
-            <h2>🧪 Print Parameters</h2>
-            <div class="param-grid">
-                <div class="form-group">
-                    <label for="extruder1">Extruder 1 Pressure (psi)</label>
-                    <input type="number" id="extruder1" step="0.1" placeholder="e.g. 5.0">
-                    <span class="hint" id="hint-ext1"></span>
+            <h2>⚙️ Print Parameters</h2>
+
+            <div class="param-group">
+                <label>Extruder 1 Pressure (PSI)</label>
+                <div class="input-row">
+                    <input type="range" id="ext1-slider" min="0" max="40" step="0.5" value="15">
+                    <input type="number" id="ext1-val" min="0" max="100" step="0.5" value="15">
                 </div>
-                <div class="form-group">
-                    <label for="extruder2">Extruder 2 Pressure (psi)</label>
-                    <input type="number" id="extruder2" step="0.1" placeholder="e.g. 3.0">
-                    <span class="hint" id="hint-ext2"></span>
+            </div>
+
+            <div class="param-group">
+                <label>Extruder 2 Pressure (PSI)</label>
+                <div class="input-row">
+                    <input type="range" id="ext2-slider" min="0" max="40" step="0.5" value="10">
+                    <input type="number" id="ext2-val" min="0" max="100" step="0.5" value="10">
                 </div>
-                <div class="form-group">
-                    <label for="wellplate">Wellplate Type</label>
-                    <select id="wellplate">
-                        <option value="">Select...</option>
-                        <option value="1">1-well</option>
+            </div>
+
+            <div class="param-group">
+                <label>Layer Count</label>
+                <div class="input-row">
+                    <input type="range" id="layers-slider" min="1" max="50" step="1" value="10">
+                    <input type="number" id="layers-val" min="1" max="200" step="1" value="10">
+                </div>
+            </div>
+
+            <div class="param-group">
+                <label>Layer Height (mm)</label>
+                <div class="input-row">
+                    <input type="range" id="lh-slider" min="0.05" max="2" step="0.05" value="0.3">
+                    <input type="number" id="lh-val" min="0.01" max="5" step="0.05" value="0.3">
+                </div>
+            </div>
+
+            <div class="toggle-row">
+                <label class="toggle">
+                    <input type="checkbox" id="cl-enabled" checked>
+                    <span class="slider"></span>
+                </label>
+                <span style="font-size:13px; color:var(--muted)">Photocrosslinking</span>
+            </div>
+
+            <div id="cl-params">
+                <div class="param-group">
+                    <label>Crosslinking Duration (ms)</label>
+                    <div class="input-row">
+                        <input type="range" id="cl-dur-slider" min="0" max="60000" step="1000" value="10000">
+                        <input type="number" id="cl-dur-val" min="0" max="120000" step="500" value="10000">
+                    </div>
+                </div>
+
+                <div class="param-group">
+                    <label>Crosslinking Intensity (%)</label>
+                    <div class="input-row">
+                        <input type="range" id="cl-int-slider" min="0" max="100" step="1" value="50">
+                        <input type="number" id="cl-int-val" min="0" max="100" step="1" value="50">
+                    </div>
+                </div>
+            </div>
+
+            <div class="param-group">
+                <label>Wellplate Type</label>
+                <div class="input-row">
+                    <select id="wellplate" style="flex:1; background:var(--bg); border:1px solid var(--border); border-radius:4px; color:var(--text); padding:8px; font-size:14px;">
                         <option value="6">6-well</option>
                         <option value="12">12-well</option>
-                        <option value="24">24-well</option>
+                        <option value="24" selected>24-well</option>
+                        <option value="48">48-well</option>
                         <option value="96">96-well</option>
                     </select>
                 </div>
-                <div class="form-group">
-                    <label for="layerNum">Number of Layers</label>
-                    <input type="number" id="layerNum" step="1" min="1" placeholder="e.g. 8">
-                    <span class="hint" id="hint-layers"></span>
-                </div>
-                <div class="form-group">
-                    <label for="layerHeight">Layer Height (mm)</label>
-                    <input type="number" id="layerHeight" step="0.01" placeholder="e.g. 0.25">
-                    <span class="hint" id="hint-height"></span>
-                </div>
-                <div class="form-group">
-                    <label for="clEnabled">Crosslinking</label>
-                    <select id="clEnabled">
-                        <option value="">Any</option>
-                        <option value="true">Enabled</option>
-                        <option value="false">Disabled</option>
-                    </select>
-                </div>
-                <div class="form-group" id="clDurationGroup" style="display:none;">
-                    <label for="clDuration">CL Duration (ms)</label>
-                    <input type="number" id="clDuration" step="1" placeholder="e.g. 500">
-                    <span class="hint" id="hint-cld"></span>
-                </div>
-                <div class="form-group" id="clIntensityGroup" style="display:none;">
-                    <label for="clIntensity">CL Intensity (%)</label>
-                    <input type="number" id="clIntensity" step="1" min="0" max="100" placeholder="e.g. 50">
-                    <span class="hint" id="hint-cli"></span>
-                </div>
             </div>
-            <div class="form-group" style="margin-top:1rem;">
-                <label for="kValue">Neighbors (k)</label>
-                <select id="kValue">
-                    <option value="5">5 (precise)</option>
-                    <option value="10" selected>10 (balanced)</option>
-                    <option value="20">20 (smooth)</option>
-                    <option value="50">50 (broad)</option>
+
+            <div class="k-selector">
+                <label>Neighbors (K):</label>
+                <select id="k-value">
+                    <option value="3">3</option>
+                    <option value="5" selected>5</option>
+                    <option value="10">10</option>
+                    <option value="15">15</option>
+                    <option value="20">20</option>
                 </select>
             </div>
-            <div class="btn-row">
-                <button class="btn-primary" id="predictBtn" disabled>🔮 Predict Outcome</button>
-                <button class="btn-outline" id="resetBtn">Reset</button>
-            </div>
+
+            <button class="btn" id="predict-btn" onclick="predict()">
+                🔮 Predict Outcomes
+            </button>
+            <div class="error-msg" id="error"></div>
         </div>
 
-        <div id="loadingMsg" class="loading-msg">Loading print data...</div>
-        <div id="errorMsg" class="error-msg" style="display:none;"></div>
-
-        <div class="results" id="results">
-            <div class="card">
+        <div>
+            <div class="card results" id="results">
                 <h2>📊 Predicted Outcomes</h2>
+
                 <div class="prediction-cards">
-                    <div class="pred-card">
-                        <div class="pred-label">Cell Viability</div>
-                        <div class="pred-value" id="predLive" style="color:var(--success);">—</div>
-                        <div class="pred-range" id="predLiveRange"></div>
-                        <div class="confidence-bar"><div class="confidence-fill" id="liveConfBar" style="width:0;background:var(--success);"></div></div>
+                    <div class="pred-card live">
+                        <div class="label">Live Cells</div>
+                        <div class="value" id="pred-live">—</div>
+                        <div class="range" id="range-live"></div>
                     </div>
-                    <div class="pred-card">
-                        <div class="pred-label">Elasticity (kPa)</div>
-                        <div class="pred-value" id="predElast" style="color:var(--accent);">—</div>
-                        <div class="pred-range" id="predElastRange"></div>
-                        <div class="confidence-bar"><div class="confidence-fill" id="elastConfBar" style="width:0;background:var(--accent);"></div></div>
+                    <div class="pred-card dead">
+                        <div class="label">Dead Cells</div>
+                        <div class="value" id="pred-dead">—</div>
+                        <div class="range" id="range-dead"></div>
+                    </div>
+                    <div class="pred-card elasticity">
+                        <div class="label">Elasticity</div>
+                        <div class="value" id="pred-elast">—</div>
+                        <div class="range" id="range-elast"></div>
                     </div>
                 </div>
-                <div style="text-align:center;margin-bottom:1rem;">
-                    <span style="font-size:0.85rem;color:var(--muted);">Overall Grade:</span>
-                    <span class="grade" id="overallGrade">—</span>
+
+                <div class="confidence-bar">
+                    <div class="bar-label">
+                        <span>Live Cell Viability</span>
+                        <span id="live-pct"></span>
+                    </div>
+                    <div class="bar-track">
+                        <div class="bar-fill" id="live-bar" style="width:0; background:var(--green);"></div>
+                        <div class="bar-marker" id="live-marker" style="left:0;"></div>
+                    </div>
+                </div>
+
+                <div class="confidence-bar">
+                    <div class="bar-label">
+                        <span>Structural Elasticity</span>
+                        <span id="elast-pct"></span>
+                    </div>
+                    <div class="bar-track">
+                        <div class="bar-fill" id="elast-bar" style="width:0; background:var(--yellow);"></div>
+                    </div>
+                </div>
+
+                <div class="meta-info">
+                    <div class="meta-chip">K = <strong id="meta-k">5</strong></div>
+                    <div class="meta-chip">Avg Distance: <strong id="meta-dist">—</strong></div>
+                    <div class="meta-chip">Match Quality: <strong id="meta-quality">—</strong></div>
+                </div>
+
+                <h2 style="font-size:15px; margin-top:8px;">🏘️ Nearest Neighbors</h2>
+                <div style="overflow-x:auto;">
+                    <table class="neighbor-table">
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th>Distance</th>
+                                <th>Live %</th>
+                                <th>Dead %</th>
+                                <th>Elasticity</th>
+                                <th>Ext1</th>
+                                <th>Layers</th>
+                            </tr>
+                        </thead>
+                        <tbody id="neighbor-body"></tbody>
+                    </table>
                 </div>
             </div>
 
-            <div class="card">
-                <h2>🏘️ Nearest Neighbors (Historical Prints)</h2>
-                <div class="neighbor-list" id="neighborList"></div>
+            <div class="card" id="placeholder" style="display:flex; align-items:center; justify-content:center; min-height:300px; text-align:center;">
+                <div>
+                    <div style="font-size:48px; margin-bottom:16px;">🧬</div>
+                    <p style="color:var(--muted); font-size:15px;">Set your print parameters and click<br><strong>Predict Outcomes</strong> to see results</p>
+                </div>
             </div>
-
-            <div class="card">
-                <h2>💡 Recommendations</h2>
-                <div id="recommendations" style="font-size:0.9rem;color:var(--muted);line-height:1.6;"></div>
-            </div>
-        </div>
-
-        <div class="footer">
-            BioBots 1 Print Success Predictor &mdash; k-NN prediction on historical bioprint data
         </div>
     </div>
 
-    <script src="shared/constants.js"></script>
+    <div class="footer">BioBots Print Outcome Predictor — KNN-based analysis of historical bioprint data</div>
 
     <script>
-    (function() {
-        'use strict';
+        // Sync sliders and number inputs
+        const pairs = [
+            ['ext1-slider', 'ext1-val'], ['ext2-slider', 'ext2-val'],
+            ['layers-slider', 'layers-val'], ['lh-slider', 'lh-val'],
+            ['cl-dur-slider', 'cl-dur-val'], ['cl-int-slider', 'cl-int-val']
+        ];
+        pairs.forEach(([slider, num]) => {
+            const s = document.getElementById(slider), n = document.getElementById(num);
+            s.addEventListener('input', () => n.value = s.value);
+            n.addEventListener('input', () => s.value = n.value);
+        });
 
-        var data = null;
-        var paramRanges = {};
+        // Toggle crosslinking params visibility
+        document.getElementById('cl-enabled').addEventListener('change', e => {
+            document.getElementById('cl-params').style.display = e.target.checked ? 'block' : 'none';
+        });
 
-        // ── DOM refs ──
-        var ext1Input = document.getElementById('extruder1');
-        var ext2Input = document.getElementById('extruder2');
-        var wellplateSelect = document.getElementById('wellplate');
-        var layerNumInput = document.getElementById('layerNum');
-        var layerHeightInput = document.getElementById('layerHeight');
-        var clEnabledSelect = document.getElementById('clEnabled');
-        var clDurationInput = document.getElementById('clDuration');
-        var clIntensityInput = document.getElementById('clIntensity');
-        var clDurationGroup = document.getElementById('clDurationGroup');
-        var clIntensityGroup = document.getElementById('clIntensityGroup');
-        var kValueSelect = document.getElementById('kValue');
-        var predictBtn = document.getElementById('predictBtn');
-        var resetBtn = document.getElementById('resetBtn');
-        var resultsDiv = document.getElementById('results');
-        var loadingMsg = document.getElementById('loadingMsg');
-        var errorMsg = document.getElementById('errorMsg');
+        async function predict() {
+            const btn = document.getElementById('predict-btn');
+            const errEl = document.getElementById('error');
+            errEl.style.display = 'none';
+            btn.disabled = true;
+            btn.textContent = '⏳ Predicting...';
 
-        // ── Load Data ──
-        function loadData() {
-            var xhr = new XMLHttpRequest();
-            xhr.open('GET', 'bioprint-data.json');
-            xhr.onload = function() {
-                if (xhr.status === 200) {
-                    try {
-                        data = JSON.parse(xhr.responseText);
-                        computeRanges();
-                        showHints();
-                        predictBtn.disabled = false;
-                        loadingMsg.style.display = 'none';
-                    } catch (e) {
-                        showError('Failed to parse data: ' + e.message);
-                    }
-                } else {
-                    showError('Failed to load data (HTTP ' + xhr.status + ')');
-                }
+            const clEnabled = document.getElementById('cl-enabled').checked;
+            const body = {
+                extruder1: parseFloat(document.getElementById('ext1-val').value),
+                extruder2: parseFloat(document.getElementById('ext2-val').value),
+                layerNum: parseInt(document.getElementById('layers-val').value),
+                layerHeight: parseFloat(document.getElementById('lh-val').value),
+                clEnabled: clEnabled,
+                wellplate: parseInt(document.getElementById('wellplate').value),
+                k: parseInt(document.getElementById('k-value').value)
             };
-            xhr.onerror = function() { showError('Network error loading data'); };
-            xhr.send();
-        }
+            if (clEnabled) {
+                body.clDuration = parseInt(document.getElementById('cl-dur-val').value);
+                body.clIntensity = parseInt(document.getElementById('cl-int-val').value);
+            }
 
-        function showError(msg) {
-            loadingMsg.style.display = 'none';
-            errorMsg.textContent = msg;
-            errorMsg.style.display = 'block';
-        }
-
-        // ── Compute Ranges (for hints and normalization) ──
-        function computeRanges() {
-            var fields = [
-                { key: 'extruder1', fn: function(p) { return p.print_info.pressure.extruder1; } },
-                { key: 'extruder2', fn: function(p) { return p.print_info.pressure.extruder2; } },
-                { key: 'layerNum', fn: function(p) { return p.print_info.resolution.layerNum; } },
-                { key: 'layerHeight', fn: function(p) { return p.print_info.resolution.layerHeight; } },
-                { key: 'cl_duration', fn: function(p) { return p.print_info.crosslinking.cl_duration; } },
-                { key: 'cl_intensity', fn: function(p) { return p.print_info.crosslinking.cl_intensity; } },
-                { key: 'wellplate', fn: function(p) { return p.print_info.wellplate; } }
-            ];
-            for (var i = 0; i < fields.length; i++) {
-                var min = Infinity, max = -Infinity, sum = 0;
-                for (var j = 0; j < data.length; j++) {
-                    var v = fields[i].fn(data[j]);
-                    if (v < min) min = v;
-                    if (v > max) max = v;
-                    sum += v;
+            try {
+                const resp = await fetch('/api/predictor/predict', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(body)
+                });
+                if (!resp.ok) {
+                    const text = await resp.text();
+                    throw new Error(text || `HTTP ${resp.status}`);
                 }
-                paramRanges[fields[i].key] = { min: min, max: max, avg: sum / data.length };
+                const data = await resp.json();
+                showResults(data);
+            } catch (e) {
+                errEl.textContent = '❌ ' + (e.message || 'Prediction failed');
+                errEl.style.display = 'block';
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '🔮 Predict Outcomes';
             }
         }
 
-        function showHints() {
-            var r = paramRanges;
-            setHint('hint-ext1', r.extruder1);
-            setHint('hint-ext2', r.extruder2);
-            setHint('hint-layers', r.layerNum);
-            setHint('hint-height', r.layerHeight);
-            setHint('hint-cld', r.cl_duration);
-            setHint('hint-cli', r.cl_intensity);
+        function showResults(data) {
+            document.getElementById('placeholder').style.display = 'none';
+            const results = document.getElementById('results');
+            results.classList.add('visible');
+
+            const p = data.predicted || data.Predicted;
+            const c = data.confidence || data.Confidence;
+            const neighbors = data.nearestNeighbors || data.NearestNeighbors;
+
+            // Main predictions
+            document.getElementById('pred-live').textContent = p.livePercent?.toFixed(1) ?? p.LivePercent?.toFixed(1) ?? '—';
+            document.getElementById('pred-dead').textContent = p.deadPercent?.toFixed(1) ?? p.DeadPercent?.toFixed(1) ?? '—';
+            document.getElementById('pred-elast').textContent = (p.elasticity?.toFixed(1) ?? p.Elasticity?.toFixed(1) ?? '—') + ' kPa';
+
+            const liveVal = p.livePercent ?? p.LivePercent ?? 0;
+            const elastVal = p.elasticity ?? p.Elasticity ?? 0;
+
+            // Ranges
+            const cl = c.livePercent || c.LivePercent || {};
+            const cd = c.deadPercent || c.DeadPercent || {};
+            const ce = c.elasticity || c.Elasticity || {};
+            document.getElementById('range-live').textContent = `${(cl.low ?? cl.Low ?? 0).toFixed(1)}–${(cl.high ?? cl.High ?? 0).toFixed(1)}%`;
+            document.getElementById('range-dead').textContent = `${(cd.low ?? cd.Low ?? 0).toFixed(1)}–${(cd.high ?? cd.High ?? 0).toFixed(1)}%`;
+            document.getElementById('range-elast').textContent = `${(ce.low ?? ce.Low ?? 0).toFixed(1)}–${(ce.high ?? ce.High ?? 0).toFixed(1)} kPa`;
+
+            // Bars
+            document.getElementById('live-bar').style.width = Math.min(liveVal, 100) + '%';
+            document.getElementById('live-marker').style.left = Math.min(liveVal, 100) + '%';
+            document.getElementById('live-pct').textContent = liveVal.toFixed(1) + '%';
+            document.getElementById('elast-bar').style.width = Math.min(elastVal / 2, 100) + '%';
+            document.getElementById('elast-pct').textContent = elastVal.toFixed(1) + ' kPa';
+
+            // Meta
+            const avgDist = data.averageDistance ?? data.AverageDistance ?? 0;
+            document.getElementById('meta-k').textContent = data.neighborsUsed ?? data.NeighborsUsed ?? '?';
+            document.getElementById('meta-dist').textContent = avgDist.toFixed(4);
+            const quality = avgDist < 0.1 ? '🟢 Excellent' : avgDist < 0.3 ? '🟡 Good' : avgDist < 0.6 ? '🟠 Fair' : '🔴 Low';
+            document.getElementById('meta-quality').textContent = quality;
+
+            // Neighbor table
+            const tbody = document.getElementById('neighbor-body');
+            tbody.innerHTML = '';
+            const maxDist = Math.max(...(neighbors || []).map(n => n.distance ?? n.Distance ?? 0), 0.001);
+            (neighbors || []).forEach((n, i) => {
+                const d = n.distance ?? n.Distance ?? 0;
+                const barW = Math.max(4, (1 - d / maxDist) * 60);
+                tbody.innerHTML += `<tr>
+                    <td>${i + 1}</td>
+                    <td><span class="dist-bar" style="width:${barW}px"></span>${d.toFixed(4)}</td>
+                    <td>${(n.livePercent ?? n.LivePercent ?? 0).toFixed(1)}%</td>
+                    <td>${(n.deadPercent ?? n.DeadPercent ?? 0).toFixed(1)}%</td>
+                    <td>${(n.elasticity ?? n.Elasticity ?? 0).toFixed(1)}</td>
+                    <td>${(n.extruder1 ?? n.Extruder1 ?? 0).toFixed(1)}</td>
+                    <td>${n.layerNum ?? n.LayerNum ?? '—'}</td>
+                </tr>`;
+            });
         }
-
-        function setHint(id, range) {
-            var el = document.getElementById(id);
-            if (el && range) {
-                el.textContent = 'Range: ' + round(range.min, 2) + ' – ' + round(range.max, 2) + ' (avg ' + round(range.avg, 2) + ')';
-            }
-        }
-
-        // ── CL toggle ──
-        clEnabledSelect.addEventListener('change', function() {
-            var show = this.value === 'true';
-            clDurationGroup.style.display = show ? 'flex' : 'none';
-            clIntensityGroup.style.display = show ? 'flex' : 'none';
-        });
-
-        // ── Reset ──
-        resetBtn.addEventListener('click', function() {
-            ext1Input.value = '';
-            ext2Input.value = '';
-            wellplateSelect.value = '';
-            layerNumInput.value = '';
-            layerHeightInput.value = '';
-            clEnabledSelect.value = '';
-            clDurationInput.value = '';
-            clIntensityInput.value = '';
-            clDurationGroup.style.display = 'none';
-            clIntensityGroup.style.display = 'none';
-            resultsDiv.classList.remove('visible');
-        });
-
-        // ── Predict ──
-        predictBtn.addEventListener('click', function() {
-            if (!data) return;
-            var params = getParams();
-            if (!params) return;
-
-            var k = parseInt(kValueSelect.value, 10);
-            var neighbors = findKNearest(params, k);
-
-            if (neighbors.length === 0) {
-                showError('No matching prints found.');
-                return;
-            }
-
-            displayResults(neighbors, params);
-        });
-
-        function getParams() {
-            var params = {};
-            var ext1 = parseFloat(ext1Input.value);
-            var ext2 = parseFloat(ext2Input.value);
-            var layers = parseInt(layerNumInput.value, 10);
-            var height = parseFloat(layerHeightInput.value);
-
-            // Need at least 2 params
-            var filled = 0;
-            if (!isNaN(ext1)) { params.extruder1 = ext1; filled++; }
-            if (!isNaN(ext2)) { params.extruder2 = ext2; filled++; }
-            if (wellplateSelect.value) { params.wellplate = parseInt(wellplateSelect.value, 10); filled++; }
-            if (!isNaN(layers)) { params.layerNum = layers; filled++; }
-            if (!isNaN(height)) { params.layerHeight = height; filled++; }
-
-            if (clEnabledSelect.value === 'true') {
-                params.cl_enabled = true;
-                var dur = parseInt(clDurationInput.value, 10);
-                var intens = parseInt(clIntensityInput.value, 10);
-                if (!isNaN(dur)) { params.cl_duration = dur; filled++; }
-                if (!isNaN(intens)) { params.cl_intensity = intens; filled++; }
-            } else if (clEnabledSelect.value === 'false') {
-                params.cl_enabled = false;
-            }
-
-            if (filled < 2) {
-                alert('Please fill in at least 2 parameters for a meaningful prediction.');
-                return null;
-            }
-            return params;
-        }
-
-        // ── k-NN ──
-        function normalize(value, key) {
-            var r = paramRanges[key];
-            if (!r || r.max === r.min) return 0;
-            return (value - r.min) / (r.max - r.min);
-        }
-
-        function distance(params, print) {
-            var sumSq = 0;
-            var dims = 0;
-
-            if (params.extruder1 !== undefined) {
-                var d = normalize(params.extruder1, 'extruder1') - normalize(print.print_info.pressure.extruder1, 'extruder1');
-                sumSq += d * d;
-                dims++;
-            }
-            if (params.extruder2 !== undefined) {
-                var d = normalize(params.extruder2, 'extruder2') - normalize(print.print_info.pressure.extruder2, 'extruder2');
-                sumSq += d * d;
-                dims++;
-            }
-            if (params.wellplate !== undefined) {
-                // Categorical: 0 if match, 1 if not
-                sumSq += (params.wellplate === print.print_info.wellplate) ? 0 : 1;
-                dims++;
-            }
-            if (params.layerNum !== undefined) {
-                var d = normalize(params.layerNum, 'layerNum') - normalize(print.print_info.resolution.layerNum, 'layerNum');
-                sumSq += d * d;
-                dims++;
-            }
-            if (params.layerHeight !== undefined) {
-                var d = normalize(params.layerHeight, 'layerHeight') - normalize(print.print_info.resolution.layerHeight, 'layerHeight');
-                sumSq += d * d;
-                dims++;
-            }
-            if (params.cl_enabled !== undefined) {
-                var printCl = print.print_info.crosslinking.cl_enabled;
-                sumSq += (params.cl_enabled === printCl) ? 0 : 1;
-                dims++;
-            }
-            if (params.cl_duration !== undefined) {
-                var d = normalize(params.cl_duration, 'cl_duration') - normalize(print.print_info.crosslinking.cl_duration, 'cl_duration');
-                sumSq += d * d;
-                dims++;
-            }
-            if (params.cl_intensity !== undefined) {
-                var d = normalize(params.cl_intensity, 'cl_intensity') - normalize(print.print_info.crosslinking.cl_intensity, 'cl_intensity');
-                sumSq += d * d;
-                dims++;
-            }
-
-            return dims > 0 ? Math.sqrt(sumSq / dims) : Infinity;
-        }
-
-        function findKNearest(params, k) {
-            var candidates = [];
-            for (var i = 0; i < data.length; i++) {
-                var p = data[i];
-                // Pre-filter by cl_enabled if specified
-                if (params.cl_enabled !== undefined && p.print_info.crosslinking.cl_enabled !== params.cl_enabled) {
-                    continue;
-                }
-                var dist = distance(params, p);
-                candidates.push({ print: p, dist: dist, index: i });
-            }
-
-            // Partial sort: only need top k
-            candidates.sort(function(a, b) { return a.dist - b.dist; });
-            return candidates.slice(0, k);
-        }
-
-        // ── Display Results ──
-        function displayResults(neighbors, params) {
-            errorMsg.style.display = 'none';
-
-            // Weighted average (inverse distance weighting)
-            var liveSum = 0, elastSum = 0, weightSum = 0;
-            var liveMin = Infinity, liveMax = -Infinity;
-            var elastMin = Infinity, elastMax = -Infinity;
-
-            for (var i = 0; i < neighbors.length; i++) {
-                var n = neighbors[i];
-                var w = n.dist > 0 ? 1 / (n.dist * n.dist + 0.001) : 1000;
-                var live = n.print.print_data.livePercent;
-                var elast = n.print.print_data.elasticity;
-
-                liveSum += live * w;
-                elastSum += elast * w;
-                weightSum += w;
-
-                if (live < liveMin) liveMin = live;
-                if (live > liveMax) liveMax = live;
-                if (elast < elastMin) elastMin = elast;
-                if (elast > elastMax) elastMax = elast;
-            }
-
-            var predLive = liveSum / weightSum;
-            var predElast = elastSum / weightSum;
-
-            // Confidence: based on neighbor spread (lower spread = higher confidence)
-            var liveSpread = liveMax - liveMin;
-            var liveConf = Math.max(0, Math.min(100, 100 - liveSpread));
-            var elastSpread = elastMax - elastMin;
-            var elastMaxRange = paramRanges.extruder1 ? 140 : 100; // rough max elasticity
-            var elastConf = Math.max(0, Math.min(100, 100 - (elastSpread / elastMaxRange) * 100));
-
-            // Display predictions
-            document.getElementById('predLive').textContent = round(predLive, 1) + '%';
-            document.getElementById('predLiveRange').textContent = 'Range: ' + round(liveMin, 1) + '% – ' + round(liveMax, 1) + '% among neighbors';
-            document.getElementById('liveConfBar').style.width = liveConf + '%';
-
-            document.getElementById('predElast').textContent = round(predElast, 1);
-            document.getElementById('predElastRange').textContent = 'Range: ' + round(elastMin, 1) + ' – ' + round(elastMax, 1) + ' kPa among neighbors';
-            document.getElementById('elastConfBar').style.width = elastConf + '%';
-
-            // Overall grade
-            var gradeEl = document.getElementById('overallGrade');
-            var grade = getGrade(predLive, predElast);
-            gradeEl.textContent = grade.label;
-            gradeEl.className = 'grade ' + grade.cls;
-
-            // Neighbor list
-            var listEl = document.getElementById('neighborList');
-            var html = '';
-            for (var i = 0; i < neighbors.length; i++) {
-                var n = neighbors[i];
-                var p = n.print;
-                var liveColor = p.print_data.livePercent >= 70 ? 'var(--success)' :
-                    p.print_data.livePercent >= 40 ? 'var(--warning)' : 'var(--error)';
-                html += '<div class="neighbor-item">' +
-                    '<span class="neighbor-rank">#' + (i + 1) + '</span>' +
-                    '<span class="neighbor-details">' +
-                    'Serial ' + p.user_info.serial +
-                    ' · ' + p.print_info.wellplate + '-well' +
-                    ' · ' + p.print_info.resolution.layerNum + ' layers' +
-                    ' · ' + round(p.print_info.pressure.extruder1, 1) + '/' + round(p.print_info.pressure.extruder2, 1) + ' psi' +
-                    '</span>' +
-                    '<span class="neighbor-dist">d=' + round(n.dist, 3) + '</span>' +
-                    '<span class="neighbor-live" style="color:' + liveColor + '">' + round(p.print_data.livePercent, 1) + '%</span>' +
-                    '</div>';
-            }
-            listEl.innerHTML = html;
-
-            // Recommendations
-            var recs = generateRecommendations(predLive, predElast, neighbors, params);
-            document.getElementById('recommendations').innerHTML = recs;
-
-            resultsDiv.classList.add('visible');
-        }
-
-        function getGrade(livePercent, elasticity) {
-            // Weighted score: 70% viability, 30% structural
-            var liveScore = Math.min(livePercent / 80, 1); // 80%+ is excellent
-            var elastScore = Math.min(elasticity / 50, 1); // 50+ kPa is excellent
-            var overall = liveScore * 0.7 + elastScore * 0.3;
-
-            if (overall >= 0.85) return { label: 'A — Excellent', cls: 'grade-excellent' };
-            if (overall >= 0.65) return { label: 'B — Good', cls: 'grade-good' };
-            if (overall >= 0.45) return { label: 'C — Fair', cls: 'grade-fair' };
-            return { label: 'D — Needs Work', cls: 'grade-poor' };
-        }
-
-        function generateRecommendations(predLive, predElast, neighbors, params) {
-            var tips = [];
-
-            if (predLive < 50) {
-                tips.push('⚠️ Predicted viability is low (' + round(predLive, 1) + '%). Consider reducing extruder pressure to minimize cell damage.');
-            }
-            if (predLive >= 70) {
-                tips.push('✅ Good predicted viability (' + round(predLive, 1) + '%). These parameters align well with successful historical prints.');
-            }
-            if (predElast < 20) {
-                tips.push('⚠️ Low predicted structural integrity (' + round(predElast, 1) + ' kPa). Try increasing layer count or enabling crosslinking for better rigidity.');
-            }
-            if (predElast >= 50) {
-                tips.push('✅ Strong predicted elasticity (' + round(predElast, 1) + ' kPa). Good structural properties expected.');
-            }
-
-            // Check if crosslinking could help
-            if (params.cl_enabled === false && predLive < 60) {
-                // Find avg with CL enabled
-                var clPrints = data.filter(function(p) { return p.print_info.crosslinking.cl_enabled; });
-                var clAvg = 0;
-                for (var i = 0; i < clPrints.length; i++) clAvg += clPrints[i].print_data.livePercent;
-                clAvg = clAvg / (clPrints.length || 1);
-                if (clAvg > predLive + 5) {
-                    tips.push('💡 Prints with crosslinking enabled average ' + round(clAvg, 1) + '% viability. Consider enabling it.');
-                }
-            }
-
-            // Neighbor consistency
-            var liveVals = neighbors.map(function(n) { return n.print.print_data.livePercent; });
-            var stdDev = computeStdDev(liveVals);
-            if (stdDev > 20) {
-                tips.push('📊 High variance among similar prints (σ=' + round(stdDev, 1) + '%). Results may be unpredictable with these settings.');
-            } else if (stdDev < 10) {
-                tips.push('📊 Low variance among similar prints (σ=' + round(stdDev, 1) + '%). Prediction is highly reliable.');
-            }
-
-            if (tips.length === 0) {
-                tips.push('Parameters look reasonable based on historical data.');
-            }
-
-            return tips.map(function(t) { return '<p style="margin-bottom:0.5rem;">' + t + '</p>'; }).join('');
-        }
-
-        // ── Utils ──
-        function round(v, d) {
-            var f = Math.pow(10, d);
-            return Math.round(v * f) / f;
-        }
-
-        function computeStdDev(arr) {
-            if (arr.length < 2) return 0;
-            var mean = 0;
-            for (var i = 0; i < arr.length; i++) mean += arr[i];
-            mean /= arr.length;
-            var sumSq = 0;
-            for (var i = 0; i < arr.length; i++) {
-                var d = arr[i] - mean;
-                sumSq += d * d;
-            }
-            return Math.sqrt(sumSq / (arr.length - 1));
-        }
-
-        // ── Init ──
-        loadData();
-    })();
     </script>
 </body>
 </html>
