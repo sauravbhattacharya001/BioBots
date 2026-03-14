@@ -81,6 +81,24 @@ function isPositive(v) { return typeof v === 'number' && isFinite(v) && v > 0; }
 function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
 function round(v, d) { var f = Math.pow(10, d || 2); return Math.round(v * f) / f; }
 
+/**
+ * Parse infill from geometry spec (0.05-1.0, default 100%).
+ */
+function parseInfill(geo) {
+    var pct = (geo.infillPercent != null ? geo.infillPercent : 100) / 100;
+    return clamp(pct, 0.05, 1);
+}
+
+/**
+ * Set volumeUl and volumeMl on a geometry result from volumeMm3.
+ * 1 mm³ = 1 µL.
+ */
+function applyVolumeUnits(result) {
+    result.volumeUl = round(result.volumeMm3, 2);
+    result.volumeMl = round(result.volumeUl / 1000, 4);
+    return result;
+}
+
 function getMaterial(key) {
     if (!key) return null;
     var k = String(key).toLowerCase().replace(/\s+/g, '-');
@@ -119,8 +137,7 @@ function createJobEstimator(options) {
             wellCount = Math.min(wellCount, spec.wells);
 
             var volPerWellMm3 = spec.areaMm2 * lh * layers;
-            var infill = (geo.infillPercent != null ? geo.infillPercent : 100) / 100;
-            infill = clamp(infill, 0.05, 1);
+            var infill = parseInfill(geo);
             volPerWellMm3 *= infill;
 
             result.type = 'wellplate';
@@ -132,8 +149,7 @@ function createJobEstimator(options) {
             result.infill = infill;
             result.volumePerWellMm3 = round(volPerWellMm3, 3);
             result.volumeMm3 = round(volPerWellMm3 * wellCount, 3);
-            result.volumeUl = round(result.volumeMm3 / 1, 2);   // 1 mm³ = 1 µL
-            result.volumeMl = round(result.volumeUl / 1000, 4);
+            applyVolumeUnits(result);
             result.units = wellCount;
         } else if (geo.type === 'cylinder') {
             var r = geo.radiusMm || geo.diameterMm / 2;
@@ -141,36 +157,34 @@ function createJobEstimator(options) {
             if (!isPositive(r) || !isPositive(h)) throw new Error('cylinder needs radiusMm/diameterMm and heightMm');
             var layers = geo.layers || Math.ceil(h / (geo.layerHeight || 0.2));
             var vol = Math.PI * r * r * h;
-            var infill = (geo.infillPercent != null ? geo.infillPercent : 100) / 100;
-            vol *= clamp(infill, 0.05, 1);
+            var infill = parseInfill(geo);
+            vol *= infill;
 
             result.type = 'cylinder';
             result.radiusMm = r;
             result.heightMm = h;
             result.layers = layers;
-            result.infill = clamp(infill, 0.05, 1);
+            result.infill = infill;
             result.areaMm2 = round(Math.PI * r * r, 2);
             result.volumeMm3 = round(vol, 3);
-            result.volumeUl = round(vol, 2);
-            result.volumeMl = round(vol / 1000, 4);
+            applyVolumeUnits(result);
         } else if (geo.type === 'cuboid') {
             var w = geo.widthMm, l = geo.lengthMm, h = geo.heightMm;
             if (!isPositive(w) || !isPositive(l) || !isPositive(h)) throw new Error('cuboid needs widthMm, lengthMm, heightMm');
             var layers = geo.layers || Math.ceil(h / (geo.layerHeight || 0.2));
             var vol = w * l * h;
-            var infill = (geo.infillPercent != null ? geo.infillPercent : 100) / 100;
-            vol *= clamp(infill, 0.05, 1);
+            var infill = parseInfill(geo);
+            vol *= infill;
 
             result.type = 'cuboid';
             result.widthMm = w;
             result.lengthMm = l;
             result.heightMm = h;
             result.layers = layers;
-            result.infill = clamp(infill, 0.05, 1);
+            result.infill = infill;
             result.areaMm2 = round(w * l, 2);
             result.volumeMm3 = round(vol, 3);
-            result.volumeUl = round(vol, 2);
-            result.volumeMl = round(vol / 1000, 4);
+            applyVolumeUnits(result);
         } else if (geo.type === 'custom' && isPositive(geo.volumeMl)) {
             result.type = 'custom';
             result.volumeMl = geo.volumeMl;
@@ -448,7 +462,7 @@ function createJobEstimator(options) {
 
         var estimates = [];
         var totalCost = 0;
-        var totalTimeMl = 0;
+        var totalTimeMin = 0;
         var totalVolumeMl = 0;
         var warnings = [];
 
@@ -458,14 +472,15 @@ function createJobEstimator(options) {
         jobs.forEach(function(job, i) {
             try {
                 var est = estimate(job);
-                // Deduct per-job calibration after the first job
+                // Track actual timing contribution: deduct shared calibration
+                // for jobs after the first, but do NOT mutate the original estimate.
+                var adjustedMin = est.timing.totalMin;
                 if (i > 0) {
-                    est.timing.totalMin -= sharedCalibrationMin;
-                    est.timing.totalHours = round(est.timing.totalMin / 60, 2);
+                    adjustedMin -= sharedCalibrationMin;
                 }
                 estimates.push(est);
                 totalCost += est.risk.totalEstimatedCost;
-                totalTimeMl += est.timing.totalMin;
+                totalTimeMin += adjustedMin;
                 totalVolumeMl += est.geometry.volumeMl;
                 if (est.risk.recommendation === 'NO-GO') {
                     warnings.push('Job ' + (i + 1) + ': NO-GO recommendation');
@@ -481,8 +496,8 @@ function createJobEstimator(options) {
             estimates: estimates,
             aggregate: {
                 totalCost: round(totalCost, 2),
-                totalTimeMin: round(totalTimeMl, 1),
-                totalTimeHours: round(totalTimeMl / 60, 2),
+                totalTimeMin: round(totalTimeMin, 1),
+                totalTimeHours: round(totalTimeMin / 60, 2),
                 totalVolumeMl: round(totalVolumeMl, 4),
                 sharedCalibrationSavingsMin: round(sharedCalibrationMin * (jobs.length - 1), 1)
             },
