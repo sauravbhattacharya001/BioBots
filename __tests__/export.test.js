@@ -586,6 +586,32 @@ describe('createDataExporter', () => {
                 // Name field should be prefixed, not treated as formula
                 expect(lines[1]).toBe("'=cmd|calc,10");
             });
+
+            test('does not corrupt negative numbers with formula injection prefix', () => {
+                // Negative numbers start with '-' but must not be prefixed
+                expect(exporter.escapeCSVValue(-3.14)).toBe('-3.14');
+                expect(exporter.escapeCSVValue('-42')).toBe('-42');
+                expect(exporter.escapeCSVValue('-0.001')).toBe('-0.001');
+            });
+
+            test('does not corrupt positive numbers with leading +', () => {
+                expect(exporter.escapeCSVValue('+1.5')).toBe('+1.5');
+                expect(exporter.escapeCSVValue('+100')).toBe('+100');
+            });
+
+            test('still prefixes non-numeric strings starting with - or +', () => {
+                expect(exporter.escapeCSVValue('-cmd|calc')).toBe("'-cmd|calc");
+                expect(exporter.escapeCSVValue('+cmd|calc')).toBe("'+cmd|calc");
+                expect(exporter.escapeCSVValue('--double')).toBe("'--double");
+            });
+
+            test('negative numbers in full CSV export remain numeric', () => {
+                var data = [{ name: 'test', delta: -5.2 }];
+                var cols = [{ key: 'name' }, { key: 'delta' }];
+                var csv = exporter.toCSV(data, cols, { includeBOM: false });
+                var lines = csv.split('\r\n');
+                expect(lines[1]).toBe('test,-5.2');
+            });
         });
     });
 });

@@ -36,10 +36,17 @@ function createDataExporter() {
         // LibreOffice Calc) interpret as a formula or special command,
         // prefix with a single-quote to force text mode.  The dangerous
         // leader set is: = + - @ \t \r  (OWASP recommendation).
+        //
+        // However, we must not corrupt legitimate numeric values like
+        // negative numbers (-3.14) or positive numbers with leading +
+        // (+1.5). Only apply the prefix to non-numeric strings.
         var firstChar = str.charAt(0);
         if (firstChar === '=' || firstChar === '+' || firstChar === '-' ||
             firstChar === '@' || firstChar === '\t' || firstChar === '\r') {
-            str = "'" + str;
+            // Skip prefix for values that are valid numbers (e.g. -3.14, +1.5)
+            if (!((firstChar === '-' || firstChar === '+') && str.length > 1 && isFinite(Number(str)))) {
+                str = "'" + str;
+            }
         }
 
         // Must quote if contains comma, double-quote, newline, or leading/trailing whitespace
