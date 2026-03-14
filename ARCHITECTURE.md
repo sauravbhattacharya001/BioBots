@@ -8,21 +8,27 @@ Technical overview of the BioBots Tool codebase — a browser-based bioprinting 
 BioBots/
 ├── docs/                    # GitHub Pages site (HTML + shared JS)
 │   ├── index.html           # Landing page / dashboard hub
-│   ├── shared/              # Core computation modules
+│   ├── shared/              # Core computation modules (14 modules)
 │   │   ├── calculator.js    # Bioink volume & cost calculator
+│   │   ├── capability.js    # Six Sigma process capability (Cp/Cpk/Pp/Ppk)
 │   │   ├── constants.js     # Shared constants & defaults
 │   │   ├── crosslink.js     # Cross-linking kinetics analyzer
+│   │   ├── data-loader.js   # Dataset loading, validation, caching
 │   │   ├── export.js        # CSV/JSON/PDF export utilities
 │   │   ├── gcode.js         # G-code parser & print analyzer
+│   │   ├── jobEstimator.js  # Print job time/material/cost/risk planner
+│   │   ├── mixer.js         # Bioink mixing ratio optimization
+│   │   ├── passage.js       # Cell passage tracking & growth curves
 │   │   ├── rheology.js      # Bioink rheology modeler
+│   │   ├── scaffold.js      # Scaffold geometry, porosity, mechanics
 │   │   ├── utils.js         # DOM helpers, formatting, rounding
 │   │   └── viability.js     # Cell viability estimator
 │   ├── *.html               # Dashboard pages (45 pages)
 │   └── bioprint-data.json   # Sample print dataset
-├── __tests__/               # Jest test suite (71 files, 3664 tests)
+├── __tests__/               # Jest test suite (74 files)
 ├── tests/                   # Assert-based tests (viability)
 ├── Try/                     # ASP.NET Web API project
-│   └── scripts/             # 25 bioprinting simulation modules
+│   └── scripts/             # 27 bioprinting simulation modules
 └── src/                     # Source entry point
 ```
 
@@ -37,14 +43,17 @@ for encapsulation and testability.
 | Module | Factory | Purpose | Functions |
 |--------|---------|---------|-----------|
 | `calculator.js` | `createCalculator()` | Bioink volume, cost, time estimation | 9 |
+| `capability.js` | `createCapabilityAnalyzer()` | Six Sigma Cp/Cpk/Pp/Ppk process capability analysis | 2 |
 | `constants.js` | (exports) | Physical constants, material defaults | — |
 | `crosslink.js` | `createCrosslinkAnalyzer()` | UV/radical cross-linking kinetics | 12 |
 | `data-loader.js` | `createDataLoader()` | Dataset loading, validation, caching | 6 |
 | `export.js` | `createExporter()` | Multi-format data export (CSV/JSON/PDF) | 8 |
 | `gcode.js` | `createGCodeAnalyzer()` | G-code parsing, layer analysis, costing | 11 |
+| `jobEstimator.js` | `createJobEstimator()` | Print job time/material/cost/risk estimation & batch planning | 8 |
 | `mixer.js` | `createMixer()` | Bioink mixing ratio optimization | 7 |
 | `passage.js` | `createPassageTracker()` | Cell passage tracking & growth curves | 8 |
 | `rheology.js` | `createRheologyModeler()` | Viscosity models, printability scoring | 11 |
+| `scaffold.js` | `createScaffoldCalculator()` | Scaffold geometry, porosity, surface area, mechanical estimates | 4 |
 | `utils.js` | (exports) | DOM helpers, number formatting | 5 |
 | `viability.js` | `createViabilityEstimator()` | Multi-stressor cell survival modeling | 9 |
 
@@ -79,31 +88,48 @@ load shared modules via `<script>` and use vanilla JavaScript for interactivity.
 - LocalStorage for user preferences and saved protocols
 - Responsive layout with sidebar navigation
 
-### 3. Test Layer
+### 3. Simulation Layer (`Try/scripts/`)
 
-**Jest suite** (`__tests__/`, 64 files): Tests for all shared modules,
-simulation scripts, and dashboard logic. Uses `jsdom` environment for
-DOM-dependent tests. Organized by category:
+27 standalone Node.js modules implementing bioprinting simulations and lab
+operations. Each exports a factory function returning domain-specific methods.
+
+| Category | Scripts | Description |
+|----------|---------|-------------|
+| **Bio Simulation** | `porosity`, `layerAdhesion`, `vascularization`, `maturation`, `degradation`, `cellSeeding` | Physical/biological process models |
+| **Materials** | `compatibility`, `formulationCalculator`, `costEstimator`, `shelfLife`, `sterilization` | Material science computations |
+| **Lab Operations** | `printQueue`, `protocolLibrary`, `sessionLogger`, `labAuditTrail`, `riskAssessor` | Lab workflow management |
+| **Diagnostics** | `failureDiagnostic`, `mlDiagnostic`, `healthDashboard` | Print failure analysis and ML-based diagnostics |
+| **Planning** | `nozzlePlanner`, `printComparator`, `parameterOptimizer`, `scriptUtils`, `runMethod` | Print planning and parameter optimization |
+| **Tracking** | `contaminationTracker`, `experimentTracker`, `materialLotTracker` | Contamination, experiment, and material lot tracking |
+
+### 4. Test Layer
+
+**Jest suite** (`__tests__/`, 74 files): Tests for all shared modules,
+simulation scripts, and dashboard logic. Uses `--env node` for pure
+computation tests. Organized by category:
 
 | Category | Test Files | Coverage |
 |----------|-----------|----------|
 | Core API & Utils | 5 | `runMethod`, `utils`, `constants`, `shared`, `data-loader` |
-| Shared Modules | 8 | `calculator`, `crosslink`, `gcode`, `rheology`, `viability`, `export`, `mixer`, `passage` |
+| Shared Modules | 11 | `calculator`, `capability`, `crosslink`, `gcode`, `rheology`, `viability`, `export`, `mixer`, `passage`, `jobEstimator`, `scaffold` |
 | Analysis | 9 | `compare`, `trends`, `correlation`, `cluster`, `predictor`, `recommender`, `pareto`, `optimizer`, `doe` |
-| Quality & SPC | 6 | `quality`, `spc`, `anomaly`, `reproducibility`, `batch`, `batchStats` |
+| Quality & SPC | 7 | `quality`, `spc`, `anomaly`, `reproducibility`, `batch`, `batchStats`, `compliance` |
 | Bioprinting Sim | 6 | `porosity`, `layerAdhesion`, `vascularization`, `maturation`, `degradation`, `cellSeeding` |
-| Lab Operations | 6 | `printQueue`, `protocolLibrary`, `sessionLogger`, `labAuditTrail`, `riskAssessor`, `scriptUtils` |
+| Lab Operations | 7 | `printQueue`, `protocolLibrary`, `protocol`, `sessionLogger`, `labAuditTrail`, `riskAssessor`, `scriptUtils` |
 | Diagnostics | 5 | `failureDiagnostic`, `mlDiagnostic`, `mlDiagnostic-extended`, `mlDiagnosticDeep`, `failure` |
-| Materials | 6 | `compatibility`, `formulationCalculator`, `costEstimator`, `shelfLife`, `sterilization`, `waste` |
-| Infrastructure | 5 | `nozzlePlanner`, `environment`, `maintenance`, `calibration`, `printComparator` |
-| Dashboards | 8 | `index`, `table`, `explorer`, `profile`, `coverage`, `wellplate`, `logbook`, `shelf-life` |
+| Materials | 7 | `compatibility`, `formulationCalculator`, `costEstimator`, `shelfLife`, `sterilization`, `waste`, `materialLotTracker` |
+| Infrastructure | 6 | `nozzlePlanner`, `environment`, `maintenance`, `calibration`, `printComparator`, `toolpath` |
+| Dashboards | 8 | `index`, `table`, `explorer`, `profile`, `coverage`, `wellplate`, `logbook`, `shelfLifeDashboard` |
+| Tracking | 2 | `contaminationTracker`, `experimentTracker` |
+| Security | 3 | `logbook-xss`, `passage-csv-security`, `healthDashboard` |
+| Parameter Opt. | 1 | `parameterOptimizer` |
 
 **Assert suite** (`tests/`, 1 file): Standalone `node`-runnable test for the
 viability estimator (72 tests) using Node's built-in `assert` module.
 
 **Running tests:**
 ```bash
-npm test                    # Jest (all 3664 tests across 71 suites)
+npx jest --env node         # Jest (all 74 suites)
 node tests/viability.test.js  # Assert-based viability tests
 ```
 
@@ -128,9 +154,12 @@ bioprint-data.json ──► HTML dashboards ──► Shared modules
 
 ```
 index.html ─┬── calculator.js ◄── constants.js
+             ├── capability.js
              ├── crosslink.js
              ├── gcode.js
+             ├── jobEstimator.js
              ├── rheology.js
+             ├── scaffold.js
              ├── viability.js
              ├── export.js ◄── utils.js
              └── utils.js
@@ -146,6 +175,9 @@ and `constants.js` are the only shared dependencies.
 | Cell viability | `viability.js` | Multiplicative 5-stressor model (Hill equations) |
 | Cross-linking | `crosslink.js` | First-order kinetics + dose-response curves |
 | Rheology | `rheology.js` | Power-law, Carreau, Herschel-Bulkley models |
+| Process capability | `capability.js` | Six Sigma Cp/Cpk (within-batch) and Pp/Ppk (overall) |
+| Job estimation | `jobEstimator.js` | Multi-factor time/cost/risk with batch planning |
+| Scaffold geometry | `scaffold.js` | Grid, honeycomb, gyroid architecture models |
 | Optimization | `viability.js` | Grid-search calibration with RMSE minimization |
 | Anomaly detection | Dashboard | Z-score and IQR-based outlier detection |
 | Clustering | Dashboard | K-means with silhouette scoring |
