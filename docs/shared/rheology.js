@@ -234,12 +234,14 @@ function createRheologyModeler() {
     }
 
     /**
-     * Estimate volumetric flow rate from print speed and nozzle diameter,
-     * assuming the extruded filament diameter equals the nozzle diameter.
-     *   Q = v · π · (D/2)² · layerHeight
+     * Estimate volumetric flow rate from print speed and nozzle diameter.
+     * Uses rectangular cross-section approximation (track width × layer height),
+     * standard for extrusion bioprinting where the deposited track width
+     * approximately equals the nozzle diameter.
+     *   Q = v · D · h
      *
      * @param {number} printSpeed - Linear print speed (mm/s)
-     * @param {number} nozzleDiameter - Nozzle diameter (mm)
+     * @param {number} nozzleDiameter - Nozzle diameter (mm), used as track width
      * @param {number} layerHeight - Layer height (mm)
      * @returns {number} Estimated flow rate (mL/min)
      */
