@@ -12,9 +12,9 @@ Analyze 3D bioprinting run data — cell viability, print resolution, crosslinki
 [![codecov](https://codecov.io/gh/sauravbhattacharya001/BioBots/graph/badge.svg)](https://codecov.io/gh/sauravbhattacharya001/BioBots)
 [![Docker Build](https://github.com/sauravbhattacharya001/BioBots/actions/workflows/docker.yml/badge.svg)](https://github.com/sauravbhattacharya001/BioBots/actions/workflows/docker.yml)
 [![GitHub Pages](https://github.com/sauravbhattacharya001/BioBots/actions/workflows/pages.yml/badge.svg)](https://sauravbhattacharya001.github.io/BioBots/)
-![Tests](https://img.shields.io/badge/tests-3342%20passed-brightgreen)
-![Test Suites](https://img.shields.io/badge/test%20suites-64-blue)
-![Scripts](https://img.shields.io/badge/scripts-22%20modules-informational)
+![Tests](https://img.shields.io/badge/tests-3664%20passed-brightgreen)
+![Test Suites](https://img.shields.io/badge/test%20suites-71-blue)
+![Scripts](https://img.shields.io/badge/scripts-25%20modules-informational)
 ![C#](https://img.shields.io/badge/C%23-ASP.NET%20Web%20API-purple)
 ![.NET Framework](https://img.shields.io/badge/.NET%20Framework-4.x-blue)
 [![Visual Studio](https://img.shields.io/badge/IDE-Visual%20Studio%202015+-blueviolet)](https://visualstudio.microsoft.com/)
@@ -38,11 +38,11 @@ The tool supports:
 - **Aggregation functions** — Maximum, Minimum, Average across all records
 - **11 queryable metrics** — From cell viability to extruder pressure
 - **File-watch caching** — Data reloads automatically when the JSON file changes (no restart needed)
-- **11 interactive analysis tools** — Explorer, Comparison, Quality Control, Anomaly Detection, Clustering, Optimization, Trend Analysis, Data Table, Wellplate Analyzer, Print Report, and Cost Estimator — all running client-side with zero dependencies
+- **45 interactive analysis tools** — From Data Explorer and Quality Control to Scaffold Designer, Environment Monitor, and Failure Diagnostics — all running client-side with zero dependencies
 
 ### 🌐 Live Demo
 
-All analysis tools are deployed on GitHub Pages:
+All 45 analysis tools are deployed on GitHub Pages:
 
 | Tool | Description |
 |------|-------------|
@@ -55,9 +55,41 @@ All analysis tools are deployed on GitHub Pages:
 | [📈 Trend Analysis](https://sauravbhattacharya001.github.io/BioBots/trends.html) | Metric trends, moving averages, correlations |
 | [📋 Data Table](https://sauravbhattacharya001.github.io/BioBots/table.html) | Searchable, sortable, filterable data browser |
 | [🧫 Wellplate Analyzer](https://sauravbhattacharya001.github.io/BioBots/wellplate.html) | Performance breakdown by wellplate format |
-| [📋 Print Report](https://sauravbhattacharya001.github.io/BioBots/report.html) | Generate formatted, printable lab reports |
-| [💰 Cost Estimator](https://sauravbhattacharya001.github.io/BioBots/cost.html) | Estimate per-print costs with materials, machine time, and batch scaling |
-| [📓 Print Logbook](https://sauravbhattacharya001.github.io/BioBots/logbook.html) | Lab notebook for annotating runs — notes, tags, flags, search, export |
+| [📋 Print Report](https://sauravbhattacharya001.github.io/BioBots/report.html) | Formatted, printable lab reports |
+| [💰 Cost Estimator](https://sauravbhattacharya001.github.io/BioBots/cost.html) | Per-print costs with materials, machine time, batch scaling |
+| [📓 Print Logbook](https://sauravbhattacharya001.github.io/BioBots/logbook.html) | Lab notebook — notes, tags, flags, search, export |
+| [🧪 Bioink Calculator](https://sauravbhattacharya001.github.io/BioBots/calculator.html) | Volume, cost, and time estimation for bioink preparations |
+| [🔧 Calibration](https://sauravbhattacharya001.github.io/BioBots/calibration.html) | Guided multi-parameter calibration with analysis |
+| [📊 Correlation](https://sauravbhattacharya001.github.io/BioBots/correlation.html) | Pairwise metric correlation matrix and insights |
+| [🏭 Batch Analytics](https://sauravbhattacharya001.github.io/BioBots/batch.html) | Batch processing queue and statistics |
+| [📐 Design of Experiments](https://sauravbhattacharya001.github.io/BioBots/doe.html) | Parameter space coverage, gap analysis |
+| [🌡️ Environment Monitor](https://sauravbhattacharya001.github.io/BioBots/environment.html) | Real-time lab conditions — temp, humidity, CO₂, particulates |
+| [📈 Evolution Tracker](https://sauravbhattacharya001.github.io/BioBots/evolution.html) | Track print quality evolution over time |
+| [🔬 Failure Diagnostics](https://sauravbhattacharya001.github.io/BioBots/failure.html) | Root cause analysis and failure mode detection |
+| [🔩 Nozzle Planner](https://sauravbhattacharya001.github.io/BioBots/nozzle.html) | Nozzle selection and coordination |
+| [🧪 Materials Database](https://sauravbhattacharya001.github.io/BioBots/materials.html) | Bioink material properties and selection |
+| [🧪 Bioink Mixer](https://sauravbhattacharya001.github.io/BioBots/mixer.html) | Multi-component mixing ratio optimization |
+| [📊 Pareto Analysis](https://sauravbhattacharya001.github.io/BioBots/pareto.html) | Multi-objective Pareto frontier visualization |
+| [🔮 Predictor](https://sauravbhattacharya001.github.io/BioBots/predictor.html) | Machine learning prediction of print outcomes |
+| [📝 Protocol Library](https://sauravbhattacharya001.github.io/BioBots/protocol.html) | Protocol management, tagging, comparison |
+| [📊 Print Profile](https://sauravbhattacharya001.github.io/BioBots/profile.html) | Individual print quality profiling with scoring |
+| [📊 Queue Manager](https://sauravbhattacharya001.github.io/BioBots/queue.html) | Print job scheduling and queue management |
+| [📝 Recommender](https://sauravbhattacharya001.github.io/BioBots/recommender.html) | Parameter recommendation engine |
+| [📊 Reproducibility](https://sauravbhattacharya001.github.io/BioBots/reproducibility.html) | Print reproducibility scoring and grouping |
+| [🧪 Rheology Modeler](https://sauravbhattacharya001.github.io/BioBots/rheology.html) | Viscosity models — Power-law, Carreau, Herschel-Bulkley |
+| [🏗️ Scaffold Designer](https://sauravbhattacharya001.github.io/BioBots/scaffold.html) | 3D scaffold design — porosity, strut, material analysis |
+| [🧬 Cell Seeding](https://sauravbhattacharya001.github.io/BioBots/seeding.html) | Seeding density and scaffold calculations |
+| [⏳ Shelf Life](https://sauravbhattacharya001.github.io/BioBots/shelf-life.html) | Bioink stability and shelf life tracking |
+| [📊 SPC Charts](https://sauravbhattacharya001.github.io/BioBots/spc.html) | Statistical process control — X-bar/R charts |
+| [🧹 Sterilization](https://sauravbhattacharya001.github.io/BioBots/sterilization.html) | Sterilization method selection and cycle planning |
+| [📊 Coverage Tracker](https://sauravbhattacharya001.github.io/BioBots/coverage.html) | Parameter space coverage analysis |
+| [✅ GLP Compliance](https://sauravbhattacharya001.github.io/BioBots/compliance.html) | Good Laboratory Practice compliance checks |
+| [🗺️ Toolpath Analyzer](https://sauravbhattacharya001.github.io/BioBots/toolpath.html) | G-code toolpath visualization and analysis |
+| [♻️ Waste Tracker](https://sauravbhattacharya001.github.io/BioBots/waste.html) | Material waste logging and trend analysis |
+| [🛡️ Maintenance](https://sauravbhattacharya001.github.io/BioBots/maintenance.html) | Equipment maintenance scheduling and alerts |
+| [🔌 API Explorer](https://sauravbhattacharya001.github.io/BioBots/api.html) | Interactive REST API documentation and testing |
+| [📚 Developer Guide](https://sauravbhattacharya001.github.io/BioBots/guide.html) | Setup, testing, and contributing reference |
+| [🏛️ Architecture](https://sauravbhattacharya001.github.io/BioBots/architecture.html) | System architecture diagram |
 
 ## 🏗️ Architecture
 

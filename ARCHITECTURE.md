@@ -17,12 +17,12 @@ BioBots/
 │   │   ├── rheology.js      # Bioink rheology modeler
 │   │   ├── utils.js         # DOM helpers, formatting, rounding
 │   │   └── viability.js     # Cell viability estimator
-│   ├── *.html               # Dashboard pages (42 pages)
+│   ├── *.html               # Dashboard pages (45 pages)
 │   └── bioprint-data.json   # Sample print dataset
-├── __tests__/               # Jest test suite (64 files, 3342 tests)
+├── __tests__/               # Jest test suite (71 files, 3664 tests)
 ├── tests/                   # Assert-based tests (viability)
 ├── Try/                     # ASP.NET Web API project
-│   └── scripts/             # 23 bioprinting simulation modules
+│   └── scripts/             # 25 bioprinting simulation modules
 └── src/                     # Source entry point
 ```
 
@@ -56,7 +56,7 @@ for encapsulation and testability.
 
 ### 2. Dashboard Layer (`docs/*.html`)
 
-42 single-page HTML dashboards, each focused on one analysis domain. Pages
+45 single-page HTML dashboards, each focused on one analysis domain. Pages
 load shared modules via `<script>` and use vanilla JavaScript for interactivity.
 
 | Category | Pages | Description |
@@ -103,7 +103,7 @@ viability estimator (72 tests) using Node's built-in `assert` module.
 
 **Running tests:**
 ```bash
-npm test                    # Jest (all 3342 tests across 64 suites)
+npm test                    # Jest (all 3664 tests across 71 suites)
 node tests/viability.test.js  # Assert-based viability tests
 ```
 
