@@ -130,7 +130,9 @@ class PrintQueue {
         const active = this.jobs.filter(j => j.status === STATUS.PRINTING);
         if (active.length >= this.maxConcurrent) return null;
 
-        const next = this.jobs.find(j => j.status === STATUS.QUEUED && !this._hasConflict(j, active));
+        // Paused jobs still hold their resources, so include them in conflict checks
+        const resourceHolders = this.jobs.filter(j => j.status === STATUS.PRINTING || j.status === STATUS.PAUSED);
+        const next = this.jobs.find(j => j.status === STATUS.QUEUED && !this._hasConflict(j, resourceHolders));
         if (!next) return null;
 
         next.status = STATUS.PRINTING;
@@ -194,11 +196,11 @@ class PrintQueue {
         return false;
     }
 
-    /** Get all resource conflicts for a job against currently active jobs. */
+    /** Get all resource conflicts for a job against currently active/paused jobs. */
     getConflicts(id) {
         const job = this.getJob(id);
         if (!job) return [];
-        const active = this.jobs.filter(j => j.status === STATUS.PRINTING);
+        const active = this.jobs.filter(j => j.status === STATUS.PRINTING || j.status === STATUS.PAUSED);
         const conflicts = [];
         for (const a of active) {
             const shared = job.resources.filter(r => a.resources.includes(r));
@@ -235,7 +237,7 @@ class PrintQueue {
             avgDurationMin: Math.round(avgDuration * 10) / 10,
             estimatedRemainingMin: Math.round(totalEstimated * 10) / 10,
             throughputPerHour: completed.length > 0
-                ? Math.round(completed.length / ((Date.now() - Math.min(...completed.map(j => j.startedAt))) / 3600000) * 10) / 10
+                ? Math.round(completed.length / ((Date.now() - completed.reduce((min, j) => j.startedAt < min ? j.startedAt : min, completed[0].startedAt)) / 3600000) * 10) / 10
                 : 0,
         };
     }
