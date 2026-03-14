@@ -28,6 +28,7 @@ var passage = require('./docs/shared/passage');
 var mixer = require('./docs/shared/mixer');
 var jobEstimator = require('./docs/shared/jobEstimator');
 var scaffold = require('./docs/shared/scaffold');
+var capability = require('./docs/shared/capability');
 
 module.exports = {
     createMaterialCalculator: calculator.createMaterialCalculator,
@@ -39,5 +40,6 @@ module.exports = {
     createPassageTracker: passage.createPassageTracker,
     createBioinkMixer: mixer.createBioinkMixer,
     createJobEstimator: jobEstimator.createJobEstimator,
-    createScaffoldCalculator: scaffold.createScaffoldCalculator
+    createScaffoldCalculator: scaffold.createScaffoldCalculator,
+    createCapabilityAnalyzer: capability.createCapabilityAnalyzer
 };
