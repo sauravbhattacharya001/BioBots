@@ -208,18 +208,43 @@ function createPassageTracker() {
         var highViability = ps.filter(function (p) { return p.viability >= 85; });
         if (highViability.length === 0) return { window: null, reason: 'no_high_viability_passages' };
 
-        var minP = highViability[0].passage;
-        var maxP = highViability[highViability.length - 1].passage;
+        // Find the longest contiguous run of high-viability passages.
+        // The old approach took first-to-last which could span gaps
+        // containing low-viability passages.
+        var bestStart = highViability[0].passage;
+        var bestEnd = highViability[0].passage;
+        var curStart = highViability[0].passage;
+        var curEnd = highViability[0].passage;
+        for (var hi = 1; hi < highViability.length; hi++) {
+            if (highViability[hi].passage === highViability[hi - 1].passage + 1) {
+                curEnd = highViability[hi].passage;
+            } else {
+                if (curEnd - curStart > bestEnd - bestStart) {
+                    bestStart = curStart;
+                    bestEnd = curEnd;
+                }
+                curStart = highViability[hi].passage;
+                curEnd = highViability[hi].passage;
+            }
+        }
+        if (curEnd - curStart > bestEnd - bestStart) {
+            bestStart = curStart;
+            bestEnd = curEnd;
+        }
 
         // Also consider max passage limit
-        var safeMax = Math.min(maxP, Math.floor(cl.maxPassage * 0.8));
+        var safeMax = Math.min(bestEnd, Math.floor(cl.maxPassage * 0.8));
+        // Ensure window is not inverted (safeMax < bestStart)
+        if (safeMax < bestStart) {
+            return { window: null, reason: 'safe_limit_below_viable_range' };
+        }
 
         return {
-            window: { from: minP, to: safeMax },
+            window: { from: bestStart, to: safeMax },
             maxPassageLimit: cl.maxPassage,
             senescenceBuffer: cl.maxPassage - safeMax,
             highViabilityPassages: highViability.length,
-            recommendation: 'Use cells between passages ' + minP + '-' + safeMax + ' for best results'
+            recommendation: 'Use cells between passages ' + bestStart + '-' + safeMax + ' for best results'
         };
     }
 
@@ -357,7 +382,10 @@ function createPassageTracker() {
         var firstChar = str.charAt(0);
         if (firstChar === '=' || firstChar === '+' || firstChar === '-' ||
             firstChar === '@' || firstChar === '\t' || firstChar === '\r') {
-            str = "'" + str;
+            // Skip prefix for values that are valid numbers (e.g. -3.14, +1.5)
+            if (!((firstChar === '-' || firstChar === '+') && str.length > 1 && isFinite(Number(str)))) {
+                str = "'" + str;
+            }
         }
 
         // Quote if contains comma, double-quote, newline, or
