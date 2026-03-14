@@ -421,3 +421,96 @@ describe('Integration', () => {
         });
     });
 });
+
+// ── Security: XSS / HTML escaping ─────────────────────────
+describe('esc() — HTML escaping', () => {
+    let env;
+    beforeAll(() => {
+        const dom = createDOM();
+        env = dom.window.envMonitor;
+    });
+
+    test('escapes angle brackets', () => {
+        expect(env.esc('<script>alert(1)</script>')).toBe('&lt;script&gt;alert(1)&lt;/script&gt;');
+    });
+
+    test('escapes ampersand', () => {
+        expect(env.esc('a&b')).toBe('a&amp;b');
+    });
+
+    test('escapes double and single quotes', () => {
+        expect(env.esc('"hello"')).toBe('&quot;hello&quot;');
+        expect(env.esc("it's")).toBe('it&#39;s');
+    });
+
+    test('returns empty string for null/undefined', () => {
+        expect(env.esc(null)).toBe('');
+        expect(env.esc(undefined)).toBe('');
+    });
+
+    test('coerces numbers to string', () => {
+        expect(env.esc(42)).toBe('42');
+    });
+
+    test('handles combined attack payload', () => {
+        const payload = '<img src=x onerror="alert(document.cookie)">';
+        const result = env.esc(payload);
+        expect(result).not.toContain('<');
+        expect(result).not.toContain('>');
+        expect(result).not.toContain('"');
+    });
+});
+
+// ── Security: CSV formula injection ───────────────────────
+describe('csvSafe() — CSV formula injection prevention', () => {
+    let env;
+    beforeAll(() => {
+        const dom = createDOM();
+        env = dom.window.envMonitor;
+    });
+
+    test('prefixes values starting with = to prevent formula injection', () => {
+        const result = env.csvSafe('=CMD("calc")');
+        expect(result).toMatch(/^"'/);
+        expect(result).not.toMatch(/^"=/);
+    });
+
+    test('prefixes values starting with +', () => {
+        const result = env.csvSafe('+1+2');
+        expect(result).toMatch(/^"'/);
+    });
+
+    test('prefixes values starting with -', () => {
+        const result = env.csvSafe('-1-2');
+        expect(result).toMatch(/^"'/);
+    });
+
+    test('prefixes values starting with @', () => {
+        const result = env.csvSafe('@SUM(A1:A10)');
+        expect(result).toMatch(/^"'/);
+    });
+
+    test('prefixes values starting with tab', () => {
+        const result = env.csvSafe('\t=1');
+        expect(result).toMatch(/^"'/);
+    });
+
+    test('prefixes values starting with carriage return', () => {
+        const result = env.csvSafe('\r=1');
+        expect(result).toMatch(/^"'/);
+    });
+
+    test('does not prefix safe values', () => {
+        expect(env.csvSafe('Temperature CRITICAL')).toBe('"Temperature CRITICAL"');
+        expect(env.csvSafe('42')).toBe('"42"');
+    });
+
+    test('escapes internal double quotes', () => {
+        expect(env.csvSafe('say "hello"')).toBe('"say ""hello"""');
+    });
+
+    test('handles null/undefined', () => {
+        expect(env.csvSafe(null)).toBe('""');
+        expect(env.csvSafe(undefined)).toBe('""');
+    });
+});

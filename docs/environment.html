@@ -283,6 +283,29 @@
     (function () {
         'use strict';
 
+        /* ── Security helpers ──────────────────────────────────── */
+
+        function esc(s) {
+            if (s == null) return '';
+            return String(s)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+        }
+
+        function escAttr(s) {
+            return esc(s);
+        }
+
+        var _formulaLeadChars = /^[=+\-@\t\r]/;
+        function csvSafe(s) {
+            var str = String(s == null ? '' : s).replace(/"/g, '""');
+            if (_formulaLeadChars.test(str)) str = "'" + str;
+            return '"' + str + '"';
+        }
+
         /* ── Sensor Parameters ─────────────────────────────────── */
 
         var SENSORS = {
@@ -503,10 +526,10 @@
                 tile.className = 'status-tile ' + cls;
                 tile.innerHTML =
                     '<div class="indicator"></div>' +
-                    '<div class="label">' + s.emoji + ' ' + s.label + '</div>' +
-                    '<div class="value">' + v.toFixed(s.precision) + '<span class="unit"> ' + s.unit + '</span></div>' +
+                    '<div class="label">' + esc(s.emoji) + ' ' + esc(s.label) + '</div>' +
+                    '<div class="value">' + v.toFixed(s.precision) + '<span class="unit"> ' + esc(s.unit) + '</span></div>' +
                     '<div class="range">Optimal: ' + (s.optimalLow !== null ? s.optimalLow : '—') +
-                    ' – ' + (s.optimalHigh !== null ? s.optimalHigh : '—') + ' ' + s.unit + '</div>';
+                    ' – ' + (s.optimalHigh !== null ? s.optimalHigh : '—') + ' ' + esc(s.unit) + '</div>';
                 grid.appendChild(tile);
             });
         }
@@ -719,8 +742,8 @@
             var strength = Math.abs(r) > 0.7 ? 'Strong' : Math.abs(r) > 0.4 ? 'Moderate' : 'Weak';
             var direction = r > 0 ? 'positive' : 'negative';
             statsEl.innerHTML = 'Pearson r = <strong>' + r.toFixed(3) + '</strong> — ' +
-                strength + ' ' + direction + ' correlation · ' +
-                'Regression: viability ≈ ' + slope.toFixed(2) + '·' + xKey + ' + ' + intercept.toFixed(1) +
+                esc(strength) + ' ' + esc(direction) + ' correlation · ' +
+                'Regression: viability ≈ ' + slope.toFixed(2) + '·' + esc(xKey) + ' + ' + intercept.toFixed(1) +
                 ' · n=' + n;
         };
 
@@ -736,9 +759,9 @@
             el.innerHTML = sorted.map(function (a) {
                 var time = new Date(a.ts).toLocaleTimeString();
                 return '<div class="alert-entry">' +
-                    '<span class="alert-badge ' + a.level + '">' + a.level + '</span>' +
-                    '<span style="flex-shrink:0;width:65px;">' + time + '</span>' +
-                    '<span>' + a.message + '</span>' +
+                    '<span class="alert-badge ' + escAttr(a.level) + '">' + esc(a.level) + '</span>' +
+                    '<span style="flex-shrink:0;width:65px;">' + esc(time) + '</span>' +
+                    '<span>' + esc(a.message) + '</span>' +
                     '</div>';
             }).join('');
         }
@@ -751,12 +774,13 @@
             SENSOR_KEYS.forEach(function (k) {
                 var s = SENSORS[k];
                 var t = thresholds[k];
+                var ek = escAttr(k);
                 html += '<tr>' +
-                    '<td>' + s.emoji + ' ' + s.label + '</td>' +
-                    '<td><input type="number" id="th-' + k + '-wl" value="' + (t.warnLow !== null ? t.warnLow : '') + '" style="width:65px;" onchange="updateThreshold(\'' + k + '\')"></td>' +
-                    '<td><input type="number" id="th-' + k + '-wh" value="' + (t.warnHigh !== null ? t.warnHigh : '') + '" style="width:65px;" onchange="updateThreshold(\'' + k + '\')"></td>' +
-                    '<td><input type="number" id="th-' + k + '-al" value="' + (t.alertLow !== null ? t.alertLow : '') + '" style="width:65px;" onchange="updateThreshold(\'' + k + '\')"></td>' +
-                    '<td><input type="number" id="th-' + k + '-ah" value="' + (t.alertHigh !== null ? t.alertHigh : '') + '" style="width:65px;" onchange="updateThreshold(\'' + k + '\')"></td>' +
+                    '<td>' + esc(s.emoji) + ' ' + esc(s.label) + '</td>' +
+                    '<td><input type="number" id="th-' + ek + '-wl" value="' + (t.warnLow !== null ? t.warnLow : '') + '" style="width:65px;" onchange="updateThreshold(\'' + ek + '\')"></td>' +
+                    '<td><input type="number" id="th-' + ek + '-wh" value="' + (t.warnHigh !== null ? t.warnHigh : '') + '" style="width:65px;" onchange="updateThreshold(\'' + ek + '\')"></td>' +
+                    '<td><input type="number" id="th-' + ek + '-al" value="' + (t.alertLow !== null ? t.alertLow : '') + '" style="width:65px;" onchange="updateThreshold(\'' + ek + '\')"></td>' +
+                    '<td><input type="number" id="th-' + ek + '-ah" value="' + (t.alertHigh !== null ? t.alertHigh : '') + '" style="width:65px;" onchange="updateThreshold(\'' + ek + '\')"></td>' +
                     '</tr>';
             });
             html += '</tbody></table>';
@@ -794,13 +818,13 @@
                 var stats = computeStats(vals);
                 var cls = classifySensor(k, latest[k]);
                 html += '<tr>' +
-                    '<td>' + s.emoji + ' ' + s.label + ' (' + s.unit + ')</td>' +
+                    '<td>' + esc(s.emoji) + ' ' + esc(s.label) + ' (' + esc(s.unit) + ')</td>' +
                     '<td><strong>' + latest[k].toFixed(s.precision) + '</strong></td>' +
                     '<td>' + stats.mean.toFixed(s.precision) + '</td>' +
                     '<td>' + stats.min.toFixed(s.precision) + '</td>' +
                     '<td>' + stats.max.toFixed(s.precision) + '</td>' +
                     '<td>' + stats.std.toFixed(s.precision + 1) + '</td>' +
-                    '<td>' + statusLabel(cls) + '</td>' +
+                    '<td>' + esc(statusLabel(cls)) + '</td>' +
                     '</tr>';
             });
             tbody.innerHTML = html;
@@ -825,7 +849,7 @@
             } else {
                 var csv = 'timestamp,sensor,level,value,message\n';
                 alerts.forEach(function (a) {
-                    csv += new Date(a.ts).toISOString() + ',' + a.sensor + ',' + a.level + ',' + a.value + ',"' + a.message.replace(/"/g, '""') + '"\n';
+                    csv += new Date(a.ts).toISOString() + ',' + csvSafe(a.sensor) + ',' + csvSafe(a.level) + ',' + a.value + ',' + csvSafe(a.message) + '\n';
                 });
                 downloadFile(csv, 'env-alerts.csv', 'text/csv');
             }
@@ -849,6 +873,8 @@
             computeStats: computeStats,
             pearsonCorrelation: pearsonCorrelation,
             classifySensor: classifySensor,
+            esc: esc,
+            csvSafe: csvSafe,
             checkAlerts: function (reading) {
                 alerts = [];
                 checkAlerts(reading);
