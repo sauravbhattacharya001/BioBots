@@ -390,8 +390,10 @@ describe('JobEstimator', function () {
             { geometry: { type: 'wellplate', wellplate: 24, layers: 5, layerHeight: 0.2 }, material: 'alginate' },
             { geometry: { type: 'wellplate', wellplate: 24, layers: 5, layerHeight: 0.2 }, material: 'alginate' }
         ]);
-        // Second job should have less time than standalone
-        expect(batch.estimates[1].timing.totalMin).toBeLessThan(single.timing.totalMin);
+        // Individual estimates are NOT mutated — each retains full standalone timing
+        expect(batch.estimates[1].timing.totalMin).toBe(single.timing.totalMin);
+        // But the batch aggregate reflects calibration savings
+        expect(batch.aggregate.totalTimeMin).toBeLessThan(single.timing.totalMin * 2);
     });
 
     // ── Custom timing options ──────────────────────────────────
