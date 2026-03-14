@@ -341,6 +341,15 @@ function mechanicalDecayCurve(profile, conditions) {
   const massCurveData = massCurve(profile, conditions);
   const curve = [];
 
+  // Find the day when mass loss first exceeds the lag fraction (fix #68)
+  let lagDay = 0;
+  for (let j = 0; j < massCurveData.length; j++) {
+    if (1 - massCurveData[j].massFraction > lagFraction) {
+      lagDay = massCurveData[j].day;
+      break;
+    }
+  }
+
   for (let i = 0; i < massCurveData.length; i++) {
     const pt = massCurveData[i];
     const massLost = 1 - pt.massFraction;
@@ -349,8 +358,10 @@ function mechanicalDecayCurve(profile, conditions) {
       // Lag phase — minimal mechanical loss
       mechFraction = 1 - (massLost / lagFraction) * 0.05;
     } else {
-      // Active decay phase
-      const decayTime = (massLost - lagFraction) / k;
+      // Active decay phase — use actual elapsed days since lag phase ended
+      // Previously used linear approximation (massLost - lagFraction) / k which
+      // underestimates time from exponential mass loss kinetics
+      const decayTime = Math.max(0, pt.day - lagDay);
       mechFraction = 0.95 * Math.exp(-mechRate * decayTime / (1 - lagFraction));
     }
     mechFraction = clamp(mechFraction, 0, 1);
