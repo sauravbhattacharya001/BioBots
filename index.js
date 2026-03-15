@@ -29,6 +29,7 @@ var mixer = require('./docs/shared/mixer');
 var jobEstimator = require('./docs/shared/jobEstimator');
 var scaffold = require('./docs/shared/scaffold');
 var capability = require('./docs/shared/capability');
+var printQualityScorer = require('./docs/shared/printQualityScorer');
 
 module.exports = {
     createMaterialCalculator: calculator.createMaterialCalculator,
@@ -41,5 +42,6 @@ module.exports = {
     createBioinkMixer: mixer.createBioinkMixer,
     createJobEstimator: jobEstimator.createJobEstimator,
     createScaffoldCalculator: scaffold.createScaffoldCalculator,
-    createCapabilityAnalyzer: capability.createCapabilityAnalyzer
+    createCapabilityAnalyzer: capability.createCapabilityAnalyzer,
+    createPrintQualityScorer: printQualityScorer.createPrintQualityScorer
 };
