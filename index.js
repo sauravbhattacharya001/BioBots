@@ -1,4 +1,4 @@
-'use strict';
+﻿'use strict';
 
 /**
  * BioBots SDK — Bioprinting computation toolkit.
@@ -30,6 +30,7 @@ var jobEstimator = require('./docs/shared/jobEstimator');
 var scaffold = require('./docs/shared/scaffold');
 var capability = require('./docs/shared/capability');
 var printQualityScorer = require('./docs/shared/printQualityScorer');
+var recipeBuilder = require('./docs/shared/recipeBuilder');
 
 module.exports = {
     createMaterialCalculator: calculator.createMaterialCalculator,
@@ -43,5 +44,6 @@ module.exports = {
     createJobEstimator: jobEstimator.createJobEstimator,
     createScaffoldCalculator: scaffold.createScaffoldCalculator,
     createCapabilityAnalyzer: capability.createCapabilityAnalyzer,
-    createPrintQualityScorer: printQualityScorer.createPrintQualityScorer
+    createPrintQualityScorer: printQualityScorer.createPrintQualityScorer,
+    createRecipeBuilder: function() { return recipeBuilder; }
 };
