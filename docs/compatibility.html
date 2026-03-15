@@ -1,0 +1,442 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>BioBots 1 — Bioink Compatibility Matrix</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧬</text></svg>">
+    <style>
+        :root {
+            --bg: #0f172a; --surface: #1e293b; --border: #334155;
+            --text: #e2e8f0; --muted: #94a3b8; --accent: #38bdf8;
+            --accent-hover: #7dd3fc; --success: #4ade80; --error: #f87171;
+            --warning: #fbbf24; --purple: #a78bfa;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; display: flex; flex-direction: column; align-items: center; padding: 2rem 1rem; }
+        nav { display: flex; gap: 0.5rem; margin-bottom: 2rem; flex-wrap: wrap; justify-content: center; }
+        nav a { color: var(--muted); padding: 0.5rem 1rem; border-radius: 8px; text-decoration: none; font-size: 0.9rem; transition: all 0.2s; }
+        nav a:hover { color: var(--accent); background: var(--surface); }
+        nav a.active { color: var(--accent); background: var(--surface); border: 1px solid var(--border); }
+        header { text-align: center; margin-bottom: 2rem; }
+        header h1 { font-size: 2rem; font-weight: 700; background: linear-gradient(135deg, var(--purple), var(--accent)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+        header p { color: var(--muted); margin-top: 0.5rem; }
+        .container { width: 100%; max-width: 1200px; }
+        .card { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 1.5rem; margin-bottom: 1.5rem; }
+        .card h2 { font-size: 1.1rem; margin-bottom: 1rem; color: var(--muted); font-weight: 500; }
+        .layout-top { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-bottom: 1.5rem; }
+        @media (max-width: 900px) { .layout-top { grid-template-columns: 1fr; } }
+        .btn { background: var(--accent); color: var(--bg); border: none; padding: 0.6rem 1.2rem; border-radius: 8px; font-size: 0.9rem; font-weight: 600; cursor: pointer; transition: background 0.2s; }
+        .btn:hover { background: var(--accent-hover); }
+        .btn-sm { padding: 0.4rem 0.8rem; font-size: 0.8rem; }
+        .btn-secondary { background: var(--surface); color: var(--accent); border: 1px solid var(--border); }
+        .btn-secondary:hover { background: var(--border); }
+        .badge { display: inline-block; padding: 0.15rem 0.5rem; border-radius: 20px; font-size: 0.7rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; }
+        .badge-excellent { background: rgba(74,222,128,0.15); color: var(--success); }
+        .badge-good { background: rgba(56,189,248,0.15); color: var(--accent); }
+        .badge-moderate { background: rgba(251,191,36,0.15); color: var(--warning); }
+        .badge-poor { background: rgba(248,113,113,0.15); color: var(--error); }
+        .badge-incompatible { background: rgba(248,113,113,0.25); color: var(--error); }
+
+        /* Heatmap matrix */
+        .matrix-scroll { overflow-x: auto; margin: 1rem 0; }
+        .matrix-table { border-collapse: collapse; }
+        .matrix-table th { font-size: 0.7rem; color: var(--muted); padding: 0.4rem; max-width: 80px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .matrix-table th.row-header { text-align: right; padding-right: 0.6rem; }
+        .matrix-table th.col-header { writing-mode: vertical-rl; text-orientation: mixed; transform: rotate(180deg); height: 90px; vertical-align: bottom; }
+        .matrix-cell { width: 48px; height: 48px; text-align: center; cursor: pointer; font-size: 0.75rem; font-weight: 700; border: 1px solid var(--bg); border-radius: 4px; transition: transform 0.15s, box-shadow 0.15s; position: relative; }
+        .matrix-cell:hover { transform: scale(1.15); box-shadow: 0 0 12px rgba(56,189,248,0.3); z-index: 2; }
+        .matrix-cell.selected { outline: 2px solid var(--accent); outline-offset: 1px; }
+        .matrix-cell.diagonal { opacity: 0.3; cursor: default; }
+
+        /* Stats row */
+        .stats-row { display: flex; gap: 1rem; flex-wrap: wrap; margin-bottom: 1rem; }
+        .stat-item { background: var(--bg); border: 1px solid var(--border); border-radius: 10px; padding: 0.6rem 1rem; text-align: center; min-width: 100px; }
+        .stat-item .value { font-size: 1.4rem; font-weight: 700; color: var(--accent); }
+        .stat-item .label { font-size: 0.7rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; }
+
+        /* Pair detail */
+        .pair-detail { display: none; }
+        .pair-detail.visible { display: block; }
+        .dim-bars { display: grid; gap: 0.6rem; }
+        .dim-bar-row { display: grid; grid-template-columns: 100px 1fr 45px; gap: 0.8rem; align-items: center; }
+        .dim-bar-label { font-size: 0.8rem; color: var(--muted); text-align: right; }
+        .dim-bar-track { height: 24px; background: var(--bg); border-radius: 12px; overflow: hidden; border: 1px solid var(--border); }
+        .dim-bar-fill { height: 100%; border-radius: 12px; transition: width 0.4s ease; }
+        .dim-bar-value { font-size: 0.85rem; font-weight: 600; }
+        .dim-detail-text { font-size: 0.8rem; color: var(--muted); margin-top: 0.2rem; grid-column: 2 / 4; }
+
+        /* Rankings */
+        .rank-list { list-style: none; }
+        .rank-list li { display: flex; justify-content: space-between; align-items: center; padding: 0.5rem 0; border-bottom: 1px solid var(--border); font-size: 0.85rem; }
+        .rank-list li:last-child { border-bottom: none; }
+        .rank-score { font-weight: 700; }
+
+        /* Recommendations */
+        .rec-list { list-style: none; }
+        .rec-list li { padding: 0.4rem 0; font-size: 0.85rem; color: var(--muted); }
+        .rec-list li::before { content: '💡 '; }
+
+        /* Add bioink form */
+        .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.6rem; }
+        @media (max-width: 500px) { .form-grid { grid-template-columns: 1fr; } }
+        .form-group { display: flex; flex-direction: column; gap: 0.2rem; }
+        label { font-size: 0.75rem; color: var(--muted); font-weight: 500; }
+        input, select { background: var(--bg); border: 1px solid var(--border); color: var(--text); padding: 0.4rem 0.6rem; border-radius: 8px; font-size: 0.85rem; outline: none; }
+        input:focus, select:focus { border-color: var(--accent); }
+        .form-actions { margin-top: 0.8rem; display: flex; gap: 0.5rem; }
+        .toggle-btn { background: none; border: 1px dashed var(--border); color: var(--muted); padding: 0.5rem 1rem; border-radius: 8px; cursor: pointer; font-size: 0.85rem; transition: all 0.2s; }
+        .toggle-btn:hover { color: var(--accent); border-color: var(--accent); }
+        footer { margin-top: 3rem; padding: 2rem; text-align: center; color: var(--muted); font-size: 0.85rem; }
+        footer a { color: var(--accent); text-decoration: none; }
+    </style>
+</head>
+<body>
+
+    <nav>
+        <a href="index.html">Dashboard</a>
+        <a href="explorer.html">Explorer</a>
+        <a href="calculator.html">Calculator</a>
+        <a href="mixer.html">Mixer</a>
+        <a href="compatibility.html" class="active">🔬 Compatibility</a>
+        <a href="quality.html">Quality</a>
+        <a href="protocol.html">Protocol</a>
+        <a href="compare.html">Compare</a>
+        <a href="materials.html">Materials</a>
+        <a href="rheology.html">Rheology</a>
+    </nav>
+
+    <header>
+        <h1>🔬 Bioink Compatibility Matrix</h1>
+        <p>Analyze multi-material compatibility for bioprinting workflows. Click any cell for detailed breakdown.</p>
+    </header>
+
+    <div class="container">
+        <!-- Stats overview -->
+        <div class="stats-row" id="stats-row"></div>
+
+        <!-- Heatmap matrix -->
+        <div class="card">
+            <h2>Pairwise Compatibility Heatmap</h2>
+            <div class="matrix-scroll" id="matrix-container"></div>
+        </div>
+
+        <div class="layout-top">
+            <!-- Pair detail panel -->
+            <div class="card pair-detail" id="pair-detail">
+                <h2 id="pair-title">Select a cell to see details</h2>
+                <div id="pair-classification" style="margin-bottom:1rem;"></div>
+                <div class="dim-bars" id="dim-bars"></div>
+                <div style="margin-top:1rem;">
+                    <h2>Recommendations</h2>
+                    <ul class="rec-list" id="pair-recs"></ul>
+                </div>
+            </div>
+
+            <!-- Best & Worst pairs -->
+            <div>
+                <div class="card">
+                    <h2>🏆 Best Pairs</h2>
+                    <ul class="rank-list" id="best-pairs"></ul>
+                </div>
+                <div class="card">
+                    <h2>⚠️ Worst Pairs</h2>
+                    <ul class="rank-list" id="worst-pairs"></ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- Add custom bioink -->
+        <div class="card">
+            <div style="display:flex;justify-content:space-between;align-items:center;">
+                <h2 style="margin-bottom:0;">➕ Add Custom Bioink</h2>
+                <button class="toggle-btn" id="toggle-form">Show Form</button>
+            </div>
+            <div id="add-form-container" style="display:none;margin-top:1rem;">
+                <div class="form-grid">
+                    <div class="form-group"><label>Name *</label><input id="f-name" placeholder="e.g. Fibrin 4%"></div>
+                    <div class="form-group"><label>Crosslink Method *</label>
+                        <select id="f-crosslink"><option value="uv">UV</option><option value="ionic">Ionic</option><option value="thermal">Thermal</option><option value="enzymatic">Enzymatic</option><option value="chemical">Chemical</option></select>
+                    </div>
+                    <div class="form-group"><label>Viscosity (Pa·s) *</label><input id="f-visc" type="number" step="0.01" min="0.01" value="0.5"></div>
+                    <div class="form-group"><label>Shear Thinning Index (0–1) *</label><input id="f-shear" type="number" step="0.01" min="0" max="1" value="0.5"></div>
+                    <div class="form-group"><label>Temp Min (°C)</label><input id="f-tmin" type="number" value="20"></div>
+                    <div class="form-group"><label>Temp Max (°C)</label><input id="f-tmax" type="number" value="37"></div>
+                    <div class="form-group"><label>Print Temp (°C)</label><input id="f-tprint" type="number" value="25"></div>
+                    <div class="form-group"><label>pH Min</label><input id="f-phmin" type="number" step="0.1" value="6.5"></div>
+                    <div class="form-group"><label>pH Max</label><input id="f-phmax" type="number" step="0.1" value="7.5"></div>
+                    <div class="form-group"><label>Optimal pH</label><input id="f-phopt" type="number" step="0.1" value="7.0"></div>
+                    <div class="form-group"><label>Surface Tension (mN/m)</label><input id="f-st" type="number" value="45"></div>
+                    <div class="form-group"><label>Degradation (days)</label><input id="f-deg" type="number" value="28"></div>
+                    <div class="form-group"><label>Swelling Ratio</label><input id="f-swell" type="number" step="0.1" value="2.0"></div>
+                    <div class="form-group"><label>Modulus (kPa)</label><input id="f-mod" type="number" step="0.1" value="10"></div>
+                </div>
+                <div class="form-actions">
+                    <button class="btn" id="add-bioink-btn">Add Bioink</button>
+                    <button class="btn btn-secondary" id="reset-btn">Reset to Defaults</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <footer>
+        <p>Built with 🧬 by <a href="https://github.com/sauravbhattacharya001">Saurav Bhattacharya</a></p>
+        <p><a href="https://github.com/sauravbhattacharya001/BioBots">View Source</a></p>
+    </footer>
+
+<script>
+// ── Compatibility engine (inline, adapted from Try/scripts/compatibility.js) ──
+
+function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
+function mean(arr) { return arr.length ? arr.reduce((s,v) => s+v, 0) / arr.length : 0; }
+
+const BUILTIN_BIOINKS = {
+    'GelMA 5%': { name:'GelMA 5%', viscosityPas:0.8, shearThinningIndex:0.45, crosslinkMethod:'uv', crosslinkWavelength:405, crosslinkTimeS:30, tempMinC:20, tempMaxC:37, printTempC:25, phMin:6.5, phMax:7.5, optimalPh:7.0, surfaceTension:45, degradationDays:28, swellingRatio:1.8, mechanicalModulusKPa:12 },
+    'Alginate 2%': { name:'Alginate 2%', viscosityPas:0.3, shearThinningIndex:0.65, crosslinkMethod:'ionic', crosslinkTimeS:10, tempMinC:15, tempMaxC:40, printTempC:22, phMin:6.0, phMax:8.0, optimalPh:7.2, surfaceTension:52, degradationDays:14, swellingRatio:2.5, mechanicalModulusKPa:5 },
+    'Collagen I 3mg/mL': { name:'Collagen I 3mg/mL', viscosityPas:0.15, shearThinningIndex:0.55, crosslinkMethod:'thermal', crosslinkTimeS:600, tempMinC:4, tempMaxC:37, printTempC:10, phMin:6.8, phMax:7.6, optimalPh:7.4, surfaceTension:40, degradationDays:21, swellingRatio:1.3, mechanicalModulusKPa:2 },
+    'PEGDA 10%': { name:'PEGDA 10%', viscosityPas:0.05, shearThinningIndex:0.9, crosslinkMethod:'uv', crosslinkWavelength:365, crosslinkTimeS:60, tempMinC:18, tempMaxC:45, printTempC:25, phMin:5.5, phMax:8.5, optimalPh:7.0, surfaceTension:55, degradationDays:90, swellingRatio:3.2, mechanicalModulusKPa:50 },
+    'Hyaluronic Acid 1.5%': { name:'Hyaluronic Acid 1.5%', viscosityPas:1.2, shearThinningIndex:0.35, crosslinkMethod:'uv', crosslinkWavelength:365, crosslinkTimeS:45, tempMinC:20, tempMaxC:37, printTempC:25, phMin:6.0, phMax:7.5, optimalPh:7.0, surfaceTension:48, degradationDays:7, swellingRatio:4.0, mechanicalModulusKPa:3 },
+    'Silk Fibroin 8%': { name:'Silk Fibroin 8%', viscosityPas:2.5, shearThinningIndex:0.3, crosslinkMethod:'enzymatic', crosslinkTimeS:120, tempMinC:20, tempMaxC:37, printTempC:25, phMin:6.5, phMax:7.8, optimalPh:7.0, surfaceTension:42, degradationDays:60, swellingRatio:1.5, mechanicalModulusKPa:30 },
+};
+
+const DIMENSION_WEIGHTS = { rheology:0.2, crosslinking:0.2, thermal:0.2, ph:0.15, interface:0.15, degradation:0.1 };
+
+function rangeOverlapScore(a1,a2,b1,b2) {
+    const lo=Math.max(a1,b1), hi=Math.min(a2,b2);
+    if(lo>=hi) return 0;
+    const smaller=Math.min(a2-a1,b2-b1);
+    return smaller<=0?0:clamp((hi-lo)/smaller,0,1);
+}
+function proxScore(a,b,scale) { return scale<=0?0:Math.max(0,1-Math.abs(a-b)/scale); }
+
+function rheologyScore(a,b) {
+    const aV=a.viscosityPas||0, bV=b.viscosityPas||0;
+    let vr; if(aV<=0||bV<=0) vr=0; else vr=aV>bV?bV/aV:aV/bV;
+    const sd=Math.abs((a.shearThinningIndex||0)-(b.shearThinningIndex||0));
+    const score=0.6*clamp(vr,0,1)+0.4*Math.max(0,1-sd/0.5);
+    return { score, detail: vr<0.2?'Large viscosity mismatch':vr<0.5?'Moderate viscosity difference':'Good viscosity match' };
+}
+function crosslinkScore(a,b) {
+    const same=a.crosslinkMethod===b.crosslinkMethod;
+    if(same) {
+        if(a.crosslinkMethod==='uv'&&a.crosslinkWavelength&&b.crosslinkWavelength) {
+            const d=Math.abs(a.crosslinkWavelength-b.crosslinkWavelength);
+            if(d===0) return {score:1,detail:'Same UV wavelength — single-step crosslinking'};
+            if(d<=40) return {score:0.7,detail:`UV wavelengths differ by ${d}nm`};
+            return {score:0.4,detail:`UV wavelengths differ by ${d}nm — separate steps needed`};
+        }
+        return {score:0.9,detail:`Both use ${a.crosslinkMethod} crosslinking`};
+    }
+    const orth=[['uv','ionic'],['uv','enzymatic'],['thermal','ionic'],['thermal','uv'],['enzymatic','ionic']];
+    const isO=orth.some(([x,y])=>(a.crosslinkMethod===x&&b.crosslinkMethod===y)||(a.crosslinkMethod===y&&b.crosslinkMethod===x));
+    return isO?{score:0.75,detail:`Orthogonal crosslinking (${a.crosslinkMethod}/${b.crosslinkMethod})`}:{score:0.5,detail:`Different methods (${a.crosslinkMethod}/${b.crosslinkMethod})`};
+}
+function thermalScore(a,b) {
+    const overlap=rangeOverlapScore(a.tempMinC,a.tempMaxC,b.tempMinC,b.tempMaxC);
+    const ps=proxScore(a.printTempC,b.printTempC,20);
+    return { score:0.5*overlap+0.5*ps, detail:overlap===0?'No thermal overlap — cannot co-print':overlap<0.3?'Narrow thermal window':'Good thermal compatibility' };
+}
+function phScore(a,b) {
+    const overlap=rangeOverlapScore(a.phMin,a.phMax,b.phMin,b.phMax);
+    const os=proxScore(a.optimalPh,b.optimalPh,2);
+    return { score:0.5*overlap+0.5*os, detail:overlap===0?'No pH overlap — incompatible':'pH ranges overlap — compatible' };
+}
+function interfaceScore(a,b) {
+    const stS=proxScore(a.surfaceTension||45,b.surfaceTension||45,30);
+    const swR=a.swellingRatio&&b.swellingRatio?Math.min(a.swellingRatio,b.swellingRatio)/Math.max(a.swellingRatio,b.swellingRatio):0.5;
+    const mA=a.mechanicalModulusKPa||10, mB=b.mechanicalModulusKPa||10;
+    const mR=Math.min(mA,mB)/Math.max(mA,mB);
+    const score=0.4*stS+0.3*swR+0.3*clamp(mR,0,1);
+    return { score, detail:score>0.7?'Good interface adhesion predicted':score>0.4?'Moderate — consider adhesion promoter':'Poor interface — delamination risk' };
+}
+function degradationScore(a,b) {
+    const dA=a.degradationDays||30, dB=b.degradationDays||30;
+    const ratio=Math.min(dA,dB)/Math.max(dA,dB);
+    return { score:clamp(ratio,0,1), detail:ratio>0.7?'Similar degradation rates':ratio>0.3?'Different rates — staged remodeling':'Very different rates — structural risk' };
+}
+
+function analyzePair(a,b) {
+    if(a.name===b.name) return {bioinkA:a.name,bioinkB:b.name,composite:1,classification:'excellent',dimensions:{},blockers:[],recommendations:[]};
+    const dims = { rheology:rheologyScore(a,b), crosslinking:crosslinkScore(a,b), thermal:thermalScore(a,b), ph:phScore(a,b), interface:interfaceScore(a,b), degradation:degradationScore(a,b) };
+    let comp=0; for(const[d,w] of Object.entries(DIMENSION_WEIGHTS)) comp+=w*dims[d].score;
+    comp=+comp.toFixed(4);
+    const cls=comp>=0.8?'excellent':comp>=0.6?'good':comp>=0.4?'moderate':comp>=0.2?'poor':'incompatible';
+    const blockers=Object.entries(dims).filter(([,v])=>v.score<0.1).map(([k,v])=>({dimension:k,score:v.score,detail:v.detail}));
+    const recs=[];
+    if(dims.rheology.score<0.4) recs.push('Add thickener/thinner to match viscosities');
+    if(dims.thermal.score<0.4) recs.push('Use heated/cooled dual-nozzle system');
+    if(dims.interface.score<0.5) recs.push('Apply adhesion-promoting layer between materials');
+    if(dims.crosslinking.score<0.5) recs.push('Verify crosslinking agents do not interfere');
+    if(dims.degradation.score<0.4) recs.push('Consider degradation-matched formulations');
+    return {bioinkA:a.name,bioinkB:b.name,composite:comp,classification:cls,dimensions:dims,blockers,recommendations:recs};
+}
+
+// ── App state ──
+let bioinks = {};
+let pairCache = {};
+
+function init() {
+    bioinks = JSON.parse(JSON.stringify(BUILTIN_BIOINKS));
+    pairCache = {};
+    render();
+}
+
+function getPair(nameA, nameB) {
+    const key = [nameA,nameB].sort().join('|||');
+    if(!pairCache[key]) pairCache[key] = analyzePair(bioinks[nameA], bioinks[nameB]);
+    return pairCache[key];
+}
+
+function scoreColor(score) {
+    if(score>=0.8) return 'rgba(74,222,128,0.85)';
+    if(score>=0.6) return 'rgba(56,189,248,0.7)';
+    if(score>=0.4) return 'rgba(251,191,36,0.7)';
+    if(score>=0.2) return 'rgba(248,113,113,0.6)';
+    return 'rgba(248,113,113,0.3)';
+}
+function dimColor(score) {
+    if(score>=0.7) return 'var(--success)';
+    if(score>=0.4) return 'var(--warning)';
+    return 'var(--error)';
+}
+
+function render() {
+    const names = Object.keys(bioinks).sort();
+    pairCache = {};
+
+    // Stats
+    const totalPairs = names.length*(names.length-1)/2;
+    const cats = {excellent:0,good:0,moderate:0,poor:0,incompatible:0};
+    const allPairs = [];
+    for(let i=0;i<names.length;i++) for(let j=i+1;j<names.length;j++) {
+        const p=getPair(names[i],names[j]);
+        cats[p.classification]++;
+        allPairs.push(p);
+    }
+    document.getElementById('stats-row').innerHTML = `
+        <div class="stat-item"><div class="value">${names.length}</div><div class="label">Bioinks</div></div>
+        <div class="stat-item"><div class="value">${totalPairs}</div><div class="label">Pairs</div></div>
+        <div class="stat-item"><div class="value" style="color:var(--success)">${cats.excellent}</div><div class="label">Excellent</div></div>
+        <div class="stat-item"><div class="value" style="color:var(--accent)">${cats.good}</div><div class="label">Good</div></div>
+        <div class="stat-item"><div class="value" style="color:var(--warning)">${cats.moderate}</div><div class="label">Moderate</div></div>
+        <div class="stat-item"><div class="value" style="color:var(--error)">${cats.poor+cats.incompatible}</div><div class="label">Poor</div></div>
+    `;
+
+    // Heatmap
+    let html = '<table class="matrix-table"><thead><tr><th></th>';
+    for(const n of names) html += `<th class="col-header" title="${n}">${n.length>12?n.slice(0,11)+'…':n}</th>`;
+    html += '</tr></thead><tbody>';
+    for(const row of names) {
+        html += `<tr><th class="row-header" title="${row}">${row.length>14?row.slice(0,13)+'…':row}</th>`;
+        for(const col of names) {
+            if(row===col) {
+                html += `<td class="matrix-cell diagonal" style="background:rgba(56,189,248,0.1);">—</td>`;
+            } else {
+                const p = getPair(row,col);
+                html += `<td class="matrix-cell" data-a="${row}" data-b="${col}" style="background:${scoreColor(p.composite)};color:#0f172a;" title="${row} ↔ ${col}: ${(p.composite*100).toFixed(0)}%">${(p.composite*100).toFixed(0)}</td>`;
+            }
+        }
+        html += '</tr>';
+    }
+    html += '</tbody></table>';
+    document.getElementById('matrix-container').innerHTML = html;
+
+    // Click handlers
+    document.querySelectorAll('.matrix-cell:not(.diagonal)').forEach(cell => {
+        cell.addEventListener('click', () => {
+            document.querySelectorAll('.matrix-cell.selected').forEach(c => c.classList.remove('selected'));
+            cell.classList.add('selected');
+            showPairDetail(cell.dataset.a, cell.dataset.b);
+        });
+    });
+
+    // Rankings
+    allPairs.sort((a,b) => b.composite-a.composite);
+    const best = allPairs.slice(0,5);
+    const worst = allPairs.slice(-5).reverse();
+    document.getElementById('best-pairs').innerHTML = best.map(p =>
+        `<li><span>${p.bioinkA} ↔ ${p.bioinkB}</span><span class="rank-score badge badge-${p.classification}">${(p.composite*100).toFixed(0)}% ${p.classification}</span></li>`
+    ).join('');
+    document.getElementById('worst-pairs').innerHTML = worst.map(p =>
+        `<li><span>${p.bioinkA} ↔ ${p.bioinkB}</span><span class="rank-score badge badge-${p.classification}">${(p.composite*100).toFixed(0)}% ${p.classification}</span></li>`
+    ).join('');
+
+    // Hide detail panel
+    document.getElementById('pair-detail').classList.remove('visible');
+}
+
+function showPairDetail(nameA, nameB) {
+    const p = getPair(nameA, nameB);
+    const panel = document.getElementById('pair-detail');
+    panel.classList.add('visible');
+    document.getElementById('pair-title').textContent = `${nameA} ↔ ${nameB}`;
+    document.getElementById('pair-classification').innerHTML =
+        `<span class="badge badge-${p.classification}" style="font-size:0.85rem;padding:0.3rem 0.8rem;">${(p.composite*100).toFixed(1)}% — ${p.classification}</span>`;
+
+    const dimNames = {rheology:'Rheology',crosslinking:'Crosslinking',thermal:'Thermal',ph:'pH',interface:'Interface',degradation:'Degradation'};
+    let barsHtml = '';
+    for(const[key,label] of Object.entries(dimNames)) {
+        const d = p.dimensions[key];
+        if(!d) continue;
+        const pct = (d.score*100).toFixed(0);
+        barsHtml += `
+            <div class="dim-bar-row">
+                <div class="dim-bar-label">${label}</div>
+                <div class="dim-bar-track"><div class="dim-bar-fill" style="width:${pct}%;background:${dimColor(d.score)};"></div></div>
+                <div class="dim-bar-value" style="color:${dimColor(d.score)}">${pct}%</div>
+            </div>
+            <div class="dim-bar-row"><div></div><div class="dim-detail-text">${d.detail}</div></div>`;
+    }
+    document.getElementById('dim-bars').innerHTML = barsHtml;
+
+    const recs = p.recommendations.length > 0
+        ? p.recommendations.map(r => `<li>${r}</li>`).join('')
+        : '<li style="color:var(--success);">No issues — materials are compatible as-is</li>';
+    document.getElementById('pair-recs').innerHTML = recs;
+}
+
+// ── Form handlers ──
+document.getElementById('toggle-form').addEventListener('click', function() {
+    const c = document.getElementById('add-form-container');
+    if(c.style.display === 'none') { c.style.display = 'block'; this.textContent = 'Hide Form'; }
+    else { c.style.display = 'none'; this.textContent = 'Show Form'; }
+});
+
+document.getElementById('add-bioink-btn').addEventListener('click', () => {
+    const name = document.getElementById('f-name').value.trim();
+    if(!name) return alert('Name is required');
+    if(bioinks[name]) return alert('A bioink with that name already exists');
+    const visc = parseFloat(document.getElementById('f-visc').value);
+    if(isNaN(visc)||visc<=0) return alert('Viscosity must be positive');
+    const shear = parseFloat(document.getElementById('f-shear').value);
+    if(isNaN(shear)||shear<0||shear>1) return alert('Shear thinning index must be 0–1');
+
+    bioinks[name] = {
+        name,
+        viscosityPas: visc,
+        shearThinningIndex: shear,
+        crosslinkMethod: document.getElementById('f-crosslink').value,
+        tempMinC: parseFloat(document.getElementById('f-tmin').value) || 20,
+        tempMaxC: parseFloat(document.getElementById('f-tmax').value) || 37,
+        printTempC: parseFloat(document.getElementById('f-tprint').value) || 25,
+        phMin: parseFloat(document.getElementById('f-phmin').value) || 6.5,
+        phMax: parseFloat(document.getElementById('f-phmax').value) || 7.5,
+        optimalPh: parseFloat(document.getElementById('f-phopt').value) || 7.0,
+        surfaceTension: parseFloat(document.getElementById('f-st').value) || 45,
+        degradationDays: parseFloat(document.getElementById('f-deg').value) || 28,
+        swellingRatio: parseFloat(document.getElementById('f-swell').value) || 2.0,
+        mechanicalModulusKPa: parseFloat(document.getElementById('f-mod').value) || 10,
+    };
+    document.getElementById('f-name').value = '';
+    render();
+});
+
+document.getElementById('reset-btn').addEventListener('click', () => {
+    if(confirm('Reset to default bioinks? Custom bioinks will be removed.')) init();
+});
+
+// Boot
+init();
+</script>
+</body>
+</html>
