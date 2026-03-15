@@ -1,0 +1,672 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>BioBots 1 - Print Recipe Builder</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧪</text></svg>">
+    <style>
+        :root {
+            --bg: #0f172a;
+            --surface: #1e293b;
+            --border: #334155;
+            --text: #e2e8f0;
+            --muted: #94a3b8;
+            --accent: #38bdf8;
+            --accent-hover: #7dd3fc;
+            --success: #4ade80;
+            --error: #f87171;
+            --warning: #fbbf24;
+            --purple: #a78bfa;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            padding: 2rem 1rem;
+        }
+
+        .container { max-width: 1100px; margin: 0 auto; }
+
+        h1 { font-size: 1.8rem; margin-bottom: 0.5rem; text-align: center; }
+        .subtitle { color: var(--muted); text-align: center; margin-bottom: 2rem; font-size: 0.9rem; }
+
+        .card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .card h2 { font-size: 1.1rem; margin-bottom: 1rem; color: var(--accent); }
+        .card h3 { font-size: 0.95rem; margin-bottom: 0.75rem; color: var(--purple); }
+
+        .input-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 1rem;
+        }
+
+        .input-group { display: flex; flex-direction: column; gap: 0.3rem; }
+        .input-group label { font-size: 0.85rem; color: var(--muted); }
+        .input-group input, .input-group select {
+            padding: 0.5rem 0.75rem;
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            color: var(--text);
+            font-size: 0.9rem;
+        }
+        .input-group input:focus, .input-group select:focus {
+            outline: none;
+            border-color: var(--accent);
+        }
+        .input-group .range-display {
+            font-size: 0.75rem;
+            color: var(--muted);
+            margin-top: 2px;
+        }
+
+        .btn {
+            padding: 0.6rem 1.5rem;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            font-weight: 600;
+            transition: all 0.2s;
+        }
+        .btn-primary { background: var(--accent); color: var(--bg); }
+        .btn-primary:hover { background: var(--accent-hover); }
+        .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+        .btn-secondary { background: var(--border); color: var(--text); }
+        .btn-secondary:hover { background: #475569; }
+
+        .actions { display: flex; gap: 0.75rem; margin-top: 1rem; flex-wrap: wrap; align-items: center; }
+
+        .recipe-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+        }
+
+        .recipe-param {
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 1rem;
+            text-align: center;
+        }
+        .recipe-param .param-name { font-size: 0.8rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; }
+        .recipe-param .param-value { font-size: 1.5rem; font-weight: 700; margin: 0.3rem 0; color: var(--accent); }
+        .recipe-param .param-range { font-size: 0.75rem; color: var(--muted); }
+        .recipe-param .param-unit { font-size: 0.85rem; color: var(--muted); }
+
+        .confidence-bar {
+            height: 8px;
+            background: var(--border);
+            border-radius: 4px;
+            overflow: hidden;
+            margin-top: 0.5rem;
+        }
+        .confidence-fill {
+            height: 100%;
+            border-radius: 4px;
+            transition: width 0.5s;
+        }
+
+        .match-stats {
+            display: flex;
+            gap: 2rem;
+            flex-wrap: wrap;
+            margin-bottom: 1rem;
+        }
+        .match-stat {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .match-stat .stat-value { font-size: 1.3rem; font-weight: 700; }
+        .match-stat .stat-label { font-size: 0.75rem; color: var(--muted); }
+
+        .distribution {
+            margin-top: 0.5rem;
+        }
+        .dist-bar-container {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin: 3px 0;
+        }
+        .dist-label { font-size: 0.75rem; color: var(--muted); min-width: 60px; text-align: right; }
+        .dist-bar {
+            height: 14px;
+            border-radius: 3px;
+            transition: width 0.3s;
+            min-width: 2px;
+        }
+        .dist-count { font-size: 0.7rem; color: var(--muted); min-width: 25px; }
+
+        .preset-chips { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 1rem; }
+        .chip {
+            padding: 0.3rem 0.8rem;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            cursor: pointer;
+            border: 1px solid var(--border);
+            background: var(--bg);
+            color: var(--text);
+            transition: all 0.2s;
+        }
+        .chip:hover { border-color: var(--accent); color: var(--accent); }
+
+        table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+        th, td { padding: 0.5rem 0.75rem; text-align: left; border-bottom: 1px solid var(--border); }
+        th { color: var(--muted); font-weight: 600; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.03em; }
+        tr:hover td { background: rgba(56, 189, 248, 0.05); }
+
+        .severity-high { color: var(--error); }
+        .severity-med { color: var(--warning); }
+        .severity-low { color: var(--success); }
+
+        .hidden { display: none; }
+        .loading { text-align: center; color: var(--muted); padding: 3rem; }
+        .error-msg { color: var(--error); padding: 1rem; text-align: center; }
+
+        @media (max-width: 640px) {
+            body { padding: 1rem 0.5rem; }
+            .input-grid { grid-template-columns: 1fr; }
+            .recipe-grid { grid-template-columns: 1fr 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧪 Print Recipe Builder</h1>
+        <p class="subtitle">Find optimal bioprinting parameters based on 10,000 historical runs</p>
+
+        <!-- Target Outcomes -->
+        <div class="card">
+            <h2>🎯 Target Outcomes</h2>
+            <p style="font-size:0.85rem;color:var(--muted);margin-bottom:1rem;">
+                Specify your desired print outcomes. The recipe builder will search the dataset for runs
+                that achieved similar results and recommend optimal parameters.
+            </p>
+
+            <div class="preset-chips">
+                <span class="chip" onclick="applyPreset('high-viability')">🧬 High Viability (&gt;80%)</span>
+                <span class="chip" onclick="applyPreset('fine-resolution')">🔬 Fine Resolution (&lt;0.3mm)</span>
+                <span class="chip" onclick="applyPreset('balanced')">⚖️ Balanced</span>
+                <span class="chip" onclick="applyPreset('rapid-prototype')">⚡ Rapid Prototype</span>
+                <span class="chip" onclick="applyPreset('high-elasticity')">🔧 High Elasticity (&gt;70)</span>
+            </div>
+
+            <div class="input-grid">
+                <div class="input-group">
+                    <label for="target-viability">Min Live Cell % (viability)</label>
+                    <input type="number" id="target-viability" min="0" max="100" value="70" step="1" />
+                    <span class="range-display">Dataset range: 0 – 99.7%</span>
+                </div>
+                <div class="input-group">
+                    <label for="target-max-dead">Max Dead Cell %</label>
+                    <input type="number" id="target-max-dead" min="0" max="100" value="30" step="1" />
+                    <span class="range-display">Lower is better</span>
+                </div>
+                <div class="input-group">
+                    <label for="target-elasticity">Min Elasticity</label>
+                    <input type="number" id="target-elasticity" min="0" max="100" value="40" step="1" />
+                    <span class="range-display">Dataset range: 0 – ~100</span>
+                </div>
+                <div class="input-group">
+                    <label for="target-layer-height">Max Layer Height (mm)</label>
+                    <input type="number" id="target-layer-height" min="0.1" max="2" value="1.0" step="0.1" />
+                    <span class="range-display">Lower = finer resolution</span>
+                </div>
+            </div>
+
+            <div class="input-grid" style="margin-top:1rem;">
+                <div class="input-group">
+                    <label for="crosslink-required">Crosslinking Required?</label>
+                    <select id="crosslink-required">
+                        <option value="any">Any</option>
+                        <option value="yes">Yes — require crosslinking</option>
+                        <option value="no">No — skip crosslinking</option>
+                    </select>
+                </div>
+                <div class="input-group">
+                    <label for="wellplate-filter">Wellplate Size</label>
+                    <select id="wellplate-filter">
+                        <option value="any">Any</option>
+                        <option value="6">6-well</option>
+                        <option value="12">12-well</option>
+                        <option value="24">24-well</option>
+                        <option value="96">96-well</option>
+                    </select>
+                </div>
+                <div class="input-group">
+                    <label for="tolerance">Search Tolerance</label>
+                    <select id="tolerance">
+                        <option value="strict">Strict (exact match)</option>
+                        <option value="normal" selected>Normal (±10%)</option>
+                        <option value="relaxed">Relaxed (±25%)</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="actions">
+                <button class="btn btn-primary" id="find-recipe" onclick="findRecipe()">🔍 Find Optimal Recipe</button>
+                <button class="btn btn-secondary" onclick="resetForm()">↺ Reset</button>
+                <span id="status-msg" style="font-size:0.85rem;color:var(--muted);"></span>
+            </div>
+        </div>
+
+        <!-- Results -->
+        <div id="results" class="hidden">
+            <!-- Match Stats -->
+            <div class="card">
+                <h2>📊 Search Results</h2>
+                <div class="match-stats" id="match-stats"></div>
+            </div>
+
+            <!-- Recipe Card -->
+            <div class="card" id="recipe-card">
+                <h2>🧪 Recommended Recipe</h2>
+                <p style="font-size:0.85rem;color:var(--muted);margin-bottom:1rem;">
+                    Optimal parameters derived from matching runs. Values show median (most reliable),
+                    with the interquartile range in parentheses.
+                </p>
+                <div class="recipe-grid" id="recipe-params"></div>
+            </div>
+
+            <!-- Parameter Distributions -->
+            <div class="card">
+                <h2>📈 Parameter Distributions</h2>
+                <p style="font-size:0.85rem;color:var(--muted);margin-bottom:1rem;">
+                    Distribution of each parameter across matching runs. Taller bars = more common values.
+                </p>
+                <div id="distributions"></div>
+            </div>
+
+            <!-- Top Matching Runs -->
+            <div class="card">
+                <h2>🏆 Top Matching Runs</h2>
+                <p style="font-size:0.85rem;color:var(--muted);margin-bottom:1rem;">
+                    The 10 best-matching runs from the dataset, sorted by a composite score of viability,
+                    elasticity, and resolution.
+                </p>
+                <div style="overflow-x:auto;">
+                    <table id="top-runs">
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th>Live %</th>
+                                <th>Dead %</th>
+                                <th>Elasticity</th>
+                                <th>Layer H.</th>
+                                <th>Layers</th>
+                                <th>Pressure 1</th>
+                                <th>Pressure 2</th>
+                                <th>CL Duration</th>
+                                <th>CL Intensity</th>
+                                <th>Wellplate</th>
+                                <th>Score</th>
+                            </tr>
+                        </thead>
+                        <tbody id="top-runs-body"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Export -->
+            <div class="card">
+                <div class="actions" style="margin-top:0;">
+                    <button class="btn btn-secondary" onclick="exportRecipe('json')">📄 Export JSON</button>
+                    <button class="btn btn-secondary" onclick="exportRecipe('csv')">📊 Export CSV</button>
+                    <button class="btn btn-secondary" onclick="copyRecipe()">📋 Copy Recipe</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Loading -->
+        <div id="loading" class="hidden loading">Loading 10,000 print records...</div>
+        <div id="error" class="hidden error-msg"></div>
+    </div>
+
+    <script src="shared/recipeBuilder.js"></script>
+    <script src="shared/data-loader.js"></script>
+    <script>
+    'use strict';
+
+    var allData = null;
+    var lastResults = null;
+    var lastRecipe = null;
+
+    // ── Presets ──
+
+    function applyPreset(name) {
+        var v = document.getElementById('target-viability');
+        var d = document.getElementById('target-max-dead');
+        var e = document.getElementById('target-elasticity');
+        var lh = document.getElementById('target-layer-height');
+        var cl = document.getElementById('crosslink-required');
+        var tol = document.getElementById('tolerance');
+
+        switch (name) {
+            case 'high-viability':
+                v.value = 80; d.value = 20; e.value = 40; lh.value = 1.0;
+                cl.value = 'any'; tol.value = 'normal';
+                break;
+            case 'fine-resolution':
+                v.value = 50; d.value = 50; e.value = 30; lh.value = 0.3;
+                cl.value = 'any'; tol.value = 'relaxed';
+                break;
+            case 'balanced':
+                v.value = 60; d.value = 40; e.value = 50; lh.value = 0.5;
+                cl.value = 'any'; tol.value = 'normal';
+                break;
+            case 'rapid-prototype':
+                v.value = 30; d.value = 70; e.value = 20; lh.value = 1.5;
+                cl.value = 'no'; tol.value = 'relaxed';
+                break;
+            case 'high-elasticity':
+                v.value = 50; d.value = 50; e.value = 70; lh.value = 1.0;
+                cl.value = 'any'; tol.value = 'normal';
+                break;
+        }
+    }
+
+    function resetForm() {
+        document.getElementById('target-viability').value = 70;
+        document.getElementById('target-max-dead').value = 30;
+        document.getElementById('target-elasticity').value = 40;
+        document.getElementById('target-layer-height').value = 1.0;
+        document.getElementById('crosslink-required').value = 'any';
+        document.getElementById('wellplate-filter').value = 'any';
+        document.getElementById('tolerance').value = 'normal';
+        document.getElementById('results').classList.add('hidden');
+    }
+
+    // ── Core Search ──
+
+    function findRecipe() {
+        if (!allData) {
+            document.getElementById('status-msg').textContent = 'Data still loading...';
+            return;
+        }
+
+        var tolerance = document.getElementById('tolerance').value;
+        var tolMult = tolerance === 'strict' ? 0 : tolerance === 'relaxed' ? 0.25 : 0.10;
+
+        var matches = filterAndScore(allData, {
+            minViability: parseFloat(document.getElementById('target-viability').value) || 0,
+            maxDead: parseFloat(document.getElementById('target-max-dead').value) || 100,
+            minElasticity: parseFloat(document.getElementById('target-elasticity').value) || 0,
+            maxLayerHeight: parseFloat(document.getElementById('target-layer-height').value) || 2,
+            crosslinking: document.getElementById('crosslink-required').value,
+            wellplate: document.getElementById('wellplate-filter').value,
+            tolerance: tolMult
+        });
+
+        lastResults = matches;
+
+        if (matches.length === 0) {
+            document.getElementById('status-msg').textContent = 'No matching runs found. Try relaxing constraints.';
+            document.getElementById('results').classList.add('hidden');
+            return;
+        }
+
+        document.getElementById('status-msg').textContent =
+            'Found ' + matches.length + ' matching runs out of ' + allData.length;
+        document.getElementById('results').classList.remove('hidden');
+
+        // Compute recipe from top matches (use top 20% or at least 10, at most 200)
+        var recipeCount = Math.max(10, Math.min(200, Math.floor(matches.length * 0.2)));
+        var topMatches = matches.slice(0, recipeCount);
+
+        var recipe = computeRecipe(topMatches);
+        lastRecipe = recipe;
+
+        renderMatchStats(matches, recipeCount);
+        renderRecipe(recipe);
+        renderDistributions(topMatches);
+        renderTopRuns(matches.slice(0, 10));
+    }
+
+    // computeRecipe is provided by shared/recipeBuilder.js
+
+    // ── Rendering ──
+
+    function renderMatchStats(matches, recipeCount) {
+        var avgScore = 0;
+        for (var i = 0; i < matches.length; i++) avgScore += matches[i].score;
+        avgScore = (avgScore / matches.length * 100).toFixed(1);
+
+        var avgViability = 0;
+        for (var j = 0; j < matches.length; j++) avgViability += matches[j].record.print_data.livePercent;
+        avgViability = (avgViability / matches.length).toFixed(1);
+
+        var html = '';
+        html += '<div class="match-stat"><span class="stat-value" style="color:var(--accent)">' + matches.length + '</span><span class="stat-label">Matching Runs</span></div>';
+        html += '<div class="match-stat"><span class="stat-value" style="color:var(--success)">' + avgViability + '%</span><span class="stat-label">Avg Viability</span></div>';
+        html += '<div class="match-stat"><span class="stat-value" style="color:var(--purple)">' + avgScore + '%</span><span class="stat-label">Avg Score</span></div>';
+        html += '<div class="match-stat"><span class="stat-value" style="color:var(--warning)">' + recipeCount + '</span><span class="stat-label">Used for Recipe</span></div>';
+        html += '<div class="match-stat"><span class="stat-value">' + allData.length + '</span><span class="stat-label">Total Dataset</span></div>';
+        document.getElementById('match-stats').innerHTML = html;
+    }
+
+    function renderRecipe(recipe) {
+        var params = [
+            { key: 'pressure1', name: 'Extruder 1 Pressure', unit: 'PSI', color: 'var(--accent)' },
+            { key: 'pressure2', name: 'Extruder 2 Pressure', unit: 'PSI', color: 'var(--accent)' },
+            { key: 'layerHeight', name: 'Layer Height', unit: 'mm', color: 'var(--success)', decimals: 2 },
+            { key: 'layerNum', name: 'Layer Count', unit: 'layers', color: 'var(--purple)' },
+            { key: 'clIntensity', name: 'CL Intensity', unit: '%', color: 'var(--warning)' },
+            { key: 'clDuration', name: 'CL Duration', unit: 'ms', color: 'var(--warning)' },
+            { key: 'viability', name: 'Expected Viability', unit: '%', color: 'var(--success)', decimals: 1 },
+            { key: 'elasticity', name: 'Expected Elasticity', unit: '', color: 'var(--purple)', decimals: 1 }
+        ];
+
+        var html = '';
+        for (var i = 0; i < params.length; i++) {
+            var p = params[i];
+            var r = recipe[p.key];
+            var dec = p.decimals || 0;
+            var confidence = 1 - ((r.q3 - r.q1) / (r.max - r.min + 0.001));
+            confidence = Math.max(0, Math.min(1, confidence));
+            var confColor = confidence > 0.6 ? 'var(--success)' : confidence > 0.3 ? 'var(--warning)' : 'var(--error)';
+
+            html += '<div class="recipe-param">';
+            html += '<div class="param-name">' + esc(p.name) + '</div>';
+            html += '<div class="param-value" style="color:' + p.color + '">' + r.median.toFixed(dec) + '</div>';
+            html += '<div class="param-unit">' + esc(p.unit) + '</div>';
+            html += '<div class="param-range">IQR: ' + r.q1.toFixed(dec) + ' – ' + r.q3.toFixed(dec) + '</div>';
+            html += '<div class="confidence-bar"><div class="confidence-fill" style="width:' + (confidence * 100) + '%;background:' + confColor + '"></div></div>';
+            html += '<div class="param-range" style="margin-top:2px">Confidence: ' + (confidence * 100).toFixed(0) + '%</div>';
+            html += '</div>';
+        }
+        document.getElementById('recipe-params').innerHTML = html;
+    }
+
+    function renderDistributions(matches) {
+        var distParams = [
+            { key: 'pressure1', name: 'Extruder 1 Pressure (PSI)', bins: 8, color: 'var(--accent)' },
+            { key: 'layerHeight', name: 'Layer Height (mm)', bins: 6, color: 'var(--success)' },
+            { key: 'clIntensity', name: 'Crosslink Intensity (%)', bins: 8, color: 'var(--warning)' },
+            { key: 'viability', name: 'Live Cell % (achieved)', bins: 8, color: 'var(--purple)' }
+        ];
+
+        var html = '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:1rem;">';
+
+        for (var d = 0; d < distParams.length; d++) {
+            var dp = distParams[d];
+            var values = [];
+            for (var i = 0; i < matches.length; i++) {
+                var r = matches[i].record;
+                switch (dp.key) {
+                    case 'pressure1': values.push(r.print_info.pressure.extruder1); break;
+                    case 'layerHeight': values.push(r.print_info.resolution.layerHeight); break;
+                    case 'clIntensity': values.push(r.print_info.crosslinking.cl_intensity); break;
+                    case 'viability': values.push(r.print_data.livePercent); break;
+                }
+            }
+
+            var sorted = values.slice().sort(function(a, b) { return a - b; });
+            var binMin = sorted[0];
+            var binMax = sorted[sorted.length - 1];
+            var binWidth = (binMax - binMin) / dp.bins || 1;
+
+            var bins = [];
+            for (var b = 0; b < dp.bins; b++) {
+                bins.push({ lo: binMin + b * binWidth, hi: binMin + (b + 1) * binWidth, count: 0 });
+            }
+            for (var v = 0; v < values.length; v++) {
+                var bi = Math.min(dp.bins - 1, Math.floor((values[v] - binMin) / binWidth));
+                bins[bi].count++;
+            }
+            var maxCount = 1;
+            for (var c = 0; c < bins.length; c++) { if (bins[c].count > maxCount) maxCount = bins[c].count; }
+
+            html += '<div>';
+            html += '<h3 style="font-size:0.85rem;color:var(--muted);margin-bottom:0.5rem;">' + esc(dp.name) + '</h3>';
+            for (var bb = 0; bb < bins.length; bb++) {
+                var pct = (bins[bb].count / maxCount * 100).toFixed(0);
+                var dec = dp.key === 'layerHeight' ? 2 : 0;
+                html += '<div class="dist-bar-container">';
+                html += '<span class="dist-label">' + bins[bb].lo.toFixed(dec) + '</span>';
+                html += '<div class="dist-bar" style="width:' + pct + '%;background:' + dp.color + '"></div>';
+                html += '<span class="dist-count">' + bins[bb].count + '</span>';
+                html += '</div>';
+            }
+            html += '</div>';
+        }
+
+        html += '</div>';
+        document.getElementById('distributions').innerHTML = html;
+    }
+
+    function renderTopRuns(runs) {
+        var html = '';
+        for (var i = 0; i < runs.length; i++) {
+            var m = runs[i];
+            var r = m.record;
+            var scoreClass = m.score > 0.7 ? 'severity-low' : m.score > 0.5 ? 'severity-med' : 'severity-high';
+            html += '<tr>';
+            html += '<td>' + (i + 1) + '</td>';
+            html += '<td>' + r.print_data.livePercent.toFixed(1) + '%</td>';
+            html += '<td>' + r.print_data.deadPercent.toFixed(1) + '%</td>';
+            html += '<td>' + r.print_data.elasticity.toFixed(1) + '</td>';
+            html += '<td>' + r.print_info.resolution.layerHeight.toFixed(2) + ' mm</td>';
+            html += '<td>' + r.print_info.resolution.layerNum + '</td>';
+            html += '<td>' + r.print_info.pressure.extruder1.toFixed(1) + '</td>';
+            html += '<td>' + r.print_info.pressure.extruder2.toFixed(1) + '</td>';
+            html += '<td>' + r.print_info.crosslinking.cl_duration + '</td>';
+            html += '<td>' + r.print_info.crosslinking.cl_intensity + '</td>';
+            html += '<td>' + r.print_info.wellplate + '-well</td>';
+            html += '<td class="' + scoreClass + '">' + (m.score * 100).toFixed(1) + '</td>';
+            html += '</tr>';
+        }
+        document.getElementById('top-runs-body').innerHTML = html;
+    }
+
+    // ── Export ──
+
+    function exportRecipe(format) {
+        if (!lastRecipe || !lastResults) return;
+
+        if (format === 'json') {
+            var exportData = {
+                generatedAt: new Date().toISOString(),
+                targetParameters: {
+                    minViability: parseFloat(document.getElementById('target-viability').value),
+                    maxDeadPercent: parseFloat(document.getElementById('target-max-dead').value),
+                    minElasticity: parseFloat(document.getElementById('target-elasticity').value),
+                    maxLayerHeight: parseFloat(document.getElementById('target-layer-height').value)
+                },
+                matchingRuns: lastResults.length,
+                recipe: {}
+            };
+
+            var keys = Object.keys(lastRecipe);
+            for (var i = 0; i < keys.length; i++) {
+                var k = keys[i];
+                exportData.recipe[k] = {
+                    recommended: lastRecipe[k].median,
+                    range: { q1: lastRecipe[k].q1, q3: lastRecipe[k].q3 },
+                    extremes: { min: lastRecipe[k].min, max: lastRecipe[k].max }
+                };
+            }
+
+            download(JSON.stringify(exportData, null, 2), 'bioprint-recipe.json', 'application/json');
+        } else {
+            var lines = ['Parameter,Recommended (Median),Q1,Q3,Min,Max,Mean'];
+            var keys2 = Object.keys(lastRecipe);
+            for (var j = 0; j < keys2.length; j++) {
+                var key = keys2[j];
+                var r = lastRecipe[key];
+                lines.push([key, r.median, r.q1, r.q3, r.min, r.max, r.mean.toFixed(2)].join(','));
+            }
+            download(lines.join('\n'), 'bioprint-recipe.csv', 'text/csv');
+        }
+    }
+
+    function copyRecipe() {
+        if (!lastRecipe) return;
+        var text = '🧪 Bioprint Recipe\n';
+        text += '==================\n';
+        var labels = {
+            pressure1: 'Extruder 1 Pressure', pressure2: 'Extruder 2 Pressure',
+            layerHeight: 'Layer Height', layerNum: 'Layer Count',
+            clIntensity: 'CL Intensity', clDuration: 'CL Duration',
+            viability: 'Expected Viability', elasticity: 'Expected Elasticity'
+        };
+        var keys = Object.keys(lastRecipe);
+        for (var i = 0; i < keys.length; i++) {
+            var k = keys[i];
+            var r = lastRecipe[k];
+            text += (labels[k] || k) + ': ' + r.median.toFixed(1) + ' (IQR: ' + r.q1.toFixed(1) + '–' + r.q3.toFixed(1) + ')\n';
+        }
+        text += '\nMatching runs: ' + lastResults.length;
+
+        if (navigator.clipboard) {
+            navigator.clipboard.writeText(text).then(function() {
+                document.getElementById('status-msg').textContent = 'Recipe copied to clipboard!';
+            });
+        }
+    }
+
+    function download(content, filename, type) {
+        var blob = new Blob([content], { type: type });
+        var url = URL.createObjectURL(blob);
+        var a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        a.click();
+        URL.revokeObjectURL(url);
+    }
+
+    function esc(str) {
+        var d = document.createElement('div');
+        d.textContent = str;
+        return d.innerHTML;
+    }
+
+    // ── Init ──
+
+    document.getElementById('loading').classList.remove('hidden');
+    loadBioprintData({ validate: true }).then(function(data) {
+        allData = data;
+        document.getElementById('loading').classList.add('hidden');
+        document.getElementById('status-msg').textContent = 'Loaded ' + data.length + ' valid print records.';
+    }).catch(function(err) {
+        document.getElementById('loading').classList.add('hidden');
+        document.getElementById('error').textContent = 'Error: ' + err.message;
+        document.getElementById('error').classList.remove('hidden');
+    });
+    </script>
+</body>
+</html>
