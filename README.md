@@ -38,11 +38,11 @@ The tool supports:
 - **Aggregation functions** — Maximum, Minimum, Average across all records
 - **11 queryable metrics** — From cell viability to extruder pressure
 - **File-watch caching** — Data reloads automatically when the JSON file changes (no restart needed)
-- **45 interactive analysis tools** — From Data Explorer and Quality Control to Scaffold Designer, Environment Monitor, and Failure Diagnostics — all running client-side with zero dependencies
+- **46 interactive analysis tools** — From Data Explorer and Quality Control to Scaffold Designer, Environment Monitor, and Failure Diagnostics — all running client-side with zero dependencies
 
 ### 🌐 Live Demo
 
-All 45 analysis tools are deployed on GitHub Pages:
+All 46 analysis tools are deployed on GitHub Pages:
 
 | Tool | Description |
 |------|-------------|
@@ -71,6 +71,7 @@ All 45 analysis tools are deployed on GitHub Pages:
 | [🧪 Bioink Mixer](https://sauravbhattacharya001.github.io/BioBots/mixer.html) | Multi-component mixing ratio optimization |
 | [📊 Pareto Analysis](https://sauravbhattacharya001.github.io/BioBots/pareto.html) | Multi-objective Pareto frontier visualization |
 | [🔮 Predictor](https://sauravbhattacharya001.github.io/BioBots/predictor.html) | Machine learning prediction of print outcomes |
+| [🎛️ Sensitivity Analysis](https://sauravbhattacharya001.github.io/BioBots/sensitivity.html) | Tornado charts, standardized coefficients, parameter impact ranking |
 | [📝 Protocol Library](https://sauravbhattacharya001.github.io/BioBots/protocol.html) | Protocol management, tagging, comparison |
 | [📊 Print Profile](https://sauravbhattacharya001.github.io/BioBots/profile.html) | Individual print quality profiling with scoring |
 | [📊 Queue Manager](https://sauravbhattacharya001.github.io/BioBots/queue.html) | Print job scheduling and queue management |
@@ -366,3 +367,4 @@ docker run -p 8080:80 ghcr.io/sauravbhattacharya001/biobots-tool:latest
 **Saurav Bhattacharya**
 - GitHub: [@sauravbhattacharya001](https://github.com/sauravbhattacharya001)
 - Email: online.saurav@gmail.com
+

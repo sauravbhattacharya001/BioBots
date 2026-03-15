@@ -1,0 +1,502 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>BioBots 1 — Sensitivity Analysis</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧬</text></svg>">
+    <style>
+        :root {
+            --bg: #0f172a;
+            --surface: #1e293b;
+            --border: #334155;
+            --text: #e2e8f0;
+            --muted: #94a3b8;
+            --accent: #38bdf8;
+            --accent-hover: #7dd3fc;
+            --success: #4ade80;
+            --error: #f87171;
+            --warning: #fbbf24;
+            --purple: #a78bfa;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            padding: 2rem 1rem;
+        }
+        .container { max-width: 1100px; margin: 0 auto; }
+        header { text-align: center; margin-bottom: 2rem; }
+        header h1 {
+            font-size: 2rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, var(--purple), var(--accent));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        header p { color: var(--muted); margin-top: 0.5rem; }
+        .nav {
+            display: flex;
+            justify-content: center;
+            gap: 0.5rem;
+            margin-bottom: 2rem;
+            flex-wrap: wrap;
+        }
+        .nav a {
+            color: var(--muted);
+            text-decoration: none;
+            padding: 0.5rem 1rem;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            transition: all 0.2s;
+        }
+        .nav a:hover { color: var(--accent); background: var(--surface); }
+        .nav a.active { color: var(--accent); background: var(--surface); border: 1px solid var(--border); }
+        .card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+        .card h2 {
+            font-size: 1.1rem;
+            margin-bottom: 1rem;
+            color: var(--muted);
+            font-weight: 500;
+        }
+        .controls {
+            display: flex;
+            gap: 1rem;
+            flex-wrap: wrap;
+            align-items: flex-end;
+            margin-bottom: 1.5rem;
+        }
+        .control-group { display: flex; flex-direction: column; gap: 0.3rem; }
+        .control-group label { font-size: 0.8rem; color: var(--muted); }
+        select, button {
+            background: var(--bg);
+            border: 1px solid var(--border);
+            color: var(--text);
+            padding: 0.6rem 1rem;
+            border-radius: 8px;
+            font-size: 0.9rem;
+        }
+        button {
+            background: var(--accent);
+            color: var(--bg);
+            cursor: pointer;
+            font-weight: 600;
+            border: none;
+            transition: background 0.2s;
+        }
+        button:hover { background: var(--accent-hover); }
+        canvas { width: 100%; max-height: 420px; }
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+        }
+        .stat-card {
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 1rem;
+            text-align: center;
+        }
+        .stat-card .value {
+            font-size: 1.6rem;
+            font-weight: 700;
+            color: var(--accent);
+        }
+        .stat-card .label {
+            font-size: 0.8rem;
+            color: var(--muted);
+            margin-top: 0.3rem;
+        }
+        .tornado-bar {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin-bottom: 0.6rem;
+        }
+        .tornado-bar .param-name {
+            width: 140px;
+            text-align: right;
+            font-size: 0.85rem;
+            color: var(--muted);
+            flex-shrink: 0;
+        }
+        .tornado-bar .bar-container {
+            flex: 1;
+            height: 24px;
+            background: var(--bg);
+            border-radius: 4px;
+            overflow: hidden;
+            position: relative;
+        }
+        .tornado-bar .bar {
+            height: 100%;
+            border-radius: 4px;
+            transition: width 0.4s ease;
+        }
+        .tornado-bar .coeff {
+            width: 80px;
+            font-size: 0.85rem;
+            color: var(--text);
+            font-weight: 600;
+        }
+        .interpretation {
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 1rem;
+            margin-top: 1rem;
+            font-size: 0.9rem;
+            line-height: 1.6;
+            color: var(--muted);
+        }
+        .interpretation strong { color: var(--text); }
+        .high { color: var(--error); }
+        .medium { color: var(--warning); }
+        .low { color: var(--success); }
+        #loading {
+            text-align: center;
+            padding: 3rem;
+            color: var(--muted);
+        }
+        #error {
+            text-align: center;
+            padding: 2rem;
+            color: var(--error);
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🎛️ Sensitivity Analysis</h1>
+            <p>Understand how each input parameter influences print outcomes</p>
+        </header>
+
+        <nav class="nav">
+            <a href="index.html">🏠 Home</a>
+            <a href="explorer.html">📊 Explorer</a>
+            <a href="correlation.html">📊 Correlation</a>
+            <a href="optimizer.html">⚙️ Optimizer</a>
+            <a href="pareto.html">📊 Pareto</a>
+            <a class="active" href="sensitivity.html">🎛️ Sensitivity</a>
+            <a href="trends.html">📈 Trends</a>
+        </nav>
+
+        <div class="card">
+            <h2>Target Metric</h2>
+            <div class="controls">
+                <div class="control-group">
+                    <label>Analyze sensitivity of:</label>
+                    <select id="targetMetric">
+                        <option value="livePercent">Cell Viability (%)</option>
+                        <option value="deadPercent">Dead Cells (%)</option>
+                        <option value="elasticity">Elasticity</option>
+                    </select>
+                </div>
+                <button onclick="runAnalysis()">Analyze</button>
+            </div>
+        </div>
+
+        <div id="loading">Loading bioprint data...</div>
+        <div id="error"></div>
+
+        <div id="results" style="display:none">
+            <div class="card">
+                <h2>🌪️ Tornado Chart — Parameter Sensitivity Ranking</h2>
+                <div id="tornado"></div>
+            </div>
+
+            <div class="card">
+                <h2>📊 Sensitivity Coefficients</h2>
+                <div class="stats-grid" id="statsGrid"></div>
+            </div>
+
+            <div class="card">
+                <h2>📈 Scatter — Selected Parameter vs Target</h2>
+                <div class="controls">
+                    <div class="control-group">
+                        <label>Input parameter:</label>
+                        <select id="scatterParam"></select>
+                    </div>
+                </div>
+                <canvas id="scatterCanvas" width="1000" height="420"></canvas>
+                <div class="interpretation" id="scatterInterpretation"></div>
+            </div>
+        </div>
+    </div>
+
+    <script src="shared/data-loader.js"></script>
+    <script>
+    'use strict';
+
+    var PARAMS = [
+        { key: 'extruder1', label: 'Extruder 1 Pressure', extract: function(r) { return r.print_info.pressure.extruder1; } },
+        { key: 'extruder2', label: 'Extruder 2 Pressure', extract: function(r) { return r.print_info.pressure.extruder2; } },
+        { key: 'cl_duration', label: 'Crosslink Duration', extract: function(r) { return r.print_info.crosslinking.cl_duration; } },
+        { key: 'cl_intensity', label: 'Crosslink Intensity', extract: function(r) { return r.print_info.crosslinking.cl_intensity; } },
+        { key: 'speed', label: 'Print Speed', extract: function(r) { return r.print_info.resolution.speed; } },
+        { key: 'layerHeight', label: 'Layer Height', extract: function(r) { return r.print_info.resolution.infill; } },
+        { key: 'wellplate', label: 'Wellplate Type', extract: function(r) { return r.user_info.wellplate_type; } }
+    ];
+
+    var TARGETS = {
+        livePercent: function(r) { return r.print_data.livePercent; },
+        deadPercent: function(r) { return r.print_data.deadPercent; },
+        elasticity: function(r) { return r.print_data.elasticity; }
+    };
+
+    var allData = [];
+
+    function extractPairs(data, paramExtract, targetExtract) {
+        var pairs = [];
+        for (var i = 0; i < data.length; i++) {
+            try {
+                var x = paramExtract(data[i]);
+                var y = targetExtract(data[i]);
+                if (typeof x === 'number' && !isNaN(x) && typeof y === 'number' && !isNaN(y)) {
+                    pairs.push({ x: x, y: y });
+                }
+            } catch(e) { /* skip */ }
+        }
+        return pairs;
+    }
+
+    function linearRegression(pairs) {
+        var n = pairs.length;
+        if (n < 3) return { slope: 0, intercept: 0, r2: 0, r: 0 };
+        var sumX = 0, sumY = 0, sumXY = 0, sumX2 = 0, sumY2 = 0;
+        for (var i = 0; i < n; i++) {
+            sumX += pairs[i].x;
+            sumY += pairs[i].y;
+            sumXY += pairs[i].x * pairs[i].y;
+            sumX2 += pairs[i].x * pairs[i].x;
+            sumY2 += pairs[i].y * pairs[i].y;
+        }
+        var denom = n * sumX2 - sumX * sumX;
+        if (denom === 0) return { slope: 0, intercept: 0, r2: 0, r: 0 };
+        var slope = (n * sumXY - sumX * sumY) / denom;
+        var intercept = (sumY - slope * sumX) / n;
+        var rNum = n * sumXY - sumX * sumY;
+        var rDen = Math.sqrt((n * sumX2 - sumX * sumX) * (n * sumY2 - sumY * sumY));
+        var r = rDen === 0 ? 0 : rNum / rDen;
+        return { slope: slope, intercept: intercept, r2: r * r, r: r };
+    }
+
+    function stdDev(vals) {
+        var n = vals.length;
+        if (n < 2) return 1;
+        var mean = vals.reduce(function(a,b){return a+b;},0) / n;
+        var ss = vals.reduce(function(a,v){return a + (v-mean)*(v-mean);},0);
+        return Math.sqrt(ss / (n - 1)) || 1;
+    }
+
+    function runAnalysis() {
+        var targetKey = document.getElementById('targetMetric').value;
+        var targetFn = TARGETS[targetKey];
+        var results = [];
+
+        for (var i = 0; i < PARAMS.length; i++) {
+            var p = PARAMS[i];
+            var pairs = extractPairs(allData, p.extract, targetFn);
+            if (pairs.length < 5) continue;
+            var reg = linearRegression(pairs);
+            var xVals = pairs.map(function(d){return d.x;});
+            var yVals = pairs.map(function(d){return d.y;});
+            var beta = reg.slope * stdDev(xVals) / stdDev(yVals); // standardized coefficient
+            results.push({
+                key: p.key,
+                label: p.label,
+                slope: reg.slope,
+                r2: reg.r2,
+                r: reg.r,
+                beta: beta,
+                n: pairs.length
+            });
+        }
+
+        results.sort(function(a,b) { return Math.abs(b.beta) - Math.abs(a.beta); });
+
+        renderTornado(results);
+        renderStats(results, targetKey);
+        populateScatterSelect(results);
+        if (results.length > 0) {
+            document.getElementById('scatterParam').value = results[0].key;
+            renderScatter(results[0].key, targetKey);
+        }
+        document.getElementById('results').style.display = '';
+    }
+
+    function renderTornado(results) {
+        var container = document.getElementById('tornado');
+        container.innerHTML = '';
+        if (results.length === 0) { container.innerHTML = '<p style="color:var(--muted)">Not enough data.</p>'; return; }
+        var maxBeta = Math.max.apply(null, results.map(function(r){return Math.abs(r.beta);}));
+
+        for (var i = 0; i < results.length; i++) {
+            var r = results[i];
+            var pct = maxBeta === 0 ? 0 : (Math.abs(r.beta) / maxBeta * 100);
+            var color = pct > 66 ? 'var(--error)' : pct > 33 ? 'var(--warning)' : 'var(--success)';
+            var cls = pct > 66 ? 'high' : pct > 33 ? 'medium' : 'low';
+
+            var row = document.createElement('div');
+            row.className = 'tornado-bar';
+            row.innerHTML =
+                '<span class="param-name">' + r.label + '</span>' +
+                '<div class="bar-container"><div class="bar" style="width:' + pct + '%;background:' + color + '"></div></div>' +
+                '<span class="coeff ' + cls + '">' + (r.beta >= 0 ? '+' : '') + r.beta.toFixed(3) + '</span>';
+            container.appendChild(row);
+        }
+    }
+
+    function renderStats(results, targetKey) {
+        var grid = document.getElementById('statsGrid');
+        grid.innerHTML = '';
+        var labels = { livePercent: 'Cell Viability', deadPercent: 'Dead Cells', elasticity: 'Elasticity' };
+
+        for (var i = 0; i < results.length; i++) {
+            var r = results[i];
+            var cls = Math.abs(r.beta) > 0.3 ? 'high' : Math.abs(r.beta) > 0.1 ? 'medium' : 'low';
+            var card = document.createElement('div');
+            card.className = 'stat-card';
+            card.innerHTML =
+                '<div class="value ' + cls + '">' + (r.beta >= 0 ? '+' : '') + r.beta.toFixed(3) + '</div>' +
+                '<div class="label">' + r.label + '</div>' +
+                '<div class="label">R² = ' + r.r2.toFixed(3) + ' · n = ' + r.n + '</div>';
+            grid.appendChild(card);
+        }
+    }
+
+    function populateScatterSelect(results) {
+        var sel = document.getElementById('scatterParam');
+        sel.innerHTML = '';
+        for (var i = 0; i < results.length; i++) {
+            var opt = document.createElement('option');
+            opt.value = results[i].key;
+            opt.textContent = results[i].label;
+            sel.appendChild(opt);
+        }
+        sel.onchange = function() {
+            renderScatter(sel.value, document.getElementById('targetMetric').value);
+        };
+    }
+
+    function renderScatter(paramKey, targetKey) {
+        var param = PARAMS.filter(function(p){return p.key === paramKey;})[0];
+        if (!param) return;
+        var targetFn = TARGETS[targetKey];
+        var pairs = extractPairs(allData, param.extract, targetFn);
+        var reg = linearRegression(pairs);
+
+        var canvas = document.getElementById('scatterCanvas');
+        var ctx = canvas.getContext('2d');
+        var W = canvas.width, H = canvas.height;
+        ctx.clearRect(0, 0, W, H);
+
+        if (pairs.length < 3) {
+            ctx.fillStyle = '#94a3b8';
+            ctx.font = '16px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText('Not enough data points', W/2, H/2);
+            return;
+        }
+
+        var pad = { top: 30, right: 30, bottom: 50, left: 60 };
+        var plotW = W - pad.left - pad.right;
+        var plotH = H - pad.top - pad.bottom;
+
+        var xs = pairs.map(function(p){return p.x;});
+        var ys = pairs.map(function(p){return p.y;});
+        var xMin = Math.min.apply(null, xs), xMax = Math.max.apply(null, xs);
+        var yMin = Math.min.apply(null, ys), yMax = Math.max.apply(null, ys);
+        var xRange = xMax - xMin || 1;
+        var yRange = yMax - yMin || 1;
+        xMin -= xRange * 0.05; xMax += xRange * 0.05;
+        yMin -= yRange * 0.05; yMax += yRange * 0.05;
+        xRange = xMax - xMin; yRange = yMax - yMin;
+
+        function toX(v) { return pad.left + (v - xMin) / xRange * plotW; }
+        function toY(v) { return pad.top + plotH - (v - yMin) / yRange * plotH; }
+
+        // Grid
+        ctx.strokeStyle = '#334155';
+        ctx.lineWidth = 0.5;
+        for (var g = 0; g <= 5; g++) {
+            var gy = pad.top + plotH * g / 5;
+            ctx.beginPath(); ctx.moveTo(pad.left, gy); ctx.lineTo(W - pad.right, gy); ctx.stroke();
+            ctx.fillStyle = '#94a3b8'; ctx.font = '11px sans-serif'; ctx.textAlign = 'right';
+            ctx.fillText((yMax - yRange * g / 5).toFixed(1), pad.left - 8, gy + 4);
+        }
+        for (var g = 0; g <= 5; g++) {
+            var gx = pad.left + plotW * g / 5;
+            ctx.beginPath(); ctx.moveTo(gx, pad.top); ctx.lineTo(gx, pad.top + plotH); ctx.stroke();
+            ctx.fillStyle = '#94a3b8'; ctx.font = '11px sans-serif'; ctx.textAlign = 'center';
+            ctx.fillText((xMin + xRange * g / 5).toFixed(1), gx, H - pad.bottom + 20);
+        }
+
+        // Axis labels
+        ctx.fillStyle = '#94a3b8'; ctx.font = '12px sans-serif'; ctx.textAlign = 'center';
+        ctx.fillText(param.label, pad.left + plotW / 2, H - 8);
+        ctx.save();
+        ctx.translate(14, pad.top + plotH / 2);
+        ctx.rotate(-Math.PI / 2);
+        var labels = { livePercent: 'Cell Viability (%)', deadPercent: 'Dead Cells (%)', elasticity: 'Elasticity' };
+        ctx.fillText(labels[targetKey] || targetKey, 0, 0);
+        ctx.restore();
+
+        // Data points
+        ctx.fillStyle = 'rgba(56, 189, 248, 0.4)';
+        for (var i = 0; i < pairs.length; i++) {
+            ctx.beginPath();
+            ctx.arc(toX(pairs[i].x), toY(pairs[i].y), 3, 0, Math.PI * 2);
+            ctx.fill();
+        }
+
+        // Regression line
+        ctx.strokeStyle = '#f87171';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(toX(xMin), toY(reg.intercept + reg.slope * xMin));
+        ctx.lineTo(toX(xMax), toY(reg.intercept + reg.slope * xMax));
+        ctx.stroke();
+
+        // Legend
+        ctx.fillStyle = '#f87171'; ctx.font = '11px sans-serif'; ctx.textAlign = 'left';
+        ctx.fillText('y = ' + reg.slope.toFixed(4) + 'x + ' + reg.intercept.toFixed(2) + '  (R² = ' + reg.r2.toFixed(3) + ')', pad.left + 10, pad.top + 16);
+
+        // Interpretation
+        var interp = document.getElementById('scatterInterpretation');
+        var strength = Math.abs(reg.r) > 0.5 ? 'strong' : Math.abs(reg.r) > 0.2 ? 'moderate' : 'weak';
+        var direction = reg.slope > 0 ? 'positive' : 'negative';
+        interp.innerHTML =
+            '<strong>' + param.label + '</strong> shows a <strong>' + strength + ' ' + direction + '</strong> relationship with ' +
+            (labels[targetKey] || targetKey) + '. ' +
+            'Pearson r = <strong>' + reg.r.toFixed(3) + '</strong>, R² = <strong>' + reg.r2.toFixed(3) + '</strong> across <strong>' + pairs.length + '</strong> data points. ' +
+            (Math.abs(reg.r) > 0.3
+                ? 'A unit increase in ' + param.label + ' is associated with a ' + (reg.slope > 0 ? '+' : '') + reg.slope.toFixed(4) + ' change in the target.'
+                : 'The effect is relatively weak — other factors likely dominate.');
+    }
+
+    // Init
+    loadBioprintData({ validate: true }).then(function(data) {
+        allData = data;
+        document.getElementById('loading').style.display = 'none';
+        runAnalysis();
+    }).catch(function(err) {
+        document.getElementById('loading').style.display = 'none';
+        document.getElementById('error').style.display = '';
+        document.getElementById('error').textContent = 'Failed to load data: ' + err.message;
+    });
+    </script>
+</body>
+</html>
