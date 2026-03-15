@@ -380,15 +380,22 @@ function createMaterialLotTracker(opts) {
     }
     _validateString(recallDef.reason, 'reason');
 
+    var targetSet = Object.create(null);
     var targetIds = [];
     if (Array.isArray(recallDef.lotIds)) {
-      targetIds = recallDef.lotIds.slice();
+      recallDef.lotIds.forEach(function (id) {
+        if (!targetSet[id]) {
+          targetSet[id] = true;
+          targetIds.push(id);
+        }
+      });
     }
     if (recallDef.supplier) {
       var sup = recallDef.supplier.toLowerCase();
       Object.keys(lots).forEach(function (id) {
-        if (lots[id].supplier.toLowerCase().indexOf(sup) !== -1 &&
-            targetIds.indexOf(id) === -1) {
+        if (!targetSet[id] &&
+            lots[id].supplier.toLowerCase().indexOf(sup) !== -1) {
+          targetSet[id] = true;
           targetIds.push(id);
         }
       });
@@ -396,8 +403,9 @@ function createMaterialLotTracker(opts) {
     if (recallDef.material) {
       var mat = recallDef.material.toLowerCase();
       Object.keys(lots).forEach(function (id) {
-        if (lots[id].material.toLowerCase().indexOf(mat) !== -1 &&
-            targetIds.indexOf(id) === -1) {
+        if (!targetSet[id] &&
+            lots[id].material.toLowerCase().indexOf(mat) !== -1) {
+          targetSet[id] = true;
           targetIds.push(id);
         }
       });
@@ -433,13 +441,15 @@ function createMaterialLotTracker(opts) {
     };
     recalls.push(recallRecord);
 
+    var recalledSet = Object.create(null);
+    recalled.forEach(function (id) { recalledSet[id] = true; });
+    var batchSet = Object.create(null);
     var affectedBatches = [];
-    recalled.forEach(function (id) {
-      usageLog.forEach(function (u) {
-        if (u.lotId === id && u.batch && affectedBatches.indexOf(u.batch) === -1) {
-          affectedBatches.push(u.batch);
-        }
-      });
+    usageLog.forEach(function (u) {
+      if (recalledSet[u.lotId] && u.batch && !batchSet[u.batch]) {
+        batchSet[u.batch] = true;
+        affectedBatches.push(u.batch);
+      }
     });
 
     return {

@@ -8,7 +8,7 @@ Technical overview of the BioBots Tool codebase — a browser-based bioprinting 
 BioBots/
 ├── docs/                    # GitHub Pages site (HTML + shared JS)
 │   ├── index.html           # Landing page / dashboard hub
-│   ├── shared/              # Core computation modules (14 modules)
+│   ├── shared/              # Core computation modules (16 modules)
 │   │   ├── calculator.js    # Bioink volume & cost calculator
 │   │   ├── capability.js    # Six Sigma process capability (Cp/Cpk/Pp/Ppk)
 │   │   ├── constants.js     # Shared constants & defaults
@@ -52,6 +52,8 @@ for encapsulation and testability.
 | `jobEstimator.js` | `createJobEstimator()` | Print job time/material/cost/risk estimation & batch planning | 8 |
 | `mixer.js` | `createMixer()` | Bioink mixing ratio optimization | 7 |
 | `passage.js` | `createPassageTracker()` | Cell passage tracking & growth curves | 8 |
+| `printQualityScorer.js` | `createPrintQualityScorer()` | Multi-dimensional print quality scoring & batch comparison | 4 |
+| `printResolution.js` | `createPrintResolutionCalculator()` | Print resolution modeling with nozzle/pressure optimization | 7 |
 | `rheology.js` | `createRheologyModeler()` | Viscosity models, printability scoring | 11 |
 | `scaffold.js` | `createScaffoldCalculator()` | Scaffold geometry, porosity, surface area, mechanical estimates | 4 |
 | `utils.js` | (exports) | DOM helpers, number formatting | 5 |
@@ -65,7 +67,7 @@ for encapsulation and testability.
 
 ### 2. Dashboard Layer (`docs/*.html`)
 
-45 single-page HTML dashboards, each focused on one analysis domain. Pages
+46 single-page HTML dashboards, each focused on one analysis domain. Pages
 load shared modules via `<script>` and use vanilla JavaScript for interactivity.
 
 | Category | Pages | Description |
@@ -104,22 +106,22 @@ operations. Each exports a factory function returning domain-specific methods.
 
 ### 4. Test Layer
 
-**Jest suite** (`__tests__/`, 74 files): Tests for all shared modules,
+**Jest suite** (`__tests__/`, 76 files): Tests for all shared modules,
 simulation scripts, and dashboard logic. Uses `--env node` for pure
 computation tests. Organized by category:
 
 | Category | Test Files | Coverage |
 |----------|-----------|----------|
 | Core API & Utils | 5 | `runMethod`, `utils`, `constants`, `shared`, `data-loader` |
-| Shared Modules | 11 | `calculator`, `capability`, `crosslink`, `gcode`, `rheology`, `viability`, `export`, `mixer`, `passage`, `jobEstimator`, `scaffold` |
-| Analysis | 9 | `compare`, `trends`, `correlation`, `cluster`, `predictor`, `recommender`, `pareto`, `optimizer`, `doe` |
+| Shared Modules | 13 | `calculator`, `capability`, `crosslink`, `gcode`, `rheology`, `viability`, `export`, `mixer`, `passage`, `jobEstimator`, `scaffold`, `printQualityScorer`, `printResolution` |
+| Analysis | 8 | `compare`, `trends`, `cluster`, `predictor`, `recommender`, `pareto`, `optimizer`, `doe` |
 | Quality & SPC | 7 | `quality`, `spc`, `anomaly`, `reproducibility`, `batch`, `batchStats`, `compliance` |
 | Bioprinting Sim | 6 | `porosity`, `layerAdhesion`, `vascularization`, `maturation`, `degradation`, `cellSeeding` |
 | Lab Operations | 7 | `printQueue`, `protocolLibrary`, `protocol`, `sessionLogger`, `labAuditTrail`, `riskAssessor`, `scriptUtils` |
 | Diagnostics | 5 | `failureDiagnostic`, `mlDiagnostic`, `mlDiagnostic-extended`, `mlDiagnosticDeep`, `failure` |
 | Materials | 7 | `compatibility`, `formulationCalculator`, `costEstimator`, `shelfLife`, `sterilization`, `waste`, `materialLotTracker` |
 | Infrastructure | 6 | `nozzlePlanner`, `environment`, `maintenance`, `calibration`, `printComparator`, `toolpath` |
-| Dashboards | 8 | `index`, `table`, `explorer`, `profile`, `coverage`, `wellplate`, `logbook`, `shelfLifeDashboard` |
+| Dashboards | 6 | `index`, `table`, `profile`, `coverage`, `wellplate`, `shelfLifeDashboard` |
 | Tracking | 2 | `contaminationTracker`, `experimentTracker` |
 | Security | 3 | `logbook-xss`, `passage-csv-security`, `healthDashboard` |
 | Parameter Opt. | 1 | `parameterOptimizer` |
@@ -158,6 +160,8 @@ index.html ─┬── calculator.js ◄── constants.js
              ├── crosslink.js
              ├── gcode.js
              ├── jobEstimator.js
+             ├── printQualityScorer.js
+             ├── printResolution.js
              ├── rheology.js
              ├── scaffold.js
              ├── viability.js
