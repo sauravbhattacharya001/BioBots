@@ -117,6 +117,56 @@ function createViabilityEstimator() {
     // ── Individual Damage Models ────────────────────────────────
 
     /**
+     * Extract print parameters from a raw data record.
+     *
+     * Centralizes the record → params mapping used by batchAnalyze and
+     * calibrate, eliminating duplicate extraction logic.
+     *
+     * @param {Object} record - Raw print record with print_info/print_data
+     * @returns {{ params: Object, actual: number } | null} Extracted params or null if invalid
+     */
+    function _extractRecordParams(record) {
+        if (!record || !record.print_data || !record.print_info) return null;
+        var info = record.print_info;
+        return {
+            params: {
+                pressure: Math.max(
+                    info.pressure ? info.pressure.extruder1 || 0 : 0,
+                    info.pressure ? info.pressure.extruder2 || 0 : 0
+                ),
+                crosslinkDuration: (info.crosslinking && info.crosslinking.cl_duration) || 0,
+                crosslinkIntensity: (info.crosslinking && info.crosslinking.cl_intensity) || 0,
+                layerHeight: (info.resolution && info.resolution.layerHeight) || 0.4,
+                nozzleDiameter: 0.4,
+            },
+            actual: record.print_data.livePercent || 0,
+            serial: record.user_info ? record.user_info.serial : null,
+        };
+    }
+
+    /**
+     * Compute Pearson correlation coefficient between two aligned arrays.
+     *
+     * @param {number[]} xs - Predicted values
+     * @param {number[]} ys - Actual values
+     * @param {number} meanX - Pre-computed mean of xs
+     * @param {number} meanY - Pre-computed mean of ys
+     * @returns {number} Correlation coefficient [-1, 1]
+     */
+    function _pearsonCorrelation(xs, ys, meanX, meanY) {
+        var sumXY = 0, sumX2 = 0, sumY2 = 0;
+        for (var i = 0; i < xs.length; i++) {
+            if (xs[i] === null) continue;
+            var dx = xs[i] - meanX;
+            var dy = ys[i] - meanY;
+            sumXY += dx * dy;
+            sumX2 += dx * dx;
+            sumY2 += dy * dy;
+        }
+        return (sumX2 > 0 && sumY2 > 0) ? sumXY / Math.sqrt(sumX2 * sumY2) : 0;
+    }
+
+    /**
      * Estimate shear rate from nozzle geometry and flow parameters.
      *
      * Uses the Weissenberg-Rabinowitsch corrected wall shear rate for
@@ -533,31 +583,21 @@ function createViabilityEstimator() {
         var totalActual = 0;
         var sumSquaredError = 0;
         var count = 0;
+        var predictedArr = [];
+        var actualArr = [];
 
         for (var ri = 0; ri < printData.length; ri++) {
-            var record = printData[ri];
-            if (!record || !record.print_data || !record.print_info) continue;
-
-            var params = {
-                pressure: Math.max(
-                    record.print_info.pressure ? record.print_info.pressure.extruder1 || 0 : 0,
-                    record.print_info.pressure ? record.print_info.pressure.extruder2 || 0 : 0
-                ),
-                crosslinkDuration: (record.print_info.crosslinking && record.print_info.crosslinking.cl_duration) || 0,
-                crosslinkIntensity: (record.print_info.crosslinking && record.print_info.crosslinking.cl_intensity) || 0,
-                layerHeight: (record.print_info.resolution && record.print_info.resolution.layerHeight) || 0.4,
-                nozzleDiameter: 0.4,
-            };
+            var extracted = _extractRecordParams(printData[ri]);
+            if (!extracted) continue;
 
             try {
-                var est = estimate(params, modelParams);
-                var actual = record.print_data.livePercent || 0;
-                var error = est.viabilityPercent - actual;
+                var est = estimate(extracted.params, modelParams);
+                var error = est.viabilityPercent - extracted.actual;
 
                 results.push({
-                    serial: record.user_info ? record.user_info.serial : null,
+                    serial: extracted.serial,
                     predicted: est.viabilityPercent,
-                    actual: actual,
+                    actual: extracted.actual,
                     error: Math.round(error * 100) / 100,
                     absError: Math.round(Math.abs(error) * 100) / 100,
                     quality: est.quality,
@@ -565,8 +605,10 @@ function createViabilityEstimator() {
                     warnings: est.warnings,
                 });
 
+                predictedArr.push(est.viabilityPercent);
+                actualArr.push(extracted.actual);
                 totalPredicted += est.viabilityPercent;
-                totalActual += actual;
+                totalActual += extracted.actual;
                 sumSquaredError += error * error;
                 count++;
             } catch (e) {
@@ -583,19 +625,7 @@ function createViabilityEstimator() {
         var rmse = Math.sqrt(sumSquaredError / count);
         var mae = results.reduce(function(s, r) { return s + r.absError; }, 0) / count;
 
-        // Correlation coefficient
-        var sumXY = 0, sumX2 = 0, sumY2 = 0;
-        for (var ci2 = 0; ci2 < results.length; ci2++) {
-            var r = results[ci2];
-            var dx = r.predicted - meanPredicted;
-            var dy = r.actual - meanActual;
-            sumXY += dx * dy;
-            sumX2 += dx * dx;
-            sumY2 += dy * dy;
-        }
-        var correlation = (sumX2 > 0 && sumY2 > 0)
-            ? sumXY / Math.sqrt(sumX2 * sumY2)
-            : 0;
+        var correlation = _pearsonCorrelation(predictedArr, actualArr, meanPredicted, meanActual);
 
         // Quality distribution
         var qualityDist = { excellent: 0, good: 0, acceptable: 0, poor: 0, critical: 0 };
@@ -729,26 +759,11 @@ function createViabilityEstimator() {
         var p50Min = 50, p50Max = 300;
         var ec50Min = 5000, ec50Max = 50000;
 
-        // Pre-extract valid record params once instead of re-parsing in
-        // every batchAnalyze() call. For a 5-step grid this eliminates
-        // 35 redundant iterations over the full print dataset.
+        // Pre-extract valid record params once using shared helper.
         var preExtracted = [];
         for (var ri = 0; ri < printData.length; ri++) {
-            var record = printData[ri];
-            if (!record || !record.print_data || !record.print_info) continue;
-            preExtracted.push({
-                params: {
-                    pressure: Math.max(
-                        record.print_info.pressure ? record.print_info.pressure.extruder1 || 0 : 0,
-                        record.print_info.pressure ? record.print_info.pressure.extruder2 || 0 : 0
-                    ),
-                    crosslinkDuration: (record.print_info.crosslinking && record.print_info.crosslinking.cl_duration) || 0,
-                    crosslinkIntensity: (record.print_info.crosslinking && record.print_info.crosslinking.cl_intensity) || 0,
-                    layerHeight: (record.print_info.resolution && record.print_info.resolution.layerHeight) || 0.4,
-                    nozzleDiameter: 0.4,
-                },
-                actual: record.print_data.livePercent || 0,
-            });
+            var ex = _extractRecordParams(printData[ri]);
+            if (ex) preExtracted.push(ex);
         }
 
         if (preExtracted.length < 5) {
@@ -809,18 +824,9 @@ function createViabilityEstimator() {
                     var meanA = totalActual / count;
                     var mae = sumAbsError / count;
 
-                    // Compute correlation from stored predictions
-                    // (no second estimate() pass needed).
-                    var sXY = 0, sX2 = 0, sY2 = 0;
-                    for (var ci = 0; ci < preExtracted.length; ci++) {
-                        if (predictions[ci] === null) continue;
-                        var dx = predictions[ci] - meanP;
-                        var dy = preExtracted[ci].actual - meanA;
-                        sXY += dx * dy;
-                        sX2 += dx * dx;
-                        sY2 += dy * dy;
-                    }
-                    var corr = (sX2 > 0 && sY2 > 0) ? sXY / Math.sqrt(sX2 * sY2) : 0;
+                    // Use shared correlation helper on stored predictions.
+                    var actuals = preExtracted.map(function(e) { return e.actual; });
+                    var corr = _pearsonCorrelation(predictions, actuals, meanP, meanA);
 
                     bestRmse = rmse;
                     bestParams = {
