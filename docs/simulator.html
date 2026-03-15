@@ -1,0 +1,817 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>BioBots 1 - Print Timeline Simulator</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⏱️</text></svg>">
+    <style>
+        :root {
+            --bg: #0f172a;
+            --surface: #1e293b;
+            --border: #334155;
+            --text: #e2e8f0;
+            --muted: #94a3b8;
+            --accent: #38bdf8;
+            --accent-hover: #7dd3fc;
+            --success: #4ade80;
+            --error: #f87171;
+            --warning: #fbbf24;
+            --purple: #a78bfa;
+            --orange: #fb923c;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            padding: 2rem 1rem;
+        }
+        .container { max-width: 1200px; margin: 0 auto; }
+        header { text-align: center; margin-bottom: 2rem; }
+        header h1 {
+            font-size: 2rem; font-weight: 700;
+            background: linear-gradient(135deg, var(--accent), var(--success));
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+        }
+        header p { color: var(--muted); margin-top: 0.5rem; }
+        .panel {
+            background: var(--surface); border: 1px solid var(--border);
+            border-radius: 12px; padding: 1.5rem; margin-bottom: 1.5rem;
+        }
+        .panel h2 { font-size: 1.1rem; color: var(--accent); margin-bottom: 1rem; }
+        .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; }
+        .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; }
+        .grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; }
+        @media (max-width: 768px) {
+            .grid-2, .grid-3, .grid-4 { grid-template-columns: 1fr; }
+        }
+        label { display: block; font-size: 0.8rem; color: var(--muted); margin-bottom: 0.3rem; }
+        input, select {
+            width: 100%; padding: 0.5rem 0.75rem; background: var(--bg);
+            border: 1px solid var(--border); border-radius: 8px; color: var(--text);
+            font-size: 0.9rem; outline: none;
+        }
+        input:focus, select:focus { border-color: var(--accent); }
+        .btn {
+            padding: 0.6rem 1.5rem; border: none; border-radius: 8px;
+            font-size: 0.9rem; font-weight: 600; cursor: pointer; transition: all 0.2s;
+        }
+        .btn-primary { background: var(--accent); color: var(--bg); }
+        .btn-primary:hover { background: var(--accent-hover); }
+        .btn-secondary { background: var(--border); color: var(--text); }
+        .btn-secondary:hover { background: #475569; }
+        .btn-success { background: var(--success); color: var(--bg); }
+        .btn-danger { background: var(--error); color: #fff; }
+        .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+        .controls { display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap; }
+
+        /* Simulator canvas area */
+        .sim-area { display: grid; grid-template-columns: 300px 1fr; gap: 1.5rem; }
+        @media (max-width: 900px) { .sim-area { grid-template-columns: 1fr; } }
+        .build-plate {
+            background: var(--bg); border: 1px solid var(--border);
+            border-radius: 12px; padding: 1rem; display: flex;
+            flex-direction: column; align-items: center;
+        }
+        .build-plate canvas { border-radius: 8px; }
+
+        /* Metric cards */
+        .metric {
+            background: var(--bg); border: 1px solid var(--border);
+            border-radius: 8px; padding: 0.75rem 1rem; text-align: center;
+        }
+        .metric .val { font-size: 1.4rem; font-weight: 700; }
+        .metric .lbl { font-size: 0.7rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; }
+        .metric.accent .val { color: var(--accent); }
+        .metric.success .val { color: var(--success); }
+        .metric.warning .val { color: var(--warning); }
+        .metric.error .val { color: var(--error); }
+        .metric.purple .val { color: var(--purple); }
+        .metric.orange .val { color: var(--orange); }
+
+        /* Timeline chart */
+        .chart-container { position: relative; width: 100%; height: 200px; }
+        .chart-container canvas { width: 100% !important; height: 100% !important; }
+
+        /* Progress bar */
+        .progress-bar {
+            width: 100%; height: 8px; background: var(--bg);
+            border-radius: 4px; overflow: hidden; margin: 0.75rem 0;
+        }
+        .progress-fill {
+            height: 100%; background: linear-gradient(90deg, var(--accent), var(--success));
+            border-radius: 4px; transition: width 0.3s;
+        }
+
+        /* Speed slider */
+        input[type="range"] {
+            -webkit-appearance: none; height: 6px; border-radius: 3px;
+            background: var(--border); border: none; padding: 0;
+        }
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none; width: 18px; height: 18px;
+            border-radius: 50%; background: var(--accent); cursor: pointer;
+        }
+
+        /* Phase indicator */
+        .phase-badge {
+            display: inline-block; padding: 0.3rem 0.8rem; border-radius: 20px;
+            font-size: 0.75rem; font-weight: 600; text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+        .phase-prep { background: rgba(56,189,248,0.15); color: var(--accent); }
+        .phase-print { background: rgba(74,222,128,0.15); color: var(--success); }
+        .phase-crosslink { background: rgba(167,139,250,0.15); color: var(--purple); }
+        .phase-complete { background: rgba(251,191,36,0.15); color: var(--warning); }
+
+        /* Event log */
+        .log-area {
+            max-height: 160px; overflow-y: auto; font-size: 0.78rem;
+            font-family: 'SF Mono', 'Fira Code', monospace;
+            background: var(--bg); border: 1px solid var(--border);
+            border-radius: 8px; padding: 0.75rem;
+        }
+        .log-area div { padding: 0.15rem 0; border-bottom: 1px solid rgba(51,65,85,0.3); }
+        .log-area .time { color: var(--muted); margin-right: 0.5rem; }
+        .log-area .info { color: var(--accent); }
+        .log-area .warn { color: var(--warning); }
+        .log-area .ok { color: var(--success); }
+
+        /* Presets */
+        .preset-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 0.75rem; }
+        .preset-card {
+            background: var(--bg); border: 1px solid var(--border); border-radius: 8px;
+            padding: 0.75rem 1rem; cursor: pointer; transition: all 0.2s;
+        }
+        .preset-card:hover { border-color: var(--accent); transform: translateY(-2px); }
+        .preset-card.active { border-color: var(--accent); background: rgba(56,189,248,0.05); }
+        .preset-card h4 { font-size: 0.85rem; margin-bottom: 0.3rem; }
+        .preset-card p { font-size: 0.72rem; color: var(--muted); }
+
+        .back-link {
+            display: inline-flex; align-items: center; gap: 0.5rem;
+            color: var(--muted); text-decoration: none; font-size: 0.85rem;
+            margin-bottom: 1.5rem;
+        }
+        .back-link:hover { color: var(--accent); }
+    </style>
+</head>
+<body>
+<div class="container">
+    <a href="index.html" class="back-link">← Back to Dashboard</a>
+    <header>
+        <h1>⏱️ Print Timeline Simulator</h1>
+        <p>Visualize the bioprinting process layer by layer with real-time metrics</p>
+    </header>
+
+    <!-- Configuration Panel -->
+    <div class="panel" id="config-panel">
+        <h2>🔧 Print Configuration</h2>
+        <p style="font-size:0.82rem;color:var(--muted);margin-bottom:1rem;">Select a preset or configure custom parameters.</p>
+
+        <div class="preset-grid" id="presets"></div>
+
+        <div style="margin-top:1.5rem;">
+            <h2 style="font-size:0.95rem;">Parameters</h2>
+            <div class="grid-4" style="margin-top:0.75rem;">
+                <div><label>Layers</label><input type="number" id="in-layers" min="1" max="200" value="48"></div>
+                <div><label>Layer Height (mm)</label><input type="number" id="in-height" min="0.05" max="2" step="0.05" value="0.80"></div>
+                <div><label>Extruder 1 Pressure (psi)</label><input type="number" id="in-p1" min="1" max="100" value="38"></div>
+                <div><label>Extruder 2 Pressure (psi)</label><input type="number" id="in-p2" min="1" max="100" value="93"></div>
+            </div>
+            <div class="grid-4" style="margin-top:0.75rem;">
+                <div><label>Crosslinking Enabled</label><select id="in-cl"><option value="1">Yes</option><option value="0">No</option></select></div>
+                <div><label>UV Intensity (%)</label><input type="number" id="in-cli" min="0" max="100" value="24"></div>
+                <div><label>UV Duration (s)</label><input type="number" id="in-cld" min="0" max="600" value="23"></div>
+                <div><label>Well Plate</label><select id="in-wp"><option value="6">6-well</option><option value="12">12-well</option><option value="24">24-well</option><option value="48">48-well</option><option value="96">96-well</option></select></div>
+            </div>
+            <div style="margin-top:1rem;">
+                <button class="btn btn-primary" onclick="startSim()">▶ Start Simulation</button>
+                <span id="load-status" style="font-size:0.8rem;color:var(--muted);margin-left:1rem;"></span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Simulation Panel (hidden until started) -->
+    <div id="sim-panel" style="display:none;">
+        <!-- Controls -->
+        <div class="panel">
+            <div class="controls">
+                <button class="btn btn-primary" id="btn-play" onclick="togglePlay()">⏸ Pause</button>
+                <button class="btn btn-secondary" onclick="resetSim()">⟲ Reset</button>
+                <button class="btn btn-secondary" onclick="stepForward()">⏭ Step</button>
+                <div style="display:flex;align-items:center;gap:0.5rem;margin-left:1rem;">
+                    <label style="margin:0;white-space:nowrap;">Speed:</label>
+                    <input type="range" id="speed-slider" min="1" max="20" value="5" style="width:120px;" oninput="updateSpeed()">
+                    <span id="speed-label" style="font-size:0.8rem;color:var(--muted);min-width:30px;">5×</span>
+                </div>
+                <span class="phase-badge phase-prep" id="phase-badge">PREPARING</span>
+                <div class="progress-bar" style="flex:1;min-width:120px;">
+                    <div class="progress-fill" id="progress-fill" style="width:0%;"></div>
+                </div>
+                <span id="progress-pct" style="font-size:0.85rem;font-weight:600;">0%</span>
+            </div>
+        </div>
+
+        <!-- Main simulation area -->
+        <div class="sim-area">
+            <!-- Build Plate Visualization -->
+            <div class="panel build-plate">
+                <h2 style="font-size:0.95rem;margin-bottom:0.5rem;">🔬 Build Plate</h2>
+                <canvas id="build-canvas" width="260" height="320"></canvas>
+                <div style="margin-top:0.5rem;font-size:0.75rem;color:var(--muted);" id="canvas-info">
+                    Layer 0 / 48
+                </div>
+            </div>
+
+            <!-- Metrics & Charts -->
+            <div>
+                <div class="grid-3" style="margin-bottom:1rem;">
+                    <div class="metric accent"><div class="val" id="m-layer">0</div><div class="lbl">Current Layer</div></div>
+                    <div class="metric success"><div class="val" id="m-time">0:00</div><div class="lbl">Elapsed Time</div></div>
+                    <div class="metric warning"><div class="val" id="m-height">0.00</div><div class="lbl">Height (mm)</div></div>
+                </div>
+                <div class="grid-3" style="margin-bottom:1rem;">
+                    <div class="metric purple"><div class="val" id="m-viability">--</div><div class="lbl">Cell Viability</div></div>
+                    <div class="metric orange"><div class="val" id="m-pressure">--</div><div class="lbl">Avg Pressure</div></div>
+                    <div class="metric"><div class="val" id="m-elasticity">--</div><div class="lbl">Elasticity</div></div>
+                </div>
+
+                <!-- Timeline Charts -->
+                <div class="panel" style="padding:1rem;">
+                    <h2 style="font-size:0.9rem;margin-bottom:0.5rem;">📈 Layer Metrics Timeline</h2>
+                    <div class="chart-container"><canvas id="timeline-chart"></canvas></div>
+                </div>
+
+                <!-- Event Log -->
+                <div class="panel" style="padding:1rem;margin-top:1rem;">
+                    <h2 style="font-size:0.9rem;margin-bottom:0.5rem;">📋 Event Log</h2>
+                    <div class="log-area" id="event-log"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Summary (shown after completion) -->
+        <div class="panel" id="summary-panel" style="display:none;">
+            <h2>✅ Print Complete — Summary</h2>
+            <div class="grid-4" id="summary-cards" style="margin-top:1rem;"></div>
+        </div>
+    </div>
+</div>
+
+<script>
+(function(){
+'use strict';
+
+// ─── Presets ────────────────────────────────────────────────
+const PRESETS = [
+    { name: 'Skin Graft (Thin)', desc: '12 layers, low pressure, fine resolution',
+      layers: 12, height: 0.15, p1: 15, p2: 25, cl: true, cli: 40, cld: 30, wp: 24 },
+    { name: 'Cartilage Scaffold', desc: '36 layers, medium pressure, standard crosslink',
+      layers: 36, height: 0.40, p1: 35, p2: 60, cl: true, cli: 55, cld: 45, wp: 12 },
+    { name: 'Bone Tissue (Dense)', desc: '80 layers, high pressure, long UV cure',
+      layers: 80, height: 0.25, p1: 65, p2: 85, cl: true, cli: 80, cld: 120, wp: 6 },
+    { name: 'Vascular Network', desc: '48 layers, dual-extruder pattern',
+      layers: 48, height: 0.30, p1: 28, p2: 45, cl: true, cli: 35, cld: 20, wp: 12 },
+    { name: 'Drug Delivery Patch', desc: '8 layers, micro-scale, no crosslink',
+      layers: 8, height: 0.10, p1: 10, p2: 12, cl: false, cli: 0, cld: 0, wp: 96 },
+    { name: 'Liver Organoid', desc: '60 layers, multi-material, strong cure',
+      layers: 60, height: 0.35, p1: 42, p2: 70, cl: true, cli: 65, cld: 90, wp: 6 }
+];
+
+// ─── State ──────────────────────────────────────────────────
+let sim = null;
+let animId = null;
+let playing = false;
+let speed = 5;
+let lastTick = 0;
+let chartData = { layers: [], viability: [], pressure: [], elasticity: [], height: [] };
+
+function $(id) { return document.getElementById(id); }
+function esc(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+
+// ─── Render Presets ─────────────────────────────────────────
+function renderPresets() {
+    const el = $('presets');
+    el.innerHTML = PRESETS.map((p, i) =>
+        `<div class="preset-card" data-i="${i}" onclick="selectPreset(${i})">` +
+        `<h4>${esc(p.name)}</h4><p>${esc(p.desc)}</p></div>`
+    ).join('');
+}
+
+window.selectPreset = function(i) {
+    const p = PRESETS[i];
+    $('in-layers').value = p.layers;
+    $('in-height').value = p.height;
+    $('in-p1').value = p.p1;
+    $('in-p2').value = p.p2;
+    $('in-cl').value = p.cl ? '1' : '0';
+    $('in-cli').value = p.cli;
+    $('in-cld').value = p.cld;
+    $('in-wp').value = p.wp;
+    document.querySelectorAll('.preset-card').forEach((c, j) =>
+        c.classList.toggle('active', j === i));
+};
+
+// ─── Simulation Model ──────────────────────────────────────
+function createSim(cfg) {
+    const totalLayers = cfg.layers;
+    // Time per layer varies: base + pressure-dependent + random jitter
+    const basePrintTimeSec = 8; // seconds per layer base
+    const pressureFactor = (cfg.p1 + cfg.p2) / 200; // higher pressure → faster
+    const timePerLayer = basePrintTimeSec * (1.2 - pressureFactor * 0.4);
+
+    // Viability model: starts high, degrades with layers and pressure
+    const baseViability = 95;
+    const pressureStress = ((cfg.p1 + cfg.p2) / 2) / 100; // 0-1
+
+    return {
+        cfg: cfg,
+        currentLayer: 0,
+        totalLayers: totalLayers,
+        phase: 'prep', // prep, printing, crosslinking, complete
+        elapsedSec: 0,
+        timePerLayer: timePerLayer,
+        prepTimeSec: 15,
+        crosslinkTimeSec: cfg.cl ? cfg.cld : 0,
+        phaseElapsed: 0,
+        baseViability: baseViability,
+        pressureStress: pressureStress,
+        layerMetrics: [],
+        events: []
+    };
+}
+
+function simViability(sim, layer) {
+    // Exponential decay with pressure stress
+    const decay = sim.pressureStress * 0.3 * (layer / sim.totalLayers);
+    const noise = (Math.random() - 0.5) * 4;
+    return Math.max(20, Math.min(100, sim.baseViability - decay * 100 + noise));
+}
+
+function simElasticity(sim, layer) {
+    // Builds up with layers, plateaus
+    const base = 30 + 40 * (1 - Math.exp(-layer / (sim.totalLayers * 0.3)));
+    const noise = (Math.random() - 0.5) * 6;
+    return Math.max(10, Math.min(95, base + noise));
+}
+
+function simPressure(sim, layer) {
+    const avg = (sim.cfg.p1 + sim.cfg.p2) / 2;
+    // Slight fluctuation
+    const noise = (Math.random() - 0.5) * avg * 0.1;
+    return Math.max(1, avg + noise);
+}
+
+function addEvent(sim, cls, msg) {
+    const min = Math.floor(sim.elapsedSec / 60);
+    const sec = Math.floor(sim.elapsedSec % 60);
+    const ts = `${String(min).padStart(2, '0')}:${String(sec).padStart(2, '0')}`;
+    sim.events.push({ ts, cls, msg });
+}
+
+// ─── Tick ───────────────────────────────────────────────────
+function tick(sim, dtSec) {
+    sim.phaseElapsed += dtSec;
+    sim.elapsedSec += dtSec;
+    let layerJustCompleted = false;
+
+    if (sim.phase === 'prep') {
+        if (sim.phaseElapsed >= sim.prepTimeSec) {
+            sim.phase = 'printing';
+            sim.phaseElapsed = 0;
+            addEvent(sim, 'ok', 'Preparation complete. Starting print.');
+        }
+    } else if (sim.phase === 'printing') {
+        if (sim.phaseElapsed >= sim.timePerLayer) {
+            sim.currentLayer++;
+            sim.phaseElapsed = 0;
+            layerJustCompleted = true;
+
+            const v = simViability(sim, sim.currentLayer);
+            const e = simElasticity(sim, sim.currentLayer);
+            const p = simPressure(sim, sim.currentLayer);
+            const h = sim.currentLayer * sim.cfg.height;
+            sim.layerMetrics.push({ layer: sim.currentLayer, viability: v, elasticity: e, pressure: p, height: h });
+
+            // Log important events
+            if (sim.currentLayer === 1) addEvent(sim, 'info', 'First layer deposited.');
+            if (sim.currentLayer === Math.floor(sim.totalLayers / 2))
+                addEvent(sim, 'info', `Halfway point — layer ${sim.currentLayer}.`);
+            if (v < 60) addEvent(sim, 'warn', `Low viability: ${v.toFixed(1)}% at layer ${sim.currentLayer}`);
+            if (p > 80) addEvent(sim, 'warn', `High pressure: ${p.toFixed(0)} psi at layer ${sim.currentLayer}`);
+
+            if (sim.currentLayer >= sim.totalLayers) {
+                if (sim.cfg.cl) {
+                    sim.phase = 'crosslinking';
+                    sim.phaseElapsed = 0;
+                    addEvent(sim, 'info', `All ${sim.totalLayers} layers printed. Starting UV crosslinking (${sim.cfg.cli}%, ${sim.cfg.cld}s).`);
+                } else {
+                    sim.phase = 'complete';
+                    addEvent(sim, 'ok', `Print complete! ${sim.totalLayers} layers, ${(sim.totalLayers * sim.cfg.height).toFixed(1)}mm total height.`);
+                }
+            }
+        }
+    } else if (sim.phase === 'crosslinking') {
+        if (sim.phaseElapsed >= sim.crosslinkTimeSec) {
+            sim.phase = 'complete';
+            addEvent(sim, 'ok', `Crosslinking complete. Print finished! ${sim.totalLayers} layers, ${(sim.totalLayers * sim.cfg.height).toFixed(1)}mm.`);
+        }
+    }
+
+    return layerJustCompleted;
+}
+
+// ─── Canvas Drawing ─────────────────────────────────────────
+function drawBuildPlate(canvas, sim) {
+    const ctx = canvas.getContext('2d');
+    const W = canvas.width, H = canvas.height;
+    ctx.clearRect(0, 0, W, H);
+
+    const plateW = 200, plateH = 24;
+    const plateX = (W - plateW) / 2, plateY = H - 40;
+
+    // Build plate
+    ctx.fillStyle = '#475569';
+    ctx.strokeStyle = '#64748b';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.roundRect(plateX, plateY, plateW, plateH, 4);
+    ctx.fill(); ctx.stroke();
+    ctx.fillStyle = '#94a3b8';
+    ctx.font = '10px system-ui';
+    ctx.textAlign = 'center';
+    ctx.fillText('BUILD PLATE', W / 2, plateY + 15);
+
+    if (sim.totalLayers === 0) return;
+
+    // Calculate layer drawing params
+    const maxDrawH = 220;
+    const layerDrawH = Math.min(maxDrawH / sim.totalLayers, 6);
+    const printedLayers = sim.currentLayer;
+
+    // Draw layers
+    for (let i = 0; i < printedLayers; i++) {
+        const y = plateY - (i + 1) * layerDrawH;
+        if (y < 20) break;
+
+        const metrics = sim.layerMetrics[i];
+        const viability = metrics ? metrics.viability : 80;
+
+        // Color based on viability: green (>80), yellow (60-80), red (<60)
+        let r, g, b;
+        if (viability > 80) {
+            const t = (viability - 80) / 20;
+            r = Math.round(74 + (56 - 74) * t);
+            g = Math.round(222 + (189 - 222) * t);
+            b = Math.round(128 + (248 - 128) * t);
+        } else if (viability > 60) {
+            const t = (viability - 60) / 20;
+            r = Math.round(251 + (74 - 251) * t);
+            g = Math.round(191 + (222 - 191) * t);
+            b = Math.round(36 + (128 - 36) * t);
+        } else {
+            const t = viability / 60;
+            r = Math.round(248 + (251 - 248) * t);
+            g = Math.round(113 + (191 - 113) * t);
+            b = Math.round(113 + (36 - 113) * t);
+        }
+
+        const alpha = 0.7 + 0.3 * (i / sim.totalLayers);
+        ctx.fillStyle = `rgba(${r},${g},${b},${alpha})`;
+
+        // Slight width variation for organic look
+        const wJitter = Math.sin(i * 0.7) * 4;
+        const lx = plateX + 10 + wJitter;
+        const lw = plateW - 20 - wJitter * 2;
+        ctx.fillRect(lx, y, lw, layerDrawH - 0.5);
+
+        // Layer separation line
+        ctx.strokeStyle = 'rgba(15,23,42,0.3)';
+        ctx.lineWidth = 0.5;
+        ctx.beginPath();
+        ctx.moveTo(lx, y + layerDrawH - 0.5);
+        ctx.lineTo(lx + lw, y + layerDrawH - 0.5);
+        ctx.stroke();
+    }
+
+    // Extruder nozzle (during printing)
+    if (sim.phase === 'printing' && printedLayers < sim.totalLayers) {
+        const nozzleY = plateY - printedLayers * layerDrawH - 15;
+        const nozzleX = W / 2 + Math.sin(sim.elapsedSec * 3) * 40;
+
+        // Nozzle body
+        ctx.fillStyle = '#94a3b8';
+        ctx.beginPath();
+        ctx.moveTo(nozzleX - 8, nozzleY - 12);
+        ctx.lineTo(nozzleX + 8, nozzleY - 12);
+        ctx.lineTo(nozzleX + 3, nozzleY);
+        ctx.lineTo(nozzleX - 3, nozzleY);
+        ctx.closePath();
+        ctx.fill();
+
+        // Droplet
+        ctx.fillStyle = 'rgba(56,189,248,0.8)';
+        ctx.beginPath();
+        ctx.arc(nozzleX, nozzleY + 4, 2.5, 0, Math.PI * 2);
+        ctx.fill();
+    }
+
+    // UV light effect during crosslinking
+    if (sim.phase === 'crosslinking') {
+        const intensity = 0.1 + 0.15 * Math.sin(sim.elapsedSec * 4);
+        const topY = plateY - printedLayers * layerDrawH;
+        const grad = ctx.createLinearGradient(0, topY - 30, 0, plateY);
+        grad.addColorStop(0, `rgba(167,139,250,${intensity})`);
+        grad.addColorStop(1, 'rgba(167,139,250,0)');
+        ctx.fillStyle = grad;
+        ctx.fillRect(plateX, topY - 30, plateW, plateY - topY + 30);
+
+        // UV label
+        ctx.fillStyle = '#a78bfa';
+        ctx.font = 'bold 11px system-ui';
+        ctx.textAlign = 'center';
+        ctx.fillText('UV CROSSLINKING', W / 2, topY - 40);
+    }
+
+    // Height indicator
+    if (printedLayers > 0) {
+        const totalH = printedLayers * sim.cfg.height;
+        const drawTop = plateY - printedLayers * layerDrawH;
+        ctx.strokeStyle = 'rgba(148,163,184,0.5)';
+        ctx.setLineDash([3, 3]);
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(plateX + plateW + 10, plateY);
+        ctx.lineTo(plateX + plateW + 10, drawTop);
+        ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.fillStyle = '#94a3b8';
+        ctx.font = '10px system-ui';
+        ctx.textAlign = 'left';
+        ctx.fillText(`${totalH.toFixed(1)}mm`, plateX + plateW + 14, (plateY + drawTop) / 2 + 3);
+    }
+}
+
+// ─── Timeline Chart ─────────────────────────────────────────
+function drawTimeline(canvas, data) {
+    const ctx = canvas.getContext('2d');
+    const dpr = window.devicePixelRatio || 1;
+    const rect = canvas.parentElement.getBoundingClientRect();
+    canvas.width = rect.width * dpr;
+    canvas.height = rect.height * dpr;
+    ctx.scale(dpr, dpr);
+    const W = rect.width, H = rect.height;
+
+    ctx.clearRect(0, 0, W, H);
+
+    if (data.layers.length < 2) {
+        ctx.fillStyle = '#94a3b8';
+        ctx.font = '12px system-ui';
+        ctx.textAlign = 'center';
+        ctx.fillText('Waiting for data...', W / 2, H / 2);
+        return;
+    }
+
+    const pad = { top: 20, right: 20, bottom: 30, left: 45 };
+    const cw = W - pad.left - pad.right;
+    const ch = H - pad.top - pad.bottom;
+
+    // Series config
+    const series = [
+        { data: data.viability, color: '#a78bfa', label: 'Viability %' },
+        { data: data.pressure, color: '#fb923c', label: 'Pressure' },
+        { data: data.elasticity, color: '#38bdf8', label: 'Elasticity' }
+    ];
+
+    // Y scale 0-100
+    const yMin = 0, yMax = 100;
+    function toX(i) { return pad.left + (i / (data.layers.length - 1)) * cw; }
+    function toY(v) { return pad.top + ch - ((v - yMin) / (yMax - yMin)) * ch; }
+
+    // Grid
+    ctx.strokeStyle = 'rgba(51,65,85,0.4)';
+    ctx.lineWidth = 0.5;
+    for (let v = 0; v <= 100; v += 25) {
+        const y = toY(v);
+        ctx.beginPath(); ctx.moveTo(pad.left, y); ctx.lineTo(W - pad.right, y); ctx.stroke();
+        ctx.fillStyle = '#64748b'; ctx.font = '9px system-ui'; ctx.textAlign = 'right';
+        ctx.fillText(v, pad.left - 6, y + 3);
+    }
+
+    // X axis labels
+    ctx.textAlign = 'center';
+    const skip = Math.max(1, Math.floor(data.layers.length / 8));
+    for (let i = 0; i < data.layers.length; i += skip) {
+        ctx.fillText(data.layers[i], toX(i), H - 8);
+    }
+    ctx.fillText('Layer', W / 2, H - 0);
+
+    // Draw series
+    series.forEach(s => {
+        ctx.strokeStyle = s.color;
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        s.data.forEach((v, i) => {
+            const x = toX(i), y = toY(v);
+            if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+        });
+        ctx.stroke();
+    });
+
+    // Legend
+    let lx = pad.left;
+    ctx.font = '10px system-ui';
+    series.forEach(s => {
+        ctx.fillStyle = s.color;
+        ctx.fillRect(lx, 4, 12, 3);
+        ctx.fillStyle = '#94a3b8';
+        ctx.textAlign = 'left';
+        ctx.fillText(s.label, lx + 16, 10);
+        lx += ctx.measureText(s.label).width + 30;
+    });
+}
+
+// ─── UI Updates ─────────────────────────────────────────────
+function updateUI() {
+    if (!sim) return;
+
+    const layer = sim.currentLayer;
+    const total = sim.totalLayers;
+    const pct = sim.phase === 'complete' ? 100 :
+        sim.phase === 'crosslinking' ? 90 + 10 * (sim.phaseElapsed / sim.crosslinkTimeSec) :
+        sim.phase === 'printing' ? (layer / total) * 90 :
+        (sim.phaseElapsed / sim.prepTimeSec) * 5;
+
+    $('progress-fill').style.width = pct + '%';
+    $('progress-pct').textContent = Math.round(pct) + '%';
+    $('m-layer').textContent = layer + '/' + total;
+
+    const min = Math.floor(sim.elapsedSec / 60);
+    const sec = Math.floor(sim.elapsedSec % 60);
+    $('m-time').textContent = min + ':' + String(sec).padStart(2, '0');
+    $('m-height').textContent = (layer * sim.cfg.height).toFixed(2);
+
+    const last = sim.layerMetrics[sim.layerMetrics.length - 1];
+    $('m-viability').textContent = last ? last.viability.toFixed(1) + '%' : '--';
+    $('m-pressure').textContent = last ? last.pressure.toFixed(0) + ' psi' : '--';
+    $('m-elasticity').textContent = last ? last.elasticity.toFixed(1) : '--';
+
+    $('canvas-info').textContent = `Layer ${layer} / ${total} — ${(layer * sim.cfg.height).toFixed(1)}mm`;
+
+    // Phase badge
+    const badge = $('phase-badge');
+    badge.className = 'phase-badge phase-' + (sim.phase === 'printing' ? 'print' :
+        sim.phase === 'crosslinking' ? 'crosslink' :
+        sim.phase === 'complete' ? 'complete' : 'prep');
+    badge.textContent = sim.phase === 'printing' ? 'PRINTING' :
+        sim.phase === 'crosslinking' ? 'CROSSLINKING' :
+        sim.phase === 'complete' ? 'COMPLETE' : 'PREPARING';
+
+    // Event log
+    const logEl = $('event-log');
+    logEl.innerHTML = sim.events.slice(-30).map(e =>
+        `<div><span class="time">[${esc(e.ts)}]</span><span class="${esc(e.cls)}">${esc(e.msg)}</span></div>`
+    ).join('');
+    logEl.scrollTop = logEl.scrollHeight;
+
+    // Charts
+    chartData.layers = sim.layerMetrics.map(m => m.layer);
+    chartData.viability = sim.layerMetrics.map(m => m.viability);
+    chartData.pressure = sim.layerMetrics.map(m => m.pressure);
+    chartData.elasticity = sim.layerMetrics.map(m => m.elasticity);
+    drawTimeline($('timeline-chart'), chartData);
+    drawBuildPlate($('build-canvas'), sim);
+
+    // Summary on completion
+    if (sim.phase === 'complete') {
+        showSummary();
+        playing = false;
+        $('btn-play').textContent = '▶ Play';
+        $('btn-play').disabled = true;
+    }
+}
+
+function showSummary() {
+    const panel = $('summary-panel');
+    panel.style.display = 'block';
+
+    const metrics = sim.layerMetrics;
+    const avgV = metrics.reduce((s, m) => s + m.viability, 0) / metrics.length;
+    const minV = Math.min(...metrics.map(m => m.viability));
+    const avgP = metrics.reduce((s, m) => s + m.pressure, 0) / metrics.length;
+    const avgE = metrics.reduce((s, m) => s + m.elasticity, 0) / metrics.length;
+    const totalH = sim.totalLayers * sim.cfg.height;
+    const totalMin = Math.floor(sim.elapsedSec / 60);
+    const totalSec = Math.floor(sim.elapsedSec % 60);
+
+    const cards = [
+        { label: 'Total Time', value: `${totalMin}m ${totalSec}s`, cls: 'accent' },
+        { label: 'Total Height', value: `${totalH.toFixed(1)} mm`, cls: 'success' },
+        { label: 'Avg Viability', value: `${avgV.toFixed(1)}%`, cls: avgV > 70 ? 'success' : 'warning' },
+        { label: 'Min Viability', value: `${minV.toFixed(1)}%`, cls: minV > 60 ? 'success' : 'error' },
+        { label: 'Avg Pressure', value: `${avgP.toFixed(0)} psi`, cls: 'orange' },
+        { label: 'Avg Elasticity', value: `${avgE.toFixed(1)}`, cls: 'purple' },
+        { label: 'Layers', value: `${sim.totalLayers}`, cls: 'accent' },
+        { label: 'Well Plate', value: `${sim.cfg.wp}-well`, cls: '' }
+    ];
+
+    $('summary-cards').innerHTML = cards.map(c =>
+        `<div class="metric ${c.cls}"><div class="val">${esc(c.value)}</div><div class="lbl">${esc(c.label)}</div></div>`
+    ).join('');
+}
+
+// ─── Animation Loop ─────────────────────────────────────────
+function animate(ts) {
+    if (!playing || !sim || sim.phase === 'complete') return;
+    if (lastTick === 0) lastTick = ts;
+
+    const dt = ((ts - lastTick) / 1000) * speed; // real seconds * speed multiplier
+    lastTick = ts;
+
+    tick(sim, dt);
+    updateUI();
+    animId = requestAnimationFrame(animate);
+}
+
+// ─── Controls ───────────────────────────────────────────────
+window.startSim = function() {
+    const cfg = {
+        layers: parseInt($('in-layers').value) || 48,
+        height: parseFloat($('in-height').value) || 0.8,
+        p1: parseInt($('in-p1').value) || 38,
+        p2: parseInt($('in-p2').value) || 93,
+        cl: $('in-cl').value === '1',
+        cli: parseInt($('in-cli').value) || 0,
+        cld: parseInt($('in-cld').value) || 0,
+        wp: parseInt($('in-wp').value) || 6
+    };
+
+    // Validate
+    if (cfg.layers < 1 || cfg.layers > 200) { alert('Layers must be 1–200.'); return; }
+    if (cfg.height < 0.05 || cfg.height > 2) { alert('Layer height must be 0.05–2.0 mm.'); return; }
+
+    sim = createSim(cfg);
+    addEvent(sim, 'info', `Initializing ${cfg.layers}-layer print (${cfg.wp}-well plate, ${cfg.height}mm layers).`);
+    addEvent(sim, 'info', `Extruder 1: ${cfg.p1} psi, Extruder 2: ${cfg.p2} psi.`);
+    if (cfg.cl) addEvent(sim, 'info', `UV crosslinking: ${cfg.cli}% intensity, ${cfg.cld}s.`);
+
+    chartData = { layers: [], viability: [], pressure: [], elasticity: [], height: [] };
+    $('config-panel').style.display = 'none';
+    $('sim-panel').style.display = 'block';
+    $('summary-panel').style.display = 'none';
+    $('btn-play').disabled = false;
+    $('btn-play').textContent = '⏸ Pause';
+
+    playing = true;
+    lastTick = 0;
+    updateUI();
+    animId = requestAnimationFrame(animate);
+};
+
+window.togglePlay = function() {
+    if (sim && sim.phase === 'complete') return;
+    playing = !playing;
+    $('btn-play').textContent = playing ? '⏸ Pause' : '▶ Play';
+    if (playing) {
+        lastTick = 0;
+        animId = requestAnimationFrame(animate);
+    } else if (animId) {
+        cancelAnimationFrame(animId);
+    }
+};
+
+window.resetSim = function() {
+    playing = false;
+    if (animId) cancelAnimationFrame(animId);
+    sim = null;
+    $('config-panel').style.display = 'block';
+    $('sim-panel').style.display = 'none';
+};
+
+window.stepForward = function() {
+    if (!sim || sim.phase === 'complete') return;
+    if (playing) { playing = false; $('btn-play').textContent = '▶ Play'; }
+    // Step through one full layer
+    let stepped = false;
+    for (let i = 0; i < 1000 && !stepped; i++) {
+        stepped = tick(sim, 0.5);
+        if (sim.phase === 'complete') break;
+    }
+    updateUI();
+};
+
+window.updateSpeed = function() {
+    speed = parseInt($('speed-slider').value) || 5;
+    $('speed-label').textContent = speed + '×';
+};
+
+// ─── Init ───────────────────────────────────────────────────
+renderPresets();
+
+})();
+</script>
+</body>
+</html>
