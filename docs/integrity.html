@@ -1,0 +1,879 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>BioBots 1 — Data Integrity Auditor</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧬</text></svg>">
+    <style>
+        :root {
+            --bg: #0f172a;
+            --surface: #1e293b;
+            --border: #334155;
+            --text: #e2e8f0;
+            --muted: #94a3b8;
+            --accent: #38bdf8;
+            --accent-hover: #7dd3fc;
+            --success: #4ade80;
+            --error: #f87171;
+            --warning: #fbbf24;
+            --purple: #a78bfa;
+            --orange: #fb923c;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+        }
+
+        .header {
+            text-align: center;
+            padding: 2rem 1rem 1rem;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .header h1 { font-size: 1.8rem; margin-bottom: 0.25rem; }
+        .header p { color: var(--muted); font-size: 0.95rem; }
+
+        .nav {
+            display: flex;
+            justify-content: center;
+            gap: 0.5rem;
+            padding: 0.75rem;
+            flex-wrap: wrap;
+        }
+
+        .nav a {
+            color: var(--muted);
+            text-decoration: none;
+            padding: 0.4rem 0.75rem;
+            border-radius: 6px;
+            font-size: 0.85rem;
+            transition: all 0.15s;
+        }
+
+        .nav a:hover { color: var(--text); background: var(--surface); }
+        .nav a.active { color: var(--accent); background: var(--surface); }
+
+        .container {
+            max-width: 1100px;
+            margin: 0 auto;
+            padding: 1.5rem;
+        }
+
+        /* Summary cards */
+        .summary-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+
+        .summary-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 1.25rem;
+            text-align: center;
+        }
+
+        .summary-card .val {
+            font-size: 2rem;
+            font-weight: 700;
+            line-height: 1.2;
+        }
+
+        .summary-card .lbl {
+            font-size: 0.8rem;
+            color: var(--muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-top: 0.25rem;
+        }
+
+        .val-green { color: var(--success); }
+        .val-yellow { color: var(--warning); }
+        .val-red { color: var(--error); }
+        .val-blue { color: var(--accent); }
+
+        /* Controls */
+        .controls {
+            display: flex;
+            gap: 0.75rem;
+            margin-bottom: 1.5rem;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        .controls select, .controls input {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            color: var(--text);
+            padding: 0.5rem 0.75rem;
+            border-radius: 6px;
+            font-size: 0.85rem;
+        }
+
+        .controls select:focus, .controls input:focus {
+            outline: none;
+            border-color: var(--accent);
+        }
+
+        .btn {
+            background: var(--accent);
+            color: var(--bg);
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 0.85rem;
+            transition: background 0.15s;
+        }
+
+        .btn:hover { background: var(--accent-hover); }
+
+        .btn-outline {
+            background: transparent;
+            color: var(--accent);
+            border: 1px solid var(--accent);
+        }
+
+        .btn-outline:hover { background: rgba(56, 189, 248, 0.1); }
+
+        /* Rule distribution chart */
+        .chart-section {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .chart-section h3 {
+            font-size: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        .bar-row {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .bar-label {
+            min-width: 220px;
+            font-size: 0.82rem;
+            color: var(--muted);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .bar-track {
+            flex: 1;
+            background: rgba(255,255,255,0.05);
+            border-radius: 4px;
+            height: 20px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .bar-fill {
+            height: 100%;
+            border-radius: 4px;
+            transition: width 0.4s ease;
+        }
+
+        .bar-count {
+            min-width: 40px;
+            text-align: right;
+            font-size: 0.82rem;
+            font-family: monospace;
+        }
+
+        /* Findings table */
+        .findings-section {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            overflow: hidden;
+            margin-bottom: 1.5rem;
+        }
+
+        .findings-header {
+            padding: 1rem 1.5rem;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .findings-header h3 { font-size: 1rem; }
+
+        .findings-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.85rem;
+        }
+
+        .findings-table th {
+            text-align: left;
+            padding: 0.6rem 1rem;
+            background: rgba(255,255,255,0.03);
+            color: var(--muted);
+            font-weight: 600;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            border-bottom: 1px solid var(--border);
+            position: sticky;
+            top: 0;
+        }
+
+        .findings-table td {
+            padding: 0.55rem 1rem;
+            border-bottom: 1px solid rgba(255,255,255,0.03);
+            vertical-align: top;
+        }
+
+        .findings-table tr:hover td {
+            background: rgba(255,255,255,0.02);
+        }
+
+        .severity-badge {
+            display: inline-block;
+            padding: 0.15rem 0.5rem;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .sev-critical { background: rgba(248,113,113,0.15); color: var(--error); }
+        .sev-warning  { background: rgba(251,191,36,0.15); color: var(--warning); }
+        .sev-info     { background: rgba(56,189,248,0.15); color: var(--accent); }
+
+        .scroll-wrap {
+            max-height: 500px;
+            overflow-y: auto;
+        }
+
+        .scroll-wrap::-webkit-scrollbar { width: 6px; }
+        .scroll-wrap::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+        .metric-mono {
+            font-family: monospace;
+            color: var(--purple);
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 3rem;
+            color: var(--muted);
+        }
+
+        .loading {
+            text-align: center;
+            padding: 4rem;
+            color: var(--muted);
+        }
+
+        .footer {
+            text-align: center;
+            padding: 2rem;
+            color: var(--muted);
+            font-size: 0.8rem;
+            border-top: 1px solid var(--border);
+            margin-top: 2rem;
+        }
+
+        .footer a { color: var(--accent); text-decoration: none; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🧬 BioBots 1</h1>
+        <p>Data Integrity Auditor</p>
+    </div>
+    <div class="nav">
+        <a href="index.html">Home</a>
+        <a href="explorer.html">Explorer</a>
+        <a href="anomaly.html">Anomaly</a>
+        <a href="quality.html">Quality</a>
+        <a href="integrity.html" class="active">Integrity</a>
+        <a href="api.html">API</a>
+    </div>
+
+    <div class="container">
+        <div id="loading" class="loading">Loading bioprint data...</div>
+        <div id="content" style="display:none;">
+
+            <!-- Summary -->
+            <div class="summary-row" id="summary-row"></div>
+
+            <!-- Controls -->
+            <div class="controls">
+                <select id="severity-filter">
+                    <option value="all">All Severities</option>
+                    <option value="critical">Critical Only</option>
+                    <option value="warning">Warnings Only</option>
+                    <option value="info">Info Only</option>
+                </select>
+                <select id="rule-filter">
+                    <option value="all">All Rules</option>
+                </select>
+                <input type="text" id="search-input" placeholder="Search findings..." style="flex:1; min-width:160px;">
+                <button class="btn btn-outline" onclick="exportFindings()">Export CSV</button>
+            </div>
+
+            <!-- Rule distribution -->
+            <div class="chart-section" id="rule-chart"></div>
+
+            <!-- Findings table -->
+            <div class="findings-section">
+                <div class="findings-header">
+                    <h3>📋 Findings</h3>
+                    <span id="findings-count" style="color:var(--muted); font-size:0.85rem;"></span>
+                </div>
+                <div class="scroll-wrap">
+                    <table class="findings-table">
+                        <thead>
+                            <tr>
+                                <th>Severity</th>
+                                <th>Record #</th>
+                                <th>Rule</th>
+                                <th>Detail</th>
+                                <th>Value</th>
+                            </tr>
+                        </thead>
+                        <tbody id="findings-body"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <footer class="footer">
+        <p>BioBots Data Integrity Auditor · <a href="https://github.com/sauravbhattacharya001/BioBots">GitHub</a></p>
+    </footer>
+
+    <script>
+    /* ================================================================
+       Data Integrity Auditor — validates bioprint records against
+       a rule set covering completeness, range, consistency, and
+       statistical outliers.
+       ================================================================ */
+
+    // ── Validation Rules ──────────────────────────────────────────
+
+    var RULES = [
+        // Completeness checks
+        {
+            id: "missing-print-data",
+            name: "Missing print_data",
+            severity: "critical",
+            check: function(rec) {
+                if (!rec.print_data) return "Record has no print_data object";
+                return null;
+            }
+        },
+        {
+            id: "missing-print-info",
+            name: "Missing print_info",
+            severity: "critical",
+            check: function(rec) {
+                if (!rec.print_info) return "Record has no print_info object";
+                return null;
+            }
+        },
+        {
+            id: "missing-user-info",
+            name: "Missing user_info",
+            severity: "warning",
+            check: function(rec) {
+                if (!rec.user_info) return "Record has no user_info object";
+                return null;
+            }
+        },
+        {
+            id: "missing-viability",
+            name: "Missing viability fields",
+            severity: "critical",
+            check: function(rec) {
+                if (!rec.print_data) return null;
+                var missing = [];
+                if (rec.print_data.livePercent === undefined) missing.push("livePercent");
+                if (rec.print_data.deadPercent === undefined) missing.push("deadPercent");
+                if (missing.length > 0) return "Missing: " + missing.join(", ");
+                return null;
+            }
+        },
+        {
+            id: "missing-pressure",
+            name: "Missing pressure data",
+            severity: "warning",
+            check: function(rec) {
+                if (!rec.print_info || !rec.print_info.pressure) return "No pressure data";
+                return null;
+            }
+        },
+        {
+            id: "missing-resolution",
+            name: "Missing resolution data",
+            severity: "warning",
+            check: function(rec) {
+                if (!rec.print_info || !rec.print_info.resolution) return "No resolution data";
+                return null;
+            }
+        },
+
+        // Range checks
+        {
+            id: "viability-range",
+            name: "Viability out of range (0-100%)",
+            severity: "critical",
+            check: function(rec) {
+                if (!rec.print_data) return null;
+                var issues = [];
+                if (rec.print_data.livePercent !== undefined &&
+                    (rec.print_data.livePercent < 0 || rec.print_data.livePercent > 100)) {
+                    issues.push("livePercent=" + rec.print_data.livePercent);
+                }
+                if (rec.print_data.deadPercent !== undefined &&
+                    (rec.print_data.deadPercent < 0 || rec.print_data.deadPercent > 100)) {
+                    issues.push("deadPercent=" + rec.print_data.deadPercent);
+                }
+                return issues.length > 0 ? "Out of range: " + issues.join(", ") : null;
+            }
+        },
+        {
+            id: "viability-sum",
+            name: "Live + Dead > 100%",
+            severity: "warning",
+            check: function(rec) {
+                if (!rec.print_data) return null;
+                var live = rec.print_data.livePercent;
+                var dead = rec.print_data.deadPercent;
+                if (live !== undefined && dead !== undefined) {
+                    var sum = live + dead;
+                    if (sum > 100.5) { // small tolerance for rounding
+                        return "live(" + live.toFixed(1) + "%) + dead(" + dead.toFixed(1) + "%) = " + sum.toFixed(1) + "%";
+                    }
+                }
+                return null;
+            }
+        },
+        {
+            id: "elasticity-range",
+            name: "Elasticity out of expected range",
+            severity: "info",
+            check: function(rec) {
+                if (!rec.print_data || rec.print_data.elasticity === undefined) return null;
+                var e = rec.print_data.elasticity;
+                if (e < 0 || e > 100) {
+                    return "elasticity=" + e.toFixed(2) + " (expected 0-100)";
+                }
+                return null;
+            }
+        },
+        {
+            id: "pressure-negative",
+            name: "Negative extruder pressure",
+            severity: "critical",
+            check: function(rec) {
+                if (!rec.print_info || !rec.print_info.pressure) return null;
+                var p = rec.print_info.pressure;
+                var issues = [];
+                if (p.extruder1 !== undefined && p.extruder1 < 0) issues.push("ext1=" + p.extruder1);
+                if (p.extruder2 !== undefined && p.extruder2 < 0) issues.push("ext2=" + p.extruder2);
+                return issues.length > 0 ? "Negative pressure: " + issues.join(", ") : null;
+            }
+        },
+        {
+            id: "pressure-extreme",
+            name: "Extreme extruder pressure (>150 psi)",
+            severity: "warning",
+            check: function(rec) {
+                if (!rec.print_info || !rec.print_info.pressure) return null;
+                var p = rec.print_info.pressure;
+                var issues = [];
+                if (p.extruder1 !== undefined && p.extruder1 > 150) issues.push("ext1=" + p.extruder1.toFixed(1));
+                if (p.extruder2 !== undefined && p.extruder2 > 150) issues.push("ext2=" + p.extruder2.toFixed(1));
+                return issues.length > 0 ? "Extreme pressure: " + issues.join(", ") : null;
+            }
+        },
+        {
+            id: "layer-height-range",
+            name: "Layer height out of range",
+            severity: "warning",
+            check: function(rec) {
+                if (!rec.print_info || !rec.print_info.resolution) return null;
+                var h = rec.print_info.resolution.layerHeight;
+                if (h !== undefined && (h <= 0 || h > 5.0)) {
+                    return "layerHeight=" + h + "mm (expected 0.05-5.0mm)";
+                }
+                return null;
+            }
+        },
+        {
+            id: "layer-count-range",
+            name: "Layer count unusual",
+            severity: "info",
+            check: function(rec) {
+                if (!rec.print_info || !rec.print_info.resolution) return null;
+                var n = rec.print_info.resolution.layerNum;
+                if (n !== undefined && (n <= 0 || n > 500)) {
+                    return "layerNum=" + n + " (expected 1-500)";
+                }
+                return null;
+            }
+        },
+        {
+            id: "crosslink-duration",
+            name: "Crosslink duration extreme",
+            severity: "info",
+            check: function(rec) {
+                if (!rec.print_info || !rec.print_info.crosslinking) return null;
+                var cl = rec.print_info.crosslinking;
+                if (cl.cl_enabled && cl.cl_duration !== undefined) {
+                    if (cl.cl_duration <= 0) return "Duration=" + cl.cl_duration + "ms (non-positive)";
+                    if (cl.cl_duration > 86400000) return "Duration=" + (cl.cl_duration / 3600000).toFixed(1) + "h (>24h)";
+                }
+                return null;
+            }
+        },
+        {
+            id: "crosslink-intensity",
+            name: "Crosslink intensity out of range",
+            severity: "warning",
+            check: function(rec) {
+                if (!rec.print_info || !rec.print_info.crosslinking) return null;
+                var cl = rec.print_info.crosslinking;
+                if (cl.cl_enabled && cl.cl_intensity !== undefined) {
+                    if (cl.cl_intensity < 0 || cl.cl_intensity > 100) {
+                        return "intensity=" + cl.cl_intensity + " (expected 0-100)";
+                    }
+                }
+                return null;
+            }
+        },
+        {
+            id: "crosslink-disabled-params",
+            name: "Crosslink params set but disabled",
+            severity: "info",
+            check: function(rec) {
+                if (!rec.print_info || !rec.print_info.crosslinking) return null;
+                var cl = rec.print_info.crosslinking;
+                if (!cl.cl_enabled && cl.cl_duration > 0 && cl.cl_intensity > 0) {
+                    return "Crosslinking disabled but duration=" + cl.cl_duration + ", intensity=" + cl.cl_intensity;
+                }
+                return null;
+            }
+        },
+        {
+            id: "wellplate-invalid",
+            name: "Invalid wellplate format",
+            severity: "warning",
+            check: function(rec) {
+                if (!rec.print_info) return null;
+                var w = rec.print_info.wellplate;
+                var valid = [1, 6, 12, 24, 48, 96, 384];
+                if (w !== undefined && valid.indexOf(w) === -1) {
+                    return "wellplate=" + w + " (standard: " + valid.join(", ") + ")";
+                }
+                return null;
+            }
+        },
+
+        // Consistency checks
+        {
+            id: "low-viability",
+            name: "Very low cell viability (<5%)",
+            severity: "warning",
+            check: function(rec) {
+                if (!rec.print_data || rec.print_data.livePercent === undefined) return null;
+                if (rec.print_data.livePercent < 5) {
+                    return "livePercent=" + rec.print_data.livePercent.toFixed(2) + "% — may indicate failed print or data error";
+                }
+                return null;
+            }
+        },
+        {
+            id: "duplicate-serial",
+            name: "Duplicate serial number",
+            severity: "critical",
+            // This is handled specially in the audit loop
+            check: function() { return null; }
+        }
+    ];
+
+    // ── Audit Engine ──────────────────────────────────────────────
+
+    function runAudit(data) {
+        var findings = [];
+        var serials = {};
+
+        for (var i = 0; i < data.length; i++) {
+            var rec = data[i];
+            var recNum = i + 1;
+
+            // Check for duplicate serials
+            if (rec.user_info && rec.user_info.serial !== undefined) {
+                var serial = rec.user_info.serial;
+                if (serials[serial] !== undefined) {
+                    findings.push({
+                        severity: "critical",
+                        record: recNum,
+                        rule: "Duplicate serial number",
+                        ruleId: "duplicate-serial",
+                        detail: "Serial " + serial + " also appears in record #" + serials[serial],
+                        value: serial
+                    });
+                } else {
+                    serials[serial] = recNum;
+                }
+            }
+
+            // Run all rules
+            for (var j = 0; j < RULES.length; j++) {
+                var rule = RULES[j];
+                if (rule.id === "duplicate-serial") continue; // handled above
+                var msg = rule.check(rec, i, data);
+                if (msg) {
+                    findings.push({
+                        severity: rule.severity,
+                        record: recNum,
+                        rule: rule.name,
+                        ruleId: rule.id,
+                        detail: msg,
+                        value: extractValue(rec, rule.id)
+                    });
+                }
+            }
+        }
+
+        return findings;
+    }
+
+    function extractValue(rec, ruleId) {
+        if (!rec.print_data && !rec.print_info) return "—";
+        switch (ruleId) {
+            case "viability-range":
+            case "viability-sum":
+            case "low-viability":
+                if (rec.print_data) return "L:" + (rec.print_data.livePercent || 0).toFixed(1) + "% D:" + (rec.print_data.deadPercent || 0).toFixed(1) + "%";
+                return "—";
+            case "pressure-negative":
+            case "pressure-extreme":
+                if (rec.print_info && rec.print_info.pressure) {
+                    var p = rec.print_info.pressure;
+                    return "E1:" + (p.extruder1 || 0).toFixed(1) + " E2:" + (p.extruder2 || 0).toFixed(1);
+                }
+                return "—";
+            case "elasticity-range":
+                return rec.print_data ? (rec.print_data.elasticity || 0).toFixed(2) : "—";
+            default:
+                return "—";
+        }
+    }
+
+    // ── Render ─────────────────────────────────────────────────────
+
+    var allFindings = [];
+
+    function renderSummary(data, findings) {
+        var critical = 0, warning = 0, info = 0;
+        for (var i = 0; i < findings.length; i++) {
+            if (findings[i].severity === "critical") critical++;
+            else if (findings[i].severity === "warning") warning++;
+            else info++;
+        }
+
+        var clean = data.length;
+        var affectedRecords = {};
+        for (var k = 0; k < findings.length; k++) {
+            affectedRecords[findings[k].record] = true;
+        }
+        clean = data.length - Object.keys(affectedRecords).length;
+        var healthPct = Math.round((clean / data.length) * 100);
+
+        var html = '<div class="summary-card"><div class="val val-blue">' + data.length + '</div><div class="lbl">Records</div></div>' +
+            '<div class="summary-card"><div class="val val-red">' + critical + '</div><div class="lbl">Critical</div></div>' +
+            '<div class="summary-card"><div class="val val-yellow">' + warning + '</div><div class="lbl">Warnings</div></div>' +
+            '<div class="summary-card"><div class="val val-blue">' + info + '</div><div class="lbl">Info</div></div>' +
+            '<div class="summary-card"><div class="val val-green">' + clean + '</div><div class="lbl">Clean Records</div></div>' +
+            '<div class="summary-card"><div class="val ' + (healthPct >= 90 ? "val-green" : healthPct >= 70 ? "val-yellow" : "val-red") + '">' + healthPct + '%</div><div class="lbl">Data Health</div></div>';
+        document.getElementById("summary-row").innerHTML = html;
+    }
+
+    function renderRuleChart(findings) {
+        var counts = {};
+        for (var i = 0; i < findings.length; i++) {
+            var key = findings[i].rule;
+            counts[key] = (counts[key] || 0) + 1;
+        }
+
+        var entries = [];
+        for (var k in counts) {
+            if (counts.hasOwnProperty(k)) entries.push({ name: k, count: counts[k] });
+        }
+        entries.sort(function(a, b) { return b.count - a.count; });
+
+        var maxCount = entries.length > 0 ? entries[0].count : 1;
+        var html = "<h3>📊 Findings by Rule</h3>";
+
+        for (var j = 0; j < entries.length; j++) {
+            var pct = (entries[j].count / maxCount) * 100;
+            var severity = findRuleSeverity(entries[j].name);
+            var color = severity === "critical" ? "var(--error)" :
+                        severity === "warning" ? "var(--warning)" : "var(--accent)";
+            html += '<div class="bar-row">' +
+                '<span class="bar-label">' + escapeHTML(entries[j].name) + '</span>' +
+                '<div class="bar-track"><div class="bar-fill" style="width:' + pct + '%; background:' + color + ';"></div></div>' +
+                '<span class="bar-count">' + entries[j].count + '</span></div>';
+        }
+
+        document.getElementById("rule-chart").innerHTML = html;
+
+        // Populate rule filter dropdown
+        var select = document.getElementById("rule-filter");
+        for (var m = 0; m < entries.length; m++) {
+            var opt = document.createElement("option");
+            opt.value = entries[m].name;
+            opt.textContent = entries[m].name + " (" + entries[m].count + ")";
+            select.appendChild(opt);
+        }
+    }
+
+    function findRuleSeverity(ruleName) {
+        for (var i = 0; i < RULES.length; i++) {
+            if (RULES[i].name === ruleName) return RULES[i].severity;
+        }
+        return "info";
+    }
+
+    function renderFindings(findings) {
+        var sevFilter = document.getElementById("severity-filter").value;
+        var ruleFilter = document.getElementById("rule-filter").value;
+        var search = document.getElementById("search-input").value.toLowerCase();
+
+        var filtered = findings.filter(function(f) {
+            if (sevFilter !== "all" && f.severity !== sevFilter) return false;
+            if (ruleFilter !== "all" && f.rule !== ruleFilter) return false;
+            if (search && f.detail.toLowerCase().indexOf(search) === -1 &&
+                f.rule.toLowerCase().indexOf(search) === -1 &&
+                String(f.record).indexOf(search) === -1) return false;
+            return true;
+        });
+
+        var tbody = document.getElementById("findings-body");
+        if (filtered.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="5" class="empty-state">No findings match filters</td></tr>';
+            document.getElementById("findings-count").textContent = "0 findings";
+            return;
+        }
+
+        var html = "";
+        var limit = Math.min(filtered.length, 500); // cap for performance
+        for (var i = 0; i < limit; i++) {
+            var f = filtered[i];
+            var sevClass = f.severity === "critical" ? "sev-critical" :
+                           f.severity === "warning" ? "sev-warning" : "sev-info";
+            html += '<tr>' +
+                '<td><span class="severity-badge ' + sevClass + '">' + f.severity + '</span></td>' +
+                '<td class="metric-mono">#' + f.record + '</td>' +
+                '<td>' + escapeHTML(f.rule) + '</td>' +
+                '<td>' + escapeHTML(f.detail) + '</td>' +
+                '<td class="metric-mono">' + escapeHTML(String(f.value)) + '</td>' +
+                '</tr>';
+        }
+        tbody.innerHTML = html;
+
+        var countText = filtered.length + " finding" + (filtered.length !== 1 ? "s" : "");
+        if (filtered.length > limit) countText += " (showing " + limit + ")";
+        document.getElementById("findings-count").textContent = countText;
+    }
+
+    // ── Export ─────────────────────────────────────────────────────
+
+    function exportFindings() {
+        var sevFilter = document.getElementById("severity-filter").value;
+        var ruleFilter = document.getElementById("rule-filter").value;
+        var search = document.getElementById("search-input").value.toLowerCase();
+
+        var filtered = allFindings.filter(function(f) {
+            if (sevFilter !== "all" && f.severity !== sevFilter) return false;
+            if (ruleFilter !== "all" && f.rule !== ruleFilter) return false;
+            if (search && f.detail.toLowerCase().indexOf(search) === -1 &&
+                f.rule.toLowerCase().indexOf(search) === -1) return false;
+            return true;
+        });
+
+        var csv = "Severity,Record,Rule,Detail,Value\n";
+        for (var i = 0; i < filtered.length; i++) {
+            var f = filtered[i];
+            csv += csvEscape(f.severity) + "," +
+                   f.record + "," +
+                   csvEscape(f.rule) + "," +
+                   csvEscape(f.detail) + "," +
+                   csvEscape(String(f.value)) + "\n";
+        }
+
+        var blob = new Blob([csv], { type: "text/csv" });
+        var url = URL.createObjectURL(blob);
+        var a = document.createElement("a");
+        a.href = url;
+        a.download = "biobots-integrity-audit.csv";
+        a.click();
+        URL.revokeObjectURL(url);
+    }
+
+    // ── Utilities ─────────────────────────────────────────────────
+
+    var _escRe = /[&<>"']/g;
+    var _escMap = { "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;", "'": "&#39;" };
+    function escapeHTML(s) {
+        return String(s).replace(_escRe, function(c) { return _escMap[c]; });
+    }
+
+    function csvEscape(s) {
+        if (s.indexOf(",") !== -1 || s.indexOf('"') !== -1 || s.indexOf("\n") !== -1) {
+            return '"' + s.replace(/"/g, '""') + '"';
+        }
+        return s;
+    }
+
+    // ── Init ──────────────────────────────────────────────────────
+
+    function init() {
+        fetch("bioprint-data.json")
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                allFindings = runAudit(data);
+                document.getElementById("loading").style.display = "none";
+                document.getElementById("content").style.display = "block";
+
+                renderSummary(data, allFindings);
+                renderRuleChart(allFindings);
+                renderFindings(allFindings);
+
+                // Wire up filters
+                document.getElementById("severity-filter").addEventListener("change", function() { renderFindings(allFindings); });
+                document.getElementById("rule-filter").addEventListener("change", function() { renderFindings(allFindings); });
+                document.getElementById("search-input").addEventListener("input", function() { renderFindings(allFindings); });
+            })
+            .catch(function(err) {
+                document.getElementById("loading").innerHTML = '<span style="color:var(--error);">Failed to load data: ' + escapeHTML(err.message) + '</span>';
+            });
+    }
+
+    init();
+    </script>
+</body>
+</html>
