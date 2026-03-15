@@ -1,0 +1,599 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>BioBots — Bioprint Troubleshooter</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧬</text></svg>">
+    <style>
+        :root{--bg:#0f172a;--surface:#1e293b;--border:#334155;--text:#e2e8f0;--muted:#94a3b8;--accent:#38bdf8;--accent-hover:#7dd3fc;--success:#4ade80;--warning:#fbbf24;--error:#f87171}
+        *{margin:0;padding:0;box-sizing:border-box}
+        body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;display:flex;flex-direction:column;align-items:center;padding:2rem 1rem}
+        header{text-align:center;margin-bottom:1.5rem}
+        header h1{font-size:1.8rem;font-weight:700;background:linear-gradient(135deg,var(--accent),var(--success));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+        header p{color:var(--muted);margin-top:0.4rem;font-size:0.95rem}
+        .nav-bar{display:flex;gap:0.5rem;margin-bottom:2rem;flex-wrap:wrap;justify-content:center}
+        .nav-bar a{color:var(--muted);padding:0.5rem 1rem;border-radius:8px;text-decoration:none;font-size:0.85rem;transition:all 0.2s}
+        .nav-bar a:hover{color:var(--text);background:var(--surface)}
+        .nav-bar a.active{color:var(--accent);background:var(--surface);border:1px solid var(--border)}
+        .container{width:100%;max-width:800px}
+        .breadcrumb{display:flex;gap:0.4rem;flex-wrap:wrap;margin-bottom:1.5rem;align-items:center}
+        .breadcrumb .crumb{font-size:0.78rem;color:var(--muted);cursor:pointer;padding:0.2rem 0.5rem;border-radius:6px;transition:all 0.2s}
+        .breadcrumb .crumb:hover{background:var(--surface);color:var(--accent)}
+        .breadcrumb .crumb.current{color:var(--accent);cursor:default}
+        .breadcrumb .sep{color:var(--border);font-size:0.7rem}
+        .progress-wrap{margin-bottom:1.5rem}
+        .progress-label{display:flex;justify-content:space-between;font-size:0.75rem;color:var(--muted);margin-bottom:0.3rem}
+        .progress-bar{height:4px;background:var(--surface);border-radius:4px;overflow:hidden}
+        .progress-fill{height:100%;background:linear-gradient(90deg,var(--accent),var(--success));border-radius:4px;transition:width 0.4s ease}
+        .card{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:2rem;margin-bottom:1.5rem;animation:fadeIn 0.3s ease}
+        @keyframes fadeIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+        .card .question{font-size:1.15rem;font-weight:600;margin-bottom:0.5rem;line-height:1.4}
+        .card .hint{font-size:0.82rem;color:var(--muted);margin-bottom:1.2rem;line-height:1.4}
+        .options{display:flex;flex-direction:column;gap:0.6rem}
+        .option-btn{display:flex;align-items:flex-start;gap:0.8rem;background:var(--bg);border:1px solid var(--border);padding:0.9rem 1rem;border-radius:10px;cursor:pointer;transition:all 0.2s;text-align:left;color:var(--text);font-size:0.92rem;line-height:1.35}
+        .option-btn:hover{border-color:var(--accent);background:rgba(56,189,248,0.05)}
+        .option-btn .icon{font-size:1.1rem;flex-shrink:0;margin-top:0.1rem}
+        .solution{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:2rem;margin-bottom:1.5rem;animation:fadeIn 0.3s ease}
+        .solution h2{font-size:1.2rem;color:var(--success);margin-bottom:1rem;display:flex;align-items:center;gap:0.5rem}
+        .solution .diagnosis{margin-bottom:1.2rem}
+        .solution .diagnosis h3{font-size:0.9rem;color:var(--warning);margin-bottom:0.4rem;text-transform:uppercase;letter-spacing:0.04em}
+        .solution .diagnosis p{font-size:0.9rem;color:var(--text);line-height:1.5}
+        .fix-list{list-style:none;margin-bottom:1.5rem}
+        .fix-list li{position:relative;padding:0.7rem 0 0.7rem 2rem;border-bottom:1px solid var(--border);font-size:0.88rem;line-height:1.45}
+        .fix-list li:last-child{border-bottom:none}
+        .fix-list li::before{content:attr(data-step);position:absolute;left:0;top:0.7rem;width:1.3rem;height:1.3rem;background:var(--accent);color:var(--bg);font-size:0.7rem;font-weight:700;border-radius:50%;display:flex;align-items:center;justify-content:center}
+        .fix-list .detail{color:var(--muted);font-size:0.8rem;margin-top:0.2rem}
+        .severity{display:inline-flex;align-items:center;gap:0.3rem;padding:0.2rem 0.6rem;border-radius:20px;font-size:0.72rem;font-weight:600}
+        .severity.low{background:rgba(74,222,128,0.15);color:var(--success)}
+        .severity.medium{background:rgba(251,191,36,0.15);color:var(--warning)}
+        .severity.high{background:rgba(248,113,113,0.15);color:var(--error)}
+        .tags{display:flex;gap:0.4rem;flex-wrap:wrap;margin-top:0.8rem}
+        .tag{padding:0.15rem 0.5rem;background:rgba(56,189,248,0.1);color:var(--accent);border-radius:10px;font-size:0.7rem}
+        .actions{display:flex;gap:0.6rem;flex-wrap:wrap;margin-top:1rem}
+        .actions button{background:var(--accent);color:var(--bg);border:none;padding:0.5rem 1rem;border-radius:8px;font-size:0.85rem;font-weight:600;cursor:pointer;transition:all 0.2s}
+        .actions button:hover{background:var(--accent-hover)}
+        .actions button.secondary{background:transparent;color:var(--accent);border:1px solid var(--accent)}
+        .actions button.secondary:hover{background:rgba(56,189,248,0.1)}
+        .history{margin-top:2rem}
+        .history h3{font-size:0.85rem;color:var(--muted);margin-bottom:0.8rem;text-transform:uppercase;letter-spacing:0.05em}
+        .history-item{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:0.8rem 1rem;margin-bottom:0.5rem;display:flex;justify-content:space-between;align-items:center;font-size:0.82rem;cursor:pointer;transition:border-color 0.2s}
+        .history-item:hover{border-color:var(--accent)}
+        .history-item .time{color:var(--muted);font-size:0.72rem}
+        .category-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:1rem}
+        .cat-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:1.2rem;cursor:pointer;transition:all 0.2s}
+        .cat-card:hover{border-color:var(--accent);transform:translateY(-2px)}
+        .cat-card .cat-icon{font-size:1.8rem;margin-bottom:0.5rem}
+        .cat-card .cat-name{font-size:0.95rem;font-weight:600;margin-bottom:0.3rem}
+        .cat-card .cat-desc{font-size:0.78rem;color:var(--muted);line-height:1.3}
+        .cat-card .cat-count{font-size:0.7rem;color:var(--accent);margin-top:0.4rem}
+        footer{margin-top:auto;padding-top:2rem;color:var(--muted);font-size:0.8rem;text-align:center}
+        footer a{color:var(--accent);text-decoration:none}
+    </style>
+</head>
+<body>
+    <header>
+        <h1>🔧 Bioprint Troubleshooter</h1>
+        <p>Interactive diagnostic wizard for common bioprinting issues</p>
+    </header>
+    <div class="nav-bar">
+        <a href="index.html">Query Tool</a>
+        <a href="explorer.html">Data Explorer</a>
+        <a href="table.html">Data Table</a>
+        <a href="quality.html">🎯 Quality</a>
+        <a href="recipe.html">🧪 Recipe</a>
+        <a href="simulator.html">⏱️ Simulator</a>
+        <a href="troubleshooter.html" class="active">🔧 Troubleshooter</a>
+    </div>
+    <div class="container" id="app"></div>
+    <footer>
+        <p>Built with 🧬 by <a href="https://github.com/sauravbhattacharya001">Saurav Bhattacharya</a></p>
+        <p><a href="https://github.com/sauravbhattacharya001/BioBots">View Source</a></p>
+    </footer>
+<script>
+(function(){
+'use strict';
+function esc(s){var d=document.createElement('div');d.textContent=s;return d.innerHTML;}
+
+var TREE={
+root:{type:'categories',categories:[
+{id:'extrusion',icon:'💧',name:'Extrusion Issues',desc:'Material not flowing, inconsistent output, clogging',count:8},
+{id:'viability',icon:'🧫',name:'Cell Viability',desc:'Low live cell %, cell death, poor survival',count:7},
+{id:'structure',icon:'🏗️',name:'Structural Integrity',desc:'Collapse, sagging, poor layer adhesion',count:6},
+{id:'resolution',icon:'🔍',name:'Print Resolution',desc:'Blurry features, oversized strands, loss of detail',count:5},
+{id:'crosslink',icon:'⚡',name:'Crosslinking',desc:'Under/over crosslinking, uneven gelation',count:5},
+{id:'hardware',icon:'⚙️',name:'Hardware & Calibration',desc:'Nozzle, pressure, temperature, alignment',count:6}
+]},
+extrusion:{question:'What extrusion problem are you seeing?',hint:'Select the option that best describes the issue during printing.',options:[
+{label:'No material coming out at all',icon:'🚫',next:'ext_none'},
+{label:'Material comes out intermittently (sputtering)',icon:'💨',next:'ext_sputter'},
+{label:'Flow rate is too low / thin strands',icon:'📉',next:'ext_low'},
+{label:'Material oozing / dripping when it shouldn\'t',icon:'💦',next:'ext_ooze'}
+]},
+ext_none:{question:'Is the nozzle visibly clogged or blocked?',hint:'Remove the nozzle and inspect for dried material or debris.',options:[
+{label:'Yes — visible blockage',icon:'🔴',next:'sol_clog'},
+{label:'No — nozzle looks clear',icon:'🟡',next:'ext_none2'}
+]},
+ext_none2:{question:'Is the pressure system reading normal values?',hint:'Check the pressure gauge on your BioBots system.',options:[
+{label:'Pressure reads zero or very low',icon:'📉',next:'sol_pressure_fail'},
+{label:'Pressure normal but no flow',icon:'⚠️',next:'sol_bioink_viscosity'}
+]},
+ext_sputter:{question:'When does the sputtering happen?',hint:'Pay attention to when during the print the problem occurs.',options:[
+{label:'Right at the start',icon:'▶️',next:'sol_air_bubble'},
+{label:'After several minutes',icon:'⏰',next:'sol_temp_viscosity'},
+{label:'Randomly throughout',icon:'🎲',next:'sol_cartridge_seal'}
+]},
+ext_low:{question:'Did you recently change the bioink formulation?',hint:'Changes in concentration, additives, or supplier affect flow.',options:[
+{label:'Yes — new formulation',icon:'🆕',next:'sol_recalibrate_flow'},
+{label:'No — same bioink',icon:'🔄',next:'sol_nozzle_wear'}
+]},
+ext_ooze:{question:'Does oozing stop when you reduce pressure?',hint:'Try lowering extrusion pressure by 10-20%.',options:[
+{label:'Yes — lower pressure fixes it',icon:'✅',next:'sol_pressure_tuning'},
+{label:'No — still oozes',icon:'❌',next:'sol_retraction'}
+]},
+viability:{question:'When do you observe low cell viability?',hint:'Compare viability at different stages of your workflow.',options:[
+{label:'Immediately after printing (< 1 hour)',icon:'⏱️',next:'via_immediate'},
+{label:'After incubation (24-48 hours)',icon:'📅',next:'via_delayed'},
+{label:'Low even before printing',icon:'⚠️',next:'sol_cell_prep'}
+]},
+via_immediate:{question:'What is your extrusion pressure?',hint:'Higher pressures generate more shear stress on cells.',options:[
+{label:'High (> 40 psi / 275 kPa)',icon:'🔴',next:'sol_shear_stress'},
+{label:'Moderate (15-40 psi)',icon:'🟡',next:'via_nozzle'},
+{label:'Low (< 15 psi)',icon:'🟢',next:'sol_crosslink_toxicity'}
+]},
+via_nozzle:{question:'What nozzle gauge are you using?',hint:'Smaller nozzles create more shear stress during extrusion.',options:[
+{label:'Small (27G+ / < 200 µm)',icon:'📌',next:'sol_nozzle_size'},
+{label:'Medium (22-25G / 200-400 µm)',icon:'🔧',next:'sol_print_speed'},
+{label:'Large (< 22G / > 400 µm)',icon:'🔩',next:'sol_crosslink_toxicity'}
+]},
+via_delayed:{question:'Uniform cell death or localized patterns?',hint:'Check viability staining across different regions.',options:[
+{label:'Uniform — cells dying everywhere',icon:'📊',next:'sol_nutrient_diffusion'},
+{label:'Mainly center/thick regions',icon:'🎯',next:'sol_diffusion_limit'},
+{label:'Mainly edges/surfaces',icon:'🔲',next:'sol_media_exposure'}
+]},
+structure:{question:'What structural problem are you seeing?',hint:'Observe the construct during and after printing.',options:[
+{label:'Collapse during printing',icon:'📉',next:'str_collapse'},
+{label:'Layers not adhering / delamination',icon:'📑',next:'str_adhesion'},
+{label:'Shape deforms over time',icon:'〰️',next:'sol_crosslink_density'}
+]},
+str_collapse:{question:'At what layer does collapse start?',hint:'Count layers — early vs late collapse have different causes.',options:[
+{label:'Very early (layers 1-3)',icon:'1️⃣',next:'sol_bed_adhesion'},
+{label:'Mid-print (layers 4-10)',icon:'5️⃣',next:'sol_gel_timing'},
+{label:'Later layers (10+)',icon:'🔟',next:'sol_gravity_support'}
+]},
+str_adhesion:{question:'Is the build plate properly surface-treated?',hint:'Check for adhesion promoter (gelatin coating, fibronectin).',options:[
+{label:'No treatment applied',icon:'❌',next:'sol_surface_treatment'},
+{label:'Yes, surface is treated',icon:'✅',next:'sol_layer_height'}
+]},
+resolution:{question:'What resolution problem are you experiencing?',hint:'Compare printed features against your design.',options:[
+{label:'Strands wider than designed',icon:'↔️',next:'sol_strand_width'},
+{label:'Fine features lost / blurred',icon:'🌫️',next:'sol_fine_features'},
+{label:'Inconsistent layer height',icon:'📐',next:'sol_z_calibration'}
+]},
+crosslink:{question:'What crosslinking issue are you seeing?',hint:'Check mechanical properties and appearance of the construct.',options:[
+{label:'Too soft / under-crosslinked',icon:'🫠',next:'sol_under_crosslink'},
+{label:'Too stiff / brittle',icon:'🪨',next:'sol_over_crosslink'},
+{label:'Uneven (stiff outside, soft inside)',icon:'🎯',next:'sol_uneven_crosslink'}
+]},
+hardware:{question:'What hardware issue are you experiencing?',options:[
+{label:'Print head not moving correctly',icon:'🤖',next:'hw_motion'},
+{label:'Temperature control problems',icon:'🌡️',next:'sol_temp_control'},
+{label:'Nozzle alignment / offset issues',icon:'🎯',next:'sol_alignment'}
+]},
+hw_motion:{question:'Is the motion smooth or jerky?',options:[
+{label:'Jerky / stuttering',icon:'📳',next:'sol_motion_jerky'},
+{label:'Smooth but wrong positions',icon:'📍',next:'sol_motion_offset'}
+]},
+
+// ── SOLUTIONS ──
+sol_clog:{type:'solution',title:'Nozzle Clog / Blockage',severity:'medium',
+diagnosis:'Dried bioink or debris is blocking the nozzle tip. This commonly happens when bioink dries between prints or when particulate matter aggregates.',
+fixes:[
+{step:'Soak nozzle in warm (37°C) PBS for 10-15 min',detail:'Softens dried bioink without damaging the nozzle.'},
+{step:'Use a cleaning wire matching your nozzle gauge to clear blockage',detail:'Insert gently — don\'t force or you may damage tip geometry.'},
+{step:'Flush with sterile water at low pressure (5-10 psi)',detail:'Run 2-3 mL through to confirm full clearance.'},
+{step:'Filter bioink through 40µm cell strainer before loading if recurring',detail:'Removes aggregates that cause repeated clogs.'},
+{step:'Replace nozzle if cleaning doesn\'t resolve it',detail:'Nozzles are consumables — replace after 10-15 uses.'}
+],tags:['nozzle','maintenance','extrusion']},
+
+sol_pressure_fail:{type:'solution',title:'Pressure System Failure',severity:'high',
+diagnosis:'The pneumatic pressure system is not delivering pressure. Could be a supply issue, leak, or regulator malfunction.',
+fixes:[
+{step:'Check air supply connection and ensure compressor is running',detail:'Verify main supply line connected and gauge reads > 0 psi.'},
+{step:'Inspect all tubing connections for leaks',detail:'Apply soapy water to joints — bubbles indicate a leak.'},
+{step:'Verify pressure regulator is set correctly',detail:'Try adjusting — if no change, regulator may need replacement.'},
+{step:'Check cartridge adapter seating and O-ring condition',detail:'Worn O-ring causes pressure loss at cartridge interface.'}
+],tags:['pressure','hardware','critical']},
+
+sol_bioink_viscosity:{type:'solution',title:'Bioink Viscosity Too High',severity:'medium',
+diagnosis:'Bioink has become too viscous for current pressure. Can happen from premature crosslinking, temperature changes, or concentration too high.',
+fixes:[
+{step:'Check bioink temperature — warm to recommended range (20-37°C)',detail:'Many hydrogels are temperature-sensitive. Even a few degrees change viscosity dramatically.'},
+{step:'Gradually increase pressure in 5 psi increments',detail:'Don\'t jump to max — this can damage cells.'},
+{step:'Check if thermogelling bioink has pre-gelled',detail:'Gelatin-based inks gel below ~25°C; keep above gel point.'},
+{step:'Consider diluting 5-10% with media if concentration too high',detail:'Recalculate cell density after dilution.'}
+],tags:['bioink','viscosity','temperature']},
+
+sol_air_bubble:{type:'solution',title:'Air Bubbles in Cartridge',severity:'low',
+diagnosis:'Air trapped in cartridge or tubing causes inconsistent extrusion at startup. Should resolve once air is purged.',
+fixes:[
+{step:'Prime nozzle — extrude until flow is consistent',detail:'Extrude 0.5-1 mL into waste before starting print.'},
+{step:'Centrifuge cartridge (300g, 3 min) to remove bubbles',detail:'Forces air to top, away from the nozzle.'},
+{step:'Load bioink slowly to minimize air entrainment',detail:'Use back-loading technique; avoid aspirating air.'},
+{step:'Tap cartridge gently (nozzle down) for 30 seconds',detail:'Dislodges stuck bubbles from walls.'}
+],tags:['extrusion','preparation','cartridge']},
+
+sol_temp_viscosity:{type:'solution',title:'Temperature-Induced Viscosity Change',severity:'medium',
+diagnosis:'Bioink viscosity changing during print due to temperature drift. Thermosensitive hydrogels (gelatin, Matrigel, collagen) are especially affected.',
+fixes:[
+{step:'Enable temperature control on print head if available',detail:'Set to optimal printing temperature for your bioink.'},
+{step:'Monitor ambient temperature with thermocouple near cartridge',detail:'Room fluctuations of ±3°C can significantly affect flow.'},
+{step:'Pre-condition bioink at print temperature for 15 min',detail:'Ensures thermal equilibrium throughout cartridge.'},
+{step:'For long prints, split into shorter sessions',detail:'Replace cartridge if time exceeds bioink thermal stability window.'}
+],tags:['temperature','viscosity','hydrogel']},
+
+sol_cartridge_seal:{type:'solution',title:'Cartridge Seal Leak',severity:'medium',
+diagnosis:'Intermittent air leak at cartridge connection causing random pressure drops and sputtering.',
+fixes:[
+{step:'Remove and reseat cartridge, ensuring tight fit',detail:'Listen for click or snug engagement.'},
+{step:'Inspect O-ring or gasket for damage',detail:'Replace if cracked, stretched, or worn.'},
+{step:'Apply thin silicone grease to O-ring',detail:'Use biocompatible, autoclavable silicone grease only.'},
+{step:'Check for hairline cracks in cartridge barrel',detail:'Hold to light — replace if any cracks visible.'}
+],tags:['cartridge','seal','maintenance']},
+
+sol_recalibrate_flow:{type:'solution',title:'Flow Rate Recalibration Needed',severity:'low',
+diagnosis:'New bioink formulation has different rheological properties. Pressure settings need recalibration.',
+fixes:[
+{step:'Run pressure sweep: extrude at 5, 10, 15, 20, 25, 30 psi',detail:'Measure strand width at each to find optimal setting.'},
+{step:'Measure new bioink viscosity if possible',detail:'Compare to previous formulation to estimate pressure adjustment.'},
+{step:'Adjust print speed proportionally to new flow rate',detail:'Slower speed compensates for lower flow.'},
+{step:'Document optimal parameters as a protocol preset',detail:'Save for future prints with this formulation.'}
+],tags:['calibration','bioink','flow-rate']},
+
+sol_nozzle_wear:{type:'solution',title:'Nozzle Wear or Damage',severity:'medium',
+diagnosis:'Nozzle inner diameter has enlarged from wear, causing lower flow velocity at same pressure.',
+fixes:[
+{step:'Inspect nozzle tip under magnification',detail:'Look for deformation, widening, or chips at exit.'},
+{step:'Compare strand width to fresh nozzle at same settings',detail:'If significantly wider, nozzle is worn.'},
+{step:'Replace with same gauge as protocol specifies',detail:'Don\'t reuse bent or damaged nozzles.'},
+{step:'Track usage — replace after 10-15 sessions',detail:'Log in equipment maintenance record.'}
+],tags:['nozzle','wear','replacement']},
+
+sol_pressure_tuning:{type:'solution',title:'Extrusion Pressure Too High',severity:'low',
+diagnosis:'Pressure exceeds what\'s needed, causing oozing between moves. Reducing pressure fixes it.',
+fixes:[
+{step:'Reduce pressure in 2 psi increments until oozing stops',detail:'Test each with a calibration print.'},
+{step:'Verify strand width still within spec at lower pressure',detail:'Too low creates thin, discontinuous strands.'},
+{step:'Update print profile with corrected pressure',detail:'Record optimal range for this bioink.'}
+],tags:['pressure','calibration','oozing']},
+
+sol_retraction:{type:'solution',title:'Retraction / Pressure Release Settings',severity:'medium',
+diagnosis:'System not properly relieving pressure during non-print moves. Common with pneumatic extrusion.',
+fixes:[
+{step:'Enable post-flow / retraction in slicer settings',detail:'Applies brief negative pressure to stop flow.'},
+{step:'Add dwell time (0.5-1s) at move endpoints',detail:'Pneumatic systems have inherent pressure lag.'},
+{step:'Increase travel speed between print locations',detail:'Faster travel = less time for material to ooze.'},
+{step:'Consider valve-based dispenser for better control',detail:'Valves provide instant on/off vs. gradual pneumatic response.'}
+],tags:['retraction','slicer','flow-control']},
+
+sol_cell_prep:{type:'solution',title:'Cell Preparation Issues',severity:'high',
+diagnosis:'Low viability before printing indicates problems with cell culture, harvesting, or bioink mixing.',
+fixes:[
+{step:'Check viability BEFORE mixing with bioink (should be > 95%)',detail:'Use trypan blue or calcein-AM/PI staining.'},
+{step:'Ensure cells at optimal passage (typically P3-P8)',detail:'Over-passaged cells have lower viability.'},
+{step:'Verify bioink pH is 7.2-7.4 before adding cells',detail:'Acidic/basic conditions rapidly kill cells.'},
+{step:'Mix cells gently — avoid vortexing',detail:'Use folding/stirring to prevent mechanical damage.'},
+{step:'Minimize time in bioink before printing (< 30 min)',detail:'Many bioinks aren\'t optimal long-term environments.'}
+],tags:['cell-culture','preparation','viability']},
+
+sol_shear_stress:{type:'solution',title:'Excessive Shear Stress',severity:'high',
+diagnosis:'High extrusion pressure creates damaging shear forces through the nozzle. #1 cause of print-related cell death.',
+fixes:[
+{step:'Reduce pressure to minimum for acceptable strands',detail:'Even 5 psi reduction significantly improves viability.'},
+{step:'Use larger nozzle gauge (lower number = wider)',detail:'Going from 27G to 22G cuts shear stress by ~90%.'},
+{step:'Use tapered/conical nozzle instead of blunt tip',detail:'Creates more uniform flow and lower peak shear.'},
+{step:'Optimize bioink for shear-thinning behavior',detail:'Shear-thinning inks protect cells during extrusion.'},
+{step:'Slow print speed to reduce flow rate',detail:'Lower flow = lower shear = better survival.'}
+],tags:['shear-stress','pressure','cell-death','critical']},
+
+sol_nozzle_size:{type:'solution',title:'Nozzle Too Small for Cell Type',severity:'high',
+diagnosis:'Nozzle gauge creating excessive shear. Smaller nozzles need higher pressure and cause more damage.',
+fixes:[
+{step:'Switch to largest gauge meeting resolution needs',detail:'Most tissue engineering works well with 22G (410µm).'},
+{step:'Ensure nozzle ID is ≥ 5× cell diameter',detail:'Prevents clogging and reduces mechanical damage.'},
+{step:'If resolution critical, consider post-printing approaches',detail:'Print larger, then trim or use secondary patterning.'}
+],tags:['nozzle','cell-viability','shear']},
+
+sol_print_speed:{type:'solution',title:'Print Speed Too High',severity:'medium',
+diagnosis:'Excessive speed increases flow rate and shear stress. May also cause mechanical vibration.',
+fixes:[
+{step:'Reduce speed by 25-50% and retest viability',detail:'Document viability at each speed.'},
+{step:'Keep shear rate < 1000 s⁻¹ (ideally < 500)',detail:'Calculate: γ̇ = 4Q/(πr³).'},
+{step:'More layers at slower speed vs fewer fast layers',detail:'Maintains thickness with better survival per layer.'}
+],tags:['speed','shear-stress','optimization']},
+
+sol_crosslink_toxicity:{type:'solution',title:'Crosslinker Cytotoxicity',severity:'high',
+diagnosis:'Crosslinking agent or process damaging cells. Common: excess UV, high CaCl₂, toxic photoinitiator concentration.',
+fixes:[
+{step:'Reduce crosslinker to minimum effective level',detail:'CaCl₂: try 50-100 mM instead of higher.'},
+{step:'For UV: minimize exposure, use 365nm (less damaging)',detail:'Keep UV dose below 10 J/cm² for most cell types.'},
+{step:'Reduce photoinitiator (LAP: 0.05-0.1%, Irgacure: 0.01-0.05%)',detail:'Photoinitiators generate free radicals that damage cells.'},
+{step:'Wash constructs 3× with warm media after crosslinking',detail:'Removes residual crosslinker.'}
+],tags:['crosslinking','cytotoxicity','UV','critical']},
+
+sol_nutrient_diffusion:{type:'solution',title:'Nutrient Diffusion Limitation',severity:'high',
+diagnosis:'Cells dying from insufficient nutrient/oxygen supply. Construct may be too thick or dense for passive diffusion.',
+fixes:[
+{step:'Reduce thickness — stay under 200-400µm for avascular constructs',detail:'This is the oxygen diffusion limit in most hydrogels.'},
+{step:'Incorporate channels or pores into design',detail:'Even 200µm channels dramatically improve transport.'},
+{step:'Increase media exchange frequency (every 12h)',detail:'Maintains higher nutrient levels at surface.'},
+{step:'Use perfusion culture instead of static',detail:'Flow bioreactors force nutrients through construct.'}
+],tags:['diffusion','nutrients','thickness','culture']},
+
+sol_diffusion_limit:{type:'solution',title:'Core Hypoxia / Necrotic Center',severity:'high',
+diagnosis:'Center beyond oxygen diffusion limit (~200µm). Core becomes hypoxic; viable cells only on periphery.',
+fixes:[
+{step:'Redesign with internal channels (≥ 200µm, spaced 400µm)',detail:'No cell more than 200µm from nutrient source.'},
+{step:'Use porous structure (50% infill vs 100%)',detail:'Dramatically improves diffusion.'},
+{step:'Use lattice/grid infill pattern',detail:'Interconnected pores reach interior cells.'},
+{step:'Co-print sacrificial channels (Pluronic F-127)',detail:'Liquefies at 4°C for easy removal after printing.'}
+],tags:['hypoxia','diffusion','channels','design']},
+
+sol_media_exposure:{type:'solution',title:'Surface Drying / Media Issues',severity:'medium',
+diagnosis:'Surface cells dying from drying, media change damage, or non-optimal exposure conditions.',
+fixes:[
+{step:'Keep construct fully submerged — cover by ≥ 2mm media',detail:'Top surface dries fastest.'},
+{step:'Pipette onto dish wall, not directly on construct',detail:'Direct jets damage surface cells.'},
+{step:'Pre-warm media to 37°C before adding',detail:'Cold shock kills surface cells.'},
+{step:'Check incubator humidity > 90%',detail:'Low humidity causes evaporation.'}
+],tags:['culture','media','surface']},
+
+sol_crosslink_density:{type:'solution',title:'Insufficient Crosslink Density',severity:'medium',
+diagnosis:'Construct lacks mechanical integrity. Hydrogel network too loose, allowing creep under gravity.',
+fixes:[
+{step:'Increase crosslinking duration by 25-50%',detail:'Run time series to find minimum for stability.'},
+{step:'Increase crosslinker within cell-safe limits',detail:'Test viability at each concentration.'},
+{step:'Use dual crosslinking (e.g., ionic + UV)',detail:'Dual networks stiffer than either alone.'},
+{step:'Support in mold during post-print maturation',detail:'Remove after 24-48h when stabilized.'}
+],tags:['crosslinking','mechanical','stability']},
+
+sol_bed_adhesion:{type:'solution',title:'Poor First-Layer Adhesion',severity:'medium',
+diagnosis:'First layer not adhering to build plate. Entire construct shifts or collapses.',
+fixes:[
+{step:'Apply 2% gelatin coating, air dry 30 min',detail:'Most universal adhesion promoter for bioinks.'},
+{step:'Re-calibrate Z-offset — level the build plate',detail:'0.1mm difference affects adhesion significantly.'},
+{step:'Reduce first-layer speed by 50%',detail:'More time for bioink to adhere.'},
+{step:'Increase first-layer extrusion to 110-120%',detail:'Slightly squished first layer improves adhesion.'}
+],tags:['adhesion','first-layer','calibration']},
+
+sol_gel_timing:{type:'solution',title:'Gelation Timing Mismatch',severity:'medium',
+diagnosis:'Bioink not crosslinking fast enough between layers. Lower layers can\'t support upper layers.',
+fixes:[
+{step:'Apply intermittent crosslinking every 3-5 layers',detail:'Sets each section before adding weight.'},
+{step:'Add dwell time (10-30s) between layers',detail:'Allows thermosensitive inks to partially gel.'},
+{step:'Use faster-gelling bioink formulation',detail:'Higher concentration or faster chemistry.'},
+{step:'Position crosslink source near print area',detail:'Reduce delay between deposition and crosslinking.'}
+],tags:['gelation','timing','structural']},
+
+sol_gravity_support:{type:'solution',title:'Gravitational Collapse at Height',severity:'medium',
+diagnosis:'Construct exceeds hydrogel\'s ability to support its own weight at this height.',
+fixes:[
+{step:'Use support structures (Pluronic F-127)',detail:'Sacrificial support dissolves at 4°C.'},
+{step:'Strengthen bioink with reinforcement (nanocellulose, PEGDA)',detail:'Improves load-bearing capacity.'},
+{step:'Print inside support bath (FRESH/embedded)',detail:'Gelatin slurry holds construct during printing.'},
+{step:'Redesign with wider/thicker base for load-bearing',detail:'Taper so base is strongest.'}
+],tags:['gravity','structural','support','design']},
+
+sol_surface_treatment:{type:'solution',title:'Build Plate Surface Treatment',severity:'low',
+diagnosis:'Build plate lacks adhesion treatment, causing layers to slide or peel.',
+fixes:[
+{step:'Coat with 2% gelatin solution, air dry 30 min',detail:'Universal adhesion promoter for bioinks.'},
+{step:'Alternative: fibronectin or collagen coating',detail:'10µg/cm² fibronectin for cell-laden constructs.'},
+{step:'For glass: plasma treat or APTES coating',detail:'Creates reactive surface for hydrogel bonding.'}
+],tags:['adhesion','surface','preparation']},
+
+sol_layer_height:{type:'solution',title:'Layer Height Calibration Issue',severity:'medium',
+diagnosis:'Z-step too large — layers not making proper contact for adhesion.',
+fixes:[
+{step:'Reduce layer height to 80-90% of strand diameter',detail:'Slight squishing ensures inter-layer contact.'},
+{step:'Verify Z-axis with dial indicator',detail:'Commanded moves must match actual displacement.'},
+{step:'Apply slight nozzle offset into previous layer',detail:'Improves bonding between layers.'}
+],tags:['layer-height','calibration','adhesion']},
+
+sol_strand_width:{type:'solution',title:'Strand Wider Than Designed',severity:'low',
+diagnosis:'Material spreading after deposition. Over-extrusion or low viscosity.',
+fixes:[
+{step:'Reduce extrusion pressure',detail:'Target 100-110% of nozzle inner diameter.'},
+{step:'Increase print speed to stretch material thinner',detail:'Strand narrows as nozzle moves faster.'},
+{step:'Increase bioink viscosity/concentration',detail:'More viscous inks hold shape better.'},
+{step:'Apply crosslinking sooner after deposition',detail:'Freezes strand width before spreading.'}
+],tags:['resolution','strand-width','spreading']},
+
+sol_fine_features:{type:'solution',title:'Loss of Fine Feature Detail',severity:'medium',
+diagnosis:'Small features lost or merged. Printing resolution can\'t reproduce intended geometry.',
+fixes:[
+{step:'Use smaller nozzle gauge (25G or 27G for < 300µm features)',detail:'Finer nozzle = finer detail.'},
+{step:'Reduce pressure proportionally for smaller nozzle',detail:'Same pressure + smaller nozzle = much higher flow.'},
+{step:'Slow speed for fine-feature regions',detail:'Variable speed: slow for detail, faster for fill.'},
+{step:'Redesign features > 2× nozzle diameter minimum',detail:'Practical resolution limit for extrusion bioprinting.'}
+],tags:['resolution','nozzle','design']},
+
+sol_z_calibration:{type:'solution',title:'Z-Axis Calibration Drift',severity:'medium',
+diagnosis:'Z-axis movement inconsistent, causing variable layer heights. Mechanical or electronic issue.',
+fixes:[
+{step:'Run Z-calibration: command 10mm, measure actual',detail:'Use dial indicator for precision.'},
+{step:'Check lead screw and anti-backlash nut for wear',detail:'Play in Z causes inconsistent heights.'},
+{step:'Clean and lubricate Z linear rails/rods',detail:'Light machine oil — don\'t over-lubricate.'},
+{step:'Verify stepper motor current and temperature',detail:'Overheating causes thermal shutdown and missed steps.'}
+],tags:['z-axis','calibration','hardware']},
+
+sol_under_crosslink:{type:'solution',title:'Under-Crosslinked Construct',severity:'medium',
+diagnosis:'Construct too soft — crosslinking reaction incomplete. Network not fully formed.',
+fixes:[
+{step:'Increase crosslinking time (1.5× current)',detail:'Many photocrosslinkable hydrogels need longer.'},
+{step:'Verify crosslinker freshness and concentration',detail:'Photoinitiators degrade under light. CaCl₂ evaporates.'},
+{step:'For UV: check lamp intensity with UV meter',detail:'Replace when below 70% of rated output.'},
+{step:'Ensure uniform exposure (rotate or multi-source)',detail:'Shadowed regions remain under-crosslinked.'}
+],tags:['crosslinking','soft','mechanical']},
+
+sol_over_crosslink:{type:'solution',title:'Over-Crosslinked Construct',severity:'medium',
+diagnosis:'Excessive crosslinking made construct too stiff/brittle. Reduces cell viability by restricting spreading.',
+fixes:[
+{step:'Reduce crosslinking time by 25-50%',detail:'Run time series testing both mechanics and viability.'},
+{step:'Reduce crosslinker or photoinitiator concentration',detail:'Lower concentration = more control.'},
+{step:'Increase distance from UV source',detail:'Intensity follows inverse-square law.'},
+{step:'Target Young\'s modulus for tissue type',detail:'Brain: 0.1-1 kPa, Cartilage: 10-50 kPa, Bone: > 100 kPa.'}
+],tags:['crosslinking','stiff','brittle']},
+
+sol_uneven_crosslink:{type:'solution',title:'Uneven Crosslinking Gradient',severity:'medium',
+diagnosis:'Surface well-crosslinked but interior soft. UV attenuation or incomplete diffusion of crosslinker.',
+fixes:[
+{step:'For UV: crosslink from multiple angles or flip halfway',detail:'Ensures uniform light exposure.'},
+{step:'For ionic: increase immersion time',detail:'Diffusion goes as distance² — thicker needs exponentially longer.'},
+{step:'Reduce construct thickness for full penetration',detail:'UV depth typically 1-3mm depending on opacity.'},
+{step:'Use two-stage crosslinking approach',detail:'Partial → reposition → complete.'}
+],tags:['crosslinking','gradient','uniformity']},
+
+sol_temp_control:{type:'solution',title:'Temperature Control Malfunction',severity:'high',
+diagnosis:'Heating/cooling not maintaining setpoint. Affects bioink behavior and cell viability.',
+fixes:[
+{step:'Verify sensor reading with external thermometer',detail:'Faulty sensor gives wrong readings.'},
+{step:'Check electrical connections to heating element',detail:'Loose connections cause intermittent heating.'},
+{step:'Run PID auto-tune if controller supports it',detail:'Ensures stable temperature control.'},
+{step:'Inspect heating element for degradation',detail:'Lifespan ~500-1000 hours.'}
+],tags:['temperature','hardware','PID']},
+
+sol_alignment:{type:'solution',title:'Nozzle Alignment / Offset',severity:'medium',
+diagnosis:'Nozzle tip not at expected position. Print offset from design coordinates.',
+fixes:[
+{step:'Run built-in alignment/calibration routine',detail:'Most systems have auto or semi-auto procedure.'},
+{step:'For multi-nozzle: calibrate inter-nozzle offset',detail:'Print crosshair with each, measure offset.'},
+{step:'Check nozzle is seated straight in holder',detail:'Bent/tilted nozzle shifts deposition point.'},
+{step:'Verify home position repeatability (5 cycles)',detail:'Drift indicates worn endstops or loose joints.'}
+],tags:['alignment','calibration','multi-nozzle']},
+
+sol_motion_jerky:{type:'solution',title:'Jerky / Stuttering Motion',severity:'high',
+diagnosis:'Print head moving irregularly. Causes uneven deposition and vibration defects.',
+fixes:[
+{step:'Clean and lubricate linear rails/rods',detail:'Debris or dried lubricant causes binding.'},
+{step:'Check belt tension (if belt-driven)',detail:'Slack = stuttering, over-tight = excess friction.'},
+{step:'Reduce acceleration and jerk values',detail:'Bioprinting favors smoothness over speed.'},
+{step:'Check stepper driver current (VREF)',detail:'Under-driving causes missed steps.'},
+{step:'Inspect for loose set screws and couplings',detail:'Vibration loosens fasteners over time.'}
+],tags:['motion','hardware','maintenance']},
+
+sol_motion_offset:{type:'solution',title:'Position Offset / Coordinate Error',severity:'medium',
+diagnosis:'Print head moves smoothly to wrong positions. Calibration or configuration error.',
+fixes:[
+{step:'Verify steps/mm: command 50mm, measure actual',detail:'Recalculate: new = (expected/actual) × current.'},
+{step:'Re-home all axes, check endstop switches',detail:'Dirty/mispositioned endstops cause variable home.'},
+{step:'Check for mechanical backlash (> 0.1mm)',detail:'Address with anti-backlash nuts.'},
+{step:'Verify G-code origin matches physical print area',detail:'Slicer offset shifts entire print.'}
+],tags:['position','calibration','steps-per-mm']}
+};
+
+// ── State ──
+var state={path:['root'],history:[]};
+var appEl=document.getElementById('app');
+function currentNode(){return state.path[state.path.length-1];}
+function getNode(id){return TREE[id];}
+
+function render(){
+    var id=currentNode(),node=getNode(id);
+    if(!node){appEl.innerHTML='<div class="card"><p>Error. <button onclick="startOver()">Start Over</button></p></div>';return;}
+    if(id==='root') renderCategories(node);
+    else if(node.type==='solution') renderSolution(id,node);
+    else renderQuestion(id,node);
+}
+
+function renderCategories(node){
+    var html='<div class="category-grid">';
+    node.categories.forEach(function(c){
+        html+='<div class="cat-card" onclick="nav(\''+esc(c.id)+'\')"><div class="cat-icon">'+c.icon+'</div><div class="cat-name">'+esc(c.name)+'</div><div class="cat-desc">'+esc(c.desc)+'</div><div class="cat-count">'+c.count+' issues covered</div></div>';
+    });
+    html+='</div>';
+    if(state.history.length) html+=renderHistory();
+    appEl.innerHTML=html;
+}
+
+function renderQuestion(id,node){
+    var depth=state.path.length-1,pct=Math.min(100,(depth/4)*100);
+    var html=renderBreadcrumb();
+    html+='<div class="progress-wrap"><div class="progress-label"><span>Diagnosing...</span><span>'+depth+' steps</span></div><div class="progress-bar"><div class="progress-fill" style="width:'+pct+'%"></div></div></div>';
+    html+='<div class="card"><div class="question">'+esc(node.question)+'</div>';
+    if(node.hint) html+='<div class="hint">'+esc(node.hint)+'</div>';
+    html+='<div class="options">';
+    node.options.forEach(function(o){
+        html+='<div class="option-btn" onclick="nav(\''+esc(o.next)+'\')"><span class="icon">'+o.icon+'</span><span>'+esc(o.label)+'</span></div>';
+    });
+    html+='</div></div>';
+    html+='<div class="actions"><button class="secondary" onclick="goBack()">← Back</button><button class="secondary" onclick="startOver()">Start Over</button></div>';
+    appEl.innerHTML=html;
+}
+
+function renderSolution(id,node){
+    var html=renderBreadcrumb();
+    html+='<div class="solution"><h2>✅ '+esc(node.title)+'</h2>';
+    html+='<span class="severity '+node.severity+'">'+node.severity.toUpperCase()+' SEVERITY</span>';
+    html+='<div class="diagnosis"><h3>Diagnosis</h3><p>'+esc(node.diagnosis)+'</p></div>';
+    html+='<ol class="fix-list">';
+    node.fixes.forEach(function(f,i){
+        html+='<li data-step="'+(i+1)+'">'+esc(f.step);
+        if(f.detail) html+='<div class="detail">'+esc(f.detail)+'</div>';
+        html+='</li>';
+    });
+    html+='</ol>';
+    if(node.tags){html+='<div class="tags">';node.tags.forEach(function(t){html+='<span class="tag">'+esc(t)+'</span>';});html+='</div>';}
+    html+='</div>';
+    html+='<div class="actions"><button onclick="startOver()">🔧 Troubleshoot Another</button><button class="secondary" onclick="goBack()">← Back</button><button class="secondary" onclick="copyReport(\''+esc(id)+'\')">📋 Copy Report</button></div>';
+    appEl.innerHTML=html;
+    saveDiag(id,node);
+}
+
+function renderBreadcrumb(){
+    var html='<div class="breadcrumb">';
+    state.path.forEach(function(id,i){
+        var node=getNode(id),label=id==='root'?'Start':(node.type==='solution'?node.title:(node.question?node.question.substring(0,30)+'...':id));
+        if(node&&node.type==='categories') label='Start';
+        if(i>0) html+='<span class="sep">›</span>';
+        html+='<span class="crumb'+(i===state.path.length-1?' current':'')+'" onclick="jumpTo('+i+')">'+esc(label)+'</span>';
+    });
+    return html+'</div>';
+}
+
+function renderHistory(){
+    var html='<div class="history"><h3>Recent Diagnoses</h3>';
+    state.history.slice(-5).reverse().forEach(function(h){
+        html+='<div class="history-item" onclick="replay(\''+esc(h.id)+'\')"><span>'+esc(h.title)+' <span class="severity '+h.severity+'" style="margin-left:0.5rem">'+h.severity+'</span></span><span class="time">'+h.time+'</span></div>';
+    });
+    return html+'</div>';
+}
+
+function saveDiag(id,node){
+    if(!state.history.some(function(h){return h.id===id&&h.pathStr===state.path.join('>');})){
+        state.history.push({id:id,title:node.title,severity:node.severity,time:new Date().toLocaleTimeString(),pathStr:state.path.join('>')});
+        if(state.history.length>20) state.history=state.history.slice(-20);
+    }
+}
+
+window.nav=function(id){state.path.push(id);render();window.scrollTo({top:0,behavior:'smooth'});};
+window.goBack=function(){if(state.path.length>1)state.path.pop();render();};
+window.startOver=function(){state.path=['root'];render();};
+window.jumpTo=function(i){state.path=state.path.slice(0,i+1);render();};
+window.replay=function(id){state.path=['root',id];render();};
+
+window.copyReport=function(id){
+    var node=getNode(id);
+    var t='BIOPRINT TROUBLESHOOTER REPORT\n==============================\n\nIssue: '+node.title+'\nSeverity: '+node.severity.toUpperCase()+'\n\nDiagnosis:\n'+node.diagnosis+'\n\nRecommended Fixes:\n';
+    node.fixes.forEach(function(f,i){t+=(i+1)+'. '+f.step+'\n';if(f.detail) t+='   → '+f.detail+'\n';});
+    t+='\nPath: '+state.path.join(' > ')+'\nGenerated: '+new Date().toLocaleString()+'\n';
+    navigator.clipboard.writeText(t).then(function(){
+        document.querySelectorAll('.actions button').forEach(function(b){if(b.textContent.indexOf('Copy')!==-1){b.textContent='✅ Copied!';setTimeout(function(){b.textContent='📋 Copy Report';},1500);}});
+    });
+};
+
+render();
+})();
+</script>
+</body>
+</html>
