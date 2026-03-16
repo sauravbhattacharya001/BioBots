@@ -27,6 +27,13 @@ class TraitSnapshot:
 
     def __init__(self, trait_name: str, generation: int,
                  values: list[Any]):
+        """Compute diversity metrics from raw trait values.
+
+        Args:
+            trait_name: Name of the trait being measured.
+            generation: Generation number for this snapshot.
+            values: Raw trait values collected from the population.
+        """
         self.trait_name = trait_name
         self.generation = generation
         self.total = len(values)
@@ -55,6 +62,7 @@ class TraitSnapshot:
             self.heterozygosity = 0.0
 
     def to_dict(self) -> dict:
+        """Serialize the snapshot to a JSON-compatible dictionary."""
         return {
             'trait': self.trait_name,
             'generation': self.generation,
@@ -75,6 +83,16 @@ class SelectionEvent:
 
     def __init__(self, trait_name: str, allele: Any, generation: int,
                  coefficient: float, prev_freq: float, curr_freq: float):
+        """Create a selection event record.
+
+        Args:
+            trait_name: Trait under selection pressure.
+            allele: Specific allele value being selected.
+            generation: Generation where selection was detected.
+            coefficient: Estimated selection coefficient (positive = favoured).
+            prev_freq: Allele frequency in previous generation.
+            curr_freq: Allele frequency in current generation.
+        """
         self.trait_name = trait_name
         self.allele = allele
         self.generation = generation
@@ -84,6 +102,7 @@ class SelectionEvent:
         self.direction = 'positive' if coefficient > 0 else 'negative'
 
     def to_dict(self) -> dict:
+        """Serialize the selection event to a JSON-compatible dictionary."""
         return {
             'trait': self.trait_name,
             'allele': self.allele,
@@ -342,10 +361,12 @@ class EvolutionTracker:
 
     @property
     def generations_recorded(self) -> int:
+        """Number of generations recorded so far."""
         return self._generations_recorded
 
     @property
     def tracked_traits(self) -> list[str]:
+        """List of trait names currently being tracked."""
         return list(self.traits)
 
     def get_report(self) -> dict:
