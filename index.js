@@ -32,6 +32,7 @@ var capability = require('./docs/shared/capability');
 var printQualityScorer = require('./docs/shared/printQualityScorer');
 var recipeBuilder = require('./docs/shared/recipeBuilder');
 var protocolGenerator = require('./docs/shared/protocolGenerator');
+var nozzleAdvisor = require('./docs/shared/nozzleAdvisor');
 
 module.exports = {
     createMaterialCalculator: calculator.createMaterialCalculator,
@@ -47,5 +48,6 @@ module.exports = {
     createCapabilityAnalyzer: capability.createCapabilityAnalyzer,
     createPrintQualityScorer: printQualityScorer.createPrintQualityScorer,
     createRecipeBuilder: function() { return recipeBuilder; },
-    createProtocolGenerator: function() { return protocolGenerator; }
+    createProtocolGenerator: function() { return protocolGenerator; },
+    createNozzleAdvisor: nozzleAdvisor.createNozzleAdvisor
 };
