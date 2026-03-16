@@ -382,10 +382,7 @@ function createPassageTracker() {
         var firstChar = str.charAt(0);
         if (firstChar === '=' || firstChar === '+' || firstChar === '-' ||
             firstChar === '@' || firstChar === '\t' || firstChar === '\r') {
-            // Skip prefix for values that are valid numbers (e.g. -3.14, +1.5)
-            if (!((firstChar === '-' || firstChar === '+') && str.length > 1 && isFinite(Number(str)))) {
-                str = "'" + str;
-            }
+            str = "'" + str;
         }
 
         // Quote if contains comma, double-quote, newline, or
