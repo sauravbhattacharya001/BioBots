@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Print Yield Analyzer — BioBots</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{--bg:#0f172a;--surface:#1e293b;--card:#334155;--border:#475569;--text:#e2e8f0;--muted:#94a3b8;--accent:#38bdf8;--success:#22c55e;--danger:#ef4444;--warning:#f59e0b;--partial:#a78bfa;--radius:10px}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--text);padding:20px;min-height:100vh}
+h1{font-size:1.6rem;margin-bottom:6px}
+.subtitle{color:var(--muted);margin-bottom:20px;font-size:.9rem}
+.grid{display:grid;gap:16px;margin-bottom:20px}
+.grid-4{grid-template-columns:repeat(auto-fit,minmax(180px,1fr))}
+.grid-2{grid-template-columns:repeat(auto-fit,minmax(340px,1fr))}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px}
+.card h3{font-size:.85rem;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px}
+.big-num{font-size:2rem;font-weight:700}
+.big-num.success{color:var(--success)}.big-num.danger{color:var(--danger)}.big-num.partial{color:var(--partial)}.big-num.accent{color:var(--accent)}
+.sub{font-size:.8rem;color:var(--muted);margin-top:2px}
+.bar-chart{display:flex;flex-direction:column;gap:8px}
+.bar-row{display:flex;align-items:center;gap:10px}
+.bar-label{width:120px;font-size:.82rem;text-align:right;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.bar-track{flex:1;height:22px;background:var(--card);border-radius:4px;overflow:hidden;position:relative}
+.bar-fill{height:100%;border-radius:4px;transition:width .4s ease}
+.bar-value{position:absolute;right:6px;top:2px;font-size:.75rem;color:var(--text)}
+table{width:100%;border-collapse:collapse;font-size:.85rem}
+th{text-align:left;color:var(--muted);padding:8px 10px;border-bottom:1px solid var(--border);font-weight:600}
+td{padding:8px 10px;border-bottom:1px solid rgba(71,85,105,.3)}
+.badge{display:inline-block;padding:2px 8px;border-radius:12px;font-size:.75rem;font-weight:600}
+.badge-success{background:rgba(34,197,94,.15);color:var(--success)}
+.badge-danger{background:rgba(239,68,68,.15);color:var(--danger)}
+.badge-warning{background:rgba(245,158,11,.15);color:var(--warning)}
+.badge-partial{background:rgba(167,139,250,.15);color:var(--partial)}
+.badge-critical{background:rgba(239,68,68,.25);color:#fca5a5}
+.badge-high{background:rgba(245,158,11,.2);color:var(--warning)}
+.badge-medium{background:rgba(56,189,248,.15);color:var(--accent)}
+.badge-low{background:rgba(34,197,94,.1);color:var(--success)}
+.rec-item{padding:10px;border-left:3px solid var(--border);margin-bottom:8px;background:rgba(255,255,255,.02);border-radius:0 6px 6px 0}
+.rec-item.critical{border-color:var(--danger)}.rec-item.high{border-color:var(--warning)}.rec-item.medium{border-color:var(--accent)}.rec-item.low{border-color:var(--success)}
+.trend-dot{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:4px}
+.trend-up{background:var(--success)}.trend-down{background:var(--danger)}.trend-stable{background:var(--muted)}
+.streak-bar{display:flex;gap:2px;margin-top:6px}
+.streak-block{width:18px;height:18px;border-radius:3px}
+.streak-block.s{background:var(--success)}.streak-block.f{background:var(--danger)}.streak-block.p{background:var(--partial)}
+.controls{display:flex;gap:12px;margin-bottom:20px;flex-wrap:wrap;align-items:center}
+select,button{background:var(--surface);color:var(--text);border:1px solid var(--border);padding:8px 14px;border-radius:6px;font-size:.85rem;cursor:pointer}
+button:hover{background:var(--card)}
+.export-btns{margin-left:auto;display:flex;gap:8px}
+canvas{max-width:100%;background:var(--surface);border-radius:var(--radius);border:1px solid var(--border)}
+</style>
+</head>
+<body>
+<h1>🏭 Print Yield Analyzer</h1>
+<p class="subtitle">Track bioprint success rates, identify failure patterns, and improve yield</p>
+
+<div class="controls">
+<label>Dataset: <select id="datasetSelect"><option value="sample">Sample Data (30 prints)</option><option value="custom">Load JSON…</option></select></label>
+<label>Window: <select id="windowSelect"><option value="3">3</option><option value="5" selected>5</option><option value="7">7</option><option value="10">10</option></select></label>
+<input type="file" id="fileInput" accept=".json" style="display:none">
+<div class="export-btns">
+<button onclick="exportCSV()">📄 CSV</button>
+<button onclick="exportJSON()">📋 JSON</button>
+</div>
+</div>
+
+<!-- Summary Cards -->
+<div class="grid grid-4" id="summaryCards"></div>
+
+<!-- Charts & Details -->
+<div class="grid grid-2">
+<div class="card"><h3>Yield by Material</h3><div id="materialBars"></div></div>
+<div class="card"><h3>Yield by Operator</h3><div id="operatorBars"></div></div>
+</div>
+<div class="grid grid-2">
+<div class="card"><h3>Top Failure Reasons</h3><div id="failureTable"></div></div>
+<div class="card"><h3>Streaks</h3><div id="streakViz"></div></div>
+</div>
+<div class="grid grid-2">
+<div class="card"><h3>Rolling Yield Trend</h3><canvas id="trendCanvas" height="200"></canvas></div>
+<div class="card"><h3>Recommendations</h3><div id="recsPanel"></div></div>
+</div>
+<div class="card" style="margin-top:16px"><h3>Comparison (First Half vs Second Half)</h3><div id="compPanel"></div></div>
+
+<script src="shared/yieldAnalyzer.js"></script>
+<script>
+var analyzer = createYieldAnalyzer();
+var currentRecords = [];
+var currentReport = null;
+
+// Sample data
+function generateSampleData() {
+    var materials = ['alginate','gelatin-ma','collagen','pcl','fibrin'];
+    var operators = ['Dr. Kim','Dr. Patel','Dr. Chen'];
+    var reasons = ['nozzle clog','under-extrusion','layer delamination','temperature drift','cell death','crosslink failure'];
+    var records = [];
+    for (var i = 0; i < 30; i++) {
+        var d = new Date(2026, 2, 1 + Math.floor(i / 3));
+        var r = Math.random();
+        var outcome = r < 0.65 ? 'success' : (r < 0.85 ? 'failure' : 'partial');
+        records.push({
+            id: 'P-' + String(1000 + i),
+            material: materials[i % materials.length],
+            operator: operators[i % operators.length],
+            date: d.toISOString(),
+            outcome: outcome,
+            failureReason: outcome !== 'success' ? reasons[Math.floor(Math.random() * reasons.length)] : undefined,
+            notes: outcome === 'failure' ? 'Requires investigation' : ''
+        });
+    }
+    return records;
+}
+
+function render(records) {
+    currentRecords = records;
+    var ws = parseInt(document.getElementById('windowSelect').value);
+    var report = analyzer.analyze(records);
+    currentReport = report;
+    var trendData = analyzer.trends(records, { windowSize: ws });
+
+    // Summary cards
+    var o = report.overall;
+    document.getElementById('summaryCards').innerHTML =
+        card('Total Prints', o.total, 'accent', o.success + ' success') +
+        card('Yield Rate', o.yieldRate.toFixed(1) + '%', o.yieldRate >= 75 ? 'success' : 'danger', 'effective: ' + o.effectiveYield.toFixed(1) + '%') +
+        card('Failure Rate', o.failureRate.toFixed(1) + '%', o.failureRate <= 15 ? 'success' : 'danger', o.failure + ' failures') +
+        card('Partial Rate', o.partialRate.toFixed(1) + '%', 'partial', o.partial + ' partial');
+
+    // Material bars
+    renderBars('materialBars', report.byMaterial);
+    renderBars('operatorBars', report.byOperator);
+
+    // Failure reasons
+    renderFailureTable(report.failureReasons);
+
+    // Streaks
+    renderStreaks(records, report.streaks);
+
+    // Trend chart
+    renderTrend(trendData);
+
+    // Recommendations
+    renderRecs(report.recommendations);
+
+    // Comparison
+    renderComparison(records);
+}
+
+function card(title, value, cls, sub) {
+    return '<div class="card"><h3>' + title + '</h3><div class="big-num ' + cls + '">' + value + '</div><div class="sub">' + sub + '</div></div>';
+}
+
+function renderBars(id, grouped) {
+    var keys = Object.keys(grouped).sort(function(a, b) { return grouped[b].yieldRate - grouped[a].yieldRate; });
+    var html = '<div class="bar-chart">';
+    keys.forEach(function(k) {
+        var y = grouped[k].yieldRate;
+        var color = y >= 75 ? 'var(--success)' : y >= 50 ? 'var(--warning)' : 'var(--danger)';
+        html += '<div class="bar-row"><span class="bar-label" title="' + k + '">' + k + '</span>' +
+            '<div class="bar-track"><div class="bar-fill" style="width:' + y + '%;background:' + color + '"></div>' +
+            '<span class="bar-value">' + y.toFixed(1) + '% (' + grouped[k].total + ')</span></div></div>';
+    });
+    document.getElementById(id).innerHTML = html + '</div>';
+}
+
+function renderFailureTable(fr) {
+    if (fr.reasons.length === 0) {
+        document.getElementById('failureTable').innerHTML = '<p style="color:var(--success)">No failures recorded!</p>';
+        return;
+    }
+    var html = '<table><tr><th>Reason</th><th>Count</th><th>%</th></tr>';
+    fr.reasons.forEach(function(r) {
+        html += '<tr><td>' + r.reason + '</td><td>' + r.count + '</td><td>' + r.percentage.toFixed(1) + '%</td></tr>';
+    });
+    document.getElementById('failureTable').innerHTML = html + '</table>';
+}
+
+function renderStreaks(records, streaks) {
+    var html = '<div style="margin-bottom:12px"><strong>Current: </strong>' +
+        '<span class="badge badge-' + (streaks.currentType === 'success' ? 'success' : 'danger') + '">' +
+        streaks.currentLength + ' ' + streaks.currentType + '</span>' +
+        '&nbsp; <strong>Best success:</strong> ' + streaks.bestSuccessStreak +
+        '&nbsp; <strong>Worst failure:</strong> ' + streaks.worstFailureStreak + '</div>';
+    html += '<div class="streak-bar">';
+    var last20 = records.slice(-20);
+    last20.forEach(function(r) {
+        var c = r.outcome === 'success' ? 's' : (r.outcome === 'failure' ? 'f' : 'p');
+        html += '<div class="streak-block ' + c + '" title="' + (r.id || '') + ': ' + r.outcome + '"></div>';
+    });
+    document.getElementById('streakViz').innerHTML = html + '</div>';
+}
+
+function renderTrend(trendData) {
+    var canvas = document.getElementById('trendCanvas');
+    var ctx = canvas.getContext('2d');
+    canvas.width = canvas.offsetWidth;
+    canvas.height = 200;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    var data = trendData.rollingYield;
+    if (data.length < 2) { ctx.fillStyle = '#94a3b8'; ctx.fillText('Not enough data', 20, 100); return; }
+
+    var pad = { t: 20, r: 20, b: 30, l: 45 };
+    var w = canvas.width - pad.l - pad.r;
+    var h = canvas.height - pad.t - pad.b;
+
+    // Grid
+    ctx.strokeStyle = '#334155'; ctx.lineWidth = 1;
+    for (var g = 0; g <= 100; g += 25) {
+        var gy = pad.t + h - (g / 100) * h;
+        ctx.beginPath(); ctx.moveTo(pad.l, gy); ctx.lineTo(pad.l + w, gy); ctx.stroke();
+        ctx.fillStyle = '#94a3b8'; ctx.font = '11px sans-serif'; ctx.fillText(g + '%', 5, gy + 4);
+    }
+
+    // Line
+    ctx.beginPath(); ctx.strokeStyle = '#38bdf8'; ctx.lineWidth = 2;
+    data.forEach(function(d, i) {
+        var x = pad.l + (i / (data.length - 1)) * w;
+        var y = pad.t + h - (d.yieldRate / 100) * h;
+        if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+    });
+    ctx.stroke();
+
+    // Dots
+    data.forEach(function(d, i) {
+        var x = pad.l + (i / (data.length - 1)) * w;
+        var y = pad.t + h - (d.yieldRate / 100) * h;
+        ctx.beginPath(); ctx.arc(x, y, 3, 0, Math.PI * 2);
+        ctx.fillStyle = d.yieldRate >= 75 ? '#22c55e' : d.yieldRate >= 50 ? '#f59e0b' : '#ef4444';
+        ctx.fill();
+    });
+
+    // Direction label
+    ctx.fillStyle = trendData.direction === 'improving' ? '#22c55e' : trendData.direction === 'declining' ? '#ef4444' : '#94a3b8';
+    ctx.font = 'bold 12px sans-serif';
+    ctx.fillText('Trend: ' + trendData.direction, pad.l + 5, pad.t + 14);
+}
+
+function renderRecs(recs) {
+    var html = '';
+    recs.forEach(function(r) {
+        html += '<div class="rec-item ' + r.priority + '"><span class="badge badge-' + r.priority + '">' + r.priority + '</span> ' + r.message + '</div>';
+    });
+    document.getElementById('recsPanel').innerHTML = html;
+}
+
+function renderComparison(records) {
+    if (records.length < 4) { document.getElementById('compPanel').innerHTML = '<p style="color:var(--muted)">Need 4+ records</p>'; return; }
+    var mid = Math.floor(records.length / 2);
+    var comp = analyzer.compare(records.slice(0, mid), records.slice(mid), 'First Half', 'Second Half');
+    var arrow = comp.improved ? '↑' : (comp.yieldDelta < 0 ? '↓' : '→');
+    var color = comp.improved ? 'var(--success)' : (comp.yieldDelta < 0 ? 'var(--danger)' : 'var(--muted)');
+    document.getElementById('compPanel').innerHTML =
+        '<div style="display:flex;gap:30px;align-items:center;flex-wrap:wrap">' +
+        '<div><strong>' + comp.labels[0] + ':</strong> ' + comp.a.yieldRate.toFixed(1) + '% (' + comp.a.total + ' prints)</div>' +
+        '<div style="font-size:1.5rem;color:' + color + '">' + arrow + ' ' + (comp.yieldDelta > 0 ? '+' : '') + comp.yieldDelta.toFixed(1) + '%</div>' +
+        '<div><strong>' + comp.labels[1] + ':</strong> ' + comp.b.yieldRate.toFixed(1) + '% (' + comp.b.total + ' prints)</div></div>';
+}
+
+function exportCSV() {
+    if (!currentReport) return;
+    var csv = analyzer.exportCSV(currentReport);
+    download(csv, 'yield-report.csv', 'text/csv');
+}
+function exportJSON() {
+    if (!currentReport) return;
+    download(analyzer.exportJSON(currentReport), 'yield-report.json', 'application/json');
+}
+function download(content, name, type) {
+    var blob = new Blob([content], { type: type });
+    var a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; a.click();
+}
+
+document.getElementById('datasetSelect').addEventListener('change', function() {
+    if (this.value === 'custom') document.getElementById('fileInput').click();
+    else render(generateSampleData());
+});
+document.getElementById('fileInput').addEventListener('change', function(e) {
+    var reader = new FileReader();
+    reader.onload = function(ev) { try { render(JSON.parse(ev.target.result)); } catch(e) { alert('Invalid JSON'); } };
+    reader.readAsText(e.target.files[0]);
+});
+document.getElementById('windowSelect').addEventListener('change', function() { render(currentRecords); });
+
+// Init
+render(generateSampleData());
+</script>
+</body>
+</html>

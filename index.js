@@ -34,6 +34,7 @@ var recipeBuilder = require('./docs/shared/recipeBuilder');
 var protocolGenerator = require('./docs/shared/protocolGenerator');
 var nozzleAdvisor = require('./docs/shared/nozzleAdvisor');
 var sampleTracker = require('./docs/shared/sampleTracker');
+var yieldAnalyzer = require('./docs/shared/yieldAnalyzer');
 
 module.exports = {
     createMaterialCalculator: calculator.createMaterialCalculator,
@@ -51,5 +52,6 @@ module.exports = {
     createRecipeBuilder: function() { return recipeBuilder; },
     createProtocolGenerator: function() { return protocolGenerator; },
     createNozzleAdvisor: nozzleAdvisor.createNozzleAdvisor,
-    createSampleTracker: sampleTracker.createSampleTracker
+    createSampleTracker: sampleTracker.createSampleTracker,
+    createYieldAnalyzer: yieldAnalyzer.createYieldAnalyzer
 };
