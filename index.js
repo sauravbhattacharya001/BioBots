@@ -35,6 +35,7 @@ var protocolGenerator = require('./docs/shared/protocolGenerator');
 var nozzleAdvisor = require('./docs/shared/nozzleAdvisor');
 var sampleTracker = require('./docs/shared/sampleTracker');
 var yieldAnalyzer = require('./docs/shared/yieldAnalyzer');
+var shelfLife = require('./docs/shared/shelfLife');
 
 module.exports = {
     createMaterialCalculator: calculator.createMaterialCalculator,
@@ -53,5 +54,6 @@ module.exports = {
     createProtocolGenerator: function() { return protocolGenerator; },
     createNozzleAdvisor: nozzleAdvisor.createNozzleAdvisor,
     createSampleTracker: sampleTracker.createSampleTracker,
-    createYieldAnalyzer: yieldAnalyzer.createYieldAnalyzer
+    createYieldAnalyzer: yieldAnalyzer.createYieldAnalyzer,
+    createShelfLifeManager: shelfLife.createShelfLifeManager
 };
