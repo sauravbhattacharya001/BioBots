@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Sample Tracking Board — BioBots</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧬</text></svg>">
+<style>
+:root{--bg:#0f172a;--surface:#1e293b;--border:#334155;--text:#e2e8f0;--muted:#94a3b8;--accent:#38bdf8;--success:#4ade80;--warn:#fbbf24;--error:#f87171;--urgent:#ef4444;--high:#f97316;--medium:#eab308;--low:#22c55e}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
+header{background:var(--surface);border-bottom:1px solid var(--border);padding:16px 24px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px}
+header h1{font-size:1.4rem;display:flex;align-items:center;gap:8px}
+.header-actions{display:flex;gap:8px;flex-wrap:wrap}
+.stats-bar{display:flex;gap:16px;padding:12px 24px;background:var(--surface);border-bottom:1px solid var(--border);flex-wrap:wrap}
+.stat{text-align:center;min-width:80px}.stat .val{font-size:1.5rem;font-weight:700;color:var(--accent)}.stat .lbl{font-size:.75rem;color:var(--muted);text-transform:uppercase}
+.board{display:flex;gap:12px;padding:16px;overflow-x:auto;min-height:calc(100vh - 140px)}
+.column{flex:0 0 240px;background:var(--surface);border-radius:10px;border:1px solid var(--border);display:flex;flex-direction:column;max-height:calc(100vh - 160px)}
+.col-header{padding:12px;font-weight:600;font-size:.9rem;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;position:sticky;top:0}
+.col-header .count{background:var(--border);border-radius:12px;padding:2px 8px;font-size:.75rem;color:var(--muted)}
+.col-body{flex:1;overflow-y:auto;padding:8px;display:flex;flex-direction:column;gap:8px}
+.card{background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:10px;cursor:grab;transition:transform .15s,box-shadow .15s;position:relative}
+.card:hover{transform:translateY(-2px);box-shadow:0 4px 12px rgba(0,0,0,.3)}
+.card.dragging{opacity:.5;transform:rotate(2deg)}
+.card .name{font-weight:600;font-size:.85rem;margin-bottom:4px}
+.card .meta{font-size:.7rem;color:var(--muted);display:flex;gap:6px;flex-wrap:wrap;margin-bottom:6px}
+.card .priority-dot{width:8px;height:8px;border-radius:50%;display:inline-block}
+.card .priority-dot.urgent{background:var(--urgent)}.card .priority-dot.high{background:var(--high)}
+.card .priority-dot.medium{background:var(--medium)}.card .priority-dot.low{background:var(--low)}
+.card .actions{display:flex;gap:4px;margin-top:6px}
+.card .actions button{font-size:.65rem;padding:2px 6px;border:1px solid var(--border);background:var(--surface);color:var(--muted);border-radius:4px;cursor:pointer}
+.card .actions button:hover{background:var(--accent);color:var(--bg);border-color:var(--accent)}
+.card .notes-count{font-size:.65rem;color:var(--muted)}
+.card .assignee{font-size:.7rem;color:var(--accent)}
+.drop-zone{min-height:40px;border:2px dashed transparent;border-radius:8px;transition:border-color .2s}
+.drop-zone.over{border-color:var(--accent);background:rgba(56,189,248,.05)}
+button,.btn{border:none;background:var(--accent);color:var(--bg);padding:6px 14px;border-radius:6px;cursor:pointer;font-size:.8rem;font-weight:600}
+button:hover,.btn:hover{opacity:.85}
+.btn-outline{background:transparent;border:1px solid var(--border);color:var(--text)}
+.btn-outline:hover{border-color:var(--accent);color:var(--accent)}
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;z-index:100;display:none}
+.modal-overlay.active{display:flex}
+.modal{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:24px;width:90%;max-width:420px}
+.modal h2{margin-bottom:16px;font-size:1.1rem}
+.modal label{display:block;font-size:.8rem;color:var(--muted);margin:8px 0 4px}
+.modal input,.modal select,.modal textarea{width:100%;padding:8px;background:var(--bg);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:.85rem}
+.modal textarea{resize:vertical;min-height:60px}
+.modal .btns{display:flex;gap:8px;margin-top:16px;justify-content:flex-end}
+.search-bar{display:flex;align-items:center;gap:8px}
+.search-bar input{padding:6px 12px;background:var(--bg);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:.8rem;width:180px}
+.stage-colors .Queued{border-left:3px solid #64748b}.stage-colors .Printing{border-left:3px solid #38bdf8}
+.stage-colors .Crosslinking{border-left:3px solid #a78bfa}.stage-colors .Incubation{border-left:3px solid #fbbf24}
+.stage-colors .Testing{border-left:3px solid #f97316}.stage-colors .Complete{border-left:3px solid #4ade80}
+</style>
+</head>
+<body>
+<header>
+<h1>🧬 Sample Tracking Board</h1>
+<div class="header-actions">
+<div class="search-bar"><input type="text" id="searchInput" placeholder="Search samples..." oninput="renderBoard()"/></div>
+<button onclick="openAddModal()">+ Add Sample</button>
+<button class="btn-outline" onclick="exportData('json')">Export JSON</button>
+<button class="btn-outline" onclick="exportData('csv')">Export CSV</button>
+</div>
+</header>
+<div class="stats-bar" id="statsBar"></div>
+<div class="board" id="board"></div>
+
+<!-- Add/Edit Modal -->
+<div class="modal-overlay" id="addModal">
+<div class="modal">
+<h2 id="modalTitle">Add Sample</h2>
+<label>Name *</label><input id="sName" placeholder="e.g. Skin Patch A"/>
+<label>Material</label><input id="sMaterial" placeholder="e.g. Alginate, Collagen"/>
+<label>Cell Type</label><input id="sCellType" placeholder="e.g. Keratinocyte, MSC"/>
+<label>Priority</label>
+<select id="sPriority"><option value="low">Low</option><option value="medium" selected>Medium</option><option value="high">High</option><option value="urgent">Urgent</option></select>
+<label>Assignee</label><input id="sAssignee" placeholder="e.g. Dr. Lee"/>
+<div class="btns">
+<button class="btn-outline" onclick="closeAddModal()">Cancel</button>
+<button onclick="submitSample()">Add</button>
+</div>
+</div>
+</div>
+
+<!-- Detail Modal -->
+<div class="modal-overlay" id="detailModal">
+<div class="modal" style="max-width:500px">
+<h2 id="detailTitle"></h2>
+<div id="detailContent"></div>
+<div class="btns"><button class="btn-outline" onclick="closeDetail()">Close</button></div>
+</div>
+</div>
+
+<script>
+var STAGES=['Queued','Printing','Crosslinking','Incubation','Testing','Complete'];
+var PRIORITIES=['low','medium','high','urgent'];
+var PCOLORS={urgent:'var(--urgent)',high:'var(--high)',medium:'var(--medium)',low:'var(--low)'};
+var SCOLORS={Queued:'#64748b',Printing:'#38bdf8',Crosslinking:'#a78bfa',Incubation:'#fbbf24',Testing:'#f97316',Complete:'#4ade80'};
+var samples=[];
+var nextId=1;
+var dragId=null;
+
+function save(){try{localStorage.setItem('biobots-samples',JSON.stringify({samples:samples,nextId:nextId}))}catch(e){}}
+function load(){try{var d=JSON.parse(localStorage.getItem('biobots-samples'));if(d&&d.samples){samples=d.samples;nextId=d.nextId||samples.length+1}}catch(e){}}
+
+function addSample(opts){
+var s={id:nextId++,name:opts.name.trim(),material:(opts.material||'').trim()||'Unknown',
+cellType:(opts.cellType||'').trim()||'Unspecified',stage:'Queued',
+priority:PRIORITIES.indexOf(opts.priority)>=0?opts.priority:'medium',
+assignee:(opts.assignee||'').trim()||null,notes:[],
+timestamps:{created:new Date().toISOString()},
+history:[{stage:'Queued',ts:new Date().toISOString()}]};
+samples.push(s);save();return s;
+}
+
+function moveTo(id,stage){
+var s=samples.find(function(x){return x.id===id});
+if(!s)return;s.stage=stage;s.timestamps[stage]=new Date().toISOString();
+s.history.push({stage:stage,ts:new Date().toISOString()});save();
+}
+
+function advance(id){
+var s=samples.find(function(x){return x.id===id});if(!s)return;
+var i=STAGES.indexOf(s.stage);if(i>=STAGES.length-1)return;
+moveTo(id,STAGES[i+1]);
+}
+
+function removeSample(id){samples=samples.filter(function(x){return x.id!==id});save();renderBoard();}
+
+function addNote(id){
+var text=prompt('Add note:');if(!text||!text.trim())return;
+var s=samples.find(function(x){return x.id===id});if(!s)return;
+s.notes.push({text:text.trim(),ts:new Date().toISOString()});save();
+}
+
+function renderStats(){
+var bar=document.getElementById('statsBar');
+var total=samples.length;
+var byStage={};STAGES.forEach(function(st){byStage[st]=0});
+samples.forEach(function(s){byStage[s.stage]++});
+var complete=byStage.Complete;
+var rate=total>0?Math.round(complete/total*100):0;
+bar.innerHTML='<div class="stat"><div class="val">'+total+'</div><div class="lbl">Total</div></div>'+
+'<div class="stat"><div class="val" style="color:var(--success)">'+complete+'</div><div class="lbl">Complete</div></div>'+
+'<div class="stat"><div class="val" style="color:var(--warn)">'+(total-complete)+'</div><div class="lbl">In Progress</div></div>'+
+'<div class="stat"><div class="val">'+rate+'%</div><div class="lbl">Completion</div></div>';
+}
+
+function renderBoard(){
+var query=(document.getElementById('searchInput').value||'').toLowerCase().trim();
+var filtered=samples;
+if(query)filtered=samples.filter(function(s){
+return s.name.toLowerCase().indexOf(query)>=0||s.material.toLowerCase().indexOf(query)>=0||
+s.cellType.toLowerCase().indexOf(query)>=0||(s.assignee&&s.assignee.toLowerCase().indexOf(query)>=0);
+});
+var board=document.getElementById('board');
+var pOrder={urgent:0,high:1,medium:2,low:3};
+board.innerHTML=STAGES.map(function(stage){
+var cards=filtered.filter(function(s){return s.stage===stage})
+.sort(function(a,b){return(pOrder[a.priority]!==undefined?pOrder[a.priority]:2)-(pOrder[b.priority]!==undefined?pOrder[b.priority]:2)});
+return '<div class="column"><div class="col-header" style="border-left:3px solid '+SCOLORS[stage]+'"><span>'+stage+'</span><span class="count">'+cards.length+'</span></div>'+
+'<div class="col-body drop-zone" data-stage="'+stage+'" ondragover="onDragOver(event)" ondragleave="onDragLeave(event)" ondrop="onDrop(event)">'+
+cards.map(function(s){
+var nextStage=STAGES[STAGES.indexOf(s.stage)+1];
+return '<div class="card" draggable="true" data-id="'+s.id+'" ondragstart="onDragStart(event)" ondragend="onDragEnd(event)">'+
+'<div style="display:flex;align-items:center;gap:6px"><span class="priority-dot '+s.priority+'"></span><span class="name">'+esc(s.name)+'</span></div>'+
+'<div class="meta"><span>'+esc(s.material)+'</span><span>·</span><span>'+esc(s.cellType)+'</span></div>'+
+(s.assignee?'<div class="assignee">👤 '+esc(s.assignee)+'</div>':'')+
+(s.notes.length?'<div class="notes-count">📝 '+s.notes.length+' note'+(s.notes.length>1?'s':'')+'</div>':'')+
+'<div class="actions">'+
+(nextStage?'<button onclick="advance('+s.id+');renderAll()">→ '+nextStage+'</button>':'')+
+'<button onclick="showDetail('+s.id+')">Details</button>'+
+'<button onclick="addNote('+s.id+');renderAll()">Note</button>'+
+'<button onclick="if(confirm(\'Remove?\'))removeSample('+s.id+')">✕</button>'+
+'</div></div>';
+}).join('')+'</div></div>';
+}).join('');
+renderStats();
+}
+
+function renderAll(){renderBoard();}
+
+function esc(s){var d=document.createElement('div');d.textContent=s;return d.innerHTML;}
+
+// Drag & Drop
+function onDragStart(e){dragId=parseInt(e.target.dataset.id);e.target.classList.add('dragging');e.dataTransfer.effectAllowed='move';}
+function onDragEnd(e){e.target.classList.remove('dragging');dragId=null;}
+function onDragOver(e){e.preventDefault();e.currentTarget.classList.add('over');}
+function onDragLeave(e){e.currentTarget.classList.remove('over');}
+function onDrop(e){e.preventDefault();e.currentTarget.classList.remove('over');
+if(dragId!==null){var stage=e.currentTarget.dataset.stage;moveTo(dragId,stage);dragId=null;renderAll();}}
+
+// Modals
+function openAddModal(){document.getElementById('addModal').classList.add('active');document.getElementById('sName').value='';
+document.getElementById('sMaterial').value='';document.getElementById('sCellType').value='';
+document.getElementById('sPriority').value='medium';document.getElementById('sAssignee').value='';
+document.getElementById('sName').focus();}
+function closeAddModal(){document.getElementById('addModal').classList.remove('active');}
+function submitSample(){var n=document.getElementById('sName').value;if(!n||!n.trim()){alert('Name is required');return;}
+addSample({name:n,material:document.getElementById('sMaterial').value,cellType:document.getElementById('sCellType').value,
+priority:document.getElementById('sPriority').value,assignee:document.getElementById('sAssignee').value});
+closeAddModal();renderAll();}
+
+function showDetail(id){
+var s=samples.find(function(x){return x.id===id});if(!s)return;
+document.getElementById('detailTitle').textContent=s.name;
+var html='<p style="color:var(--muted);font-size:.85rem;margin-bottom:12px">'+
+'<strong>ID:</strong> '+s.id+' · <strong>Material:</strong> '+esc(s.material)+' · <strong>Cell Type:</strong> '+esc(s.cellType)+
+' · <strong>Priority:</strong> <span style="color:'+PCOLORS[s.priority]+'">'+s.priority+'</span>'+
+(s.assignee?' · <strong>Assignee:</strong> '+esc(s.assignee):'')+
+' · <strong>Stage:</strong> <span style="color:'+SCOLORS[s.stage]+'">'+s.stage+'</span></p>';
+html+='<p style="font-size:.75rem;color:var(--muted)">Created: '+new Date(s.timestamps.created).toLocaleString()+'</p>';
+if(s.notes.length){html+='<h3 style="margin:12px 0 6px;font-size:.9rem">Notes</h3><ul style="list-style:none;padding:0">';
+s.notes.forEach(function(n){html+='<li style="padding:6px 0;border-bottom:1px solid var(--border);font-size:.8rem">'+
+esc(n.text)+'<span style="color:var(--muted);font-size:.7rem;margin-left:8px">'+new Date(n.ts).toLocaleString()+'</span></li>';});
+html+='</ul>';}
+if(s.history.length>1){html+='<h3 style="margin:12px 0 6px;font-size:.9rem">History</h3><ul style="list-style:none;padding:0">';
+s.history.forEach(function(h){html+='<li style="padding:4px 0;font-size:.75rem;color:var(--muted)">'+
+'<span style="color:'+SCOLORS[h.stage]+'">'+h.stage+'</span> — '+new Date(h.ts).toLocaleString()+'</li>';});
+html+='</ul>';}
+document.getElementById('detailContent').innerHTML=html;
+document.getElementById('detailModal').classList.add('active');
+}
+function closeDetail(){document.getElementById('detailModal').classList.remove('active');}
+
+function exportData(fmt){
+if(fmt==='json'){var blob=new Blob([JSON.stringify({samples:samples,exportedAt:new Date().toISOString()},null,2)],{type:'application/json'});
+var a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='biobots-samples.json';a.click();}
+else{var header='ID,Name,Material,Cell Type,Stage,Priority,Assignee,Created';
+var rows=samples.map(function(s){return[s.id,'"'+s.name.replace(/"/g,'""')+'"','"'+s.material+'"','"'+s.cellType+'"',
+s.stage,s.priority,s.assignee?'"'+s.assignee+'"':'',s.timestamps.created].join(',');});
+var blob=new Blob([header+'\n'+rows.join('\n')],{type:'text/csv'});
+var a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='biobots-samples.csv';a.click();}
+}
+
+// Keyboard shortcuts
+document.addEventListener('keydown',function(e){
+if(e.key==='Escape'){closeAddModal();closeDetail();}
+if(e.key==='n'&&!e.ctrlKey&&!e.metaKey&&document.activeElement.tagName!=='INPUT'&&document.activeElement.tagName!=='TEXTAREA'){openAddModal();}
+});
+
+// Load demo data if empty
+function loadDemo(){
+if(samples.length>0)return;
+var demos=[
+{name:'Skin Patch Alpha',material:'Collagen-Alginate',cellType:'Keratinocyte',priority:'high',assignee:'Dr. Chen'},
+{name:'Cartilage Disc B3',material:'GelMA',cellType:'Chondrocyte',priority:'medium',assignee:'Dr. Kim'},
+{name:'Bone Scaffold #7',material:'Hydroxyapatite-PCL',cellType:'Osteoblast',priority:'urgent',assignee:'Dr. Lee'},
+{name:'Liver Organoid v2',material:'dECM',cellType:'Hepatocyte',priority:'medium'},
+{name:'Vascular Tube T1',material:'Fibrin-Gelatin',cellType:'HUVEC',priority:'low',assignee:'Dr. Patel'},
+{name:'Neural Sheet NS4',material:'Hyaluronic Acid',cellType:'iPSC-Neuron',priority:'high',assignee:'Dr. Chen'},
+];
+demos.forEach(function(d){addSample(d);});
+// Move some to different stages for demo
+advance(2);advance(2); // Cartilage → Crosslinking
+advance(3);advance(3);advance(3); // Bone → Incubation
+advance(4); // Liver → Printing
+advance(5);advance(5);advance(5);advance(5);advance(5); // Vascular → Complete
+}
+
+load();loadDemo();renderAll();
+</script>
+</body>
+</html>

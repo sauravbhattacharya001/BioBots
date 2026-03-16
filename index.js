@@ -33,6 +33,7 @@ var printQualityScorer = require('./docs/shared/printQualityScorer');
 var recipeBuilder = require('./docs/shared/recipeBuilder');
 var protocolGenerator = require('./docs/shared/protocolGenerator');
 var nozzleAdvisor = require('./docs/shared/nozzleAdvisor');
+var sampleTracker = require('./docs/shared/sampleTracker');
 
 module.exports = {
     createMaterialCalculator: calculator.createMaterialCalculator,
@@ -49,5 +50,6 @@ module.exports = {
     createPrintQualityScorer: printQualityScorer.createPrintQualityScorer,
     createRecipeBuilder: function() { return recipeBuilder; },
     createProtocolGenerator: function() { return protocolGenerator; },
-    createNozzleAdvisor: nozzleAdvisor.createNozzleAdvisor
+    createNozzleAdvisor: nozzleAdvisor.createNozzleAdvisor,
+    createSampleTracker: sampleTracker.createSampleTracker
 };
