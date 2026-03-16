@@ -231,6 +231,20 @@ describe('createMaterialCalculator', () => {
         test('formats hours and minutes', () => {
             expect(calc.formatDuration(125)).toBe('2h 5min');
         });
+
+        test('does not produce 60min when rounding up near hour boundary', () => {
+            // 59.6 minutes should round to 1h 0min, not "60min"
+            expect(calc.formatDuration(59.6)).toBe('1h 0min');
+        });
+
+        test('does not produce 60min in hours+minutes format', () => {
+            // 119.6 minutes should round to 2h 0min, not "1h 60min"
+            expect(calc.formatDuration(119.6)).toBe('2h 0min');
+        });
+
+        test('formats exact hour boundary', () => {
+            expect(calc.formatDuration(60)).toBe('1h 0min');
+        });
     });
 
     // ── round ───────────────────────────────────────────────────────────
