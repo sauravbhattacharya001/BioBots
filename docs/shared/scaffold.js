@@ -63,24 +63,66 @@ var TISSUE_TARGETS = {
     neural: { porosity: [0.80, 0.95], poreUm: [50, 200], modulusKPa: [0.5, 10] }
 };
 
+/**
+ * Round a numeric value to the specified number of decimal places.
+ *
+ * @param {number} val - Value to round.
+ * @param {number} [decimals=4] - Number of decimal places.
+ * @returns {number} Rounded value, or 0 if the input is not a finite number.
+ * @private
+ */
 function _round(val, decimals) {
     if (typeof val !== 'number' || isNaN(val)) return 0;
     var factor = Math.pow(10, decimals || 4);
     return Math.round(val * factor) / factor;
 }
 
+/**
+ * Compute analytical porosity for a rectilinear grid scaffold.
+ *
+ * Models alternating 0°/90° strut layers. Solid fraction is derived
+ * from two orthogonal strut contributions minus their overlap region.
+ *
+ * @param {number} strutWidth - Strut cross-section width (mm).
+ * @param {number} poreSize - Target pore opening size (mm).
+ * @returns {number} Porosity as a fraction (0–1).
+ * @private
+ */
 function _gridPorosity(strutWidth, poreSize) {
     var pitch = strutWidth + poreSize;
     var solidFraction = (2 * strutWidth / pitch) - Math.pow(strutWidth / pitch, 2);
     return 1 - solidFraction;
 }
 
+/**
+ * Compute analytical porosity for a honeycomb scaffold.
+ *
+ * Uses a hexagonal cell model where solid fraction depends on strut
+ * width relative to cell size scaled by √3 (hexagonal geometry).
+ *
+ * @param {number} strutWidth - Strut width (mm).
+ * @param {number} poreSize - Pore opening size (mm).
+ * @returns {number} Porosity as a fraction (0–1).
+ * @private
+ */
 function _honeycombPorosity(strutWidth, poreSize) {
     var cellSize = strutWidth + poreSize;
     var solidFraction = (2 * strutWidth) / (Math.sqrt(3) * cellSize);
     return 1 - solidFraction;
 }
 
+/**
+ * Approximate porosity for a gyroid (TPMS) scaffold.
+ *
+ * Gyroid porosity doesn't have a simple closed-form solution; this
+ * uses a linear approximation based on the strut-to-pitch ratio,
+ * clamped to [0.05, 0.98] to avoid degenerate values.
+ *
+ * @param {number} strutWidth - Strut width (mm).
+ * @param {number} poreSize - Pore opening size (mm).
+ * @returns {number} Porosity as a fraction, clamped to [0.05, 0.98].
+ * @private
+ */
 function _gyroidPorosity(strutWidth, poreSize) {
     var pitch = strutWidth + poreSize;
     var ratio = strutWidth / pitch;
@@ -88,6 +130,19 @@ function _gyroidPorosity(strutWidth, poreSize) {
     return Math.max(0.05, Math.min(0.98, porosity));
 }
 
+/**
+ * Estimate the surface-area-to-volume ratio (1/mm) for a scaffold architecture.
+ *
+ * Higher SA:V ratios promote cell attachment and nutrient exchange.
+ * Gyroid structures typically achieve the highest ratios due to their
+ * triply periodic minimal surface geometry.
+ *
+ * @param {string} architecture - One of 'grid', 'honeycomb', or 'gyroid'.
+ * @param {number} strutWidth - Strut width (mm).
+ * @param {number} poreSize - Pore opening size (mm).
+ * @returns {number} Surface-area-to-volume ratio (mm⁻¹).
+ * @private
+ */
 function _surfaceAreaToVolume(architecture, strutWidth, poreSize) {
     var pitch = strutWidth + poreSize;
     switch (architecture) {
@@ -98,11 +153,34 @@ function _surfaceAreaToVolume(architecture, strutWidth, poreSize) {
     }
 }
 
+/**
+ * Estimate effective (apparent) elastic modulus using the Gibson-Ashby model.
+ *
+ * E_eff = E_bulk × (1 − φ)², where φ is porosity. This power-law
+ * relationship captures how cellular solids lose stiffness with
+ * increasing void fraction.
+ *
+ * @param {number} bulkModulusKPa - Bulk material modulus (kPa).
+ * @param {number} porosity - Scaffold porosity (0–1).
+ * @returns {number} Effective modulus (kPa).
+ * @private
+ */
 function _effectiveModulus(bulkModulusKPa, porosity) {
     var relativeDensity = 1 - porosity;
     return bulkModulusKPa * Math.pow(relativeDensity, 2);
 }
 
+/**
+ * Estimate intrinsic permeability using the Kozeny-Carman equation.
+ *
+ * k = d²ε³ / (180(1−ε)²), where d is pore diameter and ε is porosity.
+ * This governs how easily fluid (culture media) flows through the scaffold.
+ *
+ * @param {number} poreSizeMm - Pore diameter (mm).
+ * @param {number} porosity - Scaffold porosity (0–1).
+ * @returns {number} Intrinsic permeability (mm²). Returns 0 for degenerate inputs.
+ * @private
+ */
 function _permeability(poreSizeMm, porosity) {
     var eps = porosity;
     var d = poreSizeMm;
@@ -112,6 +190,27 @@ function _permeability(poreSizeMm, porosity) {
 
 function createScaffoldCalculator() {
 
+    /**
+     * Analyze scaffold geometry and compute physical properties.
+     *
+     * Given an architecture type, bounding dimensions, strut width, pore
+     * size, and layer height, computes porosity, pore geometry, surface
+     * area, mechanical properties (Gibson-Ashby), transport properties
+     * (Kozeny-Carman permeability), and print estimates.
+     *
+     * @param {Object} params - Scaffold parameters.
+     * @param {string} params.architecture - Architecture type: 'grid', 'honeycomb', or 'gyroid'.
+     * @param {Object} params.dimensions - Bounding box {x, y, z} in mm (each ≤500).
+     * @param {number} params.strutWidth - Strut width in mm (0.05–5).
+     * @param {number} params.poreSize - Target pore opening in mm (0.05–10).
+     * @param {number} params.layerHeight - Print layer height in mm (0.01–2).
+     * @param {string} [params.material='custom'] - Material preset key (e.g. 'gelma-5', 'pcl').
+     * @param {number} [params.customModulusKPa] - Override bulk modulus (kPa).
+     * @param {number} [params.customDensity] - Override material density (g/mL).
+     * @returns {Object} Comprehensive scaffold analysis with architecture, dimensions,
+     *   porosity, poreGeometry, surface, mechanical, transport, and printEstimates.
+     * @throws {Error} If required parameters are missing or out of range.
+     */
     function analyze(params) {
         if (!params || typeof params !== 'object') {
             throw new Error('Parameters must be an object');
@@ -234,6 +333,19 @@ function createScaffoldCalculator() {
         };
     }
 
+    /**
+     * Check whether a scaffold analysis meets tissue-specific engineering targets.
+     *
+     * Evaluates porosity, pore size, and effective modulus against published
+     * ranges for the target tissue type. Returns a scored compatibility
+     * assessment with actionable recommendations.
+     *
+     * @param {string} tissueType - Target tissue: 'bone', 'cartilage', 'skin', 'liver', 'vascular', or 'neural'.
+     * @param {Object} analysisResult - Output from {@link analyze}.
+     * @returns {Object} Compatibility report with overallScore ('Excellent'|'Acceptable'|'Marginal'|'Poor'),
+     *   per-criterion pass/fail, and an array of recommendations.
+     * @throws {Error} If tissueType is unknown or analysisResult is invalid.
+     */
     function checkTissueCompatibility(tissueType, analysisResult) {
         if (!tissueType || !TISSUE_TARGETS[tissueType]) {
             throw new Error('Unknown tissue type. Options: ' + Object.keys(TISSUE_TARGETS).join(', '));
@@ -279,6 +391,22 @@ function createScaffoldCalculator() {
         };
     }
 
+    /**
+     * Sweep a single parameter across a range and collect scaffold metrics.
+     *
+     * Useful for exploring how strut width or pore size affects porosity,
+     * modulus, material volume, and surface area. Results can be plotted
+     * to identify optimal parameter windows.
+     *
+     * @param {Object} params - Base scaffold parameters (same as {@link analyze}).
+     * @param {string} sweepParam - Parameter to sweep: 'strutWidth' or 'poreSize'.
+     * @param {number} min - Minimum value for the swept parameter.
+     * @param {number} max - Maximum value (must be > min).
+     * @param {number} [steps=10] - Number of evaluation points (2–100).
+     * @returns {Object[]} Array of result objects with value, porosity, effectiveModulusKPa,
+     *   solidVolumeMl, and surfaceAreaMm2 — or {value, error} if analysis fails at that point.
+     * @throws {Error} If sweepParam is invalid or min ≥ max.
+     */
     function parameterSweep(params, sweepParam, min, max, steps) {
         if (sweepParam !== 'strutWidth' && sweepParam !== 'poreSize') {
             throw new Error('sweepParam must be "strutWidth" or "poreSize"');
@@ -311,6 +439,14 @@ function createScaffoldCalculator() {
         return results;
     }
 
+    /**
+     * List all available architectures, material presets, and tissue targets.
+     *
+     * Returns structured metadata for building UIs (dropdowns, option lists)
+     * without hard-coding values on the client side.
+     *
+     * @returns {Object} Object with architectures, materials, and tissueTargets arrays.
+     */
     function getOptions() {
         return {
             architectures: Object.keys(ARCHITECTURES).map(function(k) {

@@ -69,12 +69,28 @@ var NOZZLE_LENGTH_DEFAULT = 12.7;
 
 // ── Helpers ────────────────────────────────────────────────────────────
 
+/**
+ * Validate that a value is a positive number.
+ *
+ * @param {*} val - Value to check.
+ * @param {string} name - Parameter name (for error messages).
+ * @throws {Error} If val is not a positive finite number.
+ * @private
+ */
 function validatePositive(val, name) {
   if (typeof val !== 'number' || isNaN(val) || val <= 0) {
     throw new Error(name + ' must be a positive number, got: ' + val);
   }
 }
 
+/**
+ * Resolve nozzle inner diameter from either a direct value or gauge string.
+ *
+ * @param {Object} opts - Options containing nozzleDiameter (mm) or gauge (e.g. '22G').
+ * @returns {number} Nozzle inner diameter in mm.
+ * @throws {Error} If neither nozzleDiameter nor a valid gauge is provided.
+ * @private
+ */
 function resolveNozzleDiameter(opts) {
   if (typeof opts.nozzleDiameter === 'number') {
     validatePositive(opts.nozzleDiameter, 'nozzleDiameter');
@@ -88,10 +104,41 @@ function resolveNozzleDiameter(opts) {
   throw new Error('Provide nozzleDiameter (mm) or gauge (e.g. "22G")');
 }
 
+/**
+ * Clamp a value to a [lo, hi] range.
+ *
+ * @param {number} v - Value to clamp.
+ * @param {number} lo - Lower bound.
+ * @param {number} hi - Upper bound.
+ * @returns {number} Clamped value.
+ * @private
+ */
 function clamp(v, lo, hi) { return v < lo ? lo : v > hi ? hi : v; }
 
 // ── Core calculator ────────────────────────────────────────────────────
 
+/**
+ * Calculate print resolution metrics for extrusion bioprinting.
+ *
+ * Uses Hagen-Poiseuille flow, mass conservation with die-swell correction,
+ * and empirical fidelity scoring to predict strand diameter, layer height,
+ * minimum feature size, and volumetric flow rate.
+ *
+ * @param {Object} opts - Print parameters.
+ * @param {number} [opts.nozzleDiameter] - Nozzle inner diameter (mm). Provide this or gauge.
+ * @param {string} [opts.gauge] - Nozzle gauge string (e.g. '22G'). Alternative to nozzleDiameter.
+ * @param {number} opts.pressure - Extrusion pressure (kPa).
+ * @param {number} opts.stageSpeed - Stage/print-head speed (mm/s). Alias: opts.speed.
+ * @param {string} [opts.material='custom'] - Material name for viscosity/swell presets.
+ * @param {number} [opts.viscosity] - Bioink viscosity (Pa·s). Overrides material preset.
+ * @param {number} [opts.swellRatio] - Die swell ratio. Overrides material preset.
+ * @param {number} [opts.nozzleLength=12.7] - Nozzle length (mm).
+ * @param {number} [opts.spreadRatio=0.70] - Layer spread ratio (layer height / strand diameter).
+ * @param {number} [opts.overlapFraction=0.10] - Strand overlap fraction for feature size calculation.
+ * @returns {Object} Resolution analysis including strandDiameter_mm, layerHeight_mm,
+ *   minFeatureSize_mm, flowRate_uL_s, fidelityScore (0–100), and resolutionClass.
+ * @throws {Error} If required parameters are missing or invalid.
+ */
 function calculateResolution(opts) {
   if (!opts || typeof opts !== 'object') throw new Error('Options object required');
 
@@ -170,10 +217,28 @@ function calculateResolution(opts) {
   };
 }
 
+/**
+ * Round a number to 4 decimal places.
+ *
+ * @param {number} v - Value to round.
+ * @returns {number} Rounded value.
+ * @private
+ */
 function round4(v) { return Math.round(v * 10000) / 10000; }
 
-// ── Comparison helper ──────────────────────────────────────────────────
-
+/**
+ * Compare multiple print configurations and rank by quality.
+ *
+ * Runs {@link calculateResolution} on each config, then ranks by
+ * fidelity score (descending) and strand diameter (ascending). Also
+ * identifies the finest-resolution configuration.
+ *
+ * @param {Object[]} configs - Array of config objects (each passed to calculateResolution).
+ *   Each may include an optional `label` string for identification.
+ * @returns {Object} Comparison report with results (in input order), ranked (by quality),
+ *   best (top-ranked), and finest (smallest strand diameter).
+ * @throws {Error} If fewer than 2 configurations are provided.
+ */
 function compareConfigs(configs) {
   if (!Array.isArray(configs) || configs.length < 2) {
     throw new Error('Provide an array of at least 2 config objects');
@@ -201,6 +266,21 @@ function compareConfigs(configs) {
 
 // ── Optimal config finder ──────────────────────────────────────────────
 
+/**
+ * Find the optimal extrusion pressure to achieve a target strand diameter.
+ *
+ * Performs a brute-force sweep over the pressure range (200 steps) and
+ * returns the configuration that produces a strand diameter closest to
+ * the target.
+ *
+ * @param {Object} opts - Base print parameters (same as calculateResolution), plus:
+ * @param {number} [opts.minPressure=10] - Lower pressure bound (kPa).
+ * @param {number} [opts.maxPressure=300] - Upper pressure bound (kPa).
+ * @param {number} opts.targetStrandDiameter - Desired strand diameter (mm).
+ * @returns {Object} Result with optimalResult (full resolution analysis at best pressure),
+ *   targetStrandDiameter_mm, achievedStrandDiameter_mm, and deviation_mm.
+ * @throws {Error} If targetStrandDiameter is not a positive number.
+ */
 function findOptimalPressure(opts) {
   if (!opts || typeof opts !== 'object') throw new Error('Options object required');
   var minP = opts.minPressure || 10;
@@ -234,6 +314,12 @@ function findOptimalPressure(opts) {
 
 // ── Text report ────────────────────────────────────────────────────────
 
+/**
+ * Format a resolution analysis result as a human-readable text report.
+ *
+ * @param {Object} result - Output from {@link calculateResolution}.
+ * @returns {string} Multi-line plain-text report.
+ */
 function formatReport(result) {
   var lines = [
     '=== Print Resolution Report ===',
@@ -262,6 +348,16 @@ function formatReport(result) {
 
 // ── Public API ─────────────────────────────────────────────────────────
 
+/**
+ * Create a Print Resolution Calculator instance.
+ *
+ * Exposes methods for single-config analysis, multi-config comparison,
+ * optimal pressure search, and report formatting, plus reference data
+ * (nozzle gauges, swell ratios, viscosity presets).
+ *
+ * @returns {Object} Calculator API with calculate, compare, findOptimalPressure,
+ *   formatReport, and reference constant objects.
+ */
 function createPrintResolutionCalculator() {
   return {
     calculate:           calculateResolution,
