@@ -383,7 +383,7 @@ function createPassageTracker() {
         if (firstChar === '=' || firstChar === '+' || firstChar === '-' ||
             firstChar === '@' || firstChar === '\t' || firstChar === '\r') {
             // Skip prefix for values that are valid numbers (e.g. -3.14, +1.5)
-            if (!((firstChar === '-' || firstChar === '+') && str.length > 1 && isFinite(Number(str)))) {
+            if (!((firstChar === '-' || firstChar === '+') && str.length > 1 && str.indexOf('.') !== -1 && isFinite(Number(str)))) {
                 str = "'" + str;
             }
         }
