@@ -85,7 +85,9 @@ function withinGroupSigma(batches) {
         6: 2.534, 7: 2.704, 8: 2.847, 9: 2.970, 10: 3.078
     };
 
-    var ranges = [];
+    // Compute per-batch R/d2 estimates to handle variable subgroup sizes
+    // (e.g. the last auto-grouped batch may be smaller than the rest).
+    var sigmaEstimates = [];
     for (var i = 0; i < batches.length; i++) {
         var batch = batches[i];
         if (batch.length < 2) continue;
@@ -94,16 +96,14 @@ function withinGroupSigma(batches) {
             if (batch[j] < min) min = batch[j];
             if (batch[j] > max) max = batch[j];
         }
-        ranges.push(max - min);
+        var n = Math.min(batch.length, 10);
+        var d2 = d2Table[n] || d2Table[10];
+        sigmaEstimates.push((max - min) / d2);
     }
 
-    if (ranges.length === 0) return 0;
+    if (sigmaEstimates.length === 0) return 0;
 
-    var avgRange = mean(ranges);
-    var n = batches[0].length;
-    var d2 = d2Table[Math.min(n, 10)] || d2Table[10];
-
-    return avgRange / d2;
+    return mean(sigmaEstimates);
 }
 
 /**
