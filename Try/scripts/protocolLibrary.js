@@ -8,6 +8,24 @@
  * and post-processing steps optimized for specific tissue types.
  */
 
+// ── Prototype Pollution Guard ───────────────────────────────────────────────
+
+const _DANGEROUS_KEYS = new Set(['__proto__', 'constructor', 'prototype']);
+
+/**
+ * Return a shallow copy of `obj` with prototype-polluting keys removed.
+ * @param {Object} obj
+ * @returns {Object}
+ */
+function _sanitize(obj) {
+    if (!obj || typeof obj !== 'object') return {};
+    const out = {};
+    for (const k of Object.keys(obj)) {
+        if (!_DANGEROUS_KEYS.has(k)) out[k] = obj[k];
+    }
+    return out;
+}
+
 // ── Built-in Protocol Templates ─────────────────────────────────────────────
 
 const PROTOCOL_TEMPLATES = [
@@ -299,11 +317,14 @@ class ProtocolLibrary {
 
     const newId = overrides.id || `${source.id}-custom-${Date.now()}`;
 
+    const safeOverrides = _sanitize(overrides);
+    const safeParams = _sanitize(overrides.parameters || {});
+
     const cloned = {
       ...JSON.parse(JSON.stringify(source)),
-      ...overrides,
+      ...safeOverrides,
       id: newId,
-      parameters: { ...source.parameters, ...(overrides.parameters || {}) },
+      parameters: { ...source.parameters, ...safeParams },
       _clonedFrom: source.id,
       _createdAt: new Date().toISOString()
     };
@@ -427,6 +448,9 @@ class ProtocolLibrary {
     } catch (e) {
       throw new Error('Invalid JSON');
     }
+    // Sanitize against prototype pollution before merging
+    data = _sanitize(data);
+    if (data.parameters) data.parameters = _sanitize(data.parameters);
     // Ensure required fields with defaults
     data.materials = data.materials || [];
     data.postProcessing = data.postProcessing || [];

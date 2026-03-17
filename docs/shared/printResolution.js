@@ -294,7 +294,8 @@ function findOptimalPressure(opts) {
 
   for (var p = minP; p <= maxP; p += step) {
     var cfg = {};
-    for (var k in opts) { if (opts.hasOwnProperty(k)) cfg[k] = opts[k]; }
+    var _dangerousKeys = { '__proto__': 1, 'constructor': 1, 'prototype': 1 };
+    for (var k in opts) { if (opts.hasOwnProperty(k) && !_dangerousKeys[k]) cfg[k] = opts[k]; }
     cfg.pressure = p;
     var r = calculateResolution(cfg);
     var diff = Math.abs(r.strandDiameter_mm - targetStrand);

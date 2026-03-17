@@ -126,8 +126,16 @@ var MS_PER_DAY = 86400000;
  */
 function createHealthDashboard(options) {
   var opts = options || {};
-  var weights = Object.assign({}, DEFAULT_WEIGHTS, opts.weights || {});
-  var thresholds = Object.assign({}, DEFAULT_THRESHOLDS, opts.thresholds || {});
+  // Guard against prototype pollution from user-supplied options
+  var _dangerous = { '__proto__': 1, 'constructor': 1, 'prototype': 1 };
+  function _clean(o) {
+    if (!o || typeof o !== 'object') return {};
+    var r = {};
+    for (var k in o) { if (o.hasOwnProperty(k) && !_dangerous[k]) r[k] = o[k]; }
+    return r;
+  }
+  var weights = Object.assign({}, DEFAULT_WEIGHTS, _clean(opts.weights));
+  var thresholds = Object.assign({}, DEFAULT_THRESHOLDS, _clean(opts.thresholds));
   var nowFn = opts.now || function() { return new Date(); };
 
   // Validate weights sum to ~1.0

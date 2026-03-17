@@ -62,6 +62,28 @@ function getMetricValue(print, metric) {
 }
 
 /**
+ * Strip keys that could cause prototype pollution when spreading or
+ * Object.assign-ing untrusted objects.  Returns a shallow copy without
+ * dangerous keys (__proto__, constructor, prototype).  Nested objects
+ * are NOT deep-cleaned — callers should apply this at each merge site.
+ *
+ * @param {Object} obj - Untrusted input object.
+ * @returns {Object} Cleaned shallow copy (or empty object if input is falsy).
+ */
+function stripDangerousKeys(obj) {
+    if (!obj || typeof obj !== 'object') return {};
+    var DANGEROUS = { '__proto__': 1, 'constructor': 1, 'prototype': 1 };
+    var out = {};
+    var keys = Object.keys(obj);
+    for (var i = 0; i < keys.length; i++) {
+        if (!DANGEROUS[keys[i]]) {
+            out[keys[i]] = obj[keys[i]];
+        }
+    }
+    return out;
+}
+
+/**
  * Format a number for display with smart precision.
  * @param {number|null} n - Number to format.
  * @returns {string} Formatted string, or '-' if null/undefined.
