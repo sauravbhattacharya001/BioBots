@@ -37,6 +37,7 @@ var sampleTracker = require('./docs/shared/sampleTracker');
 var yieldAnalyzer = require('./docs/shared/yieldAnalyzer');
 var shelfLife = require('./docs/shared/shelfLife');
 var sterilityAssurance = require('./docs/shared/sterilityAssurance');
+var cellSeeding = require('./Try/scripts/cellSeeding');
 
 module.exports = {
     createMaterialCalculator: calculator.createMaterialCalculator,
@@ -57,5 +58,6 @@ module.exports = {
     createSampleTracker: sampleTracker.createSampleTracker,
     createYieldAnalyzer: yieldAnalyzer.createYieldAnalyzer,
     createShelfLifeManager: shelfLife.createShelfLifeManager,
-    createSterilityAssurance: sterilityAssurance.createSterilityAssurance
+    createSterilityAssurance: sterilityAssurance.createSterilityAssurance,
+    createCellSeedingCalculator: cellSeeding.createCellSeedingCalculator
 };
