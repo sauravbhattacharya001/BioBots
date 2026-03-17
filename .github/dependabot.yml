@@ -2,8 +2,8 @@
 # https://docs.github.com/en/code-security/dependabot/dependabot-version-updates
 version: 2
 updates:
-  # NuGet dependencies (packages.config)
-  - package-ecosystem: "nuget"
+  # npm dependencies (package.json)
+  - package-ecosystem: "npm"
     directory: "/"
     schedule:
       interval: "weekly"
@@ -11,16 +11,19 @@ updates:
     open-pull-requests-limit: 10
     labels:
       - "dependencies"
-      - "nuget"
+      - "npm"
     commit-message:
       prefix: "deps"
       include: "scope"
     # Group minor/patch updates to reduce PR noise
     groups:
-      microsoft:
-        patterns:
-          - "Microsoft.*"
-      all-minor-patch:
+      dev-dependencies:
+        dependency-type: "development"
+        update-types:
+          - "minor"
+          - "patch"
+      production-minor-patch:
+        dependency-type: "production"
         update-types:
           - "minor"
           - "patch"
@@ -37,4 +40,18 @@ updates:
       - "github-actions"
     commit-message:
       prefix: "ci"
+      include: "scope"
+
+  # Docker base image updates
+  - package-ecosystem: "docker"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 3
+    labels:
+      - "dependencies"
+      - "docker"
+    commit-message:
+      prefix: "docker"
       include: "scope"
