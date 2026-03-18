@@ -1,5 +1,7 @@
 'use strict';
 
+const { round } = require('./scriptUtils');
+
 /**
  * Bioprint Cost Estimator
  *
@@ -167,7 +169,7 @@ function createCostEstimator(options) {
           volumeMl: vol,
           pricePerMl: pricePerMl,
           wasteFactor: waste,
-          cost: Math.round(cost * 100) / 100,
+          cost: round(cost, 2),
           category: profile ? profile.category : 'bioink',
         });
       }
@@ -186,13 +188,13 @@ function createCostEstimator(options) {
           volumeMl: vol,
           pricePerMl: pricePerMl,
           wasteFactor: waste,
-          cost: Math.round(cost * 100) / 100,
+          cost: round(cost, 2),
           category: profile ? profile.category : 'crosslinker',
         });
       }
     }
 
-    return { total: Math.round(total * 100) / 100, items: items };
+    return { total: round(total, 2), items: items };
   }
 
   function estimateMachineTimeCost(printTimeMin, machineName) {
@@ -209,7 +211,7 @@ function createCostEstimator(options) {
       cooldownMin: cooldown,
       totalMin: totalMin,
       hourlyRate: profile.hourlyRate,
-      cost: Math.round(cost * 100) / 100,
+      cost: round(cost, 2),
       machine: machineName || 'Generic',
     };
   }
@@ -225,9 +227,9 @@ function createCostEstimator(options) {
     return {
       powerWatts: profile.powerWatts,
       totalMin: totalMin,
-      kWh: Math.round(kWh * 1000) / 1000,
+      kWh: round(kWh, 3),
       ratePerKwh: energyRate,
-      cost: Math.round(cost * 100) / 100,
+      cost: round(cost, 2),
     };
   }
 
@@ -249,11 +251,11 @@ function createCostEstimator(options) {
         key: key,
         quantity: qty,
         pricePerUnit: pricePerUnit,
-        cost: Math.round(cost * 100) / 100,
+        cost: round(cost, 2),
       });
     }
 
-    return { total: Math.round(total * 100) / 100, items: items };
+    return { total: round(total, 2), items: items };
   }
 
   function estimateLaborCost(laborEntries) {
@@ -275,11 +277,11 @@ function createCostEstimator(options) {
         label: profile.label,
         minutes: minutes,
         hourlyRate: rate,
-        cost: Math.round(cost * 100) / 100,
+        cost: round(cost, 2),
       });
     }
 
-    return { total: Math.round(total * 100) / 100, items: items };
+    return { total: round(total, 2), items: items };
   }
 
   function autoDetectConsumables(params) {
@@ -392,9 +394,9 @@ function createCostEstimator(options) {
     const costPerLayer = total / layerCount;
 
     return {
-      totalCost: Math.round(total * 100) / 100,
+      totalCost: round(total, 2),
       currency: currency,
-      costPerLayer: Math.round(costPerLayer * 100) / 100,
+      costPerLayer: round(costPerLayer, 2),
       layerCount: layerCount,
       breakdown: breakdown,
       params: {
@@ -427,10 +429,10 @@ function createCostEstimator(options) {
       results: results,
       summary: {
         count: results.length,
-        totalBatchCost: Math.round(totalBatch * 100) / 100,
-        averageCost: Math.round(avgCost * 100) / 100,
-        minCost: Math.round(minCost * 100) / 100,
-        maxCost: Math.round(maxCost * 100) / 100,
+        totalBatchCost: round(totalBatch, 2),
+        averageCost: round(avgCost, 2),
+        minCost: round(minCost, 2),
+        maxCost: round(maxCost, 2),
         currency: currency,
       },
     };
@@ -442,7 +444,7 @@ function createCostEstimator(options) {
 
     const diff = costB.totalCost - costA.totalCost;
     const pctChange = costA.totalCost > 0
-      ? Math.round((diff / costA.totalCost) * 10000) / 100
+      ? round((diff / costA.totalCost) * 100, 2)
       : 0;
 
     const categoryDiffs = {};
@@ -455,9 +457,9 @@ function createCostEstimator(options) {
         ? costB.breakdown[cat].cost
         : costB.breakdown[cat].total;
       categoryDiffs[cat] = {
-        configA: Math.round(a * 100) / 100,
-        configB: Math.round(b * 100) / 100,
-        difference: Math.round((b - a) * 100) / 100,
+        configA: round(a, 2),
+        configB: round(b, 2),
+        difference: round(b - a, 2),
       };
     }
 
@@ -473,7 +475,7 @@ function createCostEstimator(options) {
     return {
       configA: costA,
       configB: costB,
-      difference: Math.round(diff * 100) / 100,
+      difference: round(diff, 2),
       percentChange: pctChange,
       categoryDiffs: categoryDiffs,
       recommendation: recommendation,
@@ -502,9 +504,9 @@ function createCostEstimator(options) {
 
       return {
         quantity: qty,
-        totalCost: Math.round(total * 100) / 100,
-        perUnitCost: Math.round(perUnit * 100) / 100,
-        savingsPerUnit: Math.round((baseCost.totalCost - perUnit) * 100) / 100,
+        totalCost: round(total, 2),
+        perUnitCost: round(perUnit, 2),
+        savingsPerUnit: round(baseCost.totalCost - perUnit, 2),
       };
     });
 
