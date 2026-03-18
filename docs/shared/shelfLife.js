@@ -52,6 +52,15 @@ function createShelfLifeManager() {
     var usageLog = [];
     var storageEvents = [];
 
+    // --- Expiration Enforcement ---
+
+    function _enforceExpiration(entry) {
+        if (entry.status === 'active' && getDaysRemaining(entry) < 0) {
+            entry.status = 'expired';
+        }
+        return entry;
+    }
+
     // --- Bioink Management ---
 
     function addBioink(opts) {
@@ -117,6 +126,7 @@ function createShelfLifeManager() {
 
     function getBioink(id) {
         if (!bioinks[id]) throw new Error('Bioink not found: ' + id);
+        _enforceExpiration(bioinks[id]);
         return clone(bioinks[id]);
     }
 
@@ -125,6 +135,7 @@ function createShelfLifeManager() {
         var keys = Object.keys(bioinks);
         for (var i = 0; i < keys.length; i++) {
             var b = bioinks[keys[i]];
+            _enforceExpiration(b);
             if (filter) {
                 if (filter.status && b.status !== filter.status) continue;
                 if (filter.material && b.material.toLowerCase() !== filter.material.toLowerCase()) continue;
@@ -156,6 +167,7 @@ function createShelfLifeManager() {
     function calculateStabilityScore(id, referenceDate) {
         var entry = bioinks[id];
         if (!entry) throw new Error('Bioink not found: ' + id);
+        _enforceExpiration(entry);
 
         var now = referenceDate ? new Date(referenceDate) : new Date();
         var ageDays = daysBetween(entry.manufacturedDate, now);
@@ -233,6 +245,18 @@ function createShelfLifeManager() {
         if (!amount || amount <= 0) throw new Error('Amount must be positive');
 
         var entry = bioinks[bioinkId];
+        _enforceExpiration(entry);
+
+        if (entry.status === 'expired') {
+            if (!(opts && opts.forceUse)) {
+                throw new Error('Cannot use expired bioink: ' + bioinkId + '. Pass { forceUse: true } to override after re-validation.');
+            }
+        }
+
+        if (entry.status === 'discarded') {
+            throw new Error('Cannot use discarded bioink: ' + bioinkId);
+        }
+
         if (amount > entry.volume) throw new Error('Insufficient volume: ' + entry.volume + ' mL remaining');
 
         entry.volume -= amount;
@@ -244,8 +268,20 @@ function createShelfLifeManager() {
             purpose: (opts && opts.purpose) || '',
             operator: (opts && opts.operator) || '',
             printJobId: (opts && opts.printJobId) || null,
+            warnings: [],
             timestamp: new Date().toISOString()
         };
+
+        if (opts && opts.forceUse) {
+            record.warnings.push('Expired bioink used with forceUse override.');
+        }
+
+        var stability = calculateStabilityScore(bioinkId);
+        if (stability.grade === 'F') {
+            record.warnings.push('Stability grade F — material severely degraded.');
+        } else if (stability.grade === 'D') {
+            record.warnings.push('Stability grade D — material in poor condition.');
+        }
 
         usageLog.push(record);
 
