@@ -1,0 +1,793 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>BioBots 1 — Print DNA Fingerprint</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧬</text></svg>">
+    <script src="shared/constants.js"></script>
+    <script src="shared/utils.js"></script>
+    <script src="shared/data-loader.js"></script>
+    <style>
+        :root {
+            --bg: #0f172a;
+            --surface: #1e293b;
+            --border: #334155;
+            --text: #e2e8f0;
+            --muted: #94a3b8;
+            --accent: #38bdf8;
+            --accent-hover: #7dd3fc;
+            --success: #4ade80;
+            --error: #f87171;
+            --warning: #fbbf24;
+            --purple: #a78bfa;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            padding: 2rem 1rem;
+        }
+
+        .container { max-width: 1400px; margin: 0 auto; }
+
+        header { text-align: center; margin-bottom: 2rem; }
+
+        header h1 {
+            font-size: 2rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, var(--purple), var(--accent));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        header p { color: var(--muted); margin-top: 0.5rem; }
+
+        .nav {
+            display: flex;
+            justify-content: center;
+            gap: 0.5rem;
+            margin-bottom: 2rem;
+            flex-wrap: wrap;
+        }
+
+        .nav a {
+            color: var(--muted);
+            text-decoration: none;
+            padding: 0.5rem 1rem;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            transition: all 0.2s;
+        }
+
+        .nav a:hover { color: var(--text); background: var(--surface); }
+        .nav a.active { color: var(--accent); background: var(--surface); border: 1px solid var(--border); }
+
+        .card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .card h2 {
+            font-size: 1.1rem;
+            margin-bottom: 1rem;
+            color: var(--muted);
+            font-weight: 500;
+        }
+
+        .controls {
+            display: flex;
+            gap: 0.75rem;
+            align-items: center;
+            flex-wrap: wrap;
+            margin-bottom: 1rem;
+        }
+
+        .controls label { color: var(--muted); font-size: 0.9rem; }
+
+        .controls input, .controls select {
+            padding: 0.5rem 0.75rem;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            background: var(--bg);
+            color: var(--text);
+            font-size: 0.9rem;
+        }
+
+        .controls input:focus, .controls select:focus {
+            outline: none;
+            border-color: var(--accent);
+        }
+
+        button {
+            padding: 0.5rem 1rem;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            background: var(--surface);
+            color: var(--text);
+            cursor: pointer;
+            font-size: 0.9rem;
+            transition: all 0.2s;
+        }
+
+        button:hover { border-color: var(--accent); color: var(--accent); }
+        button.primary { background: var(--accent); color: var(--bg); border-color: var(--accent); font-weight: 600; }
+        button.primary:hover { background: var(--accent-hover); }
+
+        .stats-bar {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .stat-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 1rem;
+            text-align: center;
+        }
+
+        .stat-card .value { font-size: 1.5rem; font-weight: 700; color: var(--accent); }
+        .stat-card .label { font-size: 0.8rem; color: var(--muted); margin-top: 0.25rem; }
+
+        /* Fingerprint grid */
+        .fp-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+            gap: 1.25rem;
+        }
+
+        .fp-card {
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 1rem;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s;
+            position: relative;
+        }
+
+        .fp-card:hover { border-color: var(--accent); transform: translateY(-2px); }
+        .fp-card.selected { border-color: var(--accent); box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.3); }
+
+        .fp-card canvas { display: block; margin: 0 auto 0.75rem; }
+
+        .fp-card .serial { font-weight: 600; font-size: 1rem; }
+        .fp-card .hash { font-family: monospace; font-size: 0.75rem; color: var(--muted); margin-top: 0.25rem; }
+        .fp-card .score { font-size: 0.85rem; color: var(--success); margin-top: 0.25rem; }
+
+        /* Detail panel */
+        .detail-panel {
+            display: none;
+            grid-template-columns: 300px 1fr;
+            gap: 1.5rem;
+        }
+
+        .detail-panel.visible { display: grid; }
+
+        .detail-fp { text-align: center; }
+        .detail-fp canvas { margin: 0 auto; }
+
+        .detail-metrics { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; }
+
+        .metric-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.5rem 0.75rem;
+            background: var(--bg);
+            border-radius: 8px;
+            font-size: 0.9rem;
+        }
+
+        .metric-row .mname { color: var(--muted); }
+        .metric-row .mval { font-weight: 600; font-family: monospace; }
+
+        .similarity-list {
+            display: flex;
+            gap: 0.75rem;
+            overflow-x: auto;
+            padding: 0.5rem 0;
+        }
+
+        .sim-card {
+            flex-shrink: 0;
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 0.75rem;
+            text-align: center;
+            cursor: pointer;
+            min-width: 140px;
+            transition: border-color 0.2s;
+        }
+
+        .sim-card:hover { border-color: var(--accent); }
+        .sim-card .sim-pct { font-weight: 700; color: var(--accent); }
+
+        /* Pagination */
+        .pagination {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 0.5rem;
+            margin-top: 1.5rem;
+        }
+
+        .pagination span { color: var(--muted); font-size: 0.9rem; }
+
+        @media (max-width: 768px) {
+            .detail-panel.visible { grid-template-columns: 1fr; }
+            .detail-metrics { grid-template-columns: 1fr; }
+            .fp-grid { grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🧬 Print DNA Fingerprint</h1>
+            <p>Unique visual identifiers for every bioprint — find similar prints at a glance</p>
+        </header>
+
+        <nav class="nav">
+            <a href="index.html">Query Tool</a>
+            <a href="explorer.html">Data Explorer</a>
+            <a href="table.html">Data Table</a>
+            <a href="compare.html">Compare</a>
+            <a href="quality.html">Quality</a>
+            <a href="anomaly.html">Anomaly</a>
+            <a href="trends.html">Trends</a>
+            <a href="fingerprint.html" class="active">🧬 Fingerprint</a>
+            <a href="profile.html">Profile</a>
+            <a href="cluster.html">Clusters</a>
+        </nav>
+
+        <!-- Stats -->
+        <div class="stats-bar">
+            <div class="stat-card">
+                <div class="value" id="totalPrints">-</div>
+                <div class="label">Total Prints</div>
+            </div>
+            <div class="stat-card">
+                <div class="value" id="uniquePatterns">-</div>
+                <div class="label">Unique Patterns</div>
+            </div>
+            <div class="stat-card">
+                <div class="value" id="avgSimilarity">-</div>
+                <div class="label">Avg Similarity</div>
+            </div>
+            <div class="stat-card">
+                <div class="value" id="clusterCount">-</div>
+                <div class="label">Visual Clusters</div>
+            </div>
+        </div>
+
+        <!-- Controls -->
+        <div class="card">
+            <h2>⚙️ Controls</h2>
+            <div class="controls">
+                <label>Search Print #</label>
+                <input type="number" id="searchSerial" placeholder="e.g. 42" min="0" />
+                <button onclick="jumpToPrint()">Go</button>
+
+                <label style="margin-left:1rem;">Sort by</label>
+                <select id="sortBy" onchange="renderGrid()">
+                    <option value="serial">Serial #</option>
+                    <option value="livePercent">Live Cell %</option>
+                    <option value="elasticity">Elasticity</option>
+                    <option value="similarity">Similarity to Selected</option>
+                </select>
+
+                <label style="margin-left:1rem;">Style</label>
+                <select id="fpStyle" onchange="renderGrid()">
+                    <option value="geometric">Geometric</option>
+                    <option value="ring">Ring</option>
+                    <option value="helix">Helix</option>
+                </select>
+
+                <button style="margin-left:auto;" onclick="exportAll()">📥 Export All PNG</button>
+            </div>
+        </div>
+
+        <!-- Detail panel -->
+        <div class="card" id="detailCard" style="display:none;">
+            <h2>🔍 Print Detail — <span id="detailSerial"></span></h2>
+            <div class="detail-panel visible">
+                <div class="detail-fp">
+                    <canvas id="detailCanvas" width="240" height="240"></canvas>
+                    <div id="detailHash" style="font-family:monospace;font-size:0.8rem;color:var(--muted);margin-top:0.5rem;"></div>
+                    <button style="margin-top:0.75rem;" onclick="exportSingle()">📥 Save PNG</button>
+                </div>
+                <div>
+                    <div class="detail-metrics" id="detailMetrics"></div>
+                    <h2 style="margin-top:1.25rem;">🔗 Most Similar Prints</h2>
+                    <div class="similarity-list" id="similarList"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Grid -->
+        <div class="card">
+            <h2>🧬 Fingerprint Gallery</h2>
+            <div class="fp-grid" id="fpGrid"></div>
+            <div class="pagination">
+                <button onclick="prevPage()">← Prev</button>
+                <span id="pageInfo">Page 1</span>
+                <button onclick="nextPage()">Next →</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+    'use strict';
+
+    var printData = [];
+    var normalized = []; // normalized metric vectors
+    var currentPage = 0;
+    var pageSize = 24;
+    var selectedIdx = -1;
+
+    // Metrics used for fingerprint generation
+    var fpMetrics = [
+        { key: 'livePercent',  get: function(p) { return p.print_data.livePercent; } },
+        { key: 'deadPercent',  get: function(p) { return p.print_data.deadPercent; } },
+        { key: 'elasticity',   get: function(p) { return p.print_data.elasticity; } },
+        { key: 'cl_duration',  get: function(p) { return p.print_info.crosslinking.cl_duration; } },
+        { key: 'cl_intensity', get: function(p) { return p.print_info.crosslinking.cl_intensity; } },
+        { key: 'extruder1',    get: function(p) { return p.print_info.pressure.extruder1; } },
+        { key: 'extruder2',    get: function(p) { return p.print_info.pressure.extruder2; } },
+        { key: 'layerHeight',  get: function(p) { return p.print_info.resolution.layerHeight; } },
+        { key: 'layerNum',     get: function(p) { return p.print_info.resolution.layerNum; } }
+    ];
+
+    // ─── Normalize data ────────────────────────────────
+    function normalizeData() {
+        var mins = fpMetrics.map(function() { return Infinity; });
+        var maxs = fpMetrics.map(function() { return -Infinity; });
+
+        printData.forEach(function(p) {
+            fpMetrics.forEach(function(m, i) {
+                var v = m.get(p);
+                if (v < mins[i]) mins[i] = v;
+                if (v > maxs[i]) maxs[i] = v;
+            });
+        });
+
+        normalized = printData.map(function(p) {
+            return fpMetrics.map(function(m, i) {
+                var range = maxs[i] - mins[i];
+                return range === 0 ? 0.5 : (m.get(p) - mins[i]) / range;
+            });
+        });
+    }
+
+    // ─── Hash for display ──────────────────────────────
+    function fpHash(vec) {
+        var h = 0;
+        vec.forEach(function(v, i) {
+            h = ((h << 5) - h + Math.round(v * 255 * (i + 1))) | 0;
+        });
+        return ('00000000' + (h >>> 0).toString(16)).slice(-8).toUpperCase();
+    }
+
+    // ─── Color from vector ─────────────────────────────
+    function vecToColors(vec) {
+        var r = Math.round(vec[0] * 100 + vec[2] * 155);
+        var g = Math.round(vec[1] * 100 + vec[3] * 155);
+        var b = Math.round(vec[4] * 100 + vec[5] * 155);
+        var r2 = Math.round(vec[6] * 200 + 55);
+        var g2 = Math.round(vec[7] * 200 + 55);
+        var b2 = Math.round(vec[8] * 200 + 55);
+        return {
+            primary: 'rgb(' + r + ',' + g + ',' + b + ')',
+            secondary: 'rgb(' + r2 + ',' + g2 + ',' + b2 + ')',
+            bg: 'rgb(' + Math.round(r * 0.15) + ',' + Math.round(g * 0.15) + ',' + Math.round(b * 0.15) + ')'
+        };
+    }
+
+    // ─── Draw fingerprint ──────────────────────────────
+    function drawFingerprint(canvas, vec, size) {
+        var ctx = canvas.getContext('2d');
+        var w = size || canvas.width;
+        var h = size || canvas.height;
+        canvas.width = w;
+        canvas.height = h;
+        var cx = w / 2, cy = h / 2, r = w * 0.4;
+        var colors = vecToColors(vec);
+        var style = document.getElementById('fpStyle').value;
+
+        // Background
+        ctx.fillStyle = colors.bg;
+        ctx.beginPath();
+        ctx.arc(cx, cy, r * 1.15, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Border ring
+        ctx.strokeStyle = colors.primary;
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(cx, cy, r * 1.1, 0, Math.PI * 2);
+        ctx.stroke();
+
+        if (style === 'geometric') {
+            drawGeometric(ctx, cx, cy, r, vec, colors);
+        } else if (style === 'ring') {
+            drawRing(ctx, cx, cy, r, vec, colors);
+        } else {
+            drawHelix(ctx, cx, cy, r, vec, colors);
+        }
+
+        // Radar overlay
+        drawRadar(ctx, cx, cy, r * 0.85, vec, colors);
+    }
+
+    function drawGeometric(ctx, cx, cy, r, vec, colors) {
+        // Concentric polygons based on metrics
+        vec.forEach(function(v, i) {
+            var sides = 3 + Math.round(v * 5); // 3-8 sided polygon
+            var pr = r * 0.3 + r * 0.6 * (i / vec.length);
+            var rot = v * Math.PI * 2;
+            ctx.beginPath();
+            for (var s = 0; s <= sides; s++) {
+                var angle = rot + (s / sides) * Math.PI * 2;
+                var px = cx + Math.cos(angle) * pr * (0.5 + v * 0.5);
+                var py = cy + Math.sin(angle) * pr * (0.5 + v * 0.5);
+                s === 0 ? ctx.moveTo(px, py) : ctx.lineTo(px, py);
+            }
+            ctx.closePath();
+            ctx.strokeStyle = i % 2 === 0 ? colors.primary : colors.secondary;
+            ctx.globalAlpha = 0.4 + v * 0.4;
+            ctx.lineWidth = 1.5;
+            ctx.stroke();
+        });
+        ctx.globalAlpha = 1;
+    }
+
+    function drawRing(ctx, cx, cy, r, vec, colors) {
+        // Concentric arcs with varying thickness
+        vec.forEach(function(v, i) {
+            var ir = r * 0.2 + (r * 0.75) * (i / vec.length);
+            var startAngle = v * Math.PI * 2;
+            var arcLen = (0.3 + v * 0.7) * Math.PI * 2;
+            ctx.beginPath();
+            ctx.arc(cx, cy, ir, startAngle, startAngle + arcLen);
+            ctx.strokeStyle = i % 2 === 0 ? colors.primary : colors.secondary;
+            ctx.lineWidth = 2 + v * 4;
+            ctx.globalAlpha = 0.5 + v * 0.3;
+            ctx.stroke();
+        });
+        ctx.globalAlpha = 1;
+    }
+
+    function drawHelix(ctx, cx, cy, r, vec, colors) {
+        // Double helix inspired by DNA
+        var steps = 60;
+        ctx.lineWidth = 2;
+        for (var strand = 0; strand < 2; strand++) {
+            ctx.beginPath();
+            for (var s = 0; s <= steps; s++) {
+                var t = s / steps;
+                var angle = t * Math.PI * 4 + strand * Math.PI;
+                var wave = Math.sin(angle) * r * 0.3;
+                var px = cx + wave * (0.5 + vec[strand * 3] * 0.5);
+                var py = cy - r * 0.85 + t * r * 1.7;
+                s === 0 ? ctx.moveTo(px, py) : ctx.lineTo(px, py);
+            }
+            ctx.strokeStyle = strand === 0 ? colors.primary : colors.secondary;
+            ctx.globalAlpha = 0.7;
+            ctx.stroke();
+        }
+
+        // Cross-links based on metric values
+        vec.forEach(function(v, i) {
+            var t = (i + 0.5) / vec.length;
+            var angle = t * Math.PI * 4;
+            var y = cy - r * 0.85 + t * r * 1.7;
+            var x1 = cx + Math.sin(angle) * r * 0.3;
+            var x2 = cx - Math.sin(angle) * r * 0.3;
+            ctx.beginPath();
+            ctx.moveTo(x1, y);
+            ctx.lineTo(x2, y);
+            ctx.strokeStyle = colors.primary;
+            ctx.lineWidth = 1 + v * 2;
+            ctx.globalAlpha = 0.3 + v * 0.4;
+            ctx.stroke();
+            // Node
+            ctx.beginPath();
+            ctx.arc(cx, y, 2 + v * 3, 0, Math.PI * 2);
+            ctx.fillStyle = colors.secondary;
+            ctx.globalAlpha = 0.8;
+            ctx.fill();
+        });
+        ctx.globalAlpha = 1;
+    }
+
+    function drawRadar(ctx, cx, cy, r, vec, colors) {
+        var n = vec.length;
+        // Radar web
+        ctx.strokeStyle = 'rgba(148,163,184,0.15)';
+        ctx.lineWidth = 0.5;
+        for (var ring = 1; ring <= 3; ring++) {
+            ctx.beginPath();
+            for (var i = 0; i <= n; i++) {
+                var a = (i / n) * Math.PI * 2 - Math.PI / 2;
+                var rr = r * (ring / 3) * 0.5;
+                i === 0 ? ctx.moveTo(cx + Math.cos(a) * rr, cy + Math.sin(a) * rr) : ctx.lineTo(cx + Math.cos(a) * rr, cy + Math.sin(a) * rr);
+            }
+            ctx.closePath();
+            ctx.stroke();
+        }
+
+        // Data polygon
+        ctx.beginPath();
+        vec.forEach(function(v, i) {
+            var a = (i / n) * Math.PI * 2 - Math.PI / 2;
+            var rr = r * 0.5 * v;
+            i === 0 ? ctx.moveTo(cx + Math.cos(a) * rr, cy + Math.sin(a) * rr) : ctx.lineTo(cx + Math.cos(a) * rr, cy + Math.sin(a) * rr);
+        });
+        ctx.closePath();
+        ctx.fillStyle = colors.primary;
+        ctx.globalAlpha = 0.15;
+        ctx.fill();
+        ctx.globalAlpha = 0.6;
+        ctx.strokeStyle = colors.primary;
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+        ctx.globalAlpha = 1;
+    }
+
+    // ─── Similarity ────────────────────────────────────
+    function cosineSimilarity(a, b) {
+        var dot = 0, magA = 0, magB = 0;
+        for (var i = 0; i < a.length; i++) {
+            dot += a[i] * b[i];
+            magA += a[i] * a[i];
+            magB += b[i] * b[i];
+        }
+        magA = Math.sqrt(magA);
+        magB = Math.sqrt(magB);
+        return magA && magB ? dot / (magA * magB) : 0;
+    }
+
+    function findSimilar(idx, count) {
+        var target = normalized[idx];
+        var scores = [];
+        normalized.forEach(function(vec, i) {
+            if (i !== idx) {
+                scores.push({ idx: i, sim: cosineSimilarity(target, vec) });
+            }
+        });
+        scores.sort(function(a, b) { return b.sim - a.sim; });
+        return scores.slice(0, count || 6);
+    }
+
+    // ─── Render grid ───────────────────────────────────
+    function renderGrid() {
+        var grid = document.getElementById('fpGrid');
+        grid.innerHTML = '';
+
+        var sorted = printData.map(function(p, i) { return i; });
+        var sortBy = document.getElementById('sortBy').value;
+
+        if (sortBy === 'serial') {
+            sorted.sort(function(a, b) { return printData[a].user_info.serial - printData[b].user_info.serial; });
+        } else if (sortBy === 'livePercent') {
+            sorted.sort(function(a, b) { return printData[b].print_data.livePercent - printData[a].print_data.livePercent; });
+        } else if (sortBy === 'elasticity') {
+            sorted.sort(function(a, b) { return printData[b].print_data.elasticity - printData[a].print_data.elasticity; });
+        } else if (sortBy === 'similarity' && selectedIdx >= 0) {
+            var ref = normalized[selectedIdx];
+            sorted.sort(function(a, b) {
+                return cosineSimilarity(ref, normalized[b]) - cosineSimilarity(ref, normalized[a]);
+            });
+        }
+
+        var totalPages = Math.ceil(sorted.length / pageSize);
+        if (currentPage >= totalPages) currentPage = totalPages - 1;
+        if (currentPage < 0) currentPage = 0;
+
+        var start = currentPage * pageSize;
+        var pageItems = sorted.slice(start, start + pageSize);
+
+        pageItems.forEach(function(idx) {
+            var p = printData[idx];
+            var vec = normalized[idx];
+            var card = document.createElement('div');
+            card.className = 'fp-card' + (idx === selectedIdx ? ' selected' : '');
+            card.onclick = function() { selectPrint(idx); };
+
+            var canvas = document.createElement('canvas');
+            canvas.width = 160;
+            canvas.height = 160;
+            card.appendChild(canvas);
+
+            var serial = document.createElement('div');
+            serial.className = 'serial';
+            serial.textContent = 'Print #' + escapeHtml(p.user_info.serial);
+            card.appendChild(serial);
+
+            var hash = document.createElement('div');
+            hash.className = 'hash';
+            hash.textContent = '0x' + fpHash(vec);
+            card.appendChild(hash);
+
+            var score = document.createElement('div');
+            score.className = 'score';
+            score.textContent = '🧫 ' + p.print_data.livePercent.toFixed(1) + '% live';
+            card.appendChild(score);
+
+            grid.appendChild(card);
+            drawFingerprint(canvas, vec, 160);
+        });
+
+        document.getElementById('pageInfo').textContent = 'Page ' + (currentPage + 1) + ' of ' + totalPages;
+    }
+
+    function prevPage() { if (currentPage > 0) { currentPage--; renderGrid(); } }
+    function nextPage() {
+        var totalPages = Math.ceil(printData.length / pageSize);
+        if (currentPage < totalPages - 1) { currentPage++; renderGrid(); }
+    }
+
+    // ─── Select print ──────────────────────────────────
+    function selectPrint(idx) {
+        selectedIdx = idx;
+        var p = printData[idx];
+        var vec = normalized[idx];
+
+        document.getElementById('detailCard').style.display = 'block';
+        document.getElementById('detailSerial').textContent = 'Print #' + escapeHtml(p.user_info.serial);
+        document.getElementById('detailHash').textContent = 'DNA Hash: 0x' + fpHash(vec);
+
+        var detailCanvas = document.getElementById('detailCanvas');
+        drawFingerprint(detailCanvas, vec, 240);
+
+        // Metrics
+        var metricsDiv = document.getElementById('detailMetrics');
+        metricsDiv.innerHTML = '';
+        fpMetrics.forEach(function(m, i) {
+            var val = m.get(p);
+            var label = (typeof metricLabels !== 'undefined' && metricLabels[m.key]) ? metricLabels[m.key] : m.key;
+            var row = document.createElement('div');
+            row.className = 'metric-row';
+            row.innerHTML = '<span class="mname">' + escapeHtml(label) + '</span><span class="mval">' + escapeHtml(typeof val === 'number' ? val.toFixed(2) : val) + '</span>';
+            metricsDiv.appendChild(row);
+        });
+
+        // Similar prints
+        var simList = document.getElementById('similarList');
+        simList.innerHTML = '';
+        var similar = findSimilar(idx, 8);
+        similar.forEach(function(s) {
+            var sp = printData[s.idx];
+            var sv = normalized[s.idx];
+            var simCard = document.createElement('div');
+            simCard.className = 'sim-card';
+            simCard.onclick = function() { selectPrint(s.idx); currentPage = Math.floor(s.idx / pageSize); renderGrid(); };
+
+            var c = document.createElement('canvas');
+            c.width = 80; c.height = 80;
+            simCard.appendChild(c);
+
+            var pct = document.createElement('div');
+            pct.className = 'sim-pct';
+            pct.textContent = (s.sim * 100).toFixed(1) + '% match';
+            simCard.appendChild(pct);
+
+            var sn = document.createElement('div');
+            sn.style.cssText = 'font-size:0.8rem;color:var(--muted);';
+            sn.textContent = '#' + escapeHtml(sp.user_info.serial);
+            simCard.appendChild(sn);
+
+            simList.appendChild(simCard);
+            drawFingerprint(c, sv, 80);
+        });
+
+        renderGrid(); // Re-render to update selected state
+        document.getElementById('detailCard').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+
+    // ─── Search ────────────────────────────────────────
+    function jumpToPrint() {
+        var serial = parseInt(document.getElementById('searchSerial').value, 10);
+        if (isNaN(serial)) return;
+        for (var i = 0; i < printData.length; i++) {
+            if (printData[i].user_info.serial === serial) {
+                currentPage = Math.floor(i / pageSize);
+                selectPrint(i);
+                return;
+            }
+        }
+        alert('Print #' + serial + ' not found');
+    }
+
+    // ─── Export ────────────────────────────────────────
+    function exportSingle() {
+        if (selectedIdx < 0) return;
+        var canvas = document.createElement('canvas');
+        canvas.width = 400; canvas.height = 400;
+        drawFingerprint(canvas, normalized[selectedIdx], 400);
+        var link = document.createElement('a');
+        link.download = 'fingerprint_' + printData[selectedIdx].user_info.serial + '.png';
+        link.href = canvas.toDataURL('image/png');
+        link.click();
+    }
+
+    function exportAll() {
+        // Export first 100 as a contact sheet
+        var cols = 10, size = 120;
+        var count = Math.min(printData.length, 100);
+        var rows = Math.ceil(count / cols);
+        var canvas = document.createElement('canvas');
+        canvas.width = cols * size;
+        canvas.height = rows * size;
+        var ctx = canvas.getContext('2d');
+        ctx.fillStyle = '#0f172a';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        for (var i = 0; i < count; i++) {
+            var tmpCanvas = document.createElement('canvas');
+            tmpCanvas.width = size; tmpCanvas.height = size;
+            drawFingerprint(tmpCanvas, normalized[i], size);
+            ctx.drawImage(tmpCanvas, (i % cols) * size, Math.floor(i / cols) * size);
+        }
+
+        var link = document.createElement('a');
+        link.download = 'fingerprint_gallery.png';
+        link.href = canvas.toDataURL('image/png');
+        link.click();
+    }
+
+    // ─── Compute stats ─────────────────────────────────
+    function computeStats() {
+        document.getElementById('totalPrints').textContent = printData.length;
+
+        // Count unique hashes
+        var hashes = {};
+        normalized.forEach(function(vec) { hashes[fpHash(vec)] = true; });
+        document.getElementById('uniquePatterns').textContent = Object.keys(hashes).length;
+
+        // Average pairwise similarity (sample)
+        var sampleSize = Math.min(100, printData.length);
+        var totalSim = 0, pairs = 0;
+        for (var i = 0; i < sampleSize; i++) {
+            for (var j = i + 1; j < sampleSize; j++) {
+                totalSim += cosineSimilarity(normalized[i], normalized[j]);
+                pairs++;
+            }
+        }
+        document.getElementById('avgSimilarity').textContent = pairs ? (totalSim / pairs * 100).toFixed(1) + '%' : '-';
+
+        // Simple cluster estimate via unique hash prefixes
+        var prefixes = {};
+        normalized.forEach(function(vec) { prefixes[fpHash(vec).slice(0, 4)] = true; });
+        document.getElementById('clusterCount').textContent = Object.keys(prefixes).length;
+    }
+
+    // ─── Init ──────────────────────────────────────────
+    loadBioprintData({ validate: true })
+        .then(function(data) {
+            printData = data;
+            normalizeData();
+            computeStats();
+            renderGrid();
+        })
+        .catch(function(err) {
+            document.getElementById('totalPrints').textContent = 'ERR';
+            console.error('Failed to load data:', err);
+        });
+    </script>
+</body>
+</html>
