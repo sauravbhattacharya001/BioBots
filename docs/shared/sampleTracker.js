@@ -30,6 +30,20 @@ function createSampleTracker() {
 
     function _now() { return new Date().toISOString(); }
 
+    /** @private Strip prototype-polluting keys from metadata objects. */
+    var _DANGEROUS_KEYS = { '__proto__': 1, 'constructor': 1, 'prototype': 1 };
+    function _sanitizeMetadata(obj) {
+        if (!obj || typeof obj !== 'object') return {};
+        var clean = {};
+        var keys = Object.keys(obj);
+        for (var i = 0; i < keys.length; i++) {
+            if (!_DANGEROUS_KEYS[keys[i]]) {
+                clean[keys[i]] = obj[keys[i]];
+            }
+        }
+        return clean;
+    }
+
     function addSample(opts) {
         if (!opts || !opts.name || typeof opts.name !== 'string' || !opts.name.trim()) {
             throw new Error('Sample name is required');
@@ -43,7 +57,7 @@ function createSampleTracker() {
             priority: PRIORITIES.indexOf(opts.priority) >= 0 ? opts.priority : 'medium',
             assignee: (opts.assignee || '').trim() || null,
             notes: [],
-            metadata: opts.metadata || {},
+            metadata: _sanitizeMetadata(opts.metadata || {}),
             timestamps: { created: _now(), Queued: _now() },
             history: [{ stage: STAGES[0], timestamp: _now(), action: 'created' }]
         };

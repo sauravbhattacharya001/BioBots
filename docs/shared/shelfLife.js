@@ -67,9 +67,18 @@ function createShelfLifeManager() {
 
     // --- Bioink Management ---
 
+    /** @private Keys that must never be used as bioink IDs to prevent prototype pollution. */
+    var DANGEROUS_KEYS = { '__proto__': 1, 'constructor': 1, 'prototype': 1 };
+
     function addBioink(opts) {
         if (!opts || !opts.id) throw new Error('Bioink id is required');
-        if (bioinks[opts.id]) throw new Error('Bioink already exists: ' + opts.id);
+        var bioinkId = String(opts.id);
+        if (DANGEROUS_KEYS[bioinkId]) {
+            throw new Error('Invalid bioink id: ' + bioinkId);
+        }
+        if (Object.prototype.hasOwnProperty.call(bioinks, bioinkId) && bioinks[bioinkId]) {
+            throw new Error('Bioink already exists: ' + bioinkId);
+        }
         if (!opts.material) throw new Error('Material type is required');
 
         var matKey = opts.material.toLowerCase().replace(/[\s-]/g, '_');
@@ -99,13 +108,13 @@ function createShelfLifeManager() {
     }
 
     function removeBioink(id) {
-        if (!bioinks[id]) throw new Error('Bioink not found: ' + id);
+        if (!Object.prototype.hasOwnProperty.call(bioinks, id) || !bioinks[id]) throw new Error('Bioink not found: ' + id);
         bioinks[id].status = 'discarded';
         return clone(bioinks[id]);
     }
 
     function updateBioink(id, updates) {
-        if (!bioinks[id]) throw new Error('Bioink not found: ' + id);
+        if (!Object.prototype.hasOwnProperty.call(bioinks, id) || !bioinks[id]) throw new Error('Bioink not found: ' + id);
         var entry = bioinks[id];
         var allowed = ['storageTemp', 'lightExposed', 'openedDate', 'volume', 'notes', 'status'];
         for (var i = 0; i < allowed.length; i++) {
@@ -129,7 +138,7 @@ function createShelfLifeManager() {
     }
 
     function getBioink(id) {
-        if (!bioinks[id]) throw new Error('Bioink not found: ' + id);
+        if (!Object.prototype.hasOwnProperty.call(bioinks, id) || !bioinks[id]) throw new Error('Bioink not found: ' + id);
         _enforceExpiration(bioinks[id]);
         return clone(bioinks[id]);
     }
@@ -138,6 +147,7 @@ function createShelfLifeManager() {
         var results = [];
         var keys = Object.keys(bioinks);
         for (var i = 0; i < keys.length; i++) {
+            if (!Object.prototype.hasOwnProperty.call(bioinks, keys[i])) continue;
             var b = bioinks[keys[i]];
             _enforceExpiration(b);
             if (filter) {
@@ -169,6 +179,7 @@ function createShelfLifeManager() {
     }
 
     function calculateStabilityScore(id, referenceDate) {
+        if (!Object.prototype.hasOwnProperty.call(bioinks, id)) throw new Error('Bioink not found: ' + id);
         var entry = bioinks[id];
         if (!entry) throw new Error('Bioink not found: ' + id);
         _enforceExpiration(entry);
@@ -245,7 +256,7 @@ function createShelfLifeManager() {
     // --- Usage Tracking ---
 
     function recordUsage(bioinkId, amount, opts) {
-        if (!bioinks[bioinkId]) throw new Error('Bioink not found: ' + bioinkId);
+        if (!Object.prototype.hasOwnProperty.call(bioinks, bioinkId) || !bioinks[bioinkId]) throw new Error('Bioink not found: ' + bioinkId);
         if (!amount || amount <= 0) throw new Error('Amount must be positive');
 
         var entry = bioinks[bioinkId];
