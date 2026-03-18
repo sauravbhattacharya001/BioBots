@@ -187,12 +187,45 @@ function createSampleTracker() {
         return JSON.stringify({ samples: samples, exportedAt: _now(), stats: getStats() }, null, 2);
     }
 
+    /**
+     * Escape a value for safe CSV embedding.
+     * Wraps in quotes when the value contains comma, quote, or newline.
+     * Prefixes formula-triggering characters (= + - @ \t \r) with a
+     * single-quote to prevent spreadsheet formula injection (OWASP).
+     * Numeric strings starting with +/- are left as-is.
+     * @private
+     */
+    function _escapeCSV(value) {
+        if (value == null) return '';
+        var str = String(value);
+        var ch = str.charAt(0);
+        if (ch === '=' || ch === '+' || ch === '-' ||
+            ch === '@' || ch === '\t' || ch === '\r') {
+            if (!((ch === '-' || ch === '+') && str.length > 1 && isFinite(Number(str)))) {
+                str = "'" + str;
+            }
+        }
+        if (str.indexOf(',') !== -1 || str.indexOf('"') !== -1 ||
+            str.indexOf('\n') !== -1 || str.indexOf('\r') !== -1 ||
+            str !== str.trim()) {
+            return '"' + str.replace(/"/g, '""') + '"';
+        }
+        return str;
+    }
+
     function exportCSV() {
         var header = 'ID,Name,Material,Cell Type,Stage,Priority,Assignee,Created';
         var rows = samples.map(function(s) {
-            return [s.id, '"' + s.name.replace(/"/g, '""') + '"', '"' + s.material + '"',
-                '"' + s.cellType + '"', s.stage, s.priority,
-                s.assignee ? '"' + s.assignee + '"' : '', s.timestamps.created].join(',');
+            return [
+                s.id,
+                _escapeCSV(s.name),
+                _escapeCSV(s.material),
+                _escapeCSV(s.cellType),
+                _escapeCSV(s.stage),
+                _escapeCSV(s.priority),
+                _escapeCSV(s.assignee),
+                _escapeCSV(s.timestamps.created)
+            ].join(',');
         });
         return header + '\n' + rows.join('\n');
     }

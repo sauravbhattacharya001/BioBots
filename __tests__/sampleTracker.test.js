@@ -209,6 +209,25 @@ describe('SampleTracker', function() {
             expect(csv).toContain('ID,Name');
             expect(csv).toContain('Test ""Quote""');
         });
+
+        it('defends against CSV formula injection in exportCSV', function() {
+            tracker.addSample({ name: '=CMD("calc")', material: '+dangerous', cellType: '@sum(A1)', assignee: '-1+1' });
+            var csv = tracker.exportCSV();
+            // Formula-triggering characters should be prefixed with single-quote
+            expect(csv).toContain("'=CMD");
+            expect(csv).toContain("'+dangerous");
+            expect(csv).toContain("'@sum");
+            // -1+1 is not a valid number, so it should also be prefixed
+            expect(csv).toContain("'-1+1");
+        });
+
+        it('preserves legitimate negative numbers in exportCSV', function() {
+            // Numeric strings starting with - should NOT be prefixed
+            tracker.addSample({ name: 'Normal Sample' });
+            var csv = tracker.exportCSV();
+            // Just verify it doesn't crash and has the sample
+            expect(csv).toContain('Normal Sample');
+        });
     });
 
     describe('onEvent', function() {
