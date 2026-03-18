@@ -58,8 +58,13 @@ function createDataExporter() {
         return str;
     }
 
+    /** @private Keys that must never be traversed to prevent prototype pollution. */
+    var DANGEROUS_KEYS = { '__proto__': 1, 'constructor': 1, 'prototype': 1 };
+
     /**
      * Resolve a nested property path (e.g., 'print_data.livePercent').
+     * Rejects paths containing dangerous keys (__proto__, constructor, prototype)
+     * to prevent prototype pollution and internal property leakage.
      * @param {object} obj - Source object.
      * @param {string} path - Dot-separated path.
      * @returns {*} Resolved value or null.
@@ -69,7 +74,9 @@ function createDataExporter() {
         var parts = path.split('.');
         var current = obj;
         for (var i = 0; i < parts.length; i++) {
+            if (DANGEROUS_KEYS[parts[i]]) return null;
             if (current == null || typeof current !== 'object') return null;
+            if (!Object.prototype.hasOwnProperty.call(current, parts[i])) return null;
             current = current[parts[i]];
         }
         return current === undefined ? null : current;
@@ -140,8 +147,13 @@ function createDataExporter() {
                 opts.fields.forEach(function(field) {
                     var val = resolvePath(item, field);
                     if (val !== null) {
-                        // Preserve nested structure
+                        // Preserve nested structure — skip dangerous keys
                         var parts = field.split('.');
+                        var hasDangerous = false;
+                        for (var j = 0; j < parts.length; j++) {
+                            if (DANGEROUS_KEYS[parts[j]]) { hasDangerous = true; break; }
+                        }
+                        if (hasDangerous) return;
                         var target = filtered;
                         for (var i = 0; i < parts.length - 1; i++) {
                             if (!target[parts[i]]) target[parts[i]] = {};
