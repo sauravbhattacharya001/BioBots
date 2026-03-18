@@ -52,6 +52,19 @@ function createShelfLifeManager() {
     var usageLog = [];
     var storageEvents = [];
 
+    // --- Expiration Enforcement ---
+
+    /**
+     * Transition an active bioink to 'expired' status if its shelf life
+     * has elapsed.  Called at the start of read/write operations to ensure
+     * stale entries are never silently returned as 'active'.
+     */
+    function _enforceExpiration(entry) {
+        if (entry.status === 'active' && getDaysRemaining(entry) < 0) {
+            entry.status = 'expired';
+        }
+    }
+
     // --- Bioink Management ---
 
     function addBioink(opts) {
@@ -117,6 +130,7 @@ function createShelfLifeManager() {
 
     function getBioink(id) {
         if (!bioinks[id]) throw new Error('Bioink not found: ' + id);
+        _enforceExpiration(bioinks[id]);
         return clone(bioinks[id]);
     }
 
@@ -125,6 +139,7 @@ function createShelfLifeManager() {
         var keys = Object.keys(bioinks);
         for (var i = 0; i < keys.length; i++) {
             var b = bioinks[keys[i]];
+            _enforceExpiration(b);
             if (filter) {
                 if (filter.status && b.status !== filter.status) continue;
                 if (filter.material && b.material.toLowerCase() !== filter.material.toLowerCase()) continue;
@@ -156,6 +171,7 @@ function createShelfLifeManager() {
     function calculateStabilityScore(id, referenceDate) {
         var entry = bioinks[id];
         if (!entry) throw new Error('Bioink not found: ' + id);
+        _enforceExpiration(entry);
 
         var now = referenceDate ? new Date(referenceDate) : new Date();
         var ageDays = daysBetween(entry.manufacturedDate, now);
@@ -233,6 +249,20 @@ function createShelfLifeManager() {
         if (!amount || amount <= 0) throw new Error('Amount must be positive');
 
         var entry = bioinks[bioinkId];
+        _enforceExpiration(entry);
+
+        if (entry.status === 'expired') {
+            if (!(opts && opts.forceUse)) {
+                throw new Error('Cannot use expired bioink: ' + bioinkId + '. Pass { forceUse: true } to override after re-validation.');
+            }
+        }
+        if (entry.status === 'discarded') {
+            throw new Error('Cannot use discarded bioink: ' + bioinkId);
+        }
+        if (entry.status === 'depleted') {
+            throw new Error('Cannot use depleted bioink: ' + bioinkId);
+        }
+
         if (amount > entry.volume) throw new Error('Insufficient volume: ' + entry.volume + ' mL remaining');
 
         entry.volume -= amount;
@@ -275,9 +305,11 @@ function createShelfLifeManager() {
         var keys = Object.keys(bioinks);
         for (var i = 0; i < keys.length; i++) {
             var entry = bioinks[keys[i]];
-            if (entry.status !== 'active') continue;
+            _enforceExpiration(entry);
+            if (entry.status !== 'active' && entry.status !== 'expired') continue;
             var daysLeft = getDaysRemaining(entry);
             if (daysLeft < 0) {
+                if (entry.status !== 'expired') continue; // should not happen after enforcement
                 alerts.push({
                     bioinkId: entry.id,
                     severity: 'critical',
@@ -299,6 +331,7 @@ function createShelfLifeManager() {
         // Temperature warnings
         for (var j = 0; j < keys.length; j++) {
             var e = bioinks[keys[j]];
+            _enforceExpiration(e);
             if (e.status !== 'active') continue;
             var mk = e.material.toLowerCase().replace(/[\s-]/g, '_');
             var defs = MATERIAL_DEFAULTS[mk];
