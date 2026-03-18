@@ -6,3 +6,6 @@ contact_links:
   - name: 🧬 Protocol Library Docs
     url: https://sauravbhattacharya001.github.io/BioBots/api.html
     about: View existing protocols and API documentation before submitting a new one
+  - name: 🔐 Report Critical Security Issue (Private)
+    url: https://github.com/sauravbhattacharya001/BioBots/security/advisories/new
+    about: For critical vulnerabilities that should not be publicly disclosed

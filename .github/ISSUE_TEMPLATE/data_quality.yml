@@ -1,0 +1,100 @@
+---
+name: 📊 Data Quality Issue
+description: Report inaccurate, missing, or inconsistent data in bioprint datasets or query results
+title: "[Data]: "
+labels: ["data-quality", "bug"]
+assignees: []
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use this template to report issues with bioprint data accuracy, missing records, inconsistent metrics, or unexpected query results that may indicate data pipeline problems.
+
+  - type: dropdown
+    id: issue-type
+    attributes:
+      label: Data Issue Type
+      description: What kind of data problem did you find?
+      options:
+        - Missing data — expected records not present
+        - Incorrect values — metrics out of expected range
+        - Inconsistent data — conflicting values across fields
+        - Stale data — data not updated when expected
+        - Duplicate records
+        - Schema violation — unexpected types or formats
+        - Statistical anomaly — values that look wrong
+        - Other
+    validations:
+      required: true
+
+  - type: dropdown
+    id: dataset
+    attributes:
+      label: Affected Dataset
+      description: Which data source is affected?
+      options:
+        - bioprint-data.json (main dataset)
+        - API query results
+        - Aggregated metrics / statistics
+        - Protocol definitions
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Issue Description
+      description: Describe the data quality problem. Include specific record IDs, metric names, and values if possible.
+      placeholder: |
+        Bioprint record #47 has a livePercent of 115%, which should be capped at 100%.
+        The viability metric for organ "liver" returns NaN when queried via the API.
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected-data
+    attributes:
+      label: Expected Data
+      description: What should the correct data look like?
+      placeholder: |
+        livePercent should be a float between 0.0 and 100.0
+        All organ types should return valid numeric viability scores
+
+  - type: textarea
+    id: actual-data
+    attributes:
+      label: Actual Data
+      description: Paste the actual data you observed. Include the query used if applicable.
+      render: json
+    validations:
+      required: true
+
+  - type: textarea
+    id: query
+    attributes:
+      label: Query / Reproduction Steps
+      description: How did you discover this issue? Include API calls, UI steps, or scripts.
+      placeholder: |
+        GET /api/prints?metric=livePercent&comparison=greater&value=100
+        Returns 3 records that should not exist
+      render: shell
+
+  - type: dropdown
+    id: impact
+    attributes:
+      label: Impact
+      description: How does this data issue affect downstream usage?
+      options:
+        - Blocking — cannot proceed with analysis
+        - Major — results are unreliable
+        - Minor — cosmetic or edge case
+        - Unknown
+    validations:
+      required: true
+
+  - type: textarea
+    id: additional
+    attributes:
+      label: Additional Context
+      description: Any other context — related records, data sources, or patterns you've noticed.
