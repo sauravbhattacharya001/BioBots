@@ -39,6 +39,7 @@ var shelfLife = require('./docs/shared/shelfLife');
 var sterilityAssurance = require('./docs/shared/sterilityAssurance');
 var cellSeeding = require('./Try/scripts/cellSeeding');
 var washProtocol = require('./docs/shared/washProtocol');
+var compatibilityMatrix = require('./docs/shared/compatibilityMatrix');
 
 module.exports = {
     createMaterialCalculator: calculator.createMaterialCalculator,
@@ -61,5 +62,6 @@ module.exports = {
     createShelfLifeManager: shelfLife.createShelfLifeManager,
     createSterilityAssurance: sterilityAssurance.createSterilityAssurance,
     createCellSeedingCalculator: cellSeeding.createCellSeedingCalculator,
-    createWashProtocolCalculator: washProtocol.createWashProtocolCalculator
+    createWashProtocolCalculator: washProtocol.createWashProtocolCalculator,
+    createCompatibilityMatrix: compatibilityMatrix.createCompatibilityMatrix
 };
