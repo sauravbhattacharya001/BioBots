@@ -83,6 +83,7 @@ All 46 analysis tools are deployed on GitHub Pages:
 | [🧪 Rheology Modeler](https://sauravbhattacharya001.github.io/BioBots/rheology.html) | Viscosity models — Power-law, Carreau, Herschel-Bulkley |
 | [🏗️ Scaffold Designer](https://sauravbhattacharya001.github.io/BioBots/scaffold.html) | 3D scaffold design — porosity, strut, material analysis |
 | [🧬 Cell Seeding](https://sauravbhattacharya001.github.io/BioBots/seeding.html) | Seeding density and scaffold calculations |
+| [🧫 Maturation Tracker](https://sauravbhattacharya001.github.io/BioBots/maturation.html) | Post-print tissue maturation — growth curves, milestones, culture timeline |
 | [⏳ Shelf Life](https://sauravbhattacharya001.github.io/BioBots/shelf-life.html) | Bioink stability and shelf life tracking |
 | [📊 SPC Charts](https://sauravbhattacharya001.github.io/BioBots/spc.html) | Statistical process control — X-bar/R charts |
 | [🧹 Sterilization](https://sauravbhattacharya001.github.io/BioBots/sterilization.html) | Sterilization method selection and cycle planning |

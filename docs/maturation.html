@@ -1,0 +1,681 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>BioBots — Tissue Maturation Tracker</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧬</text></svg>">
+    <style>
+        :root {
+            --bg: #0f172a; --surface: #1e293b; --border: #334155;
+            --text: #e2e8f0; --muted: #94a3b8; --accent: #38bdf8;
+            --accent-hover: #7dd3fc; --success: #4ade80; --error: #f87171;
+            --warning: #fbbf24; --purple: #a78bfa; --pink: #f472b6;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; display: flex; flex-direction: column; align-items: center; padding: 2rem 1rem; }
+        nav { display: flex; gap: 0.5rem; margin-bottom: 2rem; flex-wrap: wrap; justify-content: center; }
+        nav a { color: var(--muted); padding: 0.5rem 1rem; border-radius: 8px; text-decoration: none; font-size: 0.9rem; transition: all 0.2s; }
+        nav a:hover { color: var(--accent); background: var(--surface); }
+        nav a.active { color: var(--accent); background: var(--surface); border: 1px solid var(--border); }
+        header { text-align: center; margin-bottom: 2rem; }
+        header h1 { font-size: 2rem; font-weight: 700; background: linear-gradient(135deg, var(--pink), var(--accent)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+        header p { color: var(--muted); margin-top: 0.5rem; }
+        .container { width: 100%; max-width: 1200px; }
+        .tabs { display: flex; gap: 0.5rem; margin-bottom: 1.5rem; flex-wrap: wrap; justify-content: center; }
+        .tabs button { background: var(--surface); color: var(--muted); border: 1px solid var(--border); padding: 0.6rem 1.2rem; border-radius: 8px; font-size: 0.9rem; cursor: pointer; transition: all 0.2s; }
+        .tabs button:hover { color: var(--accent); border-color: var(--accent); }
+        .tabs button.active { color: var(--accent); border-color: var(--accent); background: rgba(56,189,248,0.1); }
+        .layout { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; }
+        @media (max-width: 768px) { .layout { grid-template-columns: 1fr; } }
+        .card { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 1.5rem; margin-bottom: 1.5rem; }
+        .card h2 { font-size: 1.1rem; margin-bottom: 1rem; color: var(--muted); font-weight: 500; }
+        .form-group { display: flex; flex-direction: column; gap: 0.3rem; margin-bottom: 0.8rem; }
+        label { font-size: 0.8rem; color: var(--muted); font-weight: 500; }
+        select, input[type="number"], input[type="text"], input[type="date"] { background: var(--bg); border: 1px solid var(--border); color: var(--text); padding: 0.5rem 0.7rem; border-radius: 8px; font-size: 0.9rem; outline: none; transition: border-color 0.2s; width: 100%; }
+        select:focus, input:focus { border-color: var(--accent); }
+        .btn { background: var(--accent); color: var(--bg); border: none; padding: 0.7rem 1.5rem; border-radius: 8px; font-size: 0.95rem; font-weight: 600; cursor: pointer; transition: background 0.2s; width: 100%; margin-top: 0.5rem; }
+        .btn:hover { background: var(--accent-hover); }
+        .btn-sm { padding: 0.4rem 0.8rem; font-size: 0.8rem; width: auto; margin-top: 0; }
+        .btn-danger { background: var(--error); }
+        .btn-danger:hover { background: #ef4444; }
+        .btn-success { background: var(--success); color: var(--bg); }
+        .btn-success:hover { background: #22c55e; }
+        canvas { width: 100%; border-radius: 12px; background: var(--bg); border: 1px solid var(--border); }
+        .timeline { position: relative; padding-left: 2rem; }
+        .timeline::before { content: ''; position: absolute; left: 0.7rem; top: 0; bottom: 0; width: 2px; background: var(--border); }
+        .timeline-item { position: relative; margin-bottom: 1.5rem; padding-bottom: 0.5rem; }
+        .timeline-item::before { content: ''; position: absolute; left: -1.65rem; top: 0.3rem; width: 12px; height: 12px; border-radius: 50%; border: 2px solid var(--accent); background: var(--bg); }
+        .timeline-item.completed::before { background: var(--success); border-color: var(--success); }
+        .timeline-item.active::before { background: var(--accent); border-color: var(--accent); animation: pulse 1.5s infinite; }
+        .timeline-item.pending::before { background: var(--bg); border-color: var(--muted); }
+        @keyframes pulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(56,189,248,0.4); } 50% { box-shadow: 0 0 0 6px rgba(56,189,248,0); } }
+        .timeline-item h3 { font-size: 0.95rem; font-weight: 600; }
+        .timeline-item .day { font-size: 0.75rem; color: var(--accent); font-weight: 600; margin-bottom: 0.2rem; }
+        .timeline-item p { font-size: 0.8rem; color: var(--muted); margin-top: 0.2rem; }
+        .progress-bar { width: 100%; height: 8px; background: var(--bg); border-radius: 4px; overflow: hidden; margin-top: 0.5rem; }
+        .progress-fill { height: 100%; border-radius: 4px; transition: width 0.5s; }
+        .stat-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.8rem; margin-bottom: 1rem; }
+        @media (max-width: 600px) { .stat-row { grid-template-columns: repeat(2, 1fr); } }
+        .stat-box { background: var(--bg); border: 1px solid var(--border); border-radius: 10px; padding: 0.8rem; text-align: center; }
+        .stat-box .val { font-size: 1.3rem; font-weight: 700; color: var(--accent); }
+        .stat-box .lbl { font-size: 0.7rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; margin-top: 0.2rem; }
+        .sample-list { max-height: 300px; overflow-y: auto; }
+        .sample-row { display: flex; align-items: center; justify-content: space-between; padding: 0.6rem 0.8rem; border-bottom: 1px solid var(--border); font-size: 0.85rem; cursor: pointer; transition: background 0.15s; }
+        .sample-row:hover { background: rgba(56,189,248,0.05); }
+        .sample-row.selected { background: rgba(56,189,248,0.1); border-left: 3px solid var(--accent); }
+        .badge { display: inline-block; padding: 0.15rem 0.5rem; border-radius: 4px; font-size: 0.7rem; font-weight: 600; }
+        .badge-growing { background: rgba(74,222,128,0.15); color: var(--success); }
+        .badge-mature { background: rgba(56,189,248,0.15); color: var(--accent); }
+        .badge-degrading { background: rgba(248,113,113,0.15); color: var(--error); }
+        .badge-lag { background: rgba(251,191,36,0.15); color: var(--warning); }
+        .export-bar { display: flex; gap: 0.5rem; margin-top: 1rem; flex-wrap: wrap; }
+        .hidden { display: none; }
+    </style>
+</head>
+<body>
+    <nav>
+        <a href="index.html">🏠 Home</a>
+        <a href="explorer.html">📊 Explorer</a>
+        <a href="quality.html">🎯 Quality</a>
+        <a href="seeding.html">🌱 Seeding</a>
+        <a href="maturation.html" class="active">🧫 Maturation</a>
+        <a href="scaffold.html">🏗️ Scaffold</a>
+        <a href="protocol.html">📝 Protocols</a>
+    </nav>
+
+    <header>
+        <h1>🧫 Tissue Maturation Tracker</h1>
+        <p>Model post-print tissue culture — growth curves, milestones, and maturation timelines</p>
+    </header>
+
+    <div class="container">
+        <div class="tabs">
+            <button class="active" onclick="switchTab('setup')">🆕 New Culture</button>
+            <button onclick="switchTab('dashboard')">📊 Dashboard</button>
+            <button onclick="switchTab('curves')">📈 Growth Curves</button>
+            <button onclick="switchTab('compare')">🔬 Compare</button>
+        </div>
+
+        <!-- Setup Tab -->
+        <div id="tab-setup">
+            <div class="layout">
+                <div class="card">
+                    <h2>🧫 Culture Configuration</h2>
+                    <div class="form-group">
+                        <label>Sample Name</label>
+                        <input type="text" id="sampleName" placeholder="e.g. Cartilage-S1-R2" />
+                    </div>
+                    <div class="form-group">
+                        <label>Tissue Type</label>
+                        <select id="tissueType">
+                            <option value="cartilage">Cartilage</option>
+                            <option value="bone">Bone</option>
+                            <option value="skin">Skin (Dermal)</option>
+                            <option value="vascular">Vascular</option>
+                            <option value="cardiac">Cardiac</option>
+                            <option value="liver">Liver (Hepatic)</option>
+                            <option value="neural">Neural</option>
+                            <option value="muscle">Skeletal Muscle</option>
+                            <option value="adipose">Adipose</option>
+                            <option value="custom">Custom</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Initial Cell Density (cells/mL)</label>
+                        <input type="number" id="initialDensity" value="1000000" min="1000" />
+                    </div>
+                    <div class="form-group">
+                        <label>Scaffold Material</label>
+                        <select id="scaffoldMaterial">
+                            <option value="gelma">GelMA</option>
+                            <option value="alginate">Alginate</option>
+                            <option value="collagen">Collagen</option>
+                            <option value="pcl">PCL</option>
+                            <option value="ha">Hyaluronic Acid</option>
+                            <option value="fibrin">Fibrin</option>
+                            <option value="peg">PEG-based</option>
+                            <option value="custom">Custom</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Print Date</label>
+                        <input type="date" id="printDate" />
+                    </div>
+                    <div class="form-group">
+                        <label>Target Culture Duration (days)</label>
+                        <input type="number" id="cultureDays" value="28" min="1" max="180" />
+                    </div>
+                    <button class="btn" onclick="createCulture()">🧬 Start Culture Tracking</button>
+                </div>
+                <div class="card">
+                    <h2>📋 Active Cultures</h2>
+                    <div id="cultureList" class="sample-list">
+                        <p style="color:var(--muted); text-align:center; padding:2rem;">No cultures yet — create one to begin tracking</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Dashboard Tab -->
+        <div id="tab-dashboard" class="hidden">
+            <div id="noCultureMsg" class="card" style="text-align:center; padding:3rem;">
+                <p style="color:var(--muted);">Select a culture from the Setup tab to view its dashboard</p>
+            </div>
+            <div id="dashboardContent" class="hidden">
+                <div class="stat-row">
+                    <div class="stat-box"><div class="val" id="dCultureDay">—</div><div class="lbl">Culture Day</div></div>
+                    <div class="stat-box"><div class="val" id="dCellCount">—</div><div class="lbl">Est. Cells</div></div>
+                    <div class="stat-box"><div class="val" id="dViability">—</div><div class="lbl">Viability</div></div>
+                    <div class="stat-box"><div class="val" id="dPhase">—</div><div class="lbl">Growth Phase</div></div>
+                </div>
+                <div class="layout">
+                    <div class="card">
+                        <h2>🗓️ Maturation Timeline</h2>
+                        <div id="timeline" class="timeline"></div>
+                    </div>
+                    <div class="card">
+                        <h2>📊 Growth Progress</h2>
+                        <canvas id="miniChart" height="200"></canvas>
+                        <div style="margin-top:1rem;">
+                            <div style="display:flex;justify-content:space-between;font-size:0.8rem;color:var(--muted);">
+                                <span id="progressLabel">Overall Progress</span>
+                                <span id="progressPct">0%</span>
+                            </div>
+                            <div class="progress-bar"><div class="progress-fill" id="progressFill" style="width:0%;background:var(--accent);"></div></div>
+                        </div>
+                        <h2 style="margin-top:1.5rem;">📝 Add Observation</h2>
+                        <div class="form-group">
+                            <label>Day</label>
+                            <input type="number" id="obsDay" min="0" />
+                        </div>
+                        <div class="form-group">
+                            <label>Measured Viability (%)</label>
+                            <input type="number" id="obsViability" min="0" max="100" />
+                        </div>
+                        <div class="form-group">
+                            <label>Notes</label>
+                            <input type="text" id="obsNotes" placeholder="e.g. media changed, good morphology" />
+                        </div>
+                        <button class="btn btn-success btn-sm" onclick="addObservation()">+ Add Observation</button>
+                    </div>
+                </div>
+                <div class="export-bar">
+                    <button class="btn btn-sm" onclick="exportCSV()">📥 Export CSV</button>
+                    <button class="btn btn-sm" onclick="exportJSON()">📥 Export JSON</button>
+                    <button class="btn btn-sm btn-danger" onclick="deleteCulture()">🗑️ Delete Culture</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Growth Curves Tab -->
+        <div id="tab-curves" class="hidden">
+            <div class="card">
+                <h2>📈 Predicted Growth Curves</h2>
+                <p style="font-size:0.8rem; color:var(--muted); margin-bottom:1rem;">Logistic growth model with tissue-specific parameters. Actual observations shown as dots.</p>
+                <canvas id="growthCanvas" height="350"></canvas>
+            </div>
+            <div class="layout">
+                <div class="card">
+                    <h2>📐 Model Parameters</h2>
+                    <div id="modelParams"></div>
+                </div>
+                <div class="card">
+                    <h2>📊 Phase Breakdown</h2>
+                    <canvas id="phaseChart" height="200"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Compare Tab -->
+        <div id="tab-compare" class="hidden">
+            <div class="card">
+                <h2>🔬 Compare Cultures</h2>
+                <p style="font-size:0.8rem; color:var(--muted); margin-bottom:1rem;">Select 2-4 cultures to overlay growth curves and compare milestones.</p>
+                <div id="compareSelect" style="display:flex;flex-wrap:wrap;gap:0.5rem;margin-bottom:1rem;"></div>
+                <canvas id="compareCanvas" height="350"></canvas>
+            </div>
+            <div class="card">
+                <h2>📋 Comparison Summary</h2>
+                <div id="compareSummary" style="color:var(--muted);text-align:center;padding:1rem;">Select cultures above to compare</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+    // =========== Tissue Maturation Models ===========
+    const TISSUE_PROFILES = {
+        cartilage:  { name:'Cartilage',  doublingTime:48, maxDensity:20e6, lagDays:2, maturationDay:21, viabilityPeak:95, phases:[{d:0,n:'Adhesion & Lag',dur:3},{d:3,n:'Proliferation',dur:7},{d:10,n:'ECM Deposition',dur:8},{d:18,n:'Maturation',dur:10}] },
+        bone:       { name:'Bone',       doublingTime:60, maxDensity:15e6, lagDays:3, maturationDay:28, viabilityPeak:92, phases:[{d:0,n:'Adhesion',dur:3},{d:3,n:'Proliferation',dur:10},{d:13,n:'Mineralization',dur:10},{d:23,n:'Maturation',dur:7}] },
+        skin:       { name:'Skin',       doublingTime:24, maxDensity:30e6, lagDays:1, maturationDay:14, viabilityPeak:97, phases:[{d:0,n:'Adhesion',dur:1},{d:1,n:'Proliferation',dur:5},{d:6,n:'Stratification',dur:5},{d:11,n:'Barrier Formation',dur:3}] },
+        vascular:   { name:'Vascular',   doublingTime:36, maxDensity:18e6, lagDays:2, maturationDay:21, viabilityPeak:94, phases:[{d:0,n:'Adhesion',dur:2},{d:2,n:'Proliferation',dur:6},{d:8,n:'Tube Formation',dur:7},{d:15,n:'Stabilization',dur:6}] },
+        cardiac:    { name:'Cardiac',    doublingTime:72, maxDensity:12e6, lagDays:3, maturationDay:28, viabilityPeak:88, phases:[{d:0,n:'Adhesion',dur:3},{d:3,n:'Proliferation',dur:8},{d:11,n:'Alignment',dur:8},{d:19,n:'Beating Onset',dur:9}] },
+        liver:      { name:'Hepatic',    doublingTime:48, maxDensity:25e6, lagDays:2, maturationDay:21, viabilityPeak:90, phases:[{d:0,n:'Adhesion',dur:2},{d:2,n:'Proliferation',dur:7},{d:9,n:'Spheroid Formation',dur:6},{d:15,n:'Functional Maturity',dur:6}] },
+        neural:     { name:'Neural',     doublingTime:96, maxDensity:8e6,  lagDays:4, maturationDay:35, viabilityPeak:85, phases:[{d:0,n:'Adhesion',dur:4},{d:4,n:'Proliferation',dur:10},{d:14,n:'Differentiation',dur:11},{d:25,n:'Synaptogenesis',dur:10}] },
+        muscle:     { name:'Muscle',     doublingTime:36, maxDensity:22e6, lagDays:2, maturationDay:21, viabilityPeak:93, phases:[{d:0,n:'Adhesion',dur:2},{d:2,n:'Proliferation',dur:6},{d:8,n:'Fusion',dur:6},{d:14,n:'Maturation',dur:7}] },
+        adipose:    { name:'Adipose',    doublingTime:30, maxDensity:28e6, lagDays:1, maturationDay:14, viabilityPeak:96, phases:[{d:0,n:'Adhesion',dur:1},{d:1,n:'Proliferation',dur:5},{d:6,n:'Lipid Accumulation',dur:5},{d:11,n:'Maturation',dur:3}] },
+        custom:     { name:'Custom',     doublingTime:48, maxDensity:15e6, lagDays:2, maturationDay:21, viabilityPeak:90, phases:[{d:0,n:'Lag Phase',dur:3},{d:3,n:'Growth Phase',dur:8},{d:11,n:'Transition',dur:5},{d:16,n:'Maturation',dur:5}] }
+    };
+
+    const SCAFFOLD_FACTORS = {
+        gelma:1.0, alginate:0.9, collagen:1.1, pcl:0.7, ha:0.95, fibrin:1.05, peg:0.85, custom:1.0
+    };
+
+    let cultures = JSON.parse(localStorage.getItem('biobots_cultures') || '[]');
+    let selectedId = null;
+
+    function save() { localStorage.setItem('biobots_cultures', JSON.stringify(cultures)); }
+
+    function switchTab(tab) {
+        document.querySelectorAll('.tabs button').forEach((b,i)=>b.classList.remove('active'));
+        ['setup','dashboard','curves','compare'].forEach(t => document.getElementById('tab-'+t).classList.add('hidden'));
+        document.getElementById('tab-'+tab).classList.remove('hidden');
+        document.querySelectorAll('.tabs button').forEach(b => { if(b.textContent.toLowerCase().includes(tab.slice(0,4))) b.classList.add('active'); });
+        if(tab==='dashboard') renderDashboard();
+        if(tab==='curves') renderCurves();
+        if(tab==='compare') renderCompare();
+    }
+
+    function createCulture() {
+        const name = document.getElementById('sampleName').value.trim() || `Culture-${cultures.length+1}`;
+        const tissue = document.getElementById('tissueType').value;
+        const density = parseFloat(document.getElementById('initialDensity').value) || 1e6;
+        const scaffold = document.getElementById('scaffoldMaterial').value;
+        const printDate = document.getElementById('printDate').value || new Date().toISOString().slice(0,10);
+        const days = parseInt(document.getElementById('cultureDays').value) || 28;
+        const culture = {
+            id: Date.now().toString(36)+Math.random().toString(36).slice(2,6),
+            name, tissue, density, scaffold, printDate, days,
+            observations: [], created: new Date().toISOString()
+        };
+        cultures.push(culture);
+        save();
+        selectedId = culture.id;
+        renderCultureList();
+        switchTab('dashboard');
+    }
+
+    function renderCultureList() {
+        const el = document.getElementById('cultureList');
+        if(!cultures.length) { el.innerHTML = '<p style="color:var(--muted);text-align:center;padding:2rem;">No cultures yet</p>'; return; }
+        el.innerHTML = cultures.map(c => {
+            const prof = TISSUE_PROFILES[c.tissue];
+            const daysSincePrint = Math.floor((Date.now() - new Date(c.printDate).getTime())/(864e5));
+            const phase = getPhase(prof, daysSincePrint);
+            const status = daysSincePrint < 0 ? 'pending' : daysSincePrint > c.days ? 'mature' : 'growing';
+            const badgeClass = status==='mature'?'badge-mature':status==='growing'?'badge-growing':'badge-lag';
+            return `<div class="sample-row ${c.id===selectedId?'selected':''}" onclick="selectCulture('${c.id}')">
+                <div><strong>${esc(c.name)}</strong><br><span style="font-size:0.75rem;color:var(--muted)">${prof.name} · Day ${Math.max(0,daysSincePrint)}</span></div>
+                <span class="badge ${badgeClass}">${phase}</span>
+            </div>`;
+        }).join('');
+    }
+
+    function esc(s){ const d=document.createElement('div');d.textContent=s;return d.innerHTML; }
+
+    function selectCulture(id) {
+        selectedId = id;
+        renderCultureList();
+        switchTab('dashboard');
+    }
+
+    function getCulture() { return cultures.find(c=>c.id===selectedId); }
+
+    // Logistic growth model
+    function logisticGrowth(t, N0, K, r, lag) {
+        if(t < lag) return N0;
+        const tt = t - lag;
+        return K / (1 + ((K - N0) / N0) * Math.exp(-r * tt));
+    }
+
+    function getGrowthRate(profile, scaffold) {
+        const factor = SCAFFOLD_FACTORS[scaffold] || 1;
+        return (Math.LN2 / profile.doublingTime) * 24 * factor; // per day
+    }
+
+    function getPhase(profile, day) {
+        const phases = profile.phases;
+        for(let i=phases.length-1; i>=0; i--) {
+            if(day >= phases[i].d) return phases[i].n;
+        }
+        return phases[0].n;
+    }
+
+    function viabilityModel(day, profile) {
+        // Starts ~85%, rises to peak, then slowly declines after maturation
+        const peak = profile.viabilityPeak;
+        const riseRate = (peak - 80) / (profile.lagDays + 5);
+        if(day <= profile.lagDays) return 80 + day * riseRate * 0.5;
+        if(day <= profile.maturationDay) return Math.min(peak, 80 + day * riseRate);
+        const decline = (day - profile.maturationDay) * 0.3;
+        return Math.max(50, peak - decline);
+    }
+
+    function renderDashboard() {
+        const c = getCulture();
+        if(!c) { document.getElementById('noCultureMsg').classList.remove('hidden'); document.getElementById('dashboardContent').classList.add('hidden'); return; }
+        document.getElementById('noCultureMsg').classList.add('hidden');
+        document.getElementById('dashboardContent').classList.remove('hidden');
+        const prof = TISSUE_PROFILES[c.tissue];
+        const day = Math.max(0, Math.floor((Date.now() - new Date(c.printDate).getTime())/864e5));
+        const r = getGrowthRate(prof, c.scaffold);
+        const K = prof.maxDensity * (SCAFFOLD_FACTORS[c.scaffold]||1);
+        const cellCount = logisticGrowth(day, c.density, K, r, prof.lagDays);
+        const viab = viabilityModel(day, prof);
+        const phase = getPhase(prof, day);
+
+        document.getElementById('dCultureDay').textContent = day;
+        document.getElementById('dCellCount').textContent = cellCount >= 1e6 ? (cellCount/1e6).toFixed(1)+'M' : (cellCount/1e3).toFixed(0)+'K';
+        document.getElementById('dViability').textContent = viab.toFixed(1)+'%';
+        document.getElementById('dPhase').textContent = phase;
+        document.getElementById('obsDay').value = day;
+
+        // Progress
+        const pct = Math.min(100, (day / c.days) * 100);
+        document.getElementById('progressPct').textContent = pct.toFixed(0)+'%';
+        document.getElementById('progressFill').style.width = pct+'%';
+        document.getElementById('progressFill').style.background = pct >= 100 ? 'var(--success)' : 'var(--accent)';
+
+        // Timeline
+        const tl = document.getElementById('timeline');
+        tl.innerHTML = prof.phases.map(p => {
+            const endDay = p.d + p.dur;
+            const status = day >= endDay ? 'completed' : day >= p.d ? 'active' : 'pending';
+            return `<div class="timeline-item ${status}">
+                <div class="day">Day ${p.d} – ${endDay}</div>
+                <h3>${p.n}</h3>
+                <p>${status==='completed'?'✅ Complete':status==='active'?'🔄 In Progress':'⏳ Upcoming'}</p>
+            </div>`;
+        }).join('');
+
+        // Mini growth chart
+        drawMiniChart(c, prof, day);
+    }
+
+    function drawMiniChart(culture, prof, currentDay) {
+        const canvas = document.getElementById('miniChart');
+        const ctx = canvas.getContext('2d');
+        const W = canvas.width = canvas.offsetWidth * 2;
+        const H = canvas.height = 400;
+        ctx.clearRect(0,0,W,H);
+        const pad = {t:30,r:20,b:40,l:60};
+        const r = getGrowthRate(prof, culture.scaffold);
+        const K = prof.maxDensity * (SCAFFOLD_FACTORS[culture.scaffold]||1);
+        const days = culture.days;
+
+        // Generate points
+        const pts = [];
+        for(let d=0; d<=days; d++) { pts.push({x:d, y:logisticGrowth(d, culture.density, K, r, prof.lagDays)}); }
+        const maxY = K * 1.1;
+
+        const sx = d => pad.l + (d/days)*(W-pad.l-pad.r);
+        const sy = v => pad.t + (1 - v/maxY)*(H-pad.t-pad.b);
+
+        // Grid
+        ctx.strokeStyle = '#334155'; ctx.lineWidth = 1;
+        for(let i=0;i<=4;i++){
+            const y=pad.t+i*(H-pad.t-pad.b)/4;
+            ctx.beginPath();ctx.moveTo(pad.l,y);ctx.lineTo(W-pad.r,y);ctx.stroke();
+            ctx.fillStyle='#94a3b8';ctx.font='18px sans-serif';ctx.textAlign='right';
+            ctx.fillText(((1-i/4)*maxY/1e6).toFixed(1)+'M', pad.l-8, y+5);
+        }
+        // X axis labels
+        ctx.textAlign='center';
+        for(let d=0;d<=days;d+=Math.ceil(days/6)){
+            ctx.fillText('D'+d, sx(d), H-pad.b+25);
+        }
+
+        // Growth curve
+        ctx.beginPath(); ctx.strokeStyle='#38bdf8'; ctx.lineWidth=3;
+        pts.forEach((p,i)=>i===0?ctx.moveTo(sx(p.x),sy(p.y)):ctx.lineTo(sx(p.x),sy(p.y)));
+        ctx.stroke();
+
+        // Current day marker
+        if(currentDay <= days) {
+            const cy = logisticGrowth(currentDay, culture.density, K, r, prof.lagDays);
+            ctx.beginPath(); ctx.arc(sx(currentDay),sy(cy),8,0,Math.PI*2);
+            ctx.fillStyle='#f472b6'; ctx.fill();
+            ctx.strokeStyle='#fff'; ctx.lineWidth=2; ctx.stroke();
+        }
+
+        // Observations
+        culture.observations.forEach(obs => {
+            if(obs.day <= days) {
+                const cy = logisticGrowth(obs.day, culture.density, K, r, prof.lagDays);
+                ctx.beginPath(); ctx.arc(sx(obs.day),sy(cy),5,0,Math.PI*2);
+                ctx.fillStyle='#4ade80'; ctx.fill();
+            }
+        });
+    }
+
+    function addObservation() {
+        const c = getCulture(); if(!c) return;
+        const day = parseInt(document.getElementById('obsDay').value);
+        const viab = parseFloat(document.getElementById('obsViability').value);
+        const notes = document.getElementById('obsNotes').value.trim();
+        if(isNaN(day)) return;
+        c.observations.push({ day, viability: isNaN(viab)?null:viab, notes, recorded: new Date().toISOString() });
+        save();
+        renderDashboard();
+        document.getElementById('obsNotes').value = '';
+    }
+
+    function deleteCulture() {
+        if(!selectedId) return;
+        if(!confirm('Delete this culture permanently?')) return;
+        cultures = cultures.filter(c=>c.id!==selectedId);
+        selectedId = cultures.length ? cultures[0].id : null;
+        save();
+        renderCultureList();
+        renderDashboard();
+    }
+
+    // =========== Growth Curves Tab ===========
+    function renderCurves() {
+        const c = getCulture();
+        if(!c) return;
+        const prof = TISSUE_PROFILES[c.tissue];
+        const r = getGrowthRate(prof, c.scaffold);
+        const K = prof.maxDensity * (SCAFFOLD_FACTORS[c.scaffold]||1);
+        const days = c.days;
+
+        // Main growth chart
+        const canvas = document.getElementById('growthCanvas');
+        const ctx = canvas.getContext('2d');
+        const W = canvas.width = canvas.offsetWidth * 2;
+        const H = canvas.height = 700;
+        ctx.clearRect(0,0,W,H);
+        const pad = {t:40,r:30,b:50,l:80};
+        const maxY = K * 1.15;
+
+        const sx = d => pad.l + (d/days)*(W-pad.l-pad.r);
+        const sy = v => pad.t + (1 - v/maxY)*(H-pad.t-pad.b);
+
+        // Phase backgrounds
+        const colors = ['rgba(251,191,36,0.06)','rgba(56,189,248,0.06)','rgba(167,139,250,0.06)','rgba(74,222,128,0.06)'];
+        prof.phases.forEach((p,i) => {
+            const x1 = sx(p.d), x2 = sx(Math.min(p.d+p.dur, days));
+            ctx.fillStyle = colors[i%colors.length];
+            ctx.fillRect(x1, pad.t, x2-x1, H-pad.t-pad.b);
+            ctx.fillStyle = '#94a3b8'; ctx.font = '16px sans-serif'; ctx.textAlign = 'center';
+            ctx.fillText(p.n, (x1+x2)/2, pad.t + 20);
+        });
+
+        // Grid
+        ctx.strokeStyle = '#334155'; ctx.lineWidth = 1;
+        for(let i=0;i<=5;i++){
+            const y=pad.t+i*(H-pad.t-pad.b)/5;
+            ctx.beginPath();ctx.moveTo(pad.l,y);ctx.lineTo(W-pad.r,y);ctx.stroke();
+            ctx.fillStyle='#94a3b8';ctx.font='20px sans-serif';ctx.textAlign='right';
+            ctx.fillText(((1-i/5)*maxY/1e6).toFixed(1)+'M', pad.l-10, y+6);
+        }
+        ctx.textAlign='center';
+        for(let d=0;d<=days;d+=Math.max(1,Math.ceil(days/10))){
+            ctx.fillText('D'+d, sx(d), H-pad.b+30);
+        }
+
+        // Growth curve
+        ctx.beginPath(); ctx.strokeStyle='#38bdf8'; ctx.lineWidth=4;
+        for(let d=0;d<=days;d++){
+            const y=logisticGrowth(d,c.density,K,r,prof.lagDays);
+            d===0?ctx.moveTo(sx(d),sy(y)):ctx.lineTo(sx(d),sy(y));
+        }
+        ctx.stroke();
+
+        // Viability curve (secondary axis)
+        ctx.beginPath(); ctx.strokeStyle='#a78bfa'; ctx.lineWidth=2; ctx.setLineDash([8,4]);
+        for(let d=0;d<=days;d++){
+            const v=viabilityModel(d,prof)/100*maxY;
+            d===0?ctx.moveTo(sx(d),sy(v)):ctx.lineTo(sx(d),sy(v));
+        }
+        ctx.stroke(); ctx.setLineDash([]);
+
+        // Observations
+        c.observations.forEach(obs => {
+            const cy = logisticGrowth(obs.day, c.density, K, r, prof.lagDays);
+            ctx.beginPath(); ctx.arc(sx(obs.day),sy(cy),8,0,Math.PI*2);
+            ctx.fillStyle='#4ade80'; ctx.fill(); ctx.strokeStyle='#fff'; ctx.lineWidth=2; ctx.stroke();
+        });
+
+        // Legend
+        ctx.font='18px sans-serif';
+        ctx.fillStyle='#38bdf8'; ctx.fillRect(W-250,pad.t+10,20,3); ctx.fillText('Cell Count',W-170,pad.t+16);
+        ctx.fillStyle='#a78bfa'; ctx.setLineDash([6,3]); ctx.beginPath();ctx.moveTo(W-250,pad.t+35);ctx.lineTo(W-230,pad.t+35);ctx.stroke();ctx.setLineDash([]);
+        ctx.fillText('Viability',W-170,pad.t+40);
+
+        // Model params
+        document.getElementById('modelParams').innerHTML = `
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.5rem;">
+                <div class="stat-box"><div class="val">${prof.doublingTime}h</div><div class="lbl">Doubling Time</div></div>
+                <div class="stat-box"><div class="val">${(K/1e6).toFixed(1)}M</div><div class="lbl">Carrying Capacity</div></div>
+                <div class="stat-box"><div class="val">${prof.lagDays}d</div><div class="lbl">Lag Phase</div></div>
+                <div class="stat-box"><div class="val">${prof.viabilityPeak}%</div><div class="lbl">Peak Viability</div></div>
+                <div class="stat-box"><div class="val">${r.toFixed(3)}/d</div><div class="lbl">Growth Rate</div></div>
+                <div class="stat-box"><div class="val">${SCAFFOLD_FACTORS[c.scaffold]}×</div><div class="lbl">Scaffold Factor</div></div>
+            </div>`;
+
+        // Phase pie chart
+        const pieCanvas = document.getElementById('phaseChart');
+        const pCtx = pieCanvas.getContext('2d');
+        const pW = pieCanvas.width = pieCanvas.offsetWidth * 2;
+        const pH = pieCanvas.height = 400;
+        pCtx.clearRect(0,0,pW,pH);
+        const total = prof.phases.reduce((s,p)=>s+p.dur,0);
+        const pieColors = ['#fbbf24','#38bdf8','#a78bfa','#4ade80','#f472b6'];
+        let angle = -Math.PI/2;
+        const cx=pW/2, cy=pH/2-10, radius=Math.min(pW,pH)/2-50;
+        prof.phases.forEach((p,i)=>{
+            const slice = (p.dur/total)*Math.PI*2;
+            pCtx.beginPath();pCtx.moveTo(cx,cy);pCtx.arc(cx,cy,radius,angle,angle+slice);pCtx.closePath();
+            pCtx.fillStyle=pieColors[i%pieColors.length];pCtx.fill();
+            const mid=angle+slice/2;
+            pCtx.fillStyle='#e2e8f0';pCtx.font='16px sans-serif';pCtx.textAlign='center';
+            pCtx.fillText(p.n,cx+Math.cos(mid)*(radius*0.65),cy+Math.sin(mid)*(radius*0.65)+5);
+            angle+=slice;
+        });
+    }
+
+    // =========== Compare Tab ===========
+    function renderCompare() {
+        const container = document.getElementById('compareSelect');
+        container.innerHTML = cultures.map(c =>
+            `<label style="display:flex;align-items:center;gap:0.3rem;font-size:0.85rem;cursor:pointer;">
+                <input type="checkbox" value="${c.id}" onchange="drawComparison()" ${cultures.length<=4?'checked':''} /> ${esc(c.name)}
+            </label>`
+        ).join('');
+        drawComparison();
+    }
+
+    function drawComparison() {
+        const checked = [...document.querySelectorAll('#compareSelect input:checked')].map(i=>i.value);
+        const selected = cultures.filter(c=>checked.includes(c.id)).slice(0,4);
+        const canvas = document.getElementById('compareCanvas');
+        const ctx = canvas.getContext('2d');
+        const W = canvas.width = canvas.offsetWidth * 2;
+        const H = canvas.height = 700;
+        ctx.clearRect(0,0,W,H);
+        if(!selected.length) { document.getElementById('compareSummary').innerHTML='<p style="color:var(--muted)">Select cultures to compare</p>'; return; }
+
+        const pad = {t:40,r:30,b:50,l:80};
+        const maxDays = Math.max(...selected.map(c=>c.days));
+        let maxY = 0;
+        selected.forEach(c=>{
+            const prof=TISSUE_PROFILES[c.tissue];
+            const K=prof.maxDensity*(SCAFFOLD_FACTORS[c.scaffold]||1);
+            if(K>maxY)maxY=K;
+        });
+        maxY*=1.15;
+
+        const sx = d => pad.l + (d/maxDays)*(W-pad.l-pad.r);
+        const sy = v => pad.t + (1 - v/maxY)*(H-pad.t-pad.b);
+
+        // Grid
+        ctx.strokeStyle='#334155';ctx.lineWidth=1;
+        for(let i=0;i<=5;i++){const y=pad.t+i*(H-pad.t-pad.b)/5;ctx.beginPath();ctx.moveTo(pad.l,y);ctx.lineTo(W-pad.r,y);ctx.stroke();ctx.fillStyle='#94a3b8';ctx.font='20px sans-serif';ctx.textAlign='right';ctx.fillText(((1-i/5)*maxY/1e6).toFixed(1)+'M',pad.l-10,y+6);}
+        ctx.textAlign='center';
+        for(let d=0;d<=maxDays;d+=Math.max(1,Math.ceil(maxDays/10))){ctx.fillText('D'+d,sx(d),H-pad.b+30);}
+
+        const lineColors = ['#38bdf8','#4ade80','#f472b6','#fbbf24'];
+        selected.forEach((c,ci)=>{
+            const prof=TISSUE_PROFILES[c.tissue];
+            const r=getGrowthRate(prof,c.scaffold);
+            const K=prof.maxDensity*(SCAFFOLD_FACTORS[c.scaffold]||1);
+            ctx.beginPath();ctx.strokeStyle=lineColors[ci];ctx.lineWidth=3;
+            for(let d=0;d<=c.days;d++){const y=logisticGrowth(d,c.density,K,r,prof.lagDays);d===0?ctx.moveTo(sx(d),sy(y)):ctx.lineTo(sx(d),sy(y));}
+            ctx.stroke();
+            // Label
+            const endY=logisticGrowth(c.days,c.density,K,r,prof.lagDays);
+            ctx.fillStyle=lineColors[ci];ctx.font='18px sans-serif';ctx.textAlign='left';
+            ctx.fillText(c.name,sx(c.days)+8,sy(endY)+5);
+        });
+
+        // Summary table
+        let html = '<table style="width:100%;border-collapse:collapse;font-size:0.85rem;"><tr style="border-bottom:1px solid var(--border);"><th style="text-align:left;padding:0.5rem;">Culture</th><th>Tissue</th><th>Peak Cells</th><th>Maturation Day</th><th>Peak Viability</th></tr>';
+        selected.forEach((c,ci)=>{
+            const prof=TISSUE_PROFILES[c.tissue];
+            const K=prof.maxDensity*(SCAFFOLD_FACTORS[c.scaffold]||1);
+            html+=`<tr style="border-bottom:1px solid var(--border);"><td style="padding:0.5rem;"><span style="color:${lineColors[ci]};font-weight:700;">●</span> ${esc(c.name)}</td><td style="text-align:center;">${prof.name}</td><td style="text-align:center;">${(K/1e6).toFixed(1)}M</td><td style="text-align:center;">Day ${prof.maturationDay}</td><td style="text-align:center;">${prof.viabilityPeak}%</td></tr>`;
+        });
+        html+='</table>';
+        document.getElementById('compareSummary').innerHTML=html;
+    }
+
+    // =========== Export ===========
+    function exportCSV() {
+        const c = getCulture(); if(!c) return;
+        const prof = TISSUE_PROFILES[c.tissue];
+        const r = getGrowthRate(prof, c.scaffold);
+        const K = prof.maxDensity * (SCAFFOLD_FACTORS[c.scaffold]||1);
+        let csv = 'Day,Predicted Cells,Predicted Viability %,Phase,Observed Viability,Notes\n';
+        for(let d=0;d<=c.days;d++){
+            const cells=logisticGrowth(d,c.density,K,r,prof.lagDays);
+            const viab=viabilityModel(d,prof);
+            const phase=getPhase(prof,d);
+            const obs=c.observations.find(o=>o.day===d);
+            csv+=`${d},${Math.round(cells)},${viab.toFixed(1)},${phase},${obs?obs.viability:''},${obs?'"'+obs.notes.replace(/"/g,'""')+'"':''}\n`;
+        }
+        download(c.name+'-maturation.csv', csv, 'text/csv');
+    }
+
+    function exportJSON() {
+        const c = getCulture(); if(!c) return;
+        const prof = TISSUE_PROFILES[c.tissue];
+        const r = getGrowthRate(prof, c.scaffold);
+        const K = prof.maxDensity * (SCAFFOLD_FACTORS[c.scaffold]||1);
+        const data = { culture:c, model:{growthRate:r,carryingCapacity:K,profile:prof},
+            predictions: Array.from({length:c.days+1},(_,d)=>({day:d,cells:Math.round(logisticGrowth(d,c.density,K,r,prof.lagDays)),viability:+viabilityModel(d,prof).toFixed(1),phase:getPhase(prof,d)}))
+        };
+        download(c.name+'-maturation.json', JSON.stringify(data,null,2), 'application/json');
+    }
+
+    function download(name, content, type) {
+        const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([content],{type}));
+        a.download=name;a.click();URL.revokeObjectURL(a.href);
+    }
+
+    // Init
+    document.getElementById('printDate').valueAsDate = new Date();
+    renderCultureList();
+    </script>
+</body>
+</html>
