@@ -15,8 +15,20 @@
 var CATEGORIES = ['bioink', 'crosslinker', 'reagent', 'consumable', 'scaffold', 'media', 'other'];
 
 function createLabInventoryManager() {
-    var items = {};      // name -> item record
+    var items = Object.create(null);  // prototype-free store — prevents pollution
     var usageLog = [];   // chronological usage entries
+
+    /** Names that would pollute Object.prototype if used as keys. */
+    var DANGEROUS_NAMES = { '__proto__': 1, 'constructor': 1, 'prototype': 1 };
+
+    function _validateName(name) {
+        if (!name || typeof name !== 'string') {
+            throw new Error('Item name is required');
+        }
+        if (DANGEROUS_NAMES[name]) {
+            throw new Error('Invalid item name: ' + name);
+        }
+    }
 
     /**
      * Add or update an inventory item.
@@ -31,9 +43,10 @@ function createLabInventoryManager() {
      * @param {number} [opts.unitCost=0] - Cost per unit
      */
     function addItem(opts) {
-        if (!opts || !opts.name || typeof opts.name !== 'string') {
+        if (!opts) {
             throw new Error('Item name is required');
         }
+        _validateName(opts.name);
         if (!opts.category || CATEGORIES.indexOf(opts.category) === -1) {
             throw new Error('Category must be one of: ' + CATEGORIES.join(', '));
         }
