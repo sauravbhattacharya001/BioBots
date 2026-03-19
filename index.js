@@ -41,6 +41,7 @@ var cellSeeding = require('./Try/scripts/cellSeeding');
 var washProtocol = require('./docs/shared/washProtocol');
 var compatibilityMatrix = require('./docs/shared/compatibilityMatrix');
 var labInventory = require('./docs/shared/labInventory');
+var wasteTracker = require('./docs/shared/wasteTracker');
 
 module.exports = {
     createMaterialCalculator: calculator.createMaterialCalculator,
@@ -65,5 +66,6 @@ module.exports = {
     createCellSeedingCalculator: cellSeeding.createCellSeedingCalculator,
     createWashProtocolCalculator: washProtocol.createWashProtocolCalculator,
     createCompatibilityMatrix: compatibilityMatrix.createCompatibilityMatrix,
-    createLabInventoryManager: labInventory.createLabInventoryManager
+    createLabInventoryManager: labInventory.createLabInventoryManager,
+    createWasteTracker: wasteTracker.createWasteTracker
 };
