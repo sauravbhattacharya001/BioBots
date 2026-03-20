@@ -64,6 +64,7 @@ var MATERIALS = [
 
 function createPrintSessionLogger() {
     var sessions = [];
+    var sessionIndex = {};  // id → array index for O(1) lookups
 
     /**
      * Log a new print session.
@@ -116,6 +117,7 @@ function createPrintSessionLogger() {
             scaffold: opts.scaffold || null
         };
 
+        sessionIndex[record.id] = sessions.length;
         sessions.push(record);
         return record;
     }
@@ -264,13 +266,15 @@ function createPrintSessionLogger() {
      * @returns {boolean}
      */
     function deleteSession(id) {
-        for (var i = 0; i < sessions.length; i++) {
-            if (sessions[i].id === id) {
-                sessions.splice(i, 1);
-                return true;
-            }
+        var idx = sessionIndex[id];
+        if (idx === undefined) return false;
+        sessions.splice(idx, 1);
+        delete sessionIndex[id];
+        // Rebuild index for shifted elements
+        for (var i = idx; i < sessions.length; i++) {
+            sessionIndex[sessions[i].id] = i;
         }
-        return false;
+        return true;
     }
 
     /**
@@ -280,27 +284,24 @@ function createPrintSessionLogger() {
      * @returns {Object|null}
      */
     function updateSession(id, updates) {
-        for (var i = 0; i < sessions.length; i++) {
-            if (sessions[i].id === id) {
-                var s = sessions[i];
-                if (updates.notes !== undefined) s.notes = updates.notes;
-                if (updates.tags !== undefined) s.tags = updates.tags;
-                if (updates.outcome !== undefined) {
-                    if (OUTCOMES.indexOf(updates.outcome) < 0) {
-                        throw new Error('outcome must be one of: ' + OUTCOMES.join(', '));
-                    }
-                    s.outcome = updates.outcome;
-                }
-                if (updates.viability !== undefined) {
-                    if (updates.viability !== null && (updates.viability < 0 || updates.viability > 100)) {
-                        throw new Error('viability must be 0-100');
-                    }
-                    s.viability = updates.viability;
-                }
-                return s;
+        var idx = sessionIndex[id];
+        if (idx === undefined) return null;
+        var s = sessions[idx];
+        if (updates.notes !== undefined) s.notes = updates.notes;
+        if (updates.tags !== undefined) s.tags = updates.tags;
+        if (updates.outcome !== undefined) {
+            if (OUTCOMES.indexOf(updates.outcome) < 0) {
+                throw new Error('outcome must be one of: ' + OUTCOMES.join(', '));
             }
+            s.outcome = updates.outcome;
         }
-        return null;
+        if (updates.viability !== undefined) {
+            if (updates.viability !== null && (updates.viability < 0 || updates.viability > 100)) {
+                throw new Error('viability must be 0-100');
+            }
+            s.viability = updates.viability;
+        }
+        return s;
     }
 
     /**
