@@ -32,6 +32,8 @@ const biobots = require('@sauravbhattacharya001/biobots');
 - [Cell Seeding Calculator](#cell-seeding-calculator)
 - [Wash Protocol Calculator](#wash-protocol-calculator)
 - [Compatibility Matrix](#compatibility-matrix)
+- [Lab Inventory Manager](#lab-inventory-manager)
+- [Waste Tracker](#waste-tracker)
 
 ---
 
@@ -393,6 +395,117 @@ Material–cell compatibility assessment and recommendation engine.
 ```js
 const cm = biobots.createCompatibilityMatrix();
 ```
+
+---
+
+## Lab Inventory Manager
+
+Track bioink stock, consumables, and reagents with low-stock alerts, usage logging, and consumption forecasting.
+
+```js
+const inv = biobots.createLabInventoryManager();
+```
+
+### `inv.addItem(opts)`
+
+Add or update an inventory item.
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `name` | `string` | — | Unique item name |
+| `category` | `string` | — | One of: `bioink`, `crosslinker`, `reagent`, `consumable`, `scaffold`, `media`, `other` |
+| `quantity` | `number` | — | Current stock quantity |
+| `unit` | `string` | — | Unit of measure (mL, g, units, etc.) |
+| `reorderThreshold` | `number` | `0` | Low-stock alert threshold |
+| `lotNumber` | `string` | `null` | Lot/batch identifier |
+| `expiryDate` | `string` | `null` | ISO date string for expiry |
+| `unitCost` | `number` | `0` | Cost per unit |
+
+**Returns:** The item record object.
+
+### `inv.removeItem(name)`
+
+Remove an item from inventory by name. Throws if not found.
+
+### `inv.recordUsage(name, amount, note?)`
+
+Record usage of an item (decrements stock).
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `name` | `string` | Item name |
+| `amount` | `number` | Amount used |
+| `note` | `string` | Optional usage note (e.g., print job reference) |
+
+### `inv.getLowStockAlerts()`
+
+Returns an array of items whose quantity is at or below their `reorderThreshold`.
+
+### `inv.getForecast(name, days)`
+
+Forecast usage for an item over a given number of days based on historical consumption.
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `name` | `string` | Item name |
+| `days` | `number` | Forecast horizon in days |
+
+### `inv.getExpiringItems(days?)`
+
+List items expiring within the given number of days (default: 30).
+
+### `inv.getUsageHistory(name?)`
+
+Get usage log entries, optionally filtered by item name.
+
+### `inv.getSummary()`
+
+Get a summary of all inventory: total items, total value, items by category, and low-stock count.
+
+---
+
+## Waste Tracker
+
+Track, analyze, and reduce bioprinting material waste. Records waste events per print job, categorizes waste by type, calculates waste rates, identifies patterns, and suggests reduction strategies.
+
+```js
+const wt = biobots.createWasteTracker();
+```
+
+### `wt.logWaste(opts)`
+
+Record a waste event.
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `jobId` | `string` | `null` | Print job identifier |
+| `material` | `string` | — | Material name (required) |
+| `wasteType` | `string` | `'other'` | One of: `purge`, `failed_print`, `leftover`, `expired`, `contaminated`, `calibration`, `other` |
+| `volumeMl` | `number` | — | Waste volume in mL (required, ≥ 0) |
+| `costPerMl` | `number` | `0` | Cost per mL for cost tracking |
+| `note` | `string` | `''` | Optional note |
+
+**Returns:** The waste entry record with computed `cost` field.
+
+### `wt.getSummary()`
+
+Get aggregate waste statistics: total volume, total cost, breakdown by waste type, and breakdown by material.
+
+### `wt.getReductionTips()`
+
+Get actionable waste reduction tips based on the most common waste types in the recorded data.
+
+### `wt.getByJob(jobId)`
+
+Get all waste entries for a specific print job.
+
+### `wt.getByMaterial(material)`
+
+Get all waste entries for a specific material.
+
+### `wt.reset()`
+
+Clear all waste tracking data.
 
 ---
 
