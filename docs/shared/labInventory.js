@@ -14,9 +14,29 @@
 
 var CATEGORIES = ['bioink', 'crosslinker', 'reagent', 'consumable', 'scaffold', 'media', 'other'];
 
+/** @private Keys that must never be used as item names to prevent prototype pollution. */
+var DANGEROUS_KEYS = { '__proto__': 1, 'constructor': 1, 'prototype': 1 };
+
 function createLabInventoryManager() {
-    var items = {};      // name -> item record
-    var usageLog = [];   // chronological usage entries
+    var items = Object.create(null);  // prototype-free map: name -> item record
+    var usageLog = [];                // chronological usage entries
+
+    /**
+     * Validate that an item name is safe (non-empty string, not a dangerous key).
+     * @private
+     * @param {string} name
+     * @returns {string} The validated name.
+     * @throws {Error} If name is invalid or dangerous.
+     */
+    function _validateName(name) {
+        if (!name || typeof name !== 'string') {
+            throw new Error('Item name is required');
+        }
+        if (DANGEROUS_KEYS[name]) {
+            throw new Error('Item name is reserved and cannot be used: ' + name);
+        }
+        return name;
+    }
 
     /**
      * Add or update an inventory item.
@@ -34,6 +54,7 @@ function createLabInventoryManager() {
         if (!opts || !opts.name || typeof opts.name !== 'string') {
             throw new Error('Item name is required');
         }
+        _validateName(opts.name);
         if (!opts.category || CATEGORIES.indexOf(opts.category) === -1) {
             throw new Error('Category must be one of: ' + CATEGORIES.join(', '));
         }
@@ -65,6 +86,7 @@ function createLabInventoryManager() {
      * Remove an item from inventory.
      */
     function removeItem(name) {
+        _validateName(name);
         if (!items[name]) {
             throw new Error('Item not found: ' + name);
         }
@@ -81,6 +103,7 @@ function createLabInventoryManager() {
      * @returns {Object} Updated item record
      */
     function recordUsage(name, amount, note) {
+        _validateName(name);
         if (!items[name]) {
             throw new Error('Item not found: ' + name);
         }
@@ -109,6 +132,7 @@ function createLabInventoryManager() {
      * Record a restock (increments stock).
      */
     function recordRestock(name, amount, lotNumber) {
+        _validateName(name);
         if (!items[name]) {
             throw new Error('Item not found: ' + name);
         }
@@ -225,6 +249,7 @@ function createLabInventoryManager() {
      * @returns {Object} Forecast with avgDaily, projected usage, days until stockout
      */
     function getForecast(name, days) {
+        _validateName(name);
         if (!items[name]) {
             throw new Error('Item not found: ' + name);
         }
