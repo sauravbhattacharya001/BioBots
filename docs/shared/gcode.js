@@ -401,31 +401,6 @@ function createGCodeAnalyzer() {
     }
 
     /**
-     * Compute feedrate statistics from an array of feedrate values.
-     * Kept for backward compatibility; internal code now uses accumulators.
-     * @private
-     */
-    function computeFeedrateStats(rates) {
-        if (!rates || rates.length === 0) {
-            return { min: 0, max: 0, avg: 0, count: 0 };
-        }
-        var sum = 0;
-        var min = Infinity;
-        var max = -Infinity;
-        for (var i = 0; i < rates.length; i++) {
-            sum += rates[i];
-            if (rates[i] < min) min = rates[i];
-            if (rates[i] > max) max = rates[i];
-        }
-        return {
-            min: round2(min),
-            max: round2(max),
-            avg: round2(sum / rates.length),
-            count: rates.length
-        };
-    }
-
-    /**
      * Generate a per-layer summary table.
      *
      * @param {object} analysis - Result from analyze().
