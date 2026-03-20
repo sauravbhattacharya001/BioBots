@@ -43,6 +43,7 @@ var compatibilityMatrix = require('./docs/shared/compatibilityMatrix');
 var labInventory = require('./docs/shared/labInventory');
 var wasteTracker = require('./docs/shared/wasteTracker');
 var printSessionLogger = require('./docs/shared/printSessionLogger');
+var dilutionCalculator = require('./docs/shared/dilutionCalculator');
 
 module.exports = {
     createMaterialCalculator: calculator.createMaterialCalculator,
@@ -69,5 +70,6 @@ module.exports = {
     createCompatibilityMatrix: compatibilityMatrix.createCompatibilityMatrix,
     createLabInventoryManager: labInventory.createLabInventoryManager,
     createWasteTracker: wasteTracker.createWasteTracker,
-    createPrintSessionLogger: printSessionLogger.createPrintSessionLogger
+    createPrintSessionLogger: printSessionLogger.createPrintSessionLogger,
+    createDilutionCalculator: dilutionCalculator.createDilutionCalculator
 };
