@@ -44,6 +44,7 @@ var labInventory = require('./docs/shared/labInventory');
 var wasteTracker = require('./docs/shared/wasteTracker');
 var printSessionLogger = require('./docs/shared/printSessionLogger');
 var dilutionCalculator = require('./docs/shared/dilutionCalculator');
+var plateMap = require('./docs/shared/plateMap');
 
 module.exports = {
     createMaterialCalculator: calculator.createMaterialCalculator,
@@ -71,5 +72,6 @@ module.exports = {
     createLabInventoryManager: labInventory.createLabInventoryManager,
     createWasteTracker: wasteTracker.createWasteTracker,
     createPrintSessionLogger: printSessionLogger.createPrintSessionLogger,
-    createDilutionCalculator: dilutionCalculator.createDilutionCalculator
+    createDilutionCalculator: dilutionCalculator.createDilutionCalculator,
+    createPlateMapGenerator: plateMap.createPlateMapGenerator
 };
