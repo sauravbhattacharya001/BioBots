@@ -1,0 +1,437 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Growth Curve Analyzer — BioBots</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📈</text></svg>">
+    <style>
+        :root{--bg:#0f172a;--surface:#1e293b;--border:#334155;--text:#e2e8f0;--muted:#94a3b8;--accent:#38bdf8;--accent-hover:#7dd3fc;--success:#4ade80;--warn:#fbbf24;--error:#f87171}
+        *{margin:0;padding:0;box-sizing:border-box}
+        body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;padding:1.5rem}
+        header{text-align:center;margin-bottom:1.5rem}
+        header h1{font-size:1.8rem;font-weight:700;background:linear-gradient(135deg,var(--accent),var(--success));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+        header p{color:var(--muted);margin-top:.3rem;font-size:.9rem}
+        nav{display:flex;gap:.5rem;flex-wrap:wrap;justify-content:center;margin-bottom:1.5rem}
+        nav a{color:var(--muted);padding:.4rem .8rem;border-radius:8px;text-decoration:none;font-size:.85rem;transition:all .2s}
+        nav a:hover{color:var(--accent)}
+        nav a.active{color:var(--accent);background:var(--surface);border:1px solid var(--border)}
+        .grid{display:grid;grid-template-columns:320px 1fr;gap:1.5rem;max-width:1200px;margin:0 auto}
+        @media(max-width:768px){.grid{grid-template-columns:1fr}}
+        .card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:1.5rem}
+        .card h2{font-size:1rem;margin-bottom:1rem;color:var(--muted);font-weight:500}
+        .form-group{margin-bottom:.8rem}
+        .form-group label{display:block;font-size:.8rem;color:var(--muted);margin-bottom:.3rem}
+        select,input[type=number],input[type=text],textarea{width:100%;background:var(--bg);border:1px solid var(--border);color:var(--text);padding:.5rem .7rem;border-radius:6px;font-size:.9rem;outline:none}
+        select:focus,input:focus,textarea:focus{border-color:var(--accent)}
+        textarea{resize:vertical;min-height:120px;font-family:monospace;font-size:.8rem}
+        .btn{background:var(--accent);color:var(--bg);border:none;padding:.5rem 1rem;border-radius:6px;font-size:.85rem;font-weight:600;cursor:pointer;transition:all .2s}
+        .btn:hover{background:var(--accent-hover);transform:translateY(-1px)}
+        .btn.secondary{background:transparent;color:var(--accent);border:1px solid var(--accent)}
+        .btn.secondary:hover{background:rgba(56,189,248,.1)}
+        .btn-row{display:flex;gap:.5rem;flex-wrap:wrap;margin-top:.8rem}
+        .stat-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:.8rem;margin-bottom:1rem}
+        .stat{background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:.8rem;text-align:center}
+        .stat .val{font-size:1.2rem;font-weight:700;color:var(--accent)}
+        .stat .lbl{font-size:.7rem;color:var(--muted);text-transform:uppercase;margin-top:.2rem}
+        .phase-bar{display:flex;height:28px;border-radius:6px;overflow:hidden;margin:.8rem 0}
+        .phase-bar div{display:flex;align-items:center;justify-content:center;font-size:.7rem;font-weight:600;color:var(--bg)}
+        .phase-lag{background:#94a3b8}.phase-log{background:var(--success)}.phase-stationary{background:var(--warn)}.phase-decline{background:var(--error)}
+        canvas{width:100%!important;max-height:400px}
+        .fit-table{width:100%;border-collapse:collapse;font-size:.85rem;margin-top:.8rem}
+        .fit-table th,.fit-table td{padding:.5rem .6rem;text-align:left;border-bottom:1px solid var(--border)}
+        .fit-table th{color:var(--muted);font-weight:500;font-size:.75rem;text-transform:uppercase}
+        .badge{display:inline-block;padding:.15rem .5rem;border-radius:4px;font-size:.7rem;font-weight:600}
+        .badge-best{background:rgba(74,222,128,.15);color:var(--success)}
+        .empty-state{text-align:center;padding:3rem 1rem;color:var(--muted)}
+        .empty-state p{margin-top:.5rem;font-size:.85rem}
+    </style>
+</head>
+<body>
+    <header>
+        <h1>📈 Growth Curve Analyzer</h1>
+        <p>Track cell proliferation post-print — doubling time, phase detection, curve fitting</p>
+    </header>
+
+    <nav>
+        <a href="index.html">Query Tool</a>
+        <a href="explorer.html">Data Explorer</a>
+        <a href="table.html">Data Table</a>
+        <a href="compare.html">Compare</a>
+        <a href="seeding.html">🔬 Cell Seeding</a>
+        <a href="maturation.html">🧫 Maturation</a>
+        <a href="growth.html" class="active">📈 Growth Curve</a>
+        <a href="compatibility.html">🧪 Compatibility</a>
+        <a href="protocol.html">📋 Protocol Library</a>
+        <a href="calculator.html">🔢 Calculator</a>
+    </nav>
+
+    <div class="grid">
+        <!-- Left Panel: Input -->
+        <div>
+            <div class="card">
+                <h2>📊 Data Input</h2>
+
+                <div class="form-group">
+                    <label>Quick Start — Cell Type Preset</label>
+                    <select id="presetSelect">
+                        <option value="">— Select preset —</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>Initial Seeding (cells)</label>
+                    <input type="number" id="seedingInput" value="10000" min="1" />
+                </div>
+
+                <div class="form-group">
+                    <label>Duration (hours)</label>
+                    <input type="number" id="durationInput" value="168" min="1" />
+                </div>
+
+                <div class="btn-row">
+                    <button class="btn" onclick="loadPreset()">Generate Curve</button>
+                </div>
+
+                <div style="margin-top:1.2rem;border-top:1px solid var(--border);padding-top:1rem">
+                    <div class="form-group">
+                        <label>Or paste custom data (time,count per line)</label>
+                        <textarea id="customData" placeholder="0,10000
+24,18500
+48,35000
+72,62000
+96,98000
+120,140000
+144,165000
+168,175000"></textarea>
+                    </div>
+                    <div class="btn-row">
+                        <button class="btn" onclick="analyzeCustom()">Analyze Custom Data</button>
+                        <button class="btn secondary" onclick="clearAll()">Clear</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Export -->
+            <div class="card" id="exportCard" style="display:none">
+                <h2>💾 Export</h2>
+                <div class="btn-row">
+                    <button class="btn secondary" onclick="doExport('csv')">CSV</button>
+                    <button class="btn secondary" onclick="doExport('json')">JSON</button>
+                    <button class="btn secondary" onclick="doExport('png')">Chart PNG</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Panel: Results -->
+        <div>
+            <div class="card" id="resultsCard">
+                <div id="emptyState" class="empty-state">
+                    <h2 style="font-size:1.5rem">📈</h2>
+                    <p>Select a cell type preset or paste custom time-series data to begin analysis.</p>
+                </div>
+
+                <div id="results" style="display:none">
+                    <!-- Stats -->
+                    <h2>Summary</h2>
+                    <div class="stat-grid" id="statsGrid"></div>
+
+                    <!-- Phase bar -->
+                    <h2 style="margin-top:1rem">Growth Phases</h2>
+                    <div class="phase-bar" id="phaseBar"></div>
+                    <div id="phaseDetails" style="font-size:.8rem;color:var(--muted)"></div>
+
+                    <!-- Chart -->
+                    <h2 style="margin-top:1.2rem">Growth Chart</h2>
+                    <canvas id="chart"></canvas>
+
+                    <!-- Fit comparison -->
+                    <h2 style="margin-top:1.2rem">Model Fits</h2>
+                    <table class="fit-table" id="fitTable">
+                        <thead><tr><th>Model</th><th>R²</th><th>Growth Rate</th><th>Doubling Time</th><th>Extra</th><th></th></tr></thead>
+                        <tbody id="fitBody"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="shared/growthCurve.js"></script>
+    <script>
+    (function() {
+        var gc = createGrowthCurveAnalyzer();
+        var currentData = null;
+        var currentSummary = null;
+        var chartInstance = null;
+
+        // Populate presets
+        var sel = document.getElementById('presetSelect');
+        Object.keys(gc.PRESETS).forEach(function(key) {
+            var opt = document.createElement('option');
+            opt.value = key;
+            opt.textContent = key + ' — ' + gc.PRESETS[key].description;
+            sel.appendChild(opt);
+        });
+
+        window.loadPreset = function() {
+            var type = document.getElementById('presetSelect').value;
+            if (!type) { alert('Select a cell type first'); return; }
+            var n0 = parseInt(document.getElementById('seedingInput').value) || 10000;
+            var hrs = parseInt(document.getElementById('durationInput').value) || 168;
+            currentData = gc.generateFromPreset(type, n0, hrs, 25);
+            analyze();
+        };
+
+        window.analyzeCustom = function() {
+            var raw = document.getElementById('customData').value.trim();
+            if (!raw) { alert('Paste time,count data'); return; }
+            var lines = raw.split('\n');
+            var data = [];
+            for (var i = 0; i < lines.length; i++) {
+                var line = lines[i].trim();
+                if (!line || line.startsWith('#')) continue;
+                var parts = line.split(/[,\t]/);
+                if (parts.length >= 2) {
+                    var t = parseFloat(parts[0]);
+                    var c = parseFloat(parts[1]);
+                    if (!isNaN(t) && !isNaN(c)) data.push({ time: t, count: c });
+                }
+            }
+            if (data.length < 2) { alert('Need at least 2 valid data points'); return; }
+            currentData = data.sort(function(a,b){ return a.time - b.time; });
+            analyze();
+        };
+
+        window.clearAll = function() {
+            currentData = null;
+            currentSummary = null;
+            document.getElementById('results').style.display = 'none';
+            document.getElementById('emptyState').style.display = '';
+            document.getElementById('exportCard').style.display = 'none';
+            if (chartInstance) { chartInstance.destroy(); chartInstance = null; }
+        };
+
+        function analyze() {
+            currentSummary = gc.summarize(currentData);
+            document.getElementById('emptyState').style.display = 'none';
+            document.getElementById('results').style.display = '';
+            document.getElementById('exportCard').style.display = '';
+            renderStats();
+            renderPhases();
+            renderChart();
+            renderFits();
+        }
+
+        function renderStats() {
+            var s = currentSummary;
+            var items = [
+                { val: s.dataPoints, lbl: 'Data Points' },
+                { val: s.timeRange.duration + 'h', lbl: 'Duration' },
+                { val: fmtNum(s.counts.initial), lbl: 'Initial Count' },
+                { val: fmtNum(s.counts.final), lbl: 'Final Count' },
+                { val: s.counts.foldChange ? s.counts.foldChange + '×' : 'N/A', lbl: 'Fold Change' },
+                { val: s.bestModel || 'N/A', lbl: 'Best Model' }
+            ];
+            var ef = s.exponentialFit;
+            if (ef && ef.doublingTime) items.push({ val: ef.doublingTime + 'h', lbl: 'Doubling Time' });
+
+            var html = '';
+            items.forEach(function(it) {
+                html += '<div class="stat"><div class="val">' + it.val + '</div><div class="lbl">' + it.lbl + '</div></div>';
+            });
+            document.getElementById('statsGrid').innerHTML = html;
+        }
+
+        function renderPhases() {
+            var phases = currentSummary.phases;
+            var bar = document.getElementById('phaseBar');
+            var details = document.getElementById('phaseDetails');
+            if (!phases || phases.length === 0) {
+                bar.innerHTML = '<div style="width:100%;background:var(--muted)">No phases detected</div>';
+                details.textContent = '';
+                return;
+            }
+            var total = currentSummary.timeRange.duration || 1;
+            var html = '';
+            var detailParts = [];
+            phases.forEach(function(p) {
+                var w = Math.max(5, ((p.endTime - p.startTime) / total) * 100);
+                html += '<div class="phase-' + p.phase + '" style="width:' + w + '%">' + p.phase + '</div>';
+                detailParts.push(p.phase + ': ' + p.startTime + '–' + p.endTime + 'h (µ=' + p.avgRate + '/h)');
+            });
+            bar.innerHTML = html;
+            details.textContent = detailParts.join(' → ');
+        }
+
+        function renderChart() {
+            var canvas = document.getElementById('chart');
+            if (chartInstance) chartInstance.destroy();
+
+            // Simple canvas chart (no external lib)
+            var ctx = canvas.getContext('2d');
+            var W = canvas.parentElement.offsetWidth - 32;
+            var H = 350;
+            canvas.width = W * 2; canvas.height = H * 2;
+            canvas.style.width = W + 'px'; canvas.style.height = H + 'px';
+            ctx.scale(2, 2);
+
+            var pad = { top: 20, right: 20, bottom: 40, left: 60 };
+            var cw = W - pad.left - pad.right;
+            var ch = H - pad.top - pad.bottom;
+
+            // Data bounds
+            var maxT = 0, maxN = 0;
+            currentData.forEach(function(d) {
+                if (d.time > maxT) maxT = d.time;
+                if (d.count > maxN) maxN = d.count;
+            });
+            maxN *= 1.1;
+
+            function tx(t) { return pad.left + (t / maxT) * cw; }
+            function ty(n) { return pad.top + ch - (n / maxN) * ch; }
+
+            // Background
+            ctx.fillStyle = '#0f172a';
+            ctx.fillRect(0, 0, W, H);
+
+            // Grid
+            ctx.strokeStyle = '#1e293b';
+            ctx.lineWidth = 1;
+            for (var i = 0; i <= 5; i++) {
+                var y = pad.top + (i / 5) * ch;
+                ctx.beginPath(); ctx.moveTo(pad.left, y); ctx.lineTo(pad.left + cw, y); ctx.stroke();
+            }
+
+            // Axes labels
+            ctx.fillStyle = '#94a3b8';
+            ctx.font = '11px sans-serif';
+            ctx.textAlign = 'center';
+            for (var i = 0; i <= 5; i++) {
+                var t = (i / 5) * maxT;
+                ctx.fillText(Math.round(t) + 'h', tx(t), H - 8);
+            }
+            ctx.textAlign = 'right';
+            for (var i = 0; i <= 5; i++) {
+                var n = ((5 - i) / 5) * maxN;
+                ctx.fillText(fmtNum(Math.round(n)), pad.left - 5, pad.top + (i / 5) * ch + 4);
+            }
+
+            // Fitted curves
+            var s = currentSummary;
+            if (s.logisticFit && s.logisticFit.rSquared > 0) {
+                ctx.strokeStyle = 'rgba(251,191,36,0.5)';
+                ctx.lineWidth = 2;
+                ctx.setLineDash([6, 3]);
+                ctx.beginPath();
+                for (var i = 0; i <= 100; i++) {
+                    var t = (i / 100) * maxT;
+                    try {
+                        var n = gc.logisticGrowth(s.logisticFit.n0, s.logisticFit.r, s.logisticFit.k, t);
+                        if (i === 0) ctx.moveTo(tx(t), ty(n)); else ctx.lineTo(tx(t), ty(n));
+                    } catch(e) {}
+                }
+                ctx.stroke();
+                ctx.setLineDash([]);
+            }
+
+            if (s.exponentialFit && s.exponentialFit.rSquared > 0) {
+                ctx.strokeStyle = 'rgba(248,113,113,0.4)';
+                ctx.lineWidth = 2;
+                ctx.setLineDash([4, 4]);
+                ctx.beginPath();
+                for (var i = 0; i <= 100; i++) {
+                    var t = (i / 100) * maxT;
+                    var n = gc.exponentialGrowth(s.exponentialFit.n0, s.exponentialFit.r, t);
+                    var yp = ty(Math.min(n, maxN * 2));
+                    if (i === 0) ctx.moveTo(tx(t), yp); else ctx.lineTo(tx(t), yp);
+                }
+                ctx.stroke();
+                ctx.setLineDash([]);
+            }
+
+            // Data points + line
+            ctx.strokeStyle = '#38bdf8';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            currentData.forEach(function(d, i) {
+                if (i === 0) ctx.moveTo(tx(d.time), ty(d.count));
+                else ctx.lineTo(tx(d.time), ty(d.count));
+            });
+            ctx.stroke();
+
+            ctx.fillStyle = '#38bdf8';
+            currentData.forEach(function(d) {
+                ctx.beginPath();
+                ctx.arc(tx(d.time), ty(d.count), 4, 0, Math.PI * 2);
+                ctx.fill();
+            });
+
+            // Legend
+            var lx = pad.left + 10, ly = pad.top + 15;
+            ctx.font = '10px sans-serif';
+            [['#38bdf8', 'Data', []], ['rgba(248,113,113,0.7)', 'Exponential', [4,4]], ['rgba(251,191,36,0.7)', 'Logistic', [6,3]]].forEach(function(item, i) {
+                ctx.strokeStyle = item[0]; ctx.fillStyle = item[0];
+                ctx.lineWidth = 2; ctx.setLineDash(item[2]);
+                ctx.beginPath(); ctx.moveTo(lx, ly + i * 16); ctx.lineTo(lx + 20, ly + i * 16); ctx.stroke();
+                ctx.setLineDash([]);
+                ctx.fillText(item[1], lx + 25, ly + i * 16 + 4);
+            });
+
+            chartInstance = { destroy: function() { ctx.clearRect(0, 0, W * 2, H * 2); } };
+        }
+
+        function renderFits() {
+            var s = currentSummary;
+            var html = '';
+
+            if (s.exponentialFit) {
+                var ef = s.exponentialFit;
+                var best = s.bestModel === 'exponential';
+                html += '<tr><td>Exponential ' + (best ? '<span class="badge badge-best">BEST</span>' : '') +
+                    '</td><td>' + ef.rSquared + '</td><td>' + ef.r + '/h</td><td>' +
+                    (ef.doublingTime || 'N/A') + 'h</td><td>N₀=' + fmtNum(ef.n0) + '</td></tr>';
+            }
+            if (s.logisticFit) {
+                var lf = s.logisticFit;
+                var best = s.bestModel === 'logistic';
+                html += '<tr><td>Logistic ' + (best ? '<span class="badge badge-best">BEST</span>' : '') +
+                    '</td><td>' + lf.rSquared + '</td><td>' + lf.r + '/h</td><td>' +
+                    (lf.doublingTime || 'N/A') + 'h</td><td>K=' + fmtNum(lf.k) + '</td></tr>';
+            }
+            if (!html) html = '<tr><td colspan="5" style="color:var(--muted)">Insufficient data for fitting</td></tr>';
+            document.getElementById('fitBody').innerHTML = html;
+        }
+
+        function fmtNum(n) {
+            if (n >= 1e6) return (n / 1e6).toFixed(1) + 'M';
+            if (n >= 1e3) return (n / 1e3).toFixed(1) + 'K';
+            return String(n);
+        }
+
+        window.doExport = function(fmt) {
+            if (!currentData) return;
+            var content, filename, mime;
+            if (fmt === 'csv') {
+                content = gc.exportCSV(currentData, currentSummary);
+                filename = 'growth_curve.csv'; mime = 'text/csv';
+            } else if (fmt === 'json') {
+                content = gc.exportJSON(currentData, currentSummary);
+                filename = 'growth_curve.json'; mime = 'application/json';
+            } else if (fmt === 'png') {
+                var canvas = document.getElementById('chart');
+                var link = document.createElement('a');
+                link.download = 'growth_chart.png';
+                link.href = canvas.toDataURL('image/png');
+                link.click();
+                return;
+            }
+            var blob = new Blob([content], { type: mime });
+            var url = URL.createObjectURL(blob);
+            var a = document.createElement('a');
+            a.href = url; a.download = filename; a.click();
+            URL.revokeObjectURL(url);
+        };
+    })();
+    </script>
+</body>
+</html>
