@@ -45,6 +45,7 @@ var wasteTracker = require('./docs/shared/wasteTracker');
 var printSessionLogger = require('./docs/shared/printSessionLogger');
 var dilutionCalculator = require('./docs/shared/dilutionCalculator');
 var plateMap = require('./docs/shared/plateMap');
+var environmentalMonitor = require('./docs/shared/environmentalMonitor');
 
 module.exports = {
     createMaterialCalculator: calculator.createMaterialCalculator,
@@ -73,5 +74,6 @@ module.exports = {
     createWasteTracker: wasteTracker.createWasteTracker,
     createPrintSessionLogger: printSessionLogger.createPrintSessionLogger,
     createDilutionCalculator: dilutionCalculator.createDilutionCalculator,
-    createPlateMapGenerator: plateMap.createPlateMapGenerator
+    createPlateMapGenerator: plateMap.createPlateMapGenerator,
+    createEnvironmentalMonitor: environmentalMonitor.createEnvironmentalMonitor
 };
