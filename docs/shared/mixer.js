@@ -213,36 +213,22 @@ function createBioinkMixer() {
             throw new Error('Fractions must sum to 1.0 (got ' + fractionSum.toFixed(3) + ')');
         }
 
-        // Composite density (linear mixing)
+        // Composite properties — single pass over components
         var density = 0;
-        components.forEach(function(c) {
-            density += c.fraction * MATERIALS[c.material].density;
-        });
-
-        // Composite cost (linear mixing)
         var costPerMl = 0;
-        components.forEach(function(c) {
-            costPerMl += c.fraction * MATERIALS[c.material].costPerMl;
-        });
-
-        // Composite viscosity (log-mixing rule)
         var logVisc = 0;
-        components.forEach(function(c) {
-            logVisc += c.fraction * Math.log(MATERIALS[c.material].viscosity);
-        });
-        var viscosity = Math.exp(logVisc);
-
-        // Composite cell adhesion (linear)
         var cellAdhesion = 0;
-        components.forEach(function(c) {
-            cellAdhesion += c.fraction * MATERIALS[c.material].cellAdhesion;
-        });
-
-        // Composite degradability (linear)
         var degradability = 0;
         components.forEach(function(c) {
-            degradability += c.fraction * MATERIALS[c.material].degradability;
+            var mat = MATERIALS[c.material];
+            var f = c.fraction;
+            density      += f * mat.density;
+            costPerMl    += f * mat.costPerMl;
+            logVisc      += f * Math.log(mat.viscosity);
+            cellAdhesion += f * mat.cellAdhesion;
+            degradability += f * mat.degradability;
         });
+        var viscosity = Math.exp(logVisc);
 
         var compatibility = computeCompatibility(components);
         var tempRange = computeTempRange(components);
