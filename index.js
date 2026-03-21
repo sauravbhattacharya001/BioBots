@@ -46,6 +46,7 @@ var printSessionLogger = require('./docs/shared/printSessionLogger');
 var dilutionCalculator = require('./docs/shared/dilutionCalculator');
 var plateMap = require('./docs/shared/plateMap');
 var environmentalMonitor = require('./docs/shared/environmentalMonitor');
+var centrifuge = require('./docs/shared/centrifuge');
 
 module.exports = {
     createMaterialCalculator: calculator.createMaterialCalculator,
@@ -75,5 +76,6 @@ module.exports = {
     createPrintSessionLogger: printSessionLogger.createPrintSessionLogger,
     createDilutionCalculator: dilutionCalculator.createDilutionCalculator,
     createPlateMapGenerator: plateMap.createPlateMapGenerator,
-    createEnvironmentalMonitor: environmentalMonitor.createEnvironmentalMonitor
+    createEnvironmentalMonitor: environmentalMonitor.createEnvironmentalMonitor,
+    createCentrifugeCalculator: centrifuge.createCentrifugeCalculator
 };
