@@ -408,7 +408,27 @@ function listConstructs() {
     return Object.keys(CONSTRUCT_PRESETS);
 }
 
+/**
+ * Factory function that returns a new ProtocolGenerator instance.
+ * Follows the same pattern as other BioBots modules (createMaterialCalculator, etc.).
+ *
+ * @returns {Object} ProtocolGenerator with generateProtocol, formatProtocolText, listMaterials, listCellTypes, listConstructs.
+ */
+function createProtocolGenerator() {
+    return {
+        generateProtocol: generateProtocol,
+        formatProtocolText: formatProtocolText,
+        listMaterials: listMaterials,
+        listCellTypes: listCellTypes,
+        listConstructs: listConstructs,
+        BIOINK_DB: BIOINK_DB,
+        CELL_PROTOCOLS: CELL_PROTOCOLS,
+        CONSTRUCT_PRESETS: CONSTRUCT_PRESETS
+    };
+}
+
 module.exports = {
+    createProtocolGenerator: createProtocolGenerator,
     generateProtocol: generateProtocol,
     formatProtocolText: formatProtocolText,
     listMaterials: listMaterials,

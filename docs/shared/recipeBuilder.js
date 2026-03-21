@@ -174,9 +174,26 @@ var PRESETS = {
     'high-elasticity': { minViability: 50, maxDead: 50, minElasticity: 70, maxLayerHeight: 1.0, crosslinking: 'any', tolerance: 0.10 }
 };
 
+/**
+ * Factory function that returns a new RecipeBuilder instance.
+ * Follows the same pattern as other BioBots modules (createMaterialCalculator, etc.).
+ *
+ * @returns {Object} RecipeBuilder with filterAndScore, computeRecipe, formatRecipeText, buildHistogram, PRESETS.
+ */
+function createRecipeBuilder() {
+    return {
+        filterAndScore: filterAndScore,
+        computeRecipe: computeRecipe,
+        formatRecipeText: formatRecipeText,
+        buildHistogram: buildHistogram,
+        PRESETS: PRESETS
+    };
+}
+
 // CommonJS export for testing
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = {
+        createRecipeBuilder: createRecipeBuilder,
         filterAndScore: filterAndScore,
         computeRecipe: computeRecipe,
         formatRecipeText: formatRecipeText,
