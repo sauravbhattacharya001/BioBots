@@ -473,6 +473,22 @@ describe('FormulationCalculator', () => {
             const imported = calc.importFormulation(obj);
             expect(imported.name).toBe('Direct');
         });
+
+        test('import strips __proto__ and constructor keys to prevent prototype pollution', () => {
+            const malicious = JSON.stringify({
+                name: 'Malicious',
+                targetVolume: 5,
+                components: [{ name: 'x', '__proto__': { admin: true } }],
+                '__proto__': { isAdmin: true },
+                'constructor': { polluted: true }
+            });
+            const imported = calc.importFormulation(malicious);
+            expect(imported.name).toBe('Malicious');
+            expect(imported['__proto__']).toBeUndefined();
+            expect(imported['constructor']).toBeUndefined();
+            expect(imported.components[0]['__proto__']).toBeUndefined();
+            expect(({}).isAdmin).toBeUndefined();
+        });
     });
 
     // ── Report Generation ───────────────────────────────────────

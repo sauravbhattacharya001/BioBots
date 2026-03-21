@@ -739,6 +739,24 @@ function createFormulationCalculator() {
     }
 
     /**
+     * Deep-strip dangerous keys (__proto__, constructor, prototype)
+     * from an object tree to prevent prototype pollution from
+     * untrusted JSON input.
+     */
+    function _deepStripDangerous(obj) {
+        if (obj === null || typeof obj !== 'object') return obj;
+        if (Array.isArray(obj)) return obj.map(_deepStripDangerous);
+        const DANGEROUS = { '__proto__': 1, 'constructor': 1, 'prototype': 1 };
+        const out = {};
+        for (const key of Object.keys(obj)) {
+            if (!DANGEROUS[key]) {
+                out[key] = _deepStripDangerous(obj[key]);
+            }
+        }
+        return out;
+    }
+
+    /**
      * Import formulation from JSON
      */
     function importFormulation(json) {
@@ -747,7 +765,7 @@ function createFormulationCalculator() {
             if (!parsed.name || !parsed.targetVolume || !parsed.components) {
                 throw new Error('Invalid formulation: missing required fields');
             }
-            return parsed;
+            return _deepStripDangerous(parsed);
         } catch (e) {
             throw new Error(`Failed to import formulation: ${e.message}`);
         }
