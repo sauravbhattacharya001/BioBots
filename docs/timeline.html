@@ -1,0 +1,605 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>BioBots — Bioprint Timeline Planner</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧬</text></svg>">
+    <style>
+        :root {
+            --bg: #0f172a; --surface: #1e293b; --border: #334155;
+            --text: #e2e8f0; --muted: #94a3b8; --accent: #38bdf8;
+            --accent-hover: #7dd3fc; --success: #4ade80; --error: #f87171;
+            --warning: #fbbf24; --purple: #a78bfa;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; display: flex; flex-direction: column; align-items: center; padding: 2rem 1rem; }
+        nav { display: flex; gap: 0.5rem; margin-bottom: 2rem; flex-wrap: wrap; justify-content: center; }
+        nav a { color: var(--muted); padding: 0.5rem 1rem; border-radius: 8px; text-decoration: none; font-size: 0.9rem; transition: all 0.2s; }
+        nav a:hover { color: var(--accent); background: var(--surface); }
+        nav a.active { color: var(--accent); background: var(--surface); border: 1px solid var(--border); }
+        header { text-align: center; margin-bottom: 2rem; }
+        header h1 { font-size: 2rem; font-weight: 700; background: linear-gradient(135deg, var(--purple), var(--accent)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+        header p { color: var(--muted); margin-top: 0.5rem; }
+        .container { width: 100%; max-width: 1200px; }
+        .card { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 1.5rem; margin-bottom: 1.5rem; }
+        .card h2 { font-size: 1.1rem; margin-bottom: 1rem; color: var(--muted); font-weight: 500; }
+        .form-row { display: flex; gap: 0.8rem; flex-wrap: wrap; align-items: end; margin-bottom: 0.8rem; }
+        .form-group { display: flex; flex-direction: column; gap: 0.3rem; flex: 1; min-width: 120px; }
+        label { font-size: 0.8rem; color: var(--muted); font-weight: 500; }
+        select, input[type="number"], input[type="text"], input[type="date"], input[type="time"] {
+            background: var(--bg); border: 1px solid var(--border); color: var(--text);
+            padding: 0.5rem 0.7rem; border-radius: 8px; font-size: 0.9rem; outline: none;
+            transition: border-color 0.2s; width: 100%;
+        }
+        select:focus, input:focus { border-color: var(--accent); }
+        .btn { background: var(--accent); color: var(--bg); border: none; padding: 0.6rem 1.2rem; border-radius: 8px; font-size: 0.9rem; font-weight: 600; cursor: pointer; transition: background 0.2s; white-space: nowrap; }
+        .btn:hover { background: var(--accent-hover); }
+        .btn-sm { padding: 0.4rem 0.8rem; font-size: 0.8rem; }
+        .btn-danger { background: var(--error); }
+        .btn-danger:hover { background: #ef4444; }
+        .btn-outline { background: transparent; border: 1px solid var(--border); color: var(--muted); }
+        .btn-outline:hover { border-color: var(--accent); color: var(--accent); }
+        .btn-success { background: var(--success); color: var(--bg); }
+
+        /* Presets */
+        .presets { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 1rem; }
+        .presets button { background: var(--bg); border: 1px solid var(--border); color: var(--muted); padding: 0.5rem 1rem; border-radius: 8px; font-size: 0.85rem; cursor: pointer; transition: all 0.2s; }
+        .presets button:hover { border-color: var(--accent); color: var(--accent); }
+
+        /* Gantt */
+        .gantt-container { overflow-x: auto; margin-top: 1rem; }
+        .gantt { position: relative; min-height: 100px; }
+        .gantt-header { display: flex; border-bottom: 1px solid var(--border); padding-bottom: 0.3rem; margin-bottom: 0.5rem; position: relative; }
+        .gantt-label-col { width: 180px; min-width: 180px; font-size: 0.75rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; padding: 0.3rem 0; }
+        .gantt-timeline { flex: 1; display: flex; position: relative; }
+        .gantt-tick { flex: 1; text-align: center; font-size: 0.7rem; color: var(--muted); border-left: 1px solid var(--border); padding: 0.3rem 0.2rem; white-space: nowrap; overflow: hidden; }
+        .gantt-row { display: flex; align-items: center; min-height: 36px; border-bottom: 1px solid rgba(51,65,85,0.4); }
+        .gantt-row:hover { background: rgba(56,189,248,0.03); }
+        .gantt-row-label { width: 180px; min-width: 180px; font-size: 0.85rem; padding: 0.3rem 0.5rem 0.3rem 0; display: flex; align-items: center; gap: 0.4rem; }
+        .gantt-row-label .step-icon { font-size: 1rem; }
+        .gantt-row-label .step-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .gantt-row-bars { flex: 1; position: relative; height: 28px; }
+        .gantt-bar { position: absolute; height: 22px; top: 3px; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 0.7rem; font-weight: 600; color: var(--bg); cursor: pointer; transition: opacity 0.2s; min-width: 4px; }
+        .gantt-bar:hover { opacity: 0.85; }
+        .gantt-bar .bar-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding: 0 4px; }
+        .gantt-dep-line { position: absolute; pointer-events: none; }
+
+        /* Summary stats */
+        .stats-row { display: flex; gap: 1rem; flex-wrap: wrap; margin-top: 1rem; }
+        .stat-box { background: var(--bg); border: 1px solid var(--border); border-radius: 10px; padding: 0.8rem; text-align: center; flex: 1; min-width: 120px; }
+        .stat-box .value { font-size: 1.3rem; font-weight: 700; color: var(--accent); }
+        .stat-box .label { font-size: 0.7rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; margin-top: 0.2rem; }
+
+        /* Step list */
+        .step-list { margin-top: 1rem; }
+        .step-item { display: flex; align-items: center; gap: 0.5rem; padding: 0.5rem; border-bottom: 1px solid rgba(51,65,85,0.4); font-size: 0.85rem; }
+        .step-item:last-child { border-bottom: none; }
+        .step-color { width: 12px; height: 12px; border-radius: 3px; flex-shrink: 0; }
+        .step-info { flex: 1; }
+        .step-info .name { font-weight: 500; }
+        .step-info .detail { font-size: 0.75rem; color: var(--muted); }
+        .step-actions { display: flex; gap: 0.3rem; }
+
+        /* Dependency arrows on SVG overlay */
+        .gantt-svg { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; overflow: visible; }
+
+        .empty-state { text-align: center; color: var(--muted); padding: 3rem 1rem; font-size: 0.95rem; }
+        .export-bar { display: flex; gap: 0.5rem; justify-content: flex-end; margin-top: 1rem; flex-wrap: wrap; }
+
+        /* Critical path highlight */
+        .gantt-bar.critical { box-shadow: 0 0 0 2px var(--error), 0 0 8px rgba(248,113,113,0.3); }
+
+        @media (max-width: 600px) {
+            .gantt-label-col, .gantt-row-label { width: 120px; min-width: 120px; }
+        }
+    </style>
+</head>
+<body>
+    <nav>
+        <a href="index.html">Home</a>
+        <a href="explorer.html">Explorer</a>
+        <a href="calculator.html">Calculator</a>
+        <a href="mixer.html">Mixer</a>
+        <a href="cost.html">Cost</a>
+        <a href="seeding.html">Seeding</a>
+        <a href="timeline.html" class="active">Timeline</a>
+    </nav>
+
+    <header>
+        <h1>📅 Bioprint Timeline Planner</h1>
+        <p>Plan and visualize multi-step bioprinting workflows with dependencies and critical path analysis</p>
+    </header>
+
+    <div class="container">
+        <!-- Presets -->
+        <div class="card">
+            <h2>🧪 Workflow Templates</h2>
+            <div class="presets" id="presets"></div>
+        </div>
+
+        <!-- Add Step -->
+        <div class="card">
+            <h2>➕ Add Step</h2>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Step Name</label>
+                    <input type="text" id="stepName" placeholder="e.g. Cell Expansion" />
+                </div>
+                <div class="form-group">
+                    <label>Category</label>
+                    <select id="stepCategory">
+                        <option value="prep">🧫 Cell Preparation</option>
+                        <option value="bioink">🧪 Bioink Formulation</option>
+                        <option value="printing">🖨️ Printing</option>
+                        <option value="crosslink">⚡ Crosslinking</option>
+                        <option value="culture">🌱 Culture/Maturation</option>
+                        <option value="qa">✅ Quality Control</option>
+                        <option value="other">📋 Other</option>
+                    </select>
+                </div>
+                <div class="form-group" style="max-width:100px;">
+                    <label>Duration (hrs)</label>
+                    <input type="number" id="stepDuration" min="0.25" step="0.25" value="2" />
+                </div>
+                <div class="form-group">
+                    <label>Depends On</label>
+                    <select id="stepDependency">
+                        <option value="">None</option>
+                    </select>
+                </div>
+                <button class="btn" onclick="addStep()">Add</button>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Start Date (optional)</label>
+                    <input type="date" id="projectStart" />
+                </div>
+                <div class="form-group">
+                    <label>Work Hours/Day</label>
+                    <input type="number" id="hoursPerDay" min="1" max="24" value="8" />
+                </div>
+            </div>
+        </div>
+
+        <!-- Steps List -->
+        <div class="card">
+            <h2>📋 Steps (<span id="stepCount">0</span>)</h2>
+            <div id="stepList" class="step-list">
+                <div class="empty-state">No steps yet. Add steps above or load a template.</div>
+            </div>
+        </div>
+
+        <!-- Gantt Chart -->
+        <div class="card">
+            <h2>📊 Gantt Chart</h2>
+            <div class="gantt-container">
+                <div id="ganttChart" class="gantt">
+                    <div class="empty-state">Add steps to see the timeline.</div>
+                </div>
+            </div>
+            <div class="stats-row" id="stats" style="display:none;">
+                <div class="stat-box"><div class="value" id="statTotal">-</div><div class="label">Total Duration</div></div>
+                <div class="stat-box"><div class="value" id="statCritical">-</div><div class="label">Critical Path</div></div>
+                <div class="stat-box"><div class="value" id="statSteps">-</div><div class="label">Steps</div></div>
+                <div class="stat-box"><div class="value" id="statDays">-</div><div class="label">Calendar Days</div></div>
+                <div class="stat-box"><div class="value" id="statParallel">-</div><div class="label">Max Parallel</div></div>
+            </div>
+        </div>
+
+        <!-- Export -->
+        <div class="export-bar">
+            <button class="btn btn-outline btn-sm" onclick="exportJSON()">📥 Export JSON</button>
+            <button class="btn btn-outline btn-sm" onclick="importJSON()">📤 Import JSON</button>
+            <button class="btn btn-outline btn-sm" onclick="exportMarkdown()">📝 Markdown</button>
+            <button class="btn btn-outline btn-sm" onclick="clearAll()">🗑️ Clear All</button>
+        </div>
+    </div>
+
+    <input type="file" id="fileInput" accept=".json" style="display:none" />
+
+    <script>
+    const CATEGORIES = {
+        prep:      { icon: '🧫', label: 'Cell Preparation', color: '#38bdf8' },
+        bioink:    { icon: '🧪', label: 'Bioink Formulation', color: '#a78bfa' },
+        printing:  { icon: '🖨️', label: 'Printing', color: '#f472b6' },
+        crosslink: { icon: '⚡', label: 'Crosslinking', color: '#fbbf24' },
+        culture:   { icon: '🌱', label: 'Culture/Maturation', color: '#4ade80' },
+        qa:        { icon: '✅', label: 'Quality Control', color: '#fb923c' },
+        other:     { icon: '📋', label: 'Other', color: '#94a3b8' }
+    };
+
+    const PRESETS = {
+        'Skin Tissue': [
+            { name: 'Keratinocyte expansion', category: 'prep', duration: 72 },
+            { name: 'Fibroblast expansion', category: 'prep', duration: 72 },
+            { name: 'Collagen bioink prep', category: 'bioink', duration: 4, dep: 0 },
+            { name: 'Dermal layer print', category: 'printing', duration: 3, dep: 2 },
+            { name: 'UV crosslinking', category: 'crosslink', duration: 0.5, dep: 3 },
+            { name: 'Epidermal layer print', category: 'printing', duration: 2, dep: [1, 4] },
+            { name: 'Air-liquid interface culture', category: 'culture', duration: 336 },
+            { name: 'Histology & viability', category: 'qa', duration: 6, dep: 6 }
+        ],
+        'Cartilage Construct': [
+            { name: 'Chondrocyte isolation', category: 'prep', duration: 8 },
+            { name: 'Cell expansion (P2)', category: 'prep', duration: 168, dep: 0 },
+            { name: 'GelMA bioink prep', category: 'bioink', duration: 3, dep: 1 },
+            { name: 'Scaffold printing', category: 'printing', duration: 2, dep: 2 },
+            { name: 'Photo-crosslinking', category: 'crosslink', duration: 0.25, dep: 3 },
+            { name: 'Chondrogenic culture', category: 'culture', duration: 504, dep: 4 },
+            { name: 'GAG assay & mechanics', category: 'qa', duration: 8, dep: 5 }
+        ],
+        'Vascular Network': [
+            { name: 'HUVEC expansion', category: 'prep', duration: 96 },
+            { name: 'SMC expansion', category: 'prep', duration: 120 },
+            { name: 'Fugitive ink prep', category: 'bioink', duration: 2 },
+            { name: 'Matrix bioink prep', category: 'bioink', duration: 3, dep: 0 },
+            { name: 'Coaxial printing', category: 'printing', duration: 4, dep: [2, 3] },
+            { name: 'Thermal crosslink', category: 'crosslink', duration: 1, dep: 4 },
+            { name: 'Fugitive ink evacuation', category: 'other', duration: 2, dep: 5 },
+            { name: 'SMC seeding', category: 'prep', duration: 1, dep: [1, 6] },
+            { name: 'Perfusion culture', category: 'culture', duration: 168, dep: 7 },
+            { name: 'Burst pressure test', category: 'qa', duration: 4, dep: 8 }
+        ],
+        'Bone Scaffold': [
+            { name: 'MSC harvest & expand', category: 'prep', duration: 240 },
+            { name: 'HA/PCL composite prep', category: 'bioink', duration: 6 },
+            { name: 'Osteogenic medium prep', category: 'other', duration: 2 },
+            { name: 'Scaffold printing', category: 'printing', duration: 5, dep: [0, 1] },
+            { name: 'Sintering', category: 'crosslink', duration: 4, dep: 3 },
+            { name: 'Cell seeding', category: 'prep', duration: 2, dep: 4 },
+            { name: 'Osteogenic differentiation', category: 'culture', duration: 504, dep: [2, 5] },
+            { name: 'Micro-CT & ALP assay', category: 'qa', duration: 8, dep: 6 }
+        ],
+        'Quick Print (Demo)': [
+            { name: 'Bioink prep', category: 'bioink', duration: 2 },
+            { name: 'Printer calibration', category: 'other', duration: 1 },
+            { name: 'Print layer 1', category: 'printing', duration: 1, dep: [0, 1] },
+            { name: 'Crosslink', category: 'crosslink', duration: 0.5, dep: 2 },
+            { name: 'Print layer 2', category: 'printing', duration: 1, dep: 3 },
+            { name: 'Final crosslink', category: 'crosslink', duration: 0.5, dep: 4 },
+            { name: 'Viability check', category: 'qa', duration: 2, dep: 5 }
+        ]
+    };
+
+    let steps = [];
+    let nextId = 1;
+
+    function init() {
+        const presetEl = document.getElementById('presets');
+        Object.keys(PRESETS).forEach(name => {
+            const btn = document.createElement('button');
+            btn.textContent = name;
+            btn.onclick = () => loadPreset(name);
+            presetEl.appendChild(btn);
+        });
+        const saved = localStorage.getItem('biobot-timeline');
+        if (saved) {
+            try {
+                const data = JSON.parse(saved);
+                steps = data.steps || [];
+                nextId = data.nextId || steps.length + 1;
+                if (data.projectStart) document.getElementById('projectStart').value = data.projectStart;
+                if (data.hoursPerDay) document.getElementById('hoursPerDay').value = data.hoursPerDay;
+                render();
+            } catch(e) {}
+        }
+    }
+
+    function save() {
+        localStorage.setItem('biobot-timeline', JSON.stringify({
+            steps, nextId,
+            projectStart: document.getElementById('projectStart').value,
+            hoursPerDay: document.getElementById('hoursPerDay').value
+        }));
+    }
+
+    function loadPreset(name) {
+        steps = [];
+        nextId = 1;
+        const preset = PRESETS[name];
+        const idMap = {};
+        preset.forEach((s, i) => {
+            const id = nextId++;
+            idMap[i] = id;
+            const deps = [];
+            if (s.dep !== undefined) {
+                const depArr = Array.isArray(s.dep) ? s.dep : [s.dep];
+                depArr.forEach(d => { if (idMap[d]) deps.push(idMap[d]); });
+            }
+            steps.push({ id, name: s.name, category: s.category, duration: s.duration, deps });
+        });
+        render();
+        save();
+    }
+
+    function addStep() {
+        const name = document.getElementById('stepName').value.trim();
+        const category = document.getElementById('stepCategory').value;
+        const duration = parseFloat(document.getElementById('stepDuration').value) || 1;
+        const depVal = document.getElementById('stepDependency').value;
+        if (!name) return;
+        const deps = depVal ? [parseInt(depVal)] : [];
+        steps.push({ id: nextId++, name, category, duration, deps });
+        document.getElementById('stepName').value = '';
+        render();
+        save();
+    }
+
+    function removeStep(id) {
+        steps = steps.filter(s => s.id !== id);
+        steps.forEach(s => { s.deps = s.deps.filter(d => d !== id); });
+        render();
+        save();
+    }
+
+    function moveStep(id, dir) {
+        const idx = steps.findIndex(s => s.id === id);
+        const newIdx = idx + dir;
+        if (newIdx < 0 || newIdx >= steps.length) return;
+        [steps[idx], steps[newIdx]] = [steps[newIdx], steps[idx]];
+        render();
+        save();
+    }
+
+    function computeSchedule() {
+        const scheduled = {};
+        const order = topoSort();
+        order.forEach(id => {
+            const step = steps.find(s => s.id === id);
+            let start = 0;
+            step.deps.forEach(dId => {
+                if (scheduled[dId]) {
+                    start = Math.max(start, scheduled[dId].end);
+                }
+            });
+            scheduled[id] = { start, end: start + step.duration, step };
+        });
+        return scheduled;
+    }
+
+    function topoSort() {
+        const visited = new Set();
+        const result = [];
+        const visiting = new Set();
+        function visit(id) {
+            if (visited.has(id)) return;
+            if (visiting.has(id)) return; // cycle
+            visiting.add(id);
+            const step = steps.find(s => s.id === id);
+            if (step) step.deps.forEach(d => visit(d));
+            visiting.delete(id);
+            visited.add(id);
+            result.push(id);
+        }
+        steps.forEach(s => visit(s.id));
+        return result;
+    }
+
+    function findCriticalPath(scheduled) {
+        if (steps.length === 0) return [];
+        let maxEnd = 0, endId = null;
+        Object.entries(scheduled).forEach(([id, s]) => {
+            if (s.end > maxEnd) { maxEnd = s.end; endId = parseInt(id); }
+        });
+        const path = [];
+        let current = endId;
+        while (current) {
+            path.unshift(current);
+            const step = steps.find(s => s.id === current);
+            if (!step || step.deps.length === 0) break;
+            let longestDep = null, longestEnd = -1;
+            step.deps.forEach(d => {
+                if (scheduled[d] && scheduled[d].end > longestEnd) {
+                    longestEnd = scheduled[d].end;
+                    longestDep = d;
+                }
+            });
+            current = longestDep;
+        }
+        return path;
+    }
+
+    function render() {
+        renderDependencySelect();
+        renderStepList();
+        renderGantt();
+    }
+
+    function renderDependencySelect() {
+        const sel = document.getElementById('stepDependency');
+        const val = sel.value;
+        sel.innerHTML = '<option value="">None</option>';
+        steps.forEach(s => {
+            const opt = document.createElement('option');
+            opt.value = s.id;
+            opt.textContent = `${CATEGORIES[s.category].icon} ${s.name}`;
+            sel.appendChild(opt);
+        });
+        sel.value = val;
+    }
+
+    function renderStepList() {
+        const el = document.getElementById('stepList');
+        document.getElementById('stepCount').textContent = steps.length;
+        if (steps.length === 0) {
+            el.innerHTML = '<div class="empty-state">No steps yet. Add steps above or load a template.</div>';
+            return;
+        }
+        el.innerHTML = steps.map((s, i) => {
+            const cat = CATEGORIES[s.category];
+            const depNames = s.deps.map(d => { const ds = steps.find(x => x.id === d); return ds ? ds.name : '?'; }).join(', ');
+            return `<div class="step-item">
+                <div class="step-color" style="background:${cat.color}"></div>
+                <div class="step-info">
+                    <div class="name">${cat.icon} ${s.name}</div>
+                    <div class="detail">${formatDuration(s.duration)}${depNames ? ' · After: ' + depNames : ''}</div>
+                </div>
+                <div class="step-actions">
+                    <button class="btn btn-outline btn-sm" onclick="moveStep(${s.id},-1)" title="Move up">↑</button>
+                    <button class="btn btn-outline btn-sm" onclick="moveStep(${s.id},1)" title="Move down">↓</button>
+                    <button class="btn btn-danger btn-sm" onclick="removeStep(${s.id})" title="Remove">✕</button>
+                </div>
+            </div>`;
+        }).join('');
+    }
+
+    function formatDuration(hrs) {
+        if (hrs < 1) return Math.round(hrs * 60) + ' min';
+        if (hrs < 24) return hrs + ' hr' + (hrs !== 1 ? 's' : '');
+        const days = hrs / 24;
+        if (days === Math.floor(days)) return days + ' day' + (days !== 1 ? 's' : '');
+        return days.toFixed(1) + ' days';
+    }
+
+    function renderGantt() {
+        const chart = document.getElementById('ganttChart');
+        const statsEl = document.getElementById('stats');
+        if (steps.length === 0) {
+            chart.innerHTML = '<div class="empty-state">Add steps to see the timeline.</div>';
+            statsEl.style.display = 'none';
+            return;
+        }
+        const scheduled = computeSchedule();
+        const criticalPath = findCriticalPath(scheduled);
+        const criticalSet = new Set(criticalPath);
+        const totalEnd = Math.max(...Object.values(scheduled).map(s => s.end));
+        const hpd = parseInt(document.getElementById('hoursPerDay').value) || 8;
+
+        // Determine time ticks
+        let ticks = [];
+        const tickCount = Math.min(Math.max(Math.ceil(totalEnd), 1), 50);
+        let tickUnit = 'hr', tickStep = 1;
+        if (totalEnd > 480) { tickUnit = 'day'; tickStep = 24; }
+        else if (totalEnd > 48) { tickUnit = '6hr'; tickStep = 6; }
+        else if (totalEnd > 24) { tickUnit = '3hr'; tickStep = 3; }
+
+        for (let t = 0; t <= totalEnd; t += tickStep) {
+            ticks.push(t);
+        }
+        if (ticks.length < 2) ticks = [0, totalEnd];
+        if (ticks[ticks.length - 1] < totalEnd) ticks.push(totalEnd);
+
+        // Compute max parallel
+        const events = [];
+        Object.values(scheduled).forEach(s => {
+            events.push({ t: s.start, type: 1 });
+            events.push({ t: s.end, type: -1 });
+        });
+        events.sort((a, b) => a.t - b.t || a.type - b.type);
+        let maxP = 0, cur = 0;
+        events.forEach(e => { cur += e.type; maxP = Math.max(maxP, cur); });
+
+        // Header
+        let html = '<div class="gantt-header"><div class="gantt-label-col">Step</div><div class="gantt-timeline">';
+        ticks.forEach((t, i) => {
+            if (i === ticks.length - 1) return;
+            let label;
+            if (tickStep >= 24) label = 'Day ' + Math.round(t / 24 + 1);
+            else label = t + 'h';
+            html += `<div class="gantt-tick" style="flex:${ticks[i+1]-t}">${label}</div>`;
+        });
+        html += '</div></div>';
+
+        // Rows
+        const order = topoSort();
+        order.forEach(id => {
+            const s = scheduled[id];
+            const step = s.step;
+            const cat = CATEGORIES[step.category];
+            const left = (s.start / totalEnd * 100).toFixed(2);
+            const width = Math.max((step.duration / totalEnd * 100), 0.5).toFixed(2);
+            const isCrit = criticalSet.has(id);
+            html += `<div class="gantt-row">
+                <div class="gantt-row-label"><span class="step-icon">${cat.icon}</span><span class="step-name">${step.name}</span></div>
+                <div class="gantt-row-bars">
+                    <div class="gantt-bar ${isCrit ? 'critical' : ''}" style="left:${left}%;width:${width}%;background:${cat.color};" title="${step.name}: ${formatDuration(step.duration)} (${s.start}h – ${s.end}h)${isCrit ? ' [CRITICAL]' : ''}">
+                        <span class="bar-label">${formatDuration(step.duration)}</span>
+                    </div>
+                </div>
+            </div>`;
+        });
+
+        chart.innerHTML = html;
+
+        // Stats
+        statsEl.style.display = 'flex';
+        document.getElementById('statTotal').textContent = formatDuration(totalEnd);
+        const critDur = criticalPath.reduce((sum, id) => {
+            const st = steps.find(s => s.id === id);
+            return sum + (st ? st.duration : 0);
+        }, 0);
+        document.getElementById('statCritical').textContent = formatDuration(critDur);
+        document.getElementById('statSteps').textContent = steps.length;
+        document.getElementById('statDays').textContent = Math.ceil(totalEnd / hpd) + 'd';
+        document.getElementById('statParallel').textContent = maxP;
+    }
+
+    function exportJSON() {
+        const data = { steps, projectStart: document.getElementById('projectStart').value, hoursPerDay: document.getElementById('hoursPerDay').value };
+        const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = 'bioprint-timeline.json';
+        a.click();
+    }
+
+    function importJSON() {
+        document.getElementById('fileInput').click();
+    }
+
+    document.getElementById('fileInput').addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = (ev) => {
+            try {
+                const data = JSON.parse(ev.target.result);
+                steps = data.steps || [];
+                nextId = Math.max(...steps.map(s => s.id), 0) + 1;
+                if (data.projectStart) document.getElementById('projectStart').value = data.projectStart;
+                if (data.hoursPerDay) document.getElementById('hoursPerDay').value = data.hoursPerDay;
+                render();
+                save();
+            } catch(err) { alert('Invalid JSON file'); }
+        };
+        reader.readAsText(file);
+        e.target.value = '';
+    });
+
+    function exportMarkdown() {
+        if (steps.length === 0) return;
+        const scheduled = computeSchedule();
+        const criticalPath = new Set(findCriticalPath(scheduled));
+        const hpd = parseInt(document.getElementById('hoursPerDay').value) || 8;
+        const totalEnd = Math.max(...Object.values(scheduled).map(s => s.end));
+        let md = '# Bioprint Timeline\n\n';
+        md += `| # | Step | Category | Duration | Start | End | Critical |\n|---|------|----------|----------|-------|-----|----------|\n`;
+        const order = topoSort();
+        order.forEach((id, i) => {
+            const s = scheduled[id];
+            const step = s.step;
+            const cat = CATEGORIES[step.category];
+            md += `| ${i+1} | ${step.name} | ${cat.label} | ${formatDuration(step.duration)} | ${s.start}h | ${s.end}h | ${criticalPath.has(id) ? '⚠️' : ''} |\n`;
+        });
+        md += `\n**Total:** ${formatDuration(totalEnd)} · **Calendar days:** ${Math.ceil(totalEnd / hpd)} · **Steps:** ${steps.length}\n`;
+
+        const blob = new Blob([md], { type: 'text/markdown' });
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = 'bioprint-timeline.md';
+        a.click();
+    }
+
+    function clearAll() {
+        if (!confirm('Clear all steps?')) return;
+        steps = [];
+        nextId = 1;
+        render();
+        save();
+    }
+
+    init();
+    </script>
+</body>
+</html>
