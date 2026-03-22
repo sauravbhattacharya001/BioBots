@@ -48,6 +48,7 @@ var plateMap = require('./docs/shared/plateMap');
 var environmentalMonitor = require('./docs/shared/environmentalMonitor');
 var centrifuge = require('./docs/shared/centrifuge');
 var mediaPrep = require('./docs/shared/mediaPrep');
+var pipetteCalibration = require('./docs/shared/pipetteCalibration');
 
 module.exports = {
     createMaterialCalculator: calculator.createMaterialCalculator,
@@ -79,5 +80,6 @@ module.exports = {
     createPlateMapGenerator: plateMap.createPlateMapGenerator,
     createEnvironmentalMonitor: environmentalMonitor.createEnvironmentalMonitor,
     createCentrifugeCalculator: centrifuge.createCentrifugeCalculator,
-    createMediaPrepCalculator: mediaPrep.createMediaPrepCalculator
+    createMediaPrepCalculator: mediaPrep.createMediaPrepCalculator,
+    createPipetteCalibrationChecker: pipetteCalibration.createPipetteCalibrationChecker
 };
