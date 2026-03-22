@@ -94,7 +94,11 @@ function createRheologyModeler() {
             sumXY += x * y;
         }
 
-        var slope = (N * sumXY - sumX * sumY) / (N * sumXX - sumX * sumX);
+        var denom = N * sumXX - sumX * sumX;
+        if (Math.abs(denom) < 1e-15) {
+            throw new Error('Degenerate data: all shear rates are identical (cannot fit power-law)');
+        }
+        var slope = (N * sumXY - sumX * sumY) / denom;
         var intercept = (sumY - slope * sumX) / N;
 
         var K = Math.exp(intercept);

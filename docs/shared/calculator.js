@@ -83,8 +83,16 @@ function createMaterialCalculator() {
         if (wastePercent < 0 || wastePercent > 100) throw new Error('Waste must be 0-100%');
 
         var material = MATERIAL_PROFILES[params.materialKey] || MATERIAL_PROFILES['custom'];
-        var density = params.customDensity || material.density;
-        var costPerMl = params.customCost != null ? params.customCost : material.costPerMl;
+        var density = material.density;
+        if (params.customDensity != null) {
+            density = parseFloat(params.customDensity);
+            if (!isFinite(density) || density <= 0) throw new Error('Custom density must be a positive number');
+        }
+        var costPerMl = material.costPerMl;
+        if (params.customCost != null) {
+            costPerMl = parseFloat(params.customCost);
+            if (!isFinite(costPerMl) || costPerMl < 0) throw new Error('Custom cost must be a non-negative number');
+        }
 
         var volPerLayer = volumePerLayer(spec.area, layerHeight);
         var infillFactor = infillPercent / 100;

@@ -118,6 +118,27 @@ describe('createMaterialCalculator', () => {
             expect(result.wellplate).toBe('6-well');
         });
 
+        test('throws for negative customDensity', () => {
+            expect(() => calc.calculateUsage({ ...baseParams, customDensity: -1 })).toThrow('Custom density must be a positive number');
+        });
+
+        test('throws for NaN customDensity', () => {
+            expect(() => calc.calculateUsage({ ...baseParams, customDensity: NaN })).toThrow('Custom density must be a positive number');
+        });
+
+        test('throws for negative customCost', () => {
+            expect(() => calc.calculateUsage({ ...baseParams, customCost: -5 })).toThrow('Custom cost must be a non-negative number');
+        });
+
+        test('throws for Infinity customCost', () => {
+            expect(() => calc.calculateUsage({ ...baseParams, customCost: Infinity })).toThrow('Custom cost must be a non-negative number');
+        });
+
+        test('allows zero customCost', () => {
+            var result = calc.calculateUsage({ ...baseParams, customCost: 0 });
+            expect(result.estimatedCost).toBe(0);
+        });
+
         test('handles 96-well plate', () => {
             var result = calc.calculateUsage({ ...baseParams, wellplate: 96, wellCount: 1 });
             expect(result.wellplate).toBe('96-well');

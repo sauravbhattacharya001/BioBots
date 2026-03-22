@@ -121,6 +121,15 @@ describe('createRheologyModeler', () => {
             expect(() => rheo.fitPowerLaw(null)).toThrow();
         });
 
+        it('should throw for identical shear rates (degenerate data)', () => {
+            const data = [
+                { shearRate: 10, viscosity: 50 },
+                { shearRate: 10, viscosity: 40 },
+                { shearRate: 10, viscosity: 30 },
+            ];
+            expect(() => rheo.fitPowerLaw(data)).toThrow('Degenerate data');
+        });
+
         it('should filter out invalid data points', () => {
             const data = [
                 { shearRate: 1, viscosity: 50 },
