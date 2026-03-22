@@ -47,6 +47,7 @@ var dilutionCalculator = require('./docs/shared/dilutionCalculator');
 var plateMap = require('./docs/shared/plateMap');
 var environmentalMonitor = require('./docs/shared/environmentalMonitor');
 var centrifuge = require('./docs/shared/centrifuge');
+var mediaPrep = require('./docs/shared/mediaPrep');
 
 module.exports = {
     createMaterialCalculator: calculator.createMaterialCalculator,
@@ -77,5 +78,6 @@ module.exports = {
     createDilutionCalculator: dilutionCalculator.createDilutionCalculator,
     createPlateMapGenerator: plateMap.createPlateMapGenerator,
     createEnvironmentalMonitor: environmentalMonitor.createEnvironmentalMonitor,
-    createCentrifugeCalculator: centrifuge.createCentrifugeCalculator
+    createCentrifugeCalculator: centrifuge.createCentrifugeCalculator,
+    createMediaPrepCalculator: mediaPrep.createMediaPrepCalculator
 };
