@@ -174,7 +174,10 @@ function createExperimentTracker(options) {
         var first = str.charAt(0);
         if (first === '=' || first === '+' || first === '-' ||
             first === '@' || first === '\t' || first === '\r') {
-            str = "'" + str;
+            // Don't corrupt legitimate numeric values (e.g. -3.14, +1.5)
+            if (!((first === '-' || first === '+') && str.length > 1 && isFinite(Number(str)))) {
+                str = "'" + str;
+            }
         }
         if (str.indexOf(',') !== -1 || str.indexOf('"') !== -1 ||
             str.indexOf('\n') !== -1 || str.indexOf('\r') !== -1 ||
