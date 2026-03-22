@@ -49,6 +49,7 @@ var environmentalMonitor = require('./docs/shared/environmentalMonitor');
 var centrifuge = require('./docs/shared/centrifuge');
 var mediaPrep = require('./docs/shared/mediaPrep');
 var pipetteCalibration = require('./docs/shared/pipetteCalibration');
+var freezeThaw = require('./docs/shared/freezeThaw');
 
 module.exports = {
     createMaterialCalculator: calculator.createMaterialCalculator,
@@ -81,5 +82,6 @@ module.exports = {
     createEnvironmentalMonitor: environmentalMonitor.createEnvironmentalMonitor,
     createCentrifugeCalculator: centrifuge.createCentrifugeCalculator,
     createMediaPrepCalculator: mediaPrep.createMediaPrepCalculator,
-    createPipetteCalibrationChecker: pipetteCalibration.createPipetteCalibrationChecker
+    createPipetteCalibrationChecker: pipetteCalibration.createPipetteCalibrationChecker,
+    createFreezeThawTracker: freezeThaw.createFreezeThawTracker
 };
