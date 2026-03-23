@@ -1,6 +1,6 @@
 'use strict';
 
-var cs = require('../Try/scripts/cellSeeding');
+var cs = require('../docs/shared/cellSeeding');
 var createCellSeedingCalculator = cs.createCellSeedingCalculator;
 var scaffoldSurfaceArea = cs.scaffoldSurfaceArea;
 var scaffoldVolume = cs.scaffoldVolume;
