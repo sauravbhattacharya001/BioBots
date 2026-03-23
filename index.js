@@ -57,6 +57,7 @@ var manifest = [
     ['createFreezeThawTracker',        './docs/shared/freezeThaw',             'createFreezeThawTracker'],
     ['createBufferPrepCalculator',     './docs/shared/bufferPrep',             'createBufferPrepCalculator'],
     ['createCellCounter',             './docs/shared/cellCounter',             'createCellCounter'],
+    ['createSpectrophotometer',       './docs/shared/spectrophotometer',       'createSpectrophotometer'],
 ];
 
 // ── Build exports from manifest ────────────────────────────────────
