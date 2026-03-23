@@ -51,6 +51,7 @@ var mediaPrep = require('./docs/shared/mediaPrep');
 var pipetteCalibration = require('./docs/shared/pipetteCalibration');
 var freezeThaw = require('./docs/shared/freezeThaw');
 var bufferPrep = require('./docs/shared/bufferPrep');
+var cellCounter = require('./docs/shared/cellCounter');
 
 module.exports = {
     createMaterialCalculator: calculator.createMaterialCalculator,
@@ -85,5 +86,6 @@ module.exports = {
     createMediaPrepCalculator: mediaPrep.createMediaPrepCalculator,
     createPipetteCalibrationChecker: pipetteCalibration.createPipetteCalibrationChecker,
     createFreezeThawTracker: freezeThaw.createFreezeThawTracker,
-    createBufferPrepCalculator: bufferPrep.createBufferPrepCalculator
+    createBufferPrepCalculator: bufferPrep.createBufferPrepCalculator,
+    createCellCounter: cellCounter.createCellCounter
 };
