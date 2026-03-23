@@ -24,6 +24,27 @@ function runMethod(func) {
     var property = $('#property option:selected').val();
     var arithmetic = $('#arithmetic option:selected').val();
 
+    // Allowlist valid property and arithmetic values to prevent URL path injection.
+    // Without this, a crafted <option> value could manipulate the API path.
+    var VALID_PROPERTIES = [
+        'pressure', 'speed', 'temperature', 'viability',
+        'resolution', 'layerHeight', 'nozzleDiameter',
+        'crosslinkingIntensity', 'crosslinkingDuration'
+    ];
+    var VALID_ARITHMETIC = [
+        'greater', 'lesser', 'equal',
+        'Maximum', 'Minimum', 'Average'
+    ];
+
+    if (VALID_PROPERTIES.indexOf(property) === -1) {
+        $('#print').text('Invalid property selected.');
+        return;
+    }
+    if (VALID_ARITHMETIC.indexOf(arithmetic) === -1) {
+        $('#print').text('Invalid operation selected.');
+        return;
+    }
+
     var param;
     var isAggregation = (func !== undefined);
     if (isAggregation)
@@ -38,13 +59,15 @@ function runMethod(func) {
         return;
     }
 
+    var encodedProperty = encodeURIComponent(property);
+    var encodedArithmetic = encodeURIComponent(arithmetic);
     var encodedParam = encodeURIComponent(param);
 
     // Disable buttons and show loading state to prevent duplicate requests
     setButtonsEnabled(false);
     $('#print').text('Loading...');
 
-    $.getJSON(uri + '/' + property + '/' + arithmetic + '/' + encodedParam)
+    $.getJSON(uri + '/' + encodedProperty + '/' + encodedArithmetic + '/' + encodedParam)
       .done(function (data) {
           $('#print').text(data);
       })
