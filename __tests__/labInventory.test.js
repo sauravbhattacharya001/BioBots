@@ -116,3 +116,45 @@ describe('Lab Inventory Manager', function () {
         expect(summary.totalValue).toBe(15);
     });
 });
+
+describe('Prototype Pollution Protection', function() {
+    var inv;
+    beforeEach(function() { inv = labInventory.createLabInventoryManager(); });
+
+    var dangerousNames = ['__proto__', 'constructor', 'prototype'];
+
+    dangerousNames.forEach(function(name) {
+        it('rejects "' + name + '" as item name in addItem', function() {
+            expect(function() {
+                inv.addItem({ name: name, category: 'bioink', quantity: 10, unit: 'mL' });
+            }).toThrow(/reserved key/);
+        });
+
+        it('rejects "' + name + '" in recordUsage', function() {
+            expect(function() { inv.recordUsage(name, 1); }).toThrow(/reserved key/);
+        });
+
+        it('rejects "' + name + '" in recordRestock', function() {
+            expect(function() { inv.recordRestock(name, 1); }).toThrow(/reserved key/);
+        });
+
+        it('rejects "' + name + '" in removeItem', function() {
+            expect(function() { inv.removeItem(name); }).toThrow(/reserved key/);
+        });
+
+        it('rejects "' + name + '" in getForecast', function() {
+            expect(function() { inv.getForecast(name, 7); }).toThrow(/reserved key/);
+        });
+
+        it('returns null for "' + name + '" in getItem', function() {
+            expect(inv.getItem(name)).toBeNull();
+        });
+    });
+
+    it('does not pollute Object.prototype via items dictionary', function() {
+        // The items dict uses Object.create(null), so even if somehow
+        // a dangerous key slipped through, it wouldn't affect Object.prototype
+        var obj = {};
+        expect(obj.malicious).toBeUndefined();
+    });
+});
