@@ -262,6 +262,28 @@ function createEnvironmentalMonitor(opts) {
     alerts.length = 0;
   }
 
+  /**
+   * Escape a value for safe CSV inclusion, defending against formula
+   * injection (CWE-1236).
+   */
+  function csvSafe(value) {
+    if (value == null) return '';
+    var str = String(value);
+    var first = str.charAt(0);
+    if (first === '=' || first === '+' || first === '-' ||
+        first === '@' || first === '\t' || first === '\r') {
+      if (!((first === '-' || first === '+') && str.length > 1 && isFinite(Number(str)))) {
+        str = "'" + str;
+      }
+    }
+    if (str.indexOf(',') !== -1 || str.indexOf('"') !== -1 ||
+        str.indexOf('\n') !== -1 || str.indexOf('\r') !== -1 ||
+        str !== str.trim()) {
+      return '"' + str.replace(/"/g, '""') + '"';
+    }
+    return str;
+  }
+
   function exportCSV() {
     var header = 'timestamp,temperature,co2,humidity,o2,notes';
     var rows = readings.map(function (r) {
@@ -271,7 +293,7 @@ function createEnvironmentalMonitor(opts) {
         r.co2 !== null ? r.co2 : '',
         r.humidity !== null ? r.humidity : '',
         r.o2 !== null ? r.o2 : '',
-        r.notes ? '"' + String(r.notes).replace(/"/g, '""') + '"' : ''
+        csvSafe(r.notes)
       ].join(',');
     });
     return header + '\n' + rows.join('\n');
