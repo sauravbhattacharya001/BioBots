@@ -30,6 +30,11 @@ flags:
     paths:
       - Try/scripts/
     carryforward: true
+  sdk:
+    paths:
+      - docs/shared/
+      - index.js
+    carryforward: true
 
 ignore:
   - "Try/scripts/ai.*.js"
