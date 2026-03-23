@@ -321,13 +321,15 @@ function createPrintSessionLogger() {
                 if (v == null) return '';
                 if (Array.isArray(v)) v = v.join(';');
                 v = String(v);
+                // Formula injection guard MUST run before quoting, otherwise
+                // dangerous leaders like "=" get wrapped in quotes first and
+                // the guard check is bypassed (CWE-1236).
+                if (/^[=+\-@\t\r]/.test(v)) {
+                    v = "'" + v;
+                }
                 // CSV-safe: quote if contains comma, newline, or quote
                 if (/[,"\n\r]/.test(v)) {
                     v = '"' + v.replace(/"/g, '""') + '"';
-                }
-                // Formula injection guard
-                if (/^[=+\-@\t\r]/.test(v)) {
-                    v = "'" + v;
                 }
                 return v;
             });
