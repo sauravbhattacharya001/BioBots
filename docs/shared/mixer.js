@@ -142,13 +142,13 @@ function createBioinkMixer() {
     function computeTempRange(components) {
         var minTemp = -Infinity;
         var maxTemp = Infinity;
-        components.forEach(function(c) {
-            var mat = MATERIALS[c.material];
+        for (var i = 0; i < components.length; i++) {
+            var mat = MATERIALS[components[i].material];
             if (mat && mat.printTemp) {
                 if (mat.printTemp.min > minTemp) minTemp = mat.printTemp.min;
                 if (mat.printTemp.max < maxTemp) maxTemp = mat.printTemp.max;
             }
-        });
+        }
         if (minTemp > maxTemp) {
             return { feasible: false, min: minTemp, max: maxTemp, warning: 'No overlapping temperature range!' };
         }
@@ -200,49 +200,41 @@ function createBioinkMixer() {
 
         // Validate fractions
         var fractionSum = 0;
-        components.forEach(function(c, i) {
-            if (!c.material || !MATERIALS[c.material]) {
-                throw new Error('Unknown material at index ' + i + ': ' + c.material);
+        for (var vi = 0; vi < components.length; vi++) {
+            var vc = components[vi];
+            if (!vc.material || !MATERIALS[vc.material]) {
+                throw new Error('Unknown material at index ' + vi + ': ' + vc.material);
             }
-            if (typeof c.fraction !== 'number' || c.fraction <= 0 || c.fraction > 1) {
-                throw new Error('Fraction at index ' + i + ' must be between 0 and 1');
+            if (typeof vc.fraction !== 'number' || vc.fraction <= 0 || vc.fraction > 1) {
+                throw new Error('Fraction at index ' + vi + ' must be between 0 and 1');
             }
-            fractionSum += c.fraction;
-        });
+            fractionSum += vc.fraction;
+        }
         if (Math.abs(fractionSum - 1.0) > 0.01) {
             throw new Error('Fractions must sum to 1.0 (got ' + fractionSum.toFixed(3) + ')');
         }
 
-        // Composite density (linear mixing)
+        // Composite properties — single pass over components.
+        // Previous implementation iterated 5 times (density, cost, viscosity,
+        // cellAdhesion, degradability). Consolidating into one loop avoids
+        // redundant iteration and repeated MATERIALS lookups.
         var density = 0;
-        components.forEach(function(c) {
-            density += c.fraction * MATERIALS[c.material].density;
-        });
-
-        // Composite cost (linear mixing)
         var costPerMl = 0;
-        components.forEach(function(c) {
-            costPerMl += c.fraction * MATERIALS[c.material].costPerMl;
-        });
-
-        // Composite viscosity (log-mixing rule)
         var logVisc = 0;
-        components.forEach(function(c) {
-            logVisc += c.fraction * Math.log(MATERIALS[c.material].viscosity);
-        });
-        var viscosity = Math.exp(logVisc);
-
-        // Composite cell adhesion (linear)
         var cellAdhesion = 0;
-        components.forEach(function(c) {
-            cellAdhesion += c.fraction * MATERIALS[c.material].cellAdhesion;
-        });
-
-        // Composite degradability (linear)
         var degradability = 0;
-        components.forEach(function(c) {
-            degradability += c.fraction * MATERIALS[c.material].degradability;
-        });
+
+        for (var ci = 0; ci < components.length; ci++) {
+            var comp = components[ci];
+            var mat = MATERIALS[comp.material];
+            var f = comp.fraction;
+            density += f * mat.density;
+            costPerMl += f * mat.costPerMl;
+            logVisc += f * Math.log(mat.viscosity);
+            cellAdhesion += f * mat.cellAdhesion;
+            degradability += f * mat.degradability;
+        }
+        var viscosity = Math.exp(logVisc);
 
         var compatibility = computeCompatibility(components);
         var tempRange = computeTempRange(components);
