@@ -21,6 +21,18 @@
 
 'use strict';
 
+/** Strip prototype-pollution keys from untrusted objects. */
+function _stripDangerous(obj) {
+    if (!obj || typeof obj !== 'object') return {};
+    var BAD = { '__proto__': 1, 'constructor': 1, 'prototype': 1 };
+    var out = {};
+    var keys = Object.keys(obj);
+    for (var i = 0; i < keys.length; i++) {
+        if (!BAD[keys[i]]) out[keys[i]] = obj[keys[i]];
+    }
+    return out;
+}
+
 var COMMON_MEDIA = {
     DMEM: {
         fullName: 'Dulbecco\'s Modified Eagle Medium',
@@ -201,7 +213,7 @@ function createMediaPrepCalculator() {
                 opts.supplements.forEach(function (supp) {
                     // Merge known supplement defaults
                     var known = COMMON_SUPPLEMENTS[supp.name];
-                    var merged = Object.assign({}, known || {}, supp);
+                    var merged = Object.assign({}, known || {}, _stripDangerous(supp));
                     var calc = _calculateSupplement(merged, targetMl);
                     recipe.supplements.push(calc);
                     if (calc.volumeToAdd) {

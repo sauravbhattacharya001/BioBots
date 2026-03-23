@@ -484,9 +484,9 @@ describe('FormulationCalculator', () => {
             });
             const imported = calc.importFormulation(malicious);
             expect(imported.name).toBe('Malicious');
-            expect(imported['__proto__']).toBeUndefined();
-            expect(imported['constructor']).toBeUndefined();
-            expect(imported.components[0]['__proto__']).toBeUndefined();
+            expect(Object.prototype.hasOwnProperty.call(imported, '__proto__')).toBe(false);
+            expect(Object.prototype.hasOwnProperty.call(imported, 'constructor')).toBe(false);
+            expect(Object.prototype.hasOwnProperty.call(imported.components[0], '__proto__')).toBe(false);
             expect(({}).isAdmin).toBeUndefined();
         });
     });
