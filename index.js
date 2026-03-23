@@ -18,74 +18,55 @@
  *   var result = calc.calculate({ material: 'alginate', volume: 5 });
  */
 
-var calculator = require('./docs/shared/calculator');
-var crosslink = require('./docs/shared/crosslink');
-var gcode = require('./docs/shared/gcode');
-var rheology = require('./docs/shared/rheology');
-var viability = require('./docs/shared/viability');
-var exporter = require('./docs/shared/export');
-var passage = require('./docs/shared/passage');
-var mixer = require('./docs/shared/mixer');
-var jobEstimator = require('./docs/shared/jobEstimator');
-var scaffold = require('./docs/shared/scaffold');
-var capability = require('./docs/shared/capability');
-var printQualityScorer = require('./docs/shared/printQualityScorer');
-var recipeBuilder = require('./docs/shared/recipeBuilder');
-var protocolGenerator = require('./docs/shared/protocolGenerator');
-var nozzleAdvisor = require('./docs/shared/nozzleAdvisor');
-var sampleTracker = require('./docs/shared/sampleTracker');
-var yieldAnalyzer = require('./docs/shared/yieldAnalyzer');
-var shelfLife = require('./docs/shared/shelfLife');
-var sterilityAssurance = require('./docs/shared/sterilityAssurance');
-var cellSeeding = require('./docs/shared/cellSeeding');
-var washProtocol = require('./docs/shared/washProtocol');
-var compatibilityMatrix = require('./docs/shared/compatibilityMatrix');
-var labInventory = require('./docs/shared/labInventory');
-var wasteTracker = require('./docs/shared/wasteTracker');
-var printSessionLogger = require('./docs/shared/printSessionLogger');
-var dilutionCalculator = require('./docs/shared/dilutionCalculator');
-var plateMap = require('./docs/shared/plateMap');
-var environmentalMonitor = require('./docs/shared/environmentalMonitor');
-var centrifuge = require('./docs/shared/centrifuge');
-var mediaPrep = require('./docs/shared/mediaPrep');
-var pipetteCalibration = require('./docs/shared/pipetteCalibration');
-var freezeThaw = require('./docs/shared/freezeThaw');
-var bufferPrep = require('./docs/shared/bufferPrep');
-var cellCounter = require('./docs/shared/cellCounter');
+// ── Module manifest ────────────────────────────────────────────────
+// Each entry: [exportName, modulePath, factoryFunctionName]
+// To add a new module, just add a line here.
 
-module.exports = {
-    createMaterialCalculator: calculator.createMaterialCalculator,
-    createCrosslinkAnalyzer: crosslink.createCrosslinkAnalyzer,
-    createGCodeAnalyzer: gcode.createGCodeAnalyzer,
-    createRheologyModeler: rheology.createRheologyModeler,
-    createViabilityEstimator: viability.createViabilityEstimator,
-    createDataExporter: exporter.createDataExporter,
-    createPassageTracker: passage.createPassageTracker,
-    createBioinkMixer: mixer.createBioinkMixer,
-    createJobEstimator: jobEstimator.createJobEstimator,
-    createScaffoldCalculator: scaffold.createScaffoldCalculator,
-    createCapabilityAnalyzer: capability.createCapabilityAnalyzer,
-    createPrintQualityScorer: printQualityScorer.createPrintQualityScorer,
-    createRecipeBuilder: recipeBuilder.createRecipeBuilder,
-    createProtocolGenerator: protocolGenerator.createProtocolGenerator,
-    createNozzleAdvisor: nozzleAdvisor.createNozzleAdvisor,
-    createSampleTracker: sampleTracker.createSampleTracker,
-    createYieldAnalyzer: yieldAnalyzer.createYieldAnalyzer,
-    createShelfLifeManager: shelfLife.createShelfLifeManager,
-    createSterilityAssurance: sterilityAssurance.createSterilityAssurance,
-    createCellSeedingCalculator: cellSeeding.createCellSeedingCalculator,
-    createWashProtocolCalculator: washProtocol.createWashProtocolCalculator,
-    createCompatibilityMatrix: compatibilityMatrix.createCompatibilityMatrix,
-    createLabInventoryManager: labInventory.createLabInventoryManager,
-    createWasteTracker: wasteTracker.createWasteTracker,
-    createPrintSessionLogger: printSessionLogger.createPrintSessionLogger,
-    createDilutionCalculator: dilutionCalculator.createDilutionCalculator,
-    createPlateMapGenerator: plateMap.createPlateMapGenerator,
-    createEnvironmentalMonitor: environmentalMonitor.createEnvironmentalMonitor,
-    createCentrifugeCalculator: centrifuge.createCentrifugeCalculator,
-    createMediaPrepCalculator: mediaPrep.createMediaPrepCalculator,
-    createPipetteCalibrationChecker: pipetteCalibration.createPipetteCalibrationChecker,
-    createFreezeThawTracker: freezeThaw.createFreezeThawTracker,
-    createBufferPrepCalculator: bufferPrep.createBufferPrepCalculator,
-    createCellCounter: cellCounter.createCellCounter
-};
+var manifest = [
+    ['createMaterialCalculator',        './docs/shared/calculator',            'createMaterialCalculator'],
+    ['createCrosslinkAnalyzer',         './docs/shared/crosslink',             'createCrosslinkAnalyzer'],
+    ['createGCodeAnalyzer',             './docs/shared/gcode',                 'createGCodeAnalyzer'],
+    ['createRheologyModeler',           './docs/shared/rheology',              'createRheologyModeler'],
+    ['createViabilityEstimator',        './docs/shared/viability',             'createViabilityEstimator'],
+    ['createDataExporter',              './docs/shared/export',                'createDataExporter'],
+    ['createPassageTracker',            './docs/shared/passage',               'createPassageTracker'],
+    ['createBioinkMixer',              './docs/shared/mixer',                  'createBioinkMixer'],
+    ['createJobEstimator',             './docs/shared/jobEstimator',           'createJobEstimator'],
+    ['createScaffoldCalculator',       './docs/shared/scaffold',               'createScaffoldCalculator'],
+    ['createCapabilityAnalyzer',       './docs/shared/capability',             'createCapabilityAnalyzer'],
+    ['createPrintQualityScorer',       './docs/shared/printQualityScorer',     'createPrintQualityScorer'],
+    ['createRecipeBuilder',            './docs/shared/recipeBuilder',          'createRecipeBuilder'],
+    ['createProtocolGenerator',        './docs/shared/protocolGenerator',      'createProtocolGenerator'],
+    ['createNozzleAdvisor',            './docs/shared/nozzleAdvisor',          'createNozzleAdvisor'],
+    ['createSampleTracker',            './docs/shared/sampleTracker',          'createSampleTracker'],
+    ['createYieldAnalyzer',            './docs/shared/yieldAnalyzer',          'createYieldAnalyzer'],
+    ['createShelfLifeManager',         './docs/shared/shelfLife',              'createShelfLifeManager'],
+    ['createSterilityAssurance',       './docs/shared/sterilityAssurance',     'createSterilityAssurance'],
+    ['createCellSeedingCalculator',    './docs/shared/cellSeeding',            'createCellSeedingCalculator'],
+    ['createWashProtocolCalculator',   './docs/shared/washProtocol',           'createWashProtocolCalculator'],
+    ['createCompatibilityMatrix',      './docs/shared/compatibilityMatrix',    'createCompatibilityMatrix'],
+    ['createLabInventoryManager',      './docs/shared/labInventory',           'createLabInventoryManager'],
+    ['createWasteTracker',             './docs/shared/wasteTracker',           'createWasteTracker'],
+    ['createPrintSessionLogger',       './docs/shared/printSessionLogger',     'createPrintSessionLogger'],
+    ['createDilutionCalculator',       './docs/shared/dilutionCalculator',     'createDilutionCalculator'],
+    ['createPlateMapGenerator',        './docs/shared/plateMap',               'createPlateMapGenerator'],
+    ['createEnvironmentalMonitor',     './docs/shared/environmentalMonitor',   'createEnvironmentalMonitor'],
+    ['createCentrifugeCalculator',     './docs/shared/centrifuge',             'createCentrifugeCalculator'],
+    ['createMediaPrepCalculator',      './docs/shared/mediaPrep',              'createMediaPrepCalculator'],
+    ['createPipetteCalibrationChecker','./docs/shared/pipetteCalibration',     'createPipetteCalibrationChecker'],
+    ['createFreezeThawTracker',        './docs/shared/freezeThaw',             'createFreezeThawTracker'],
+    ['createBufferPrepCalculator',     './docs/shared/bufferPrep',             'createBufferPrepCalculator'],
+    ['createCellCounter',             './docs/shared/cellCounter',             'createCellCounter'],
+];
+
+// ── Build exports from manifest ────────────────────────────────────
+var exports_ = {};
+for (var i = 0; i < manifest.length; i++) {
+    var entry = manifest[i];
+    var exportName = entry[0];
+    var modulePath = entry[1];
+    var factoryName = entry[2];
+    exports_[exportName] = require(modulePath)[factoryName];
+}
+
+module.exports = exports_;
