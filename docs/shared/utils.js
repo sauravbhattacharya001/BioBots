@@ -6,25 +6,10 @@
  * recorded bioprints are a sample from a larger potential population.
  */
 
-/**
- * Lazily-initialized DOM element for HTML entity escaping.
- * Deferred creation avoids a crash when this file is loaded in
- * non-browser contexts (Node.js tests, SSR).
- * @private
- */
-let _escapeEl = null;
-
-/**
- * Escape a string for safe HTML insertion (prevents XSS).
- * @param {*} str - Value to escape.
- * @returns {string} HTML-safe string.
- */
-function escapeHtml(str) {
-    if (str == null) return '';
-    if (!_escapeEl) _escapeEl = document.createElement('div');
-    _escapeEl.textContent = String(str);
-    return _escapeEl.innerHTML;
-}
+// NOTE: escapeHtml() is defined in constants.js (loaded first).
+// A duplicate DOM-based version was previously here but has been
+// removed to avoid two divergent implementations.  The string-based
+// version in constants.js works in both browser and Node.js contexts.
 
 /**
  * Metric accessor lookup — built from METRIC_DESCRIPTORS (constants.js)
