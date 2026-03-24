@@ -59,6 +59,7 @@ var manifest = [
     ['createCellCounter',             './docs/shared/cellCounter',             'createCellCounter'],
     ['createSpectrophotometer',       './docs/shared/spectrophotometer',       'createSpectrophotometer'],
     ['createOsmolalityCalculator',    './docs/shared/osmolality',              'createOsmolalityCalculator'],
+    ['createAutoclaveLogger',         './docs/shared/autoclave',               'createAutoclaveLogger'],
 ];
 
 // ── Build exports from manifest ────────────────────────────────────
