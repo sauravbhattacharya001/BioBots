@@ -77,6 +77,6 @@ If you discover a security vulnerability in BioBots Tool, please report it respo
 Security-relevant dependencies are monitored via Dependabot:
 
 - `Microsoft.AspNet.WebApi` 5.2.3
-- `Newtonsoft.Json` 6.0.4
+- `Newtonsoft.Json` 13.0.3
 - `jest` ^30.2.0 (dev only)
 - `jest-environment-jsdom` ^30.2.0 (dev only)

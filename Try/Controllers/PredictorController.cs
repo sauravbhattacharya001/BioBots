@@ -86,7 +86,13 @@ namespace BioBots.Controllers
             if (!File.Exists(path))
                 return new Print[0];
 
-            var serializer = new JsonSerializer();
+            var serializer = new JsonSerializer
+            {
+                // Defense-in-depth: explicitly disable type-name handling to
+                // prevent deserialization gadget attacks (CVE-2019-0757 et al.)
+                TypeNameHandling = TypeNameHandling.None,
+                MaxDepth = 64
+            };
             using (var reader = File.OpenText(path))
             using (var jsonReader = new JsonTextReader(reader) { CloseInput = true })
             {
