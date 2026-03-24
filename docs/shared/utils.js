@@ -9,19 +9,14 @@
 /**
  * Escape a string for safe HTML insertion (prevents XSS).
  *
- * Uses the same string-replace approach as constants.js rather than the
- * previous DOM-based implementation (document.createElement + textContent).
- * Benefits:
- *   - Works in Node.js without jsdom quirks (textContent/innerHTML
- *     behave differently across DOM implementations)
- *   - No lazy DOM element allocation or global state (_escapeEl)
- *   - Consistent output with constants.js escapeHtml
- *   - Handles numeric input (coerced via String())
+ * The canonical implementation lives in constants.js. This guard
+ * keeps utils.js self-contained when loaded in isolation (e.g. in
+ * Node.js tests that don't pre-load constants.js).
  *
  * @param {*} str - Value to escape (coerced to string).
  * @returns {string} HTML-safe string with &, <, >, ", ' escaped.
  */
-function escapeHtml(str) {
+var escapeHtml = (typeof escapeHtml !== 'undefined') ? escapeHtml : function(str) {
     if (str == null) return '';
     return String(str)
         .replace(/&/g, '&amp;')
@@ -29,7 +24,7 @@ function escapeHtml(str) {
         .replace(/>/g, '&gt;')
         .replace(/"/g, '&quot;')
         .replace(/'/g, '&#39;');
-}
+};
 
 /**
  * Metric accessor lookup — built from METRIC_DESCRIPTORS (constants.js)
