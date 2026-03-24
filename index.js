@@ -58,6 +58,7 @@ var manifest = [
     ['createBufferPrepCalculator',     './docs/shared/bufferPrep',             'createBufferPrepCalculator'],
     ['createCellCounter',             './docs/shared/cellCounter',             'createCellCounter'],
     ['createSpectrophotometer',       './docs/shared/spectrophotometer',       'createSpectrophotometer'],
+    ['createOsmolalityCalculator',    './docs/shared/osmolality',              'createOsmolalityCalculator'],
 ];
 
 // ── Build exports from manifest ────────────────────────────────────
