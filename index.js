@@ -58,6 +58,8 @@ var manifest = [
     ['createBufferPrepCalculator',     './docs/shared/bufferPrep',             'createBufferPrepCalculator'],
     ['createCellCounter',             './docs/shared/cellCounter',             'createCellCounter'],
     ['createSpectrophotometer',       './docs/shared/spectrophotometer',       'createSpectrophotometer'],
+    ['createGrowthCurveAnalyzer',     './docs/shared/growthCurve',             'createGrowthCurveAnalyzer'],
+    ['createPrintResolutionCalculator','./docs/shared/printResolution',        'createPrintResolutionCalculator'],
 ];
 
 // ── Build exports from manifest ────────────────────────────────────
