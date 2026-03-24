@@ -32,16 +32,35 @@ function createGCodeAnalyzer() {
         code = code.trim();
         if (!code) return comment ? { cmd: '', params: {}, comment: comment } : null;
 
-        var parts = code.split(/\s+/);
-        var cmd = parts[0].toUpperCase();
+        // Manual token extraction avoids regex split overhead on hot path.
+        // GCode lines are short (< 80 chars) so simple char scanning is fast.
         var params = {};
-        for (var i = 1; i < parts.length; i++) {
-            var p = parts[i];
-            if (p.length < 2) continue;
-            var key = p[0].toUpperCase();
-            var val = parseFloat(p.substring(1));
-            if (!isNaN(val)) {
-                params[key] = val;
+        var cmd = '';
+        var len = code.length;
+        var pos = 0;
+
+        // Skip leading whitespace (already trimmed, but defensive)
+        while (pos < len && code.charCodeAt(pos) <= 32) pos++;
+
+        // Extract command token
+        var tokStart = pos;
+        while (pos < len && code.charCodeAt(pos) > 32) pos++;
+        cmd = code.substring(tokStart, pos).toUpperCase();
+
+        // Extract parameter tokens
+        while (pos < len) {
+            while (pos < len && code.charCodeAt(pos) <= 32) pos++;
+            if (pos >= len) break;
+            tokStart = pos;
+            while (pos < len && code.charCodeAt(pos) > 32) pos++;
+            var tok = code.substring(tokStart, pos);
+            if (tok.length < 2) continue;
+            var key = tok.charCodeAt(0);
+            // Normalize lowercase a-z to uppercase A-Z
+            if (key >= 97 && key <= 122) key -= 32;
+            var val = +tok.substring(1); // faster than parseFloat for numeric strings
+            if (val === val) { // NaN check (NaN !== NaN)
+                params[String.fromCharCode(key)] = val;
             }
         }
         return { cmd: cmd, params: params, comment: comment };
@@ -158,11 +177,26 @@ function createGCodeAnalyzer() {
             return layers[idx];
         }
 
-        var lines = gcode.split(/\r?\n/);
-        lineCount = lines.length;
+        // Iterate lines without allocating a full split array.
+        // For large GCode files (500K+ lines) this avoids creating
+        // an intermediate string array that doubles peak memory usage.
+        lineCount = 0;
+        var gcodeLen = gcode.length;
+        var lineStart = 0;
 
-        for (var i = 0; i < lines.length; i++) {
-            var parsed = parseLine(lines[i]);
+        while (lineStart < gcodeLen) {
+            var lineEnd = lineStart;
+            while (lineEnd < gcodeLen && gcode.charCodeAt(lineEnd) !== 10 && gcode.charCodeAt(lineEnd) !== 13) {
+                lineEnd++;
+            }
+            lineCount++;
+            var line = gcode.substring(lineStart, lineEnd);
+            // Skip \r\n or \r or \n
+            if (lineEnd < gcodeLen && gcode.charCodeAt(lineEnd) === 13) lineEnd++;
+            if (lineEnd < gcodeLen && gcode.charCodeAt(lineEnd) === 10) lineEnd++;
+            lineStart = lineEnd;
+
+            var parsed = parseLine(line);
             if (!parsed || !parsed.cmd) continue;
             commandCount++;
 
