@@ -12,6 +12,56 @@
  */
 function createGrowthCurveAnalyzer() {
 
+    // ── Validation Helpers ──────────────────────────────────────
+
+    /**
+     * Assert that a numeric value is positive, throwing with the given label.
+     * @param {number} value
+     * @param {string} label - Human-readable name for the error message
+     */
+    function requirePositive(value, label) {
+        if (value <= 0) throw new Error(label + ' must be positive');
+    }
+
+    /**
+     * Assert that a value is non-negative.
+     * @param {number} value
+     * @param {string} label
+     */
+    function requireNonNegative(value, label) {
+        if (value < 0) throw new Error(label + ' must be non-negative');
+    }
+
+    /**
+     * Assert that data is an array with at least `minLen` elements.
+     * @param {*} data
+     * @param {number} minLen
+     * @param {string} [context] - Description for the error message
+     */
+    function requireDataArray(data, minLen, context) {
+        if (!Array.isArray(data) || data.length < minLen) {
+            throw new Error('Need at least ' + minLen + ' data points' +
+                (context ? ' for ' + context : ''));
+        }
+    }
+
+    /**
+     * Filter data to entries with positive counts.
+     * @param {{ time: number, count: number }[]} data
+     * @param {number} minLen - Minimum valid entries required
+     * @returns {{ time: number, count: number }[]}
+     */
+    function filterPositiveCounts(data, minLen) {
+        var valid = [];
+        for (var i = 0; i < data.length; i++) {
+            if (data[i].count > 0) valid.push(data[i]);
+        }
+        if (valid.length < minLen) {
+            throw new Error('Need at least ' + minLen + ' positive data points');
+        }
+        return valid;
+    }
+
     // ── Growth Models ───────────────────────────────────────────
 
     /**
@@ -22,8 +72,8 @@ function createGrowthCurveAnalyzer() {
      * @returns {number}
      */
     function exponentialGrowth(n0, r, t) {
-        if (n0 <= 0) throw new Error('Initial count must be positive');
-        if (t < 0) throw new Error('Time must be non-negative');
+        requirePositive(n0, 'Initial count');
+        requireNonNegative(t, 'Time');
         return n0 * Math.exp(r * t);
     }
 
@@ -36,10 +86,10 @@ function createGrowthCurveAnalyzer() {
      * @returns {number}
      */
     function logisticGrowth(n0, r, k, t) {
-        if (n0 <= 0) throw new Error('Initial count must be positive');
-        if (k <= 0) throw new Error('Carrying capacity must be positive');
+        requirePositive(n0, 'Initial count');
+        requirePositive(k, 'Carrying capacity');
         if (n0 > k) throw new Error('Initial count cannot exceed carrying capacity');
-        if (t < 0) throw new Error('Time must be non-negative');
+        requireNonNegative(t, 'Time');
         return k / (1 + ((k - n0) / n0) * Math.exp(-r * t));
     }
 
@@ -50,7 +100,7 @@ function createGrowthCurveAnalyzer() {
      * @returns {number} Doubling time in hours
      */
     function doublingTime(r) {
-        if (r <= 0) throw new Error('Growth rate must be positive for doubling time');
+        requirePositive(r, 'Growth rate');
         return Math.LN2 / r;
     }
 
@@ -64,7 +114,8 @@ function createGrowthCurveAnalyzer() {
      * @returns {number} Growth rate (1/h)
      */
     function estimateGrowthRate(n1, n2, t1, t2) {
-        if (n1 <= 0 || n2 <= 0) throw new Error('Counts must be positive');
+        requirePositive(n1, 'Count n1');
+        requirePositive(n2, 'Count n2');
         if (t2 <= t1) throw new Error('t2 must be greater than t1');
         return Math.log(n2 / n1) / (t2 - t1);
     }
@@ -79,9 +130,7 @@ function createGrowthCurveAnalyzer() {
      * @returns {{ phase: string, startTime: number, endTime: number, avgRate: number }[]}
      */
     function detectPhases(data) {
-        if (!Array.isArray(data) || data.length < 3) {
-            throw new Error('Need at least 3 data points for phase detection');
-        }
+        requireDataArray(data, 3, 'phase detection');
 
         // Calculate specific growth rates between consecutive points
         var rates = [];
@@ -169,16 +218,8 @@ function createGrowthCurveAnalyzer() {
      * @returns {{ n0: number, r: number, doublingTime: number, rSquared: number }}
      */
     function fitExponential(data) {
-        if (!Array.isArray(data) || data.length < 2) {
-            throw new Error('Need at least 2 data points');
-        }
-
-        // Filter out zero/negative counts
-        var valid = [];
-        for (var i = 0; i < data.length; i++) {
-            if (data[i].count > 0) valid.push(data[i]);
-        }
-        if (valid.length < 2) throw new Error('Need at least 2 positive data points');
+        requireDataArray(data, 2);
+        var valid = filterPositiveCounts(data, 2);
 
         var n = valid.length;
         var sumX = 0, sumY = 0, sumXY = 0, sumXX = 0, sumYY = 0;
@@ -228,16 +269,9 @@ function createGrowthCurveAnalyzer() {
      * @returns {{ n0: number, r: number, k: number, doublingTime: number, rSquared: number }}
      */
     function fitLogistic(data, maxIter) {
-        if (!Array.isArray(data) || data.length < 3) {
-            throw new Error('Need at least 3 data points for logistic fit');
-        }
+        requireDataArray(data, 3, 'logistic fit');
         maxIter = maxIter || 200;
-
-        var valid = [];
-        for (var i = 0; i < data.length; i++) {
-            if (data[i].count > 0) valid.push(data[i]);
-        }
-        if (valid.length < 3) throw new Error('Need at least 3 positive data points');
+        var valid = filterPositiveCounts(data, 3);
 
         // Initial guesses
         var n0 = valid[0].count;
@@ -310,9 +344,7 @@ function createGrowthCurveAnalyzer() {
      * @returns {Object} Summary with fits, phases, stats
      */
     function summarize(data) {
-        if (!Array.isArray(data) || data.length < 2) {
-            throw new Error('Need at least 2 data points');
-        }
+        requireDataArray(data, 2);
 
         var sorted = data.slice().sort(function (a, b) { return a.time - b.time; });
 
