@@ -7,23 +7,28 @@
  */
 
 /**
- * Lazily-initialized DOM element for HTML entity escaping.
- * Deferred creation avoids a crash when this file is loaded in
- * non-browser contexts (Node.js tests, SSR).
- * @private
- */
-let _escapeEl = null;
-
-/**
  * Escape a string for safe HTML insertion (prevents XSS).
- * @param {*} str - Value to escape.
- * @returns {string} HTML-safe string.
+ *
+ * Uses the same string-replace approach as constants.js rather than the
+ * previous DOM-based implementation (document.createElement + textContent).
+ * Benefits:
+ *   - Works in Node.js without jsdom quirks (textContent/innerHTML
+ *     behave differently across DOM implementations)
+ *   - No lazy DOM element allocation or global state (_escapeEl)
+ *   - Consistent output with constants.js escapeHtml
+ *   - Handles numeric input (coerced via String())
+ *
+ * @param {*} str - Value to escape (coerced to string).
+ * @returns {string} HTML-safe string with &, <, >, ", ' escaped.
  */
 function escapeHtml(str) {
     if (str == null) return '';
-    if (!_escapeEl) _escapeEl = document.createElement('div');
-    _escapeEl.textContent = String(str);
-    return _escapeEl.innerHTML;
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
 }
 
 /**
