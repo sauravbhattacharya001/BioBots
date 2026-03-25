@@ -66,13 +66,21 @@ var manifest = [
 var api = {};
 
 function defineLazy(target, exportName, modulePath, factoryName) {
-    var cached = null;
+    var loaded = false;
+    var cached;
     Object.defineProperty(target, exportName, {
         enumerable: true,
         configurable: true,
         get: function () {
-            if (cached === null) {
+            if (!loaded) {
                 cached = require(modulePath)[factoryName];
+                if (typeof cached !== 'function') {
+                    throw new Error(
+                        'BioBots: module "' + modulePath + '" does not export "' +
+                        factoryName + '" (got ' + typeof cached + ')'
+                    );
+                }
+                loaded = true;
             }
             return cached;
         }
@@ -90,5 +98,26 @@ for (var i = 0; i < manifest.length; i++) {
 api.listFactories = function listFactories() {
     return manifest.map(function (entry) { return entry[0]; }).sort();
 };
+
+/**
+ * Check whether a factory name is available.
+ * @param {string} name - Factory name (e.g. 'createMaterialCalculator').
+ * @returns {boolean} True if the factory exists on this SDK instance.
+ */
+api.hasFactory = function hasFactory(name) {
+    for (var i = 0; i < manifest.length; i++) {
+        if (manifest[i][0] === name) return true;
+    }
+    return false;
+};
+
+/**
+ * Total number of available factories.
+ * @type {number}
+ */
+Object.defineProperty(api, 'factoryCount', {
+    enumerable: true,
+    get: function () { return manifest.length; }
+});
 
 module.exports = api;
