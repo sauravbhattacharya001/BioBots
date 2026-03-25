@@ -1,5 +1,7 @@
 'use strict';
 
+var _sanitize = require('./sanitize');
+
 /**
  * Bioink Shelf Life Manager — track bioink storage, expiration, and stability.
  *
@@ -67,13 +69,10 @@ function createShelfLifeManager() {
 
     // --- Bioink Management ---
 
-    /** @private Keys that must never be used as bioink IDs to prevent prototype pollution. */
-    var DANGEROUS_KEYS = { '__proto__': 1, 'constructor': 1, 'prototype': 1 };
-
     function addBioink(opts) {
         if (!opts || !opts.id) throw new Error('Bioink id is required');
         var bioinkId = String(opts.id);
-        if (DANGEROUS_KEYS[bioinkId]) {
+        if (_sanitize.isDangerousKey(bioinkId)) {
             throw new Error('Invalid bioink id: ' + bioinkId);
         }
         if (Object.prototype.hasOwnProperty.call(bioinks, bioinkId) && bioinks[bioinkId]) {

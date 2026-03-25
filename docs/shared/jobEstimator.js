@@ -1,16 +1,6 @@
 'use strict';
 
-/** Strip prototype-pollution keys from untrusted objects. */
-function _stripDangerous(obj) {
-    if (!obj || typeof obj !== 'object') return {};
-    var BAD = { '__proto__': 1, 'constructor': 1, 'prototype': 1 };
-    var out = {};
-    var keys = Object.keys(obj);
-    for (var i = 0; i < keys.length; i++) {
-        if (!BAD[keys[i]]) out[keys[i]] = obj[keys[i]];
-    }
-    return out;
-}
+var _stripDangerous = require('./sanitize').stripDangerousKeys;
 
 /**
  * Print Job Estimator for BioBots

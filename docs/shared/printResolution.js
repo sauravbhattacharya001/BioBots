@@ -1,5 +1,7 @@
 'use strict';
 
+var _sanitize = require('./sanitize');
+
 /**
  * Print Resolution Calculator
  *
@@ -293,9 +295,7 @@ function findOptimalPressure(opts) {
   var step = (maxP - minP) / 200;
 
   for (var p = minP; p <= maxP; p += step) {
-    var cfg = {};
-    var _dangerousKeys = { '__proto__': 1, 'constructor': 1, 'prototype': 1 };
-    for (var k in opts) { if (opts.hasOwnProperty(k) && !_dangerousKeys[k]) cfg[k] = opts[k]; }
+    var cfg = _sanitize.stripDangerousKeys(opts);
     cfg.pressure = p;
     var r = calculateResolution(cfg);
     var diff = Math.abs(r.strandDiameter_mm - targetStrand);
