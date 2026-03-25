@@ -55,6 +55,7 @@ var manifest = [
     ['createSpectrophotometer',       './docs/shared/spectrophotometer',       'createSpectrophotometer'],
     ['createOsmolalityCalculator',    './docs/shared/osmolality',              'createOsmolalityCalculator'],
     ['createAutoclaveLogger',         './docs/shared/autoclave',               'createAutoclaveLogger'],
+    ['createProtocolTemplateLibrary', './docs/shared/protocolTemplates',       'createProtocolTemplateLibrary'],
 ];
 
 // ── Lazy-loading exports ───────────────────────────────────────────
