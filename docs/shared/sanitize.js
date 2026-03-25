@@ -16,20 +16,55 @@ var DANGEROUS_KEYS = { '__proto__': 1, 'constructor': 1, 'prototype': 1 };
 /**
  * Strip prototype-pollution keys from an untrusted object.
  *
- * Returns a shallow copy with __proto__, constructor, and prototype
- * keys removed. Does NOT deep-clean nested objects — callers should
- * apply this at each merge/spread site.
+ * Returns a copy with __proto__, constructor, and prototype keys
+ * removed. When `deep` is true (the default), nested objects and
+ * arrays are recursively cleaned — this prevents attackers from
+ * hiding pollution vectors inside nested payloads that bypass a
+ * shallow-only strip.
+ *
+ * A `maxDepth` limit (default 32) prevents stack overflow from
+ * circular or deeply-nested adversarial input.
  *
  * @param {Object} obj - Untrusted input object.
- * @returns {Object} Cleaned shallow copy (empty object if input is falsy).
+ * @param {Object} [opts] - Options.
+ * @param {boolean} [opts.deep=true] - Recursively clean nested objects/arrays.
+ * @param {number} [opts.maxDepth=32] - Maximum recursion depth.
+ * @returns {Object} Cleaned copy (empty object if input is falsy).
  */
-function stripDangerousKeys(obj) {
+function stripDangerousKeys(obj, opts) {
+    var deep = (!opts || opts.deep === undefined) ? true : !!opts.deep;
+    var maxDepth = (opts && typeof opts.maxDepth === 'number') ? opts.maxDepth : 32;
+    return _stripImpl(obj, deep, maxDepth, 0);
+}
+
+function _stripImpl(obj, deep, maxDepth, depth) {
     if (!obj || typeof obj !== 'object') return {};
+
+    if (Array.isArray(obj)) {
+        if (!deep || depth >= maxDepth) return obj.slice();
+        var arr = [];
+        for (var a = 0; a < obj.length; a++) {
+            var item = obj[a];
+            if (item && typeof item === 'object') {
+                arr.push(Array.isArray(item)
+                    ? _stripImpl(item, true, maxDepth, depth + 1)
+                    : _stripImpl(item, true, maxDepth, depth + 1));
+            } else {
+                arr.push(item);
+            }
+        }
+        return arr;
+    }
+
     var out = {};
     var keys = Object.keys(obj);
     for (var i = 0; i < keys.length; i++) {
-        if (!DANGEROUS_KEYS[keys[i]]) {
-            out[keys[i]] = obj[keys[i]];
+        if (DANGEROUS_KEYS[keys[i]]) continue;
+        var val = obj[keys[i]];
+        if (deep && depth < maxDepth && val && typeof val === 'object') {
+            out[keys[i]] = _stripImpl(val, true, maxDepth, depth + 1);
+        } else {
+            out[keys[i]] = val;
         }
     }
     return out;
