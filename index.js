@@ -1,16 +1,11 @@
-﻿'use strict';
+'use strict';
 
 /**
  * BioBots SDK — Bioprinting computation toolkit.
  *
- * Exports factory functions for the core computational modules:
- *   - Material Calculator: bioink consumption & cost estimation
- *   - Crosslink Analyzer: cross-linking kinetics & gelation modeling
- *   - GCode Analyzer: extrusion, movement, and cost analysis
- *   - Rheology Modeler: viscosity modeling & printability scoring
- *   - Viability Estimator: cell survival prediction with environment modeling
- *   - Data Exporter: CSV/JSON export with formula-injection defense
- *   - Passage Tracker: cell line passage history, viability trends, senescence risk
+ * Exports factory functions for the core computational modules.
+ * Modules are lazy-loaded on first access to minimize startup cost
+ * when consumers only use a subset of the 37+ available factories.
  *
  * @example
  *   var biobots = require('@sauravbhattacharya001/biobots');
@@ -62,14 +57,37 @@ var manifest = [
     ['createAutoclaveLogger',         './docs/shared/autoclave',               'createAutoclaveLogger'],
 ];
 
-// ── Build exports from manifest ────────────────────────────────────
-var exports_ = {};
-for (var i = 0; i < manifest.length; i++) {
-    var entry = manifest[i];
-    var exportName = entry[0];
-    var modulePath = entry[1];
-    var factoryName = entry[2];
-    exports_[exportName] = require(modulePath)[factoryName];
+// ── Lazy-loading exports ───────────────────────────────────────────
+// Each factory is loaded from disk only on first access, then cached.
+// This avoids requiring all 37 modules at startup when consumers
+// typically use only a handful.
+
+var api = {};
+
+function defineLazy(target, exportName, modulePath, factoryName) {
+    var cached = null;
+    Object.defineProperty(target, exportName, {
+        enumerable: true,
+        configurable: true,
+        get: function () {
+            if (cached === null) {
+                cached = require(modulePath)[factoryName];
+            }
+            return cached;
+        }
+    });
 }
 
-module.exports = exports_;
+for (var i = 0; i < manifest.length; i++) {
+    defineLazy(api, manifest[i][0], manifest[i][1], manifest[i][2]);
+}
+
+/**
+ * List all available factory names.
+ * @returns {string[]} Sorted array of export names.
+ */
+api.listFactories = function listFactories() {
+    return manifest.map(function (entry) { return entry[0]; }).sort();
+};
+
+module.exports = api;
