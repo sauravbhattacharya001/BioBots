@@ -276,40 +276,61 @@ function createCrosslinkAnalyzer() {
 
         if (dSteps < 2 || iSteps < 2) throw new Error('Steps must be at least 2');
 
-        var grid = [];
-        var durations = [];
-        var intensities = [];
-        var peak = { duration: 0, intensity: 0, viability: -1 };
+        // Hoist viability model parameters outside the hot loop to avoid
+        // repeated object lookups and null checks per grid point.
+        // For a 50×50 grid (2500 points), this eliminates ~7500 property
+        // accesses and avoids creating 2500 intermediate result objects.
+        var vMax = (vParams.vMax != null) ? vParams.vMax : DEFAULT_MAX_VIABILITY;
+        var kBenefit = (vParams.kBenefit != null) ? vParams.kBenefit : 0.005;
+        var kDamage = (vParams.kDamage != null) ? vParams.kDamage : 0.000005;
+
+        var totalPoints = dSteps * iSteps;
+        var grid = new Array(totalPoints);
+        var durations = new Array(dSteps);
+        var intensities = new Array(iSteps);
+        var peakViability = -1;
+        var peakDuration = 0;
+        var peakIntensity = 0;
 
         for (var di = 0; di < dSteps; di++) {
-            var dur = minD + (di / (dSteps - 1)) * (maxD - minD);
-            durations.push(Math.round(dur));
+            durations[di] = Math.round(minD + (di / (dSteps - 1)) * (maxD - minD));
         }
         for (var ii = 0; ii < iSteps; ii++) {
-            var inten = minI + (ii / (iSteps - 1)) * (maxI - minI);
-            intensities.push(Math.round(inten * 100) / 100);
+            intensities[ii] = Math.round((minI + (ii / (iSteps - 1)) * (maxI - minI)) * 100) / 100;
         }
 
-        for (var d = 0; d < durations.length; d++) {
-            for (var i = 0; i < intensities.length; i++) {
-                var dose = durations[d] * intensities[i];
-                var result = viabilityModel(dose, vParams);
-                var point = {
-                    duration: durations[d],
+        var idx = 0;
+        for (var d = 0; d < dSteps; d++) {
+            var dur = durations[d];
+            for (var i = 0; i < iSteps; i++) {
+                var dose = dur * intensities[i];
+                // Inline viability computation — avoids per-point function
+                // call overhead, validation checks, and object allocation
+                var viability;
+                if (dose <= 0) {
+                    viability = 0;
+                } else {
+                    var benefit = 1 - Math.exp(-kBenefit * dose);
+                    var damage = 1 - Math.exp(-kDamage * dose * dose);
+                    var raw = vMax * (benefit - damage);
+                    viability = raw > 0 ? Math.round(raw * 100) / 100 : 0;
+                }
+
+                grid[idx++] = {
+                    duration: dur,
                     intensity: intensities[i],
                     dose: Math.round(dose),
-                    viability: result.viability
+                    viability: viability
                 };
-                grid.push(point);
-                if (result.viability > peak.viability) {
-                    peak = {
-                        duration: durations[d],
-                        intensity: intensities[i],
-                        viability: result.viability
-                    };
+                if (viability > peakViability) {
+                    peakViability = viability;
+                    peakDuration = dur;
+                    peakIntensity = intensities[i];
                 }
             }
         }
+
+        var peak = { duration: peakDuration, intensity: peakIntensity, viability: peakViability };
 
         return { grid: grid, durations: durations, intensities: intensities, peak: peak };
     }
@@ -557,14 +578,31 @@ function createCrosslinkAnalyzer() {
         maxDose = maxDose || 100000;
         steps = steps || 1000;
 
+        // Hoist model parameters outside the scan loop to avoid
+        // 1001 redundant property lookups and object allocations.
+        params = params || {};
+        var vMax = (params.vMax != null) ? params.vMax : DEFAULT_MAX_VIABILITY;
+        var kBenefit = (params.kBenefit != null) ? params.kBenefit : 0.005;
+        var kDamage = (params.kDamage != null) ? params.kDamage : 0.000005;
+
         var lowerBound = null;
         var upperBound = null;
         var peakViability = -1;
         var optimalDose = 0;
+        var stepSize = maxDose / steps;
 
         for (var i = 0; i <= steps; i++) {
-            var dose = (i / steps) * maxDose;
-            var v = viabilityModel(dose, params).viability;
+            var dose = i * stepSize;
+            // Inline viability computation for hot-path performance
+            var v;
+            if (dose <= 0) {
+                v = 0;
+            } else {
+                var benefit = 1 - Math.exp(-kBenefit * dose);
+                var damage = 1 - Math.exp(-kDamage * dose * dose);
+                var raw = vMax * (benefit - damage);
+                v = raw > 0 ? Math.round(raw * 100) / 100 : 0;
+            }
 
             if (v > peakViability) {
                 peakViability = v;
