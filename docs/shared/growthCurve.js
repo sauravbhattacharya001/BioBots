@@ -223,6 +223,13 @@ function createGrowthCurveAnalyzer() {
      * Fit logistic growth model using iterative least squares.
      * Estimates K (carrying capacity), r (rate), and N0.
      *
+     * Uses analytical gradients (∂P/∂r and ∂P/∂K computed from the
+     * logistic formula directly) instead of numerical finite-difference
+     * approximation, reducing per-iteration cost from 3 exp() calls per
+     * data point to 1. Also adds early termination when the relative
+     * change in MSE drops below 1e-10, avoiding wasted iterations on
+     * already-converged fits.
+     *
      * @param {{ time: number, count: number }[]} data
      * @param {number} [maxIter=200] - Max iterations
      * @returns {{ n0: number, r: number, k: number, doublingTime: number, rSquared: number }}
@@ -252,31 +259,49 @@ function createGrowthCurveAnalyzer() {
         var expFit = fitExponential(valid.slice(0, halfLen));
         var r = Math.max(0.001, expFit.r);
 
-        // Simple gradient descent
+        // Gradient descent with analytical gradients and early termination.
+        //
+        // Logistic: P(t) = K / (1 + A·e^(-r·t))  where A = (K - N0)/N0
+        //
+        // ∂P/∂r = K · A · t · e^(-r·t) / (1 + A·e^(-r·t))²
+        //       = P² · A · t · e^(-r·t) / K
+        //
+        // ∂P/∂K = 1 / (1 + A·e^(-r·t))  –  K · (e^(-r·t)/N0) / (1 + A·e^(-r·t))²
+        //       = P/K  –  P² · e^(-r·t) / (K · N0)
         var lr = 0.0001;
+        var prevMSE = Infinity;
         for (var iter = 0; iter < maxIter; iter++) {
             var gradR = 0, gradK = 0;
             var totalErr = 0;
+            var A = (k - n0) / n0;
 
             for (var i = 0; i < valid.length; i++) {
                 var t = valid[i].time;
                 var observed = valid[i].count;
-                var predicted = logisticGrowth(n0, r, k, t);
+                var expTerm = Math.exp(-r * t);      // single exp() per point
+                var denom = 1 + A * expTerm;
+                var predicted = k / denom;
                 var err = predicted - observed;
                 totalErr += err * err;
 
-                // Numerical gradients
-                var dr = 0.0001;
-                var dk = Math.max(1, k * 0.001);
-                var predR = logisticGrowth(n0, r + dr, k, t);
-                var predK = logisticGrowth(n0, r, k + dk, t);
+                // Analytical partial derivatives
+                var pOverDenom = predicted / denom;   // P / (1 + A·e^(-rt)) = P²/K
+                var dPdR = pOverDenom * A * t * expTerm;
+                var dPdK = predicted / k - pOverDenom * expTerm / n0;
 
-                gradR += 2 * err * (predR - predicted) / dr;
-                gradK += 2 * err * (predK - predicted) / dk;
+                gradR += 2 * err * dPdR;
+                gradK += 2 * err * dPdK;
             }
 
             r = Math.max(0.0001, r - lr * gradR / valid.length);
             k = Math.max(maxCount, k - lr * gradK / valid.length);
+
+            // Early termination: stop if MSE barely changes
+            var mse = totalErr / valid.length;
+            if (iter > 0 && Math.abs(prevMSE - mse) / (prevMSE + 1e-20) < 1e-10) {
+                break;
+            }
+            prevMSE = mse;
         }
 
         // R-squared
