@@ -6,30 +6,9 @@
  * recorded bioprints are a sample from a larger potential population.
  */
 
-/**
- * Escape a string for safe HTML insertion (prevents XSS).
- *
- * Uses the same string-replace approach as constants.js rather than the
- * previous DOM-based implementation (document.createElement + textContent).
- * Benefits:
- *   - Works in Node.js without jsdom quirks (textContent/innerHTML
- *     behave differently across DOM implementations)
- *   - No lazy DOM element allocation or global state (_escapeEl)
- *   - Consistent output with constants.js escapeHtml
- *   - Handles numeric input (coerced via String())
- *
- * @param {*} str - Value to escape (coerced to string).
- * @returns {string} HTML-safe string with &, <, >, ", ' escaped.
- */
-function escapeHtml(str) {
-    if (str == null) return '';
-    return String(str)
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#39;');
-}
+// escapeHtml is defined in constants.js (single source of truth).
+// In browser context it's a global; in Node.js tests, require constants.js.
+// Removed duplicate definition to avoid divergence — see constants.js.
 
 /**
  * Metric accessor lookup — built from METRIC_DESCRIPTORS (constants.js)

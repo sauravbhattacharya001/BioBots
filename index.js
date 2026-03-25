@@ -60,6 +60,8 @@ var manifest = [
     ['createSpectrophotometer',       './docs/shared/spectrophotometer',       'createSpectrophotometer'],
     ['createOsmolalityCalculator',    './docs/shared/osmolality',              'createOsmolalityCalculator'],
     ['createAutoclaveLogger',         './docs/shared/autoclave',               'createAutoclaveLogger'],
+    ['createGrowthCurveAnalyzer',     './docs/shared/growthCurve',              'createGrowthCurveAnalyzer'],
+    ['createPrintResolutionCalculator','./docs/shared/printResolution',         'createPrintResolutionCalculator'],
 ];
 
 // ── Build exports from manifest ────────────────────────────────────
