@@ -32,7 +32,34 @@ Analyze 3D bioprinting run data — cell viability, print resolution, crosslinki
 
 ---
 
-## 📖 Overview
+## 📑 Table of Contents
+
+- [Quick Start — No Setup Required](#-quick-start--no-setup-required)
+- [Overview](#-overview)
+- [Live Demo](#-live-demo)
+- [Architecture](#-architecture)
+- [Getting Started (Backend)](#-getting-started)
+- [API Reference](#-api-reference)
+- [Analysis Tools Deep Dive](#-analysis-tools-deep-dive)
+- [Technical Details](#-technical-details)
+- [Packages](#-packages)
+- [License](#-license)
+
+### ⚡ Quick Start — No Setup Required
+
+The 46 analysis tools run entirely in your browser — no backend, no install, no dependencies:
+
+**→ [Open the Dashboard](https://sauravbhattacharya001.github.io/BioBots/)**
+
+Start with these:
+- [📊 Data Explorer](https://sauravbhattacharya001.github.io/BioBots/explorer.html) — histograms and scatter plots with regression
+- [🎯 Quality Control](https://sauravbhattacharya001.github.io/BioBots/quality.html) — quality grading and optimal parameters
+- [📋 Data Table](https://sauravbhattacharya001.github.io/BioBots/table.html) — sortable, filterable data browser with CSV export
+- [⚙️ Parameter Optimizer](https://sauravbhattacharya001.github.io/BioBots/optimizer.html) — find optimal parameters for any target metric
+
+> **Note:** The REST API requires .NET Framework — see [Getting Started](#-getting-started) below. The analysis tools work standalone with zero setup.
+
+### 📖 Overview
 
 BioBots Tool is an ASP.NET Web API application that reads bioprinting data from a JSON dataset and exposes RESTful endpoints for statistical queries. It was built to analyze print runs from the [BioBot 1](http://imgur.com/a/MR6ww) — an early desktop 3D bioprinter used in tissue engineering research.
 
@@ -96,7 +123,7 @@ All 46 analysis tools are deployed on GitHub Pages:
 | [📚 Developer Guide](https://sauravbhattacharya001.github.io/BioBots/guide.html) | Setup, testing, and contributing reference |
 | [🏛️ Architecture](https://sauravbhattacharya001.github.io/BioBots/architecture.html) | System architecture diagram |
 
-## 🏗️ Architecture
+### 🏗️ Architecture
 
 ```
 BioBotsTool.sln
@@ -113,7 +140,7 @@ BioBotsTool.sln
 └── bioprint-data.json             # Sample dataset
 ```
 
-## 🚀 Getting Started
+### 🚀 Getting Started
 
 ### Prerequisites
 
@@ -155,7 +182,7 @@ By default, the controller reads from `bioprint-data.json` in the application ro
 
 The data file is **watched for changes** — edits are picked up automatically without restarting the application.
 
-## 📡 API Reference
+### 📡 API Reference
 
 ### Endpoint Pattern
 
@@ -213,7 +240,7 @@ GET /api/prints/elasticity/greater/Average
 GET /api/prints/cl_duration/lesser/10000
 ```
 
-## 🖥️ Web Interface
+### 🖥️ Web Interface
 
 The bundled `index.html` provides an interactive query builder:
 
@@ -222,7 +249,12 @@ The bundled `index.html` provides an interactive query builder:
 3. **Enter a value** or click an aggregation button (Maximum/Minimum/Average)
 4. **View results** inline
 
-## 📊 Data Explorer
+### 🔬 Analysis Tools Deep Dive
+
+<details>
+<summary><strong>Click to expand detailed descriptions of all 46 analysis tools</strong></summary>
+
+### 📊 Data Explorer
 
 The [Data Explorer](https://sauravbhattacharya001.github.io/BioBots/explorer.html) provides interactive visualizations:
 
@@ -230,7 +262,7 @@ The [Data Explorer](https://sauravbhattacharya001.github.io/BioBots/explorer.htm
 - **Correlation View** — Scatter plot comparing any two metrics with linear regression trend line, Pearson r coefficient, and R² value
 - All charts render client-side using Canvas API (zero dependencies)
 
-## 🔬 Print Comparison
+### 🔬 Print Comparison
 
 The [Print Comparison](https://sauravbhattacharya001.github.io/BioBots/compare.html) tool lets you compare 2–4 individual print records side by side:
 
@@ -240,7 +272,7 @@ The [Print Comparison](https://sauravbhattacharya001.github.io/BioBots/compare.h
 - **Smart Insights** — Auto-generated cards: highest viability, best elasticity, most layers, viability spread, crosslinking effect analysis, pressure balance assessment
 - All charts render client-side using Canvas API (zero dependencies)
 
-## 🎯 Quality Control Dashboard
+### 🎯 Quality Control Dashboard
 
 The [Quality Control Dashboard](https://sauravbhattacharya001.github.io/BioBots/quality.html) helps identify optimal bioprinting parameters and track print quality:
 
@@ -253,7 +285,7 @@ The [Quality Control Dashboard](https://sauravbhattacharya001.github.io/BioBots/
 - **Customizable Weights** — Adjust the quality score formula (Live Cell %, Dead Cell %, Elasticity, Layer Count) with real-time recalculation
 - All charts render client-side using Canvas API (zero dependencies)
 
-## 🔍 Anomaly Detector
+### 🔍 Anomaly Detector
 
 The [Anomaly Detector](https://sauravbhattacharya001.github.io/BioBots/anomaly.html) identifies statistical outliers in bioprint data:
 
@@ -268,7 +300,7 @@ The [Anomaly Detector](https://sauravbhattacharya001.github.io/BioBots/anomaly.h
 - **Export** — Download anomaly reports as CSV or JSON for external analysis
 - All charts render client-side using Canvas API (zero dependencies)
 
-## 🔗 Cluster Analysis
+### 🔗 Cluster Analysis
 
 The [Cluster Analysis](https://sauravbhattacharya001.github.io/BioBots/cluster.html) tool groups print records by similarity using k-means clustering:
 
@@ -279,7 +311,7 @@ The [Cluster Analysis](https://sauravbhattacharya001.github.io/BioBots/cluster.h
 - **Cluster Profiles** — Detailed per-cluster metric breakdowns showing average values and how each cluster differs
 - All charts render client-side using Canvas API (zero dependencies)
 
-## ⚙️ Parameter Optimizer
+### ⚙️ Parameter Optimizer
 
 The [Parameter Optimizer](https://sauravbhattacharya001.github.io/BioBots/optimizer.html) finds optimal bioprinting parameters to maximize a target metric:
 
@@ -290,7 +322,7 @@ The [Parameter Optimizer](https://sauravbhattacharya001.github.io/BioBots/optimi
 - **Optimization Recommendations** — Actionable suggestions based on statistical analysis of the highest-performing prints
 - All charts render client-side using Canvas API (zero dependencies)
 
-## 📈 Trend Analysis
+### 📈 Trend Analysis
 
 The [Trend Analysis](https://sauravbhattacharya001.github.io/BioBots/trends.html) tool visualizes how metrics change across print records:
 
@@ -301,7 +333,7 @@ The [Trend Analysis](https://sauravbhattacharya001.github.io/BioBots/trends.html
 - **Smart Insights** — Auto-generated observations about improving/declining trends, strongest correlations, and notable patterns
 - All charts render client-side using Canvas API (zero dependencies)
 
-## 📚 Developer Guide
+### 📚 Developer Guide
 
 The [Developer Guide](https://sauravbhattacharya001.github.io/BioBots/guide.html) provides comprehensive documentation for contributors:
 
@@ -310,7 +342,7 @@ The [Developer Guide](https://sauravbhattacharya001.github.io/BioBots/guide.html
 - **Testing** — Jest test suite with coverage reporting, threshold checks, watch mode, and per-file execution
 - **Architecture Reference** — API structure, data model, and frontend organization
 
-## 📋 Data Table
+### 📋 Data Table
 
 The [Data Table](https://sauravbhattacharya001.github.io/BioBots/table.html) lets you browse individual print records:
 
@@ -321,6 +353,8 @@ The [Data Table](https://sauravbhattacharya001.github.io/BioBots/table.html) let
 - **CSV export** — Download filtered results for external analysis
 - **Pagination** — Configurable rows per page (10, 25, 50, 100)
 - **Live statistics** — Shows min/avg/max for selected filter metric across visible records
+
+</details>
 
 ## 🔧 Technical Details
 
