@@ -56,6 +56,7 @@ var manifest = [
     ['createOsmolalityCalculator',    './docs/shared/osmolality',              'createOsmolalityCalculator'],
     ['createAutoclaveLogger',         './docs/shared/autoclave',               'createAutoclaveLogger'],
     ['createProtocolTemplateLibrary', './docs/shared/protocolTemplates',       'createProtocolTemplateLibrary'],
+    ['createPhAdjustmentCalculator', './docs/shared/phAdjustment',            'createPhAdjustmentCalculator'],
 ];
 
 // ── Lazy-loading exports ───────────────────────────────────────────
