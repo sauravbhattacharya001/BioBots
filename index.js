@@ -57,6 +57,7 @@ var manifest = [
     ['createAutoclaveLogger',         './docs/shared/autoclave',               'createAutoclaveLogger'],
     ['createProtocolTemplateLibrary', './docs/shared/protocolTemplates',       'createProtocolTemplateLibrary'],
     ['createPhAdjustmentCalculator', './docs/shared/phAdjustment',            'createPhAdjustmentCalculator'],
+    ['createElectroporationCalculator', './docs/shared/electroporation',    'createElectroporationCalculator'],
 ];
 
 // ── Lazy-loading exports ───────────────────────────────────────────
