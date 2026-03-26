@@ -60,6 +60,7 @@ var manifest = [
     ['createElectroporationCalculator', './docs/shared/electroporation',    'createElectroporationCalculator'],
     ['createGelElectrophoresisAnalyzer','./docs/shared/gelElectrophoresis', 'createGelElectrophoresisAnalyzer'],
     ['createPcrMasterMixCalculator',   './docs/shared/pcrMasterMix',        'createPcrMasterMixCalculator'],
+    ['createFlowCytometryAnalyzer',    './docs/shared/flowCytometry',       'createFlowCytometryAnalyzer'],
 ];
 
 // ── Lazy-loading exports ───────────────────────────────────────────
