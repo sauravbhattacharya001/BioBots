@@ -134,17 +134,21 @@ function createDilutionCalculator() {
 
         var diluentPerTube = _round(finalVol - transferVol);
         var tubes = [];
+        // The first tube receives transferVol of stock into finalVol total,
+        // so its concentration is stock * (transferVol / finalVol) = stock / factor.
+        // Each subsequent tube transfers from the previous tube, diluting by
+        // the same factor again.
         var conc = stock;
 
         for (var i = 0; i < steps; i++) {
-            if (i > 0) { conc = _round(conc / factor); }
+            conc = _round(conc / factor);
             tubes.push({
                 tube: i + 1,
                 concentration: conc,
-                transferIn: i === 0 ? transferVol : transferVol,
+                transferIn: transferVol,
                 diluentAdded: diluentPerTube,
                 totalVolume: finalVol,
-                cumulativeDilution: Math.pow(factor, i)
+                cumulativeDilution: Math.pow(factor, i + 1)
             });
         }
 
