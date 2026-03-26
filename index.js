@@ -58,6 +58,7 @@ var manifest = [
     ['createProtocolTemplateLibrary', './docs/shared/protocolTemplates',       'createProtocolTemplateLibrary'],
     ['createPhAdjustmentCalculator', './docs/shared/phAdjustment',            'createPhAdjustmentCalculator'],
     ['createElectroporationCalculator', './docs/shared/electroporation',    'createElectroporationCalculator'],
+    ['createGelElectrophoresisAnalyzer','./docs/shared/gelElectrophoresis', 'createGelElectrophoresisAnalyzer'],
 ];
 
 // ── Lazy-loading exports ───────────────────────────────────────────
