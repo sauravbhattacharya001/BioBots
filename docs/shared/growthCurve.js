@@ -232,9 +232,10 @@ function createGrowthCurveAnalyzer() {
      *
      * @param {{ time: number, count: number }[]} data
      * @param {number} [maxIter=200] - Max iterations
+     * @param {{ r: number }} [precomputedExpFit] - Optional pre-computed exponential fit to reuse for initial r estimate
      * @returns {{ n0: number, r: number, k: number, doublingTime: number, rSquared: number }}
      */
-    function fitLogistic(data, maxIter) {
+    function fitLogistic(data, maxIter, precomputedExpFit) {
         if (!Array.isArray(data) || data.length < 3) {
             throw new Error('Need at least 3 data points for logistic fit');
         }
@@ -254,9 +255,15 @@ function createGrowthCurveAnalyzer() {
         }
         var k = maxCount * 1.2;
 
-        // Estimate r from exponential fit of first half
-        var halfLen = Math.max(2, Math.floor(valid.length / 2));
-        var expFit = fitExponential(valid.slice(0, halfLen));
+        // Estimate r from exponential fit of first half (or reuse
+        // pre-computed fit when available to avoid redundant regression)
+        var expFit;
+        if (precomputedExpFit && typeof precomputedExpFit.r === 'number') {
+            expFit = precomputedExpFit;
+        } else {
+            var halfLen = Math.max(2, Math.floor(valid.length / 2));
+            expFit = fitExponential(valid.slice(0, halfLen));
+        }
         var r = Math.max(0.001, expFit.r);
 
         // Gradient descent with analytical gradients and early termination.
@@ -352,8 +359,12 @@ function createGrowthCurveAnalyzer() {
         var expFit = null;
         try { expFit = fitExponential(sorted); } catch (e) { /* skip */ }
 
+        // fitLogistic internally calls fitExponential on the first
+        // half of the data to seed its initial growth-rate guess.
+        // Pass the full-data expFit so it can reuse r directly
+        // instead of recomputing the regression.
         var logFit = null;
-        try { logFit = fitLogistic(sorted); } catch (e) { /* skip */ }
+        try { logFit = fitLogistic(sorted, undefined, expFit); } catch (e) { /* skip */ }
 
         var phases = null;
         try { phases = detectPhases(sorted); } catch (e) { /* skip */ }
