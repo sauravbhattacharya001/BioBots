@@ -25,6 +25,18 @@ namespace BioBots.Controllers
     [RoutePrefix("api/samples")]
     public class SampleTrackingController : ApiController
     {
+        /// <summary>Maximum number of samples that can be tracked in-memory.
+        /// Prevents unbounded growth from automated/malicious callers.</summary>
+        private const int MaxSamples = 10000;
+
+        /// <summary>Maximum string length for free-text fields (Label, Notes,
+        /// StorageLocation, etc.) to prevent memory abuse.</summary>
+        private const int MaxFieldLength = 2000;
+
+        /// <summary>Maximum length for short identifier fields (OperatorEmail,
+        /// Quantity, SampleType).</summary>
+        private const int MaxShortFieldLength = 200;
+
         private static readonly ConcurrentDictionary<string, Sample> _samples
             = new ConcurrentDictionary<string, Sample>(StringComparer.OrdinalIgnoreCase);
 
@@ -52,6 +64,38 @@ namespace BioBots.Controllers
             };
 
         private static int _counter = 0;
+
+        /// <summary>
+        /// Truncate a string to a maximum length, returning null if the input
+        /// is null or whitespace-only.
+        /// </summary>
+        private static string ClampString(string value, int maxLen)
+        {
+            if (string.IsNullOrWhiteSpace(value)) return null;
+            value = value.Trim();
+            return value.Length > maxLen ? value.Substring(0, maxLen) : value;
+        }
+
+        /// <summary>
+        /// Validate that free-text input fields are within length limits.
+        /// Returns an error message if validation fails, or null if OK.
+        /// </summary>
+        private static string ValidateInputLengths(Sample sample)
+        {
+            if (sample.Label != null && sample.Label.Length > MaxFieldLength)
+                return $"Label must be at most {MaxFieldLength} characters.";
+            if (sample.Notes != null && sample.Notes.Length > MaxFieldLength)
+                return $"Notes must be at most {MaxFieldLength} characters.";
+            if (sample.StorageLocation != null && sample.StorageLocation.Length > MaxFieldLength)
+                return $"StorageLocation must be at most {MaxFieldLength} characters.";
+            if (sample.OperatorEmail != null && sample.OperatorEmail.Length > MaxShortFieldLength)
+                return $"OperatorEmail must be at most {MaxShortFieldLength} characters.";
+            if (sample.Quantity != null && sample.Quantity.Length > MaxShortFieldLength)
+                return $"Quantity must be at most {MaxShortFieldLength} characters.";
+            if (sample.SampleType != null && sample.SampleType.Length > MaxShortFieldLength)
+                return $"SampleType must be at most {MaxShortFieldLength} characters.";
+            return null;
+        }
 
         private static string GenerateId()
         {
@@ -130,6 +174,16 @@ namespace BioBots.Controllers
             if (string.IsNullOrWhiteSpace(sample.SampleType) || !ValidTypes.Contains(sample.SampleType))
                 return BadRequest($"SampleType must be one of: {string.Join(", ", ValidTypes)}");
 
+            // Enforce input field length limits
+            var lengthError = ValidateInputLengths(sample);
+            if (lengthError != null)
+                return BadRequest(lengthError);
+
+            // Enforce maximum sample capacity to prevent memory exhaustion
+            if (_samples.Count >= MaxSamples)
+                return Content(System.Net.HttpStatusCode.ServiceUnavailable,
+                    new { Error = $"Sample limit ({MaxSamples}) reached. Dispose old samples before creating new ones." });
+
             sample.SampleId = GenerateId();
             sample.Status = "Created";
             sample.CreatedAt = DateTime.UtcNow;
@@ -163,6 +217,11 @@ namespace BioBots.Controllers
 
             if (updates == null)
                 return BadRequest("Request body required.");
+
+            // Enforce input field length limits on updates
+            var lengthError = ValidateInputLengths(updates);
+            if (lengthError != null)
+                return BadRequest(lengthError);
 
             if (!string.IsNullOrWhiteSpace(updates.Label))
                 sample.Label = updates.Label;
@@ -203,6 +262,12 @@ namespace BioBots.Controllers
 
             if (transition == null || string.IsNullOrWhiteSpace(transition.ToStatus))
                 return BadRequest("ToStatus is required.");
+
+            // Enforce length limits on transition metadata
+            if (transition.PerformedBy != null && transition.PerformedBy.Length > MaxShortFieldLength)
+                return BadRequest($"PerformedBy must be at most {MaxShortFieldLength} characters.");
+            if (transition.Comment != null && transition.Comment.Length > MaxFieldLength)
+                return BadRequest($"Comment must be at most {MaxFieldLength} characters.");
 
             if (!ValidStatuses.Contains(transition.ToStatus))
                 return BadRequest($"Invalid status. Must be one of: {string.Join(", ", ValidStatuses)}");
