@@ -4,32 +4,11 @@
  * Common functions used across dashboard pages. Import after constants.js.
  * All functions use sample standard deviation (n-1) per statistical convention:
  * recorded bioprints are a sample from a larger potential population.
- */
-
-/**
- * Escape a string for safe HTML insertion (prevents XSS).
  *
- * Uses the same string-replace approach as constants.js rather than the
- * previous DOM-based implementation (document.createElement + textContent).
- * Benefits:
- *   - Works in Node.js without jsdom quirks (textContent/innerHTML
- *     behave differently across DOM implementations)
- *   - No lazy DOM element allocation or global state (_escapeEl)
- *   - Consistent output with constants.js escapeHtml
- *   - Handles numeric input (coerced via String())
- *
- * @param {*} str - Value to escape (coerced to string).
- * @returns {string} HTML-safe string with &, <, >, ", ' escaped.
+ * NOTE: escapeHtml is provided by constants.js (loaded first via <script>).
+ * Prototype-pollution stripping for Node modules lives in sanitize.js.
+ * This file focuses on metric extraction, statistics, and formatting.
  */
-function escapeHtml(str) {
-    if (str == null) return '';
-    return String(str)
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#39;');
-}
 
 /**
  * Metric accessor lookup — built from METRIC_DESCRIPTORS (constants.js)
@@ -64,28 +43,6 @@ function getMetricValue(print, metric) {
     if (!fn) return null;
     try { return fn(print); }
     catch { return null; }
-}
-
-/**
- * Strip keys that could cause prototype pollution when spreading or
- * Object.assign-ing untrusted objects.  Returns a shallow copy without
- * dangerous keys (__proto__, constructor, prototype).  Nested objects
- * are NOT deep-cleaned — callers should apply this at each merge site.
- *
- * @param {Object} obj - Untrusted input object.
- * @returns {Object} Cleaned shallow copy (or empty object if input is falsy).
- */
-function stripDangerousKeys(obj) {
-    if (!obj || typeof obj !== 'object') return {};
-    var DANGEROUS = { '__proto__': 1, 'constructor': 1, 'prototype': 1 };
-    var out = {};
-    var keys = Object.keys(obj);
-    for (var i = 0; i < keys.length; i++) {
-        if (!DANGEROUS[keys[i]]) {
-            out[keys[i]] = obj[keys[i]];
-        }
-    }
-    return out;
 }
 
 /**
