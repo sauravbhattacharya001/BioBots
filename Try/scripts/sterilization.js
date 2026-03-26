@@ -1,6 +1,6 @@
 'use strict';
 
-const { validatePositive, validateNonNegative } = require('./scriptUtils');
+const { validatePositive, validateNonNegative, round: _round } = require('./scriptUtils');
 
 /**
  * Sterilization Protocol Analyzer for BioBots
@@ -1191,10 +1191,6 @@ function createSterilizationAnalyzer(userConfig) {
         return recs;
     }
 
-    function _round(n, decimals) {
-        var factor = Math.pow(10, decimals);
-        return Math.round(n * factor) / factor;
-    }
 
     function _merge(target, source) {
         var result = {};

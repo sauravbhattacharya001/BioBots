@@ -4,6 +4,7 @@ var _utils = require('./scriptUtils');
 var clamp = _utils.clamp;
 var round = _utils.round;
 var mean = _utils.mean;
+var stddev = _utils.stddev;
 
 /**
  * Material Lot Tracker for BioBots
@@ -115,17 +116,10 @@ function _validateString(val, name) {
   }
 }
 
-function _stddev(arr) {
-  if (arr.length < 2) return 0;
-  var m = mean(arr);
-  var ss = arr.reduce(function (s, v) { return s + (v - m) * (v - m); }, 0);
-  return Math.sqrt(ss / (arr.length - 1));
-}
-
 function _cv(arr) {
   var m = mean(arr);
   if (m === 0) return 0;
-  return (_stddev(arr) / Math.abs(m)) * 100;
+  return (stddev(arr) / Math.abs(m)) * 100;
 }
 
 /* -- Factory -------------------------------------------------- */
@@ -509,7 +503,7 @@ function createMaterialLotTracker(opts) {
         parameter: param,
         lotCount: vals.length,
         mean: round(mean(vals), 4),
-        stddev: round(_stddev(vals), 4),
+        stddev: round(stddev(vals), 4),
         cv: round(cv, 2),
         min: round(Math.min.apply(null, vals), 4),
         max: round(Math.max.apply(null, vals), 4),
