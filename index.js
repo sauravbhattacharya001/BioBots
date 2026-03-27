@@ -63,6 +63,7 @@ var manifest = [
     ['createFlowCytometryAnalyzer',    './docs/shared/flowCytometry',       'createFlowCytometryAnalyzer'],
     ['createMolarityCalculator',       './docs/shared/molarity',            'createMolarityCalculator'],
     ['createSerialDilutionCalculator', './docs/shared/serialDilution',     'createSerialDilutionCalculator'],
+    ['createWesternBlotAnalyzer',      './docs/shared/westernBlot',        'createWesternBlotAnalyzer'],
 ];
 
 // ── Lazy-loading exports ───────────────────────────────────────────
