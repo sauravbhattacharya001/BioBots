@@ -64,6 +64,7 @@ var manifest = [
     ['createMolarityCalculator',       './docs/shared/molarity',            'createMolarityCalculator'],
     ['createSerialDilutionCalculator', './docs/shared/serialDilution',     'createSerialDilutionCalculator'],
     ['createWesternBlotAnalyzer',      './docs/shared/westernBlot',        'createWesternBlotAnalyzer'],
+    ['createLabNotebookGenerator',     './docs/shared/labNotebook',        'createLabNotebookGenerator'],
 ];
 
 // ── Lazy-loading exports ───────────────────────────────────────────
