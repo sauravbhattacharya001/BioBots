@@ -1,3 +1,5 @@
+'use strict';
+
 /**
  * BioBots Data Export Manager
  *
@@ -11,7 +13,7 @@
  *   exporter.downloadJSON(data, 'bioprints.json');
  */
 
-'use strict';
+var _sanitize = require('./sanitize');
 
 /**
  * Create a data exporter instance.
@@ -58,29 +60,14 @@ function createDataExporter() {
         return str;
     }
 
-    /** @private Keys that must never be traversed to prevent prototype pollution. */
-    var DANGEROUS_KEYS = { '__proto__': 1, 'constructor': 1, 'prototype': 1 };
-
     /**
      * Resolve a nested property path (e.g., 'print_data.livePercent').
-     * Rejects paths containing dangerous keys (__proto__, constructor, prototype)
-     * to prevent prototype pollution and internal property leakage.
+     * Delegates to the shared sanitize module to prevent prototype pollution.
      * @param {object} obj - Source object.
      * @param {string} path - Dot-separated path.
      * @returns {*} Resolved value or null.
      */
-    function resolvePath(obj, path) {
-        if (obj == null || !path) return null;
-        var parts = path.split('.');
-        var current = obj;
-        for (var i = 0; i < parts.length; i++) {
-            if (DANGEROUS_KEYS[parts[i]]) return null;
-            if (current == null || typeof current !== 'object') return null;
-            if (!Object.prototype.hasOwnProperty.call(current, parts[i])) return null;
-            current = current[parts[i]];
-        }
-        return current === undefined ? null : current;
-    }
+    var resolvePath = _sanitize.safeResolvePath;
 
     /**
      * Convert an array of objects to CSV string.
