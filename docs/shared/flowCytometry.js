@@ -85,32 +85,79 @@ function createFlowCytometryAnalyzer() {
         return sum / arr.length;
     }
 
-    function median(arr) {
-        var s = sortNumeric(arr);
-        var mid = Math.floor(s.length / 2);
-        return s.length % 2 !== 0 ? s[mid] : (s[mid - 1] + s[mid]) / 2;
+    /**
+     * Compute median from a pre-sorted array (avoids redundant sorting).
+     * @param {number[]} sorted - Already sorted array
+     * @returns {number}
+     */
+    function medianSorted(sorted) {
+        if (!sorted.length) return 0;
+        var mid = Math.floor(sorted.length / 2);
+        return sorted.length % 2 !== 0 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
     }
 
+    function median(arr) {
+        return medianSorted(sortNumeric(arr));
+    }
+
+    /**
+     * Compute standard deviation using a numerically stable single-pass
+     * Welford algorithm. Avoids the two-pass approach (mean then sum-of-squares)
+     * which requires iterating the array twice.
+     * @param {number[]} arr
+     * @returns {number} Population standard deviation
+     */
     function stddev(arr) {
-        var m = mean(arr);
-        var sumSq = 0;
-        for (var i = 0; i < arr.length; i++) sumSq += (arr[i] - m) * (arr[i] - m);
-        return Math.sqrt(sumSq / arr.length);
+        if (arr.length < 2) return 0;
+        var m = 0;
+        var m2 = 0;
+        for (var i = 0; i < arr.length; i++) {
+            var delta = arr[i] - m;
+            m += delta / (i + 1);
+            m2 += delta * (arr[i] - m);
+        }
+        return Math.sqrt(m2 / arr.length);
+    }
+
+    /**
+     * Compute percentile from a pre-sorted array (avoids redundant sorting).
+     * @param {number[]} sorted - Already sorted array
+     * @param {number} p - Percentile (0-100)
+     * @returns {number}
+     */
+    function percentileSorted(sorted, p) {
+        var idx = (p / 100) * (sorted.length - 1);
+        var lo = Math.floor(idx);
+        var hi = Math.ceil(idx);
+        if (lo === hi) return sorted[lo];
+        return sorted[lo] + (idx - lo) * (sorted[hi] - sorted[lo]);
     }
 
     function percentile(arr, p) {
-        var s = sortNumeric(arr);
-        var idx = (p / 100) * (s.length - 1);
-        var lo = Math.floor(idx);
-        var hi = Math.ceil(idx);
-        if (lo === hi) return s[lo];
-        return s[lo] + (idx - lo) * (s[hi] - s[lo]);
+        return percentileSorted(sortNumeric(arr), p);
     }
 
     function cv(arr) {
         var m = mean(arr);
         if (m === 0) return 0;
         return (stddev(arr) / m) * 100;
+    }
+
+    /**
+     * Find min and max of an array in a single pass.
+     * Unlike Math.min/max.apply(), this does not risk a stack overflow
+     * on large arrays (flow cytometry datasets routinely have 100K–1M events).
+     * @param {number[]} arr
+     * @returns {{ min: number, max: number }}
+     */
+    function minMax(arr) {
+        var lo = arr[0];
+        var hi = arr[0];
+        for (var i = 1; i < arr.length; i++) {
+            if (arr[i] < lo) lo = arr[i];
+            else if (arr[i] > hi) hi = arr[i];
+        }
+        return { min: lo, max: hi };
     }
 
     /* ── Core analysis functions ── */
@@ -127,20 +174,23 @@ function createFlowCytometryAnalyzer() {
             throw new Error('events array is required and must be non-empty');
         }
         var ev = opts.events;
+        // Sort once and reuse for median + all percentile calls.
+        // Previously each call to median() and percentile() re-sorted the
+        // full array, turning this O(n log n) operation into O(5·n log n).
         var sorted = sortNumeric(ev);
         return {
             channel: opts.channel || 'unknown',
             totalEvents: ev.length,
             mean: Math.round(mean(ev) * 100) / 100,
-            median: Math.round(median(ev) * 100) / 100,
+            median: Math.round(medianSorted(sorted) * 100) / 100,
             stddev: Math.round(stddev(ev) * 100) / 100,
             cv: Math.round(cv(ev) * 100) / 100,
             min: sorted[0],
             max: sorted[sorted.length - 1],
-            percentile5: Math.round(percentile(ev, 5) * 100) / 100,
-            percentile25: Math.round(percentile(ev, 25) * 100) / 100,
-            percentile75: Math.round(percentile(ev, 75) * 100) / 100,
-            percentile95: Math.round(percentile(ev, 95) * 100) / 100,
+            percentile5: Math.round(percentileSorted(sorted, 5) * 100) / 100,
+            percentile25: Math.round(percentileSorted(sorted, 25) * 100) / 100,
+            percentile75: Math.round(percentileSorted(sorted, 75) * 100) / 100,
+            percentile95: Math.round(percentileSorted(sorted, 95) * 100) / 100,
         };
     }
 
@@ -257,8 +307,13 @@ function createFlowCytometryAnalyzer() {
             ? ev.map(function (v) { return v > 0 ? Math.log10(v) : 0; })
             : ev;
 
-        var minVal = Math.min.apply(null, values);
-        var maxVal = Math.max.apply(null, values);
+        // Use iterative min/max instead of Math.min/max.apply() which
+        // throws RangeError on arrays larger than ~65K elements due to
+        // call-stack argument limits — a real problem since flow cytometry
+        // datasets routinely contain 100K–1M events.
+        var bounds = minMax(values);
+        var minVal = bounds.min;
+        var maxVal = bounds.max;
         var range = maxVal - minVal || 1;
         var binWidth = range / numBins;
 
@@ -278,7 +333,7 @@ function createFlowCytometryAnalyzer() {
             maxValue: Math.round(maxVal * 1000) / 1000,
             logScale: useLog,
             totalEvents: ev.length,
-            peakBin: bins.indexOf(Math.max.apply(null, bins)),
+            peakBin: (function() { var max = 0, idx = 0; for (var j = 0; j < bins.length; j++) { if (bins[j] > max) { max = bins[j]; idx = j; } } return idx; })(),
         };
     }
 
