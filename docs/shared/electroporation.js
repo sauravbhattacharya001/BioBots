@@ -32,18 +32,11 @@ var CELL_PRESETS = {
   'E.coli':   { optimalFieldStrengthVcm: 1800, optimalPulseMs: 5,  survivalBaseline: 0.50 }
 };
 
-/* ---------- Helpers ---------- */
+/* ---------- Helpers (shared) ---------- */
 
-function validatePositive(val, name) {
-  if (typeof val !== 'number' || val <= 0 || !isFinite(val)) {
-    throw new Error(name + ' must be a positive finite number');
-  }
-}
-
-function round(val, decimals) {
-  var factor = Math.pow(10, decimals || 2);
-  return Math.round(val * factor) / factor;
-}
+var _v = require('./validation');
+var validatePositive = _v.validatePositive;
+var round = _v.round;
 
 /* ---------- Core calculations ---------- */
 

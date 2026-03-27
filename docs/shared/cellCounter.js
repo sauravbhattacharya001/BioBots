@@ -25,24 +25,12 @@ var CHAMBER_SPECS = {
   'fuchs-rosenthal':   { squareVolumeMl: 0.0002, totalSquares: 16, defaultSquares: 16 }
 };
 
-/* ---------- Helpers ---------- */
+/* ---------- Helpers (shared) ---------- */
 
-function validatePositive(val, name) {
-  if (typeof val !== 'number' || isNaN(val) || val <= 0) {
-    throw new Error(name + ' must be a positive number');
-  }
-}
-
-function validateNonNegative(val, name) {
-  if (typeof val !== 'number' || isNaN(val) || val < 0) {
-    throw new Error(name + ' must be a non-negative number');
-  }
-}
-
-function round(val, decimals) {
-  var factor = Math.pow(10, decimals || 2);
-  return Math.round(val * factor) / factor;
-}
+var _v = require('./validation');
+var validatePositive = _v.validatePositive;
+var validateNonNegative = _v.validateNonNegative;
+var round = _v.round;
 
 /* ---------- Core calculations ---------- */
 

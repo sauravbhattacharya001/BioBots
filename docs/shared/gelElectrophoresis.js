@@ -52,11 +52,7 @@ var PAGE_RECOMMENDATIONS = [
 
 /* ---------- Helpers ---------- */
 
-function validatePositive(val, name) {
-  if (typeof val !== 'number' || isNaN(val) || val <= 0) {
-    throw new Error(name + ' must be a positive number');
-  }
-}
+var validatePositive = require('./validation').validatePositive;
 
 function validateArray(arr, name, minLen) {
   if (!Array.isArray(arr) || arr.length < (minLen || 1)) {

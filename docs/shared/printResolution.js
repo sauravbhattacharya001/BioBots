@@ -79,11 +79,7 @@ var NOZZLE_LENGTH_DEFAULT = 12.7;
  * @throws {Error} If val is not a positive finite number.
  * @private
  */
-function validatePositive(val, name) {
-  if (typeof val !== 'number' || isNaN(val) || val <= 0) {
-    throw new Error(name + ' must be a positive number, got: ' + val);
-  }
-}
+var validatePositive = require('./validation').validatePositive;
 
 /**
  * Resolve nozzle inner diameter from either a direct value or gauge string.

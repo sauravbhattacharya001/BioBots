@@ -37,17 +37,9 @@ var DEFAULT_OD_COEFFICIENTS = {
 
 /* ---------- Helpers ---------- */
 
-function validatePositive(val, name) {
-  if (typeof val !== 'number' || isNaN(val) || val <= 0) {
-    throw new Error(name + ' must be a positive number');
-  }
-}
-
-function validateNonNegative(val, name) {
-  if (typeof val !== 'number' || isNaN(val) || val < 0) {
-    throw new Error(name + ' must be a non-negative number');
-  }
-}
+var _v = require('./validation');
+var validatePositive = _v.validatePositive;
+var validateNonNegative = _v.validateNonNegative;
 
 function round(val, decimals) {
   var factor = Math.pow(10, decimals || 4);
