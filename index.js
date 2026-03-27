@@ -67,9 +67,22 @@ var manifest = [
     ['createLabNotebookGenerator',     './docs/shared/labNotebook',        'createLabNotebookGenerator'],
 ];
 
+// ── Pre-computed lookup structures ─────────────────────────────────
+// O(1) name lookups instead of linear scans over the manifest array.
+// Built once at require-time; cost is negligible (< 50 entries).
+
+var _nameSet = Object.create(null);   // name → true  (fast existence check)
+var _sortedNames = [];                // pre-sorted for listFactories()
+
+for (var _j = 0; _j < manifest.length; _j++) {
+    _nameSet[manifest[_j][0]] = true;
+    _sortedNames.push(manifest[_j][0]);
+}
+_sortedNames.sort();
+
 // ── Lazy-loading exports ───────────────────────────────────────────
 // Each factory is loaded from disk only on first access, then cached.
-// This avoids requiring all 37 modules at startup when consumers
+// This avoids requiring all 47 modules at startup when consumers
 // typically use only a handful.
 
 var api = {};
@@ -102,22 +115,20 @@ for (var i = 0; i < manifest.length; i++) {
 
 /**
  * List all available factory names.
- * @returns {string[]} Sorted array of export names.
+ * @returns {string[]} Sorted array of export names (defensive copy).
  */
 api.listFactories = function listFactories() {
-    return manifest.map(function (entry) { return entry[0]; }).sort();
+    return _sortedNames.slice();
 };
 
 /**
  * Check whether a factory name is available.
+ * O(1) hash lookup instead of O(n) linear scan.
  * @param {string} name - Factory name (e.g. 'createMaterialCalculator').
  * @returns {boolean} True if the factory exists on this SDK instance.
  */
 api.hasFactory = function hasFactory(name) {
-    for (var i = 0; i < manifest.length; i++) {
-        if (manifest[i][0] === name) return true;
-    }
-    return false;
+    return _nameSet[name] === true;
 };
 
 /**
