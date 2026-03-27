@@ -13,6 +13,30 @@
  */
 function createRheologyModeler() {
 
+    // ── Memoization Cache ───────────────────────────────────────
+
+    /**
+     * Create a single-entry memo cache keyed by argument list.
+     * Returns cached result when all arguments match the previous call.
+     */
+    function memoize(fn) {
+        var lastArgs = null;
+        var lastResult = null;
+        return function () {
+            var args = Array.prototype.slice.call(arguments);
+            if (lastArgs && lastArgs.length === args.length) {
+                var match = true;
+                for (var i = 0; i < args.length; i++) {
+                    if (args[i] !== lastArgs[i]) { match = false; break; }
+                }
+                if (match) return lastResult;
+            }
+            lastArgs = args;
+            lastResult = fn.apply(null, args);
+            return lastResult;
+        };
+    }
+
     // ── Power Law Model ─────────────────────────────────────────
 
     /**
@@ -84,7 +108,9 @@ function createRheologyModeler() {
 
         // Log-log linear regression: log(η) = log(K) + (n-1) · log(γ̇)
         var N = valid.length;
-        var sumX = 0, sumY = 0, sumXX = 0, sumXY = 0;
+        // Single-pass: accumulate regression sums AND R² components together.
+        // Uses the identity: ssTotal = sumYY - N * meanY² to avoid a second loop.
+        var sumX = 0, sumY = 0, sumXX = 0, sumXY = 0, sumYY = 0;
         for (var i = 0; i < N; i++) {
             var x = Math.log(valid[i].shearRate);
             var y = Math.log(valid[i].viscosity);
@@ -92,24 +118,23 @@ function createRheologyModeler() {
             sumY += y;
             sumXX += x * x;
             sumXY += x * y;
+            sumYY += y * y;
         }
 
-        var slope = (N * sumXY - sumX * sumY) / (N * sumXX - sumX * sumX);
+        var denom = N * sumXX - sumX * sumX;
+        var slope = (N * sumXY - sumX * sumY) / denom;
         var intercept = (sumY - slope * sumX) / N;
 
         var K = Math.exp(intercept);
         var n = slope + 1;
 
-        // R² calculation
+        // R² from single-pass sums (no second loop needed):
+        // ssTotal = sumYY - N * meanY²
+        // ssResidual = sumYY - 2*slope*sumXY - 2*intercept*sumY + slope²*sumXX + 2*slope*intercept*sumX + N*intercept²
         var meanY = sumY / N;
-        var ssTotal = 0, ssResidual = 0;
-        for (var j = 0; j < N; j++) {
-            var xj = Math.log(valid[j].shearRate);
-            var yj = Math.log(valid[j].viscosity);
-            var predicted = intercept + slope * xj;
-            ssTotal += (yj - meanY) * (yj - meanY);
-            ssResidual += (yj - predicted) * (yj - predicted);
-        }
+        var ssTotal = sumYY - N * meanY * meanY;
+        var ssResidual = sumYY - 2 * slope * sumXY - 2 * intercept * sumY
+            + slope * slope * sumXX + 2 * slope * intercept * sumX + N * intercept * intercept;
         var rSquared = ssTotal > 0 ? 1 - ssResidual / ssTotal : 0;
 
         return { K: K, n: n, rSquared: rSquared };
@@ -204,6 +229,12 @@ function createRheologyModeler() {
         var stress = herschelBulkleyStress(yieldStress, K, n, shearRate);
         return stress / shearRate;
     }
+
+    // Memoized curve generators — cache last call to avoid recomputation
+    // when parameters haven't changed (e.g., repeated renders, slider drags).
+    var memoizedPowerLawCurve = memoize(powerLawCurve);
+    var memoizedCrossCurve = memoize(crossCurve);
+    var memoizedTemperatureCurve = memoize(temperatureCurve);
 
     // ── Nozzle Shear Rate ───────────────────────────────────────
 
@@ -339,7 +370,13 @@ function createRheologyModeler() {
         var minVisc = params.minViscosity || 1;
         var maxVisc = params.maxViscosity || 1000;
 
-        var viscAtPrint = powerLawViscosity(params.K, params.n, printRate);
+        // Pre-validate K/n once (avoids redundant checks in each powerLawViscosity call).
+        // Compute all three viscosity values needed for analysis upfront.
+        if (params.K <= 0) throw new Error('Consistency index K must be positive');
+        var K = params.K, pn = params.n;
+        var viscAtPrint = K * Math.pow(printRate, pn - 1);
+        var viscLow = K * Math.pow(1, pn - 1);      // = K (shear rate 1)
+        var viscHigh = K * Math.pow(1000, pn - 1);   // shear rate 1000
         var factors = [];
         var totalScore = 0;
         var maxScore = 0;
@@ -385,8 +422,6 @@ function createRheologyModeler() {
 
         // Factor 3: Viscosity ratio (low vs high shear) — indicator of recoverability (weight: 25)
         maxScore += 25;
-        var viscLow = powerLawViscosity(params.K, params.n, 1);
-        var viscHigh = powerLawViscosity(params.K, params.n, 1000);
         var ratio = viscLow / viscHigh;
         if (ratio >= 100) {
             factors.push({ name: 'Viscosity Ratio', score: 25, max: 25, status: 'excellent',
@@ -512,16 +547,16 @@ function createRheologyModeler() {
 
     return {
         powerLawViscosity: powerLawViscosity,
-        powerLawCurve: powerLawCurve,
+        powerLawCurve: memoizedPowerLawCurve,
         fitPowerLaw: fitPowerLaw,
         crossViscosity: crossViscosity,
-        crossCurve: crossCurve,
+        crossCurve: memoizedCrossCurve,
         herschelBulkleyStress: herschelBulkleyStress,
         herschelBulkleyViscosity: herschelBulkleyViscosity,
         nozzleShearRate: nozzleShearRate,
         estimateFlowRate: estimateFlowRate,
         arrheniusViscosity: arrheniusViscosity,
-        temperatureCurve: temperatureCurve,
+        temperatureCurve: memoizedTemperatureCurve,
         analyzePrintability: analyzePrintability,
         getBioinkPresets: getBioinkPresets
     };
