@@ -14,6 +14,7 @@
  */
 
 var _sanitize = require('./sanitize');
+var DANGEROUS_KEYS = _sanitize.DANGEROUS_KEYS;
 
 /**
  * Create a data exporter instance.
