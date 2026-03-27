@@ -62,6 +62,7 @@ var manifest = [
     ['createPcrMasterMixCalculator',   './docs/shared/pcrMasterMix',        'createPcrMasterMixCalculator'],
     ['createFlowCytometryAnalyzer',    './docs/shared/flowCytometry',       'createFlowCytometryAnalyzer'],
     ['createMolarityCalculator',       './docs/shared/molarity',            'createMolarityCalculator'],
+    ['createSerialDilutionCalculator', './docs/shared/serialDilution',     'createSerialDilutionCalculator'],
 ];
 
 // ── Lazy-loading exports ───────────────────────────────────────────
