@@ -19,6 +19,9 @@
  *   });
  */
 
+var _sanitize = require('./sanitize');
+var _isDangerousKey = _sanitize.isDangerousKey;
+
 var ARCHITECTURES = {
     grid: {
         name: 'Rectilinear Grid',
@@ -422,7 +425,7 @@ function createScaffoldCalculator() {
         for (var i = 0; i < steps; i++) {
             var val = _round(min + i * step, 4);
             var p = {};
-            for (var k in params) { p[k] = params[k]; }
+            for (var k in params) { if (!_isDangerousKey(k)) p[k] = params[k]; }
             p.dimensions = { x: params.dimensions.x, y: params.dimensions.y, z: params.dimensions.z };
             p[sweepParam] = val;
             try {

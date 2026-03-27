@@ -24,6 +24,9 @@
 /*  Built-in Protocol Templates                                        */
 /* ------------------------------------------------------------------ */
 
+var _sanitize = require('./sanitize');
+var _isDangerousKey = _sanitize.isDangerousKey;
+
 var TEMPLATES = {
     'cell-thawing': {
         name: 'Cell Thawing Protocol',
@@ -306,6 +309,7 @@ function createProtocolTemplateLibrary() {
             }
             overrides = overrides || {};
             for (var key in overrides) {
+                if (_isDangerousKey(key)) continue;
                 if (tpl.parameters[key]) {
                     var param = tpl.parameters[key];
                     var val = overrides[key];

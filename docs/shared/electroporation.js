@@ -35,6 +35,8 @@ var CELL_PRESETS = {
 /* ---------- Helpers (shared) ---------- */
 
 var _v = require('./validation');
+var _sanitize = require('./sanitize');
+var _isDangerousKey = _sanitize.isDangerousKey;
 var validatePositive = _v.validatePositive;
 var round = _v.round;
 
@@ -215,8 +217,8 @@ function compareProtocols(baseOpts, variations) {
   var baseline = generateProtocol(baseOpts);
   var results = variations.map(function (v) {
     var merged = {};
-    for (var k in baseOpts) { if (baseOpts.hasOwnProperty(k)) merged[k] = baseOpts[k]; }
-    for (var k2 in v) { if (v.hasOwnProperty(k2)) merged[k2] = v[k2]; }
+    for (var k in baseOpts) { if (baseOpts.hasOwnProperty(k) && !_isDangerousKey(k)) merged[k] = baseOpts[k]; }
+    for (var k2 in v) { if (v.hasOwnProperty(k2) && !_isDangerousKey(k2)) merged[k2] = v[k2]; }
     return generateProtocol(merged);
   });
   return { baseline: baseline, variations: results };
