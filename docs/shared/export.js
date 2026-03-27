@@ -138,7 +138,7 @@ function createDataExporter() {
                         var parts = field.split('.');
                         var hasDangerous = false;
                         for (var j = 0; j < parts.length; j++) {
-                            if (DANGEROUS_KEYS[parts[j]]) { hasDangerous = true; break; }
+                            if (_sanitize.DANGEROUS_KEYS[parts[j]]) { hasDangerous = true; break; }
                         }
                         if (hasDangerous) return;
                         var target = filtered;
