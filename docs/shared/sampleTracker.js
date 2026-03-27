@@ -16,6 +16,7 @@ var PRIORITIES = ['low', 'medium', 'high', 'urgent'];
 
 function createSampleTracker() {
     var samples = [];
+    var sampleIndex = {};  // id → sample object for O(1) lookups
     var nextId = 1;
     var listeners = [];
 
@@ -24,10 +25,7 @@ function createSampleTracker() {
     }
 
     function _findSample(id) {
-        for (var i = 0; i < samples.length; i++) {
-            if (samples[i].id === id) return samples[i];
-        }
-        return null;
+        return sampleIndex[id] || null;
     }
 
     function _now() { return new Date().toISOString(); }
@@ -50,6 +48,7 @@ function createSampleTracker() {
             history: [{ stage: STAGES[0], timestamp: _now(), action: 'created' }]
         };
         samples.push(sample);
+        sampleIndex[sample.id] = sample;
         _emit('added', sample);
         return sample;
     }
@@ -108,7 +107,9 @@ function createSampleTracker() {
     function removeSample(id) {
         var s = _findSample(id);
         if (!s) throw new Error('Sample not found: ' + id);
-        samples = samples.filter(function(x) { return x.id !== id; });
+        var idx = samples.indexOf(s);
+        if (idx >= 0) samples.splice(idx, 1);
+        delete sampleIndex[id];
         _emit('removed', s);
         return s;
     }
