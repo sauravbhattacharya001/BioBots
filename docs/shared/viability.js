@@ -759,11 +759,14 @@ function createViabilityEstimator() {
         for (var i = 0; i <= res; i++) {
             var v1 = range1.min + (range1.max - range1.min) * (i / res);
             var row = [];
+            // Reuse a single testParams object per sweep instead of
+            // allocating a new shallow copy on every grid cell (was
+            // (res+1)² Object.assign calls, now 1 copy + field updates).
+            var testParams = Object.assign({}, baseParams);
+            testParams[param1] = v1;
 
             for (var j = 0; j <= res; j++) {
                 var v2 = range2.min + (range2.max - range2.min) * (j / res);
-                var testParams = Object.assign({}, baseParams);
-                testParams[param1] = v1;
                 testParams[param2] = v2;
 
                 try {
@@ -842,19 +845,31 @@ function createViabilityEstimator() {
         var bestRmse = Infinity;
         var bestParams = null;
 
+        // Pre-compute actuals array once — previously rebuilt via .map()
+        // inside the grid search loop on every RMSE improvement.
+        var actuals = new Array(preExtracted.length);
+        for (var ai = 0; ai < preExtracted.length; ai++) {
+            actuals[ai] = preExtracted[ai].actual;
+        }
+
+        // Pre-build model params template with shared frozen sub-objects;
+        // only pressure.p50 and crosslink.ec50 change per grid cell.
+        var baseCalibrateModel = {
+            baseline: DEFAULT_PARAMS.baseline,
+            shear: DEFAULT_PARAMS.shear,
+            thermal: DEFAULT_PARAMS.thermal,
+            duration: DEFAULT_PARAMS.duration,
+        };
+
         for (var pi = 0; pi <= steps; pi++) {
             var p50 = p50Min + (p50Max - p50Min) * (pi / steps);
+            // Reuse pressure object per outer iteration
+            baseCalibrateModel.pressure = { k: DEFAULT_PARAMS.pressure.k, p50: p50 };
+
             for (var ei = 0; ei <= steps; ei++) {
                 var ec50 = ec50Min + (ec50Max - ec50Min) * (ei / steps);
-
-                var testModelParams = {
-                    baseline: DEFAULT_PARAMS.baseline,
-                    shear: DEFAULT_PARAMS.shear,
-                    pressure: { k: DEFAULT_PARAMS.pressure.k, p50: p50 },
-                    crosslink: { n: DEFAULT_PARAMS.crosslink.n, ec50: ec50 },
-                    thermal: DEFAULT_PARAMS.thermal,
-                    duration: DEFAULT_PARAMS.duration,
-                };
+                // Update crosslink in-place (estimate doesn't mutate it)
+                baseCalibrateModel.crosslink = { n: DEFAULT_PARAMS.crosslink.n, ec50: ec50 };
 
                 // Evaluate directly against pre-extracted params
                 var sumSquaredError = 0;
@@ -872,7 +887,7 @@ function createViabilityEstimator() {
 
                 for (var xi = 0; xi < preExtracted.length; xi++) {
                     try {
-                        var est = estimate(preExtracted[xi].params, testModelParams);
+                        var est = estimate(preExtracted[xi].params, baseCalibrateModel);
                         predictions[xi] = est.viabilityPercent;
                         var error = est.viabilityPercent - preExtracted[xi].actual;
                         sumSquaredError += error * error;
@@ -893,8 +908,7 @@ function createViabilityEstimator() {
                     var meanA = totalActual / count;
                     var mae = sumAbsError / count;
 
-                    // Use shared correlation helper on stored predictions.
-                    var actuals = preExtracted.map(function(e) { return e.actual; });
+                    // Use pre-computed actuals array (hoisted above loop).
                     var corr = _pearsonCorrelation(predictions, actuals, meanP, meanA);
 
                     bestRmse = rmse;
