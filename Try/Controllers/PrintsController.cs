@@ -173,7 +173,13 @@ namespace BioBots.Controllers
             // 8MB+ file. Newtonsoft.Json is ~2-3x faster than JavaScriptSerializer
             // for typed deserialization and is already a project dependency.
             Print[] allPrints;
-            var serializer = new JsonSerializer();
+            var serializer = new JsonSerializer
+            {
+                // Defense-in-depth: explicitly disable type-name handling to
+                // prevent deserialization gadget attacks (CVE-2019-0757 et al.)
+                TypeNameHandling = TypeNameHandling.None,
+                MaxDepth = 64
+            };
             using (var reader = File.OpenText(path))
             using (var jsonReader = new JsonTextReader(reader) { CloseInput = true })
             {
