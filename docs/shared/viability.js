@@ -525,22 +525,22 @@ function createViabilityEstimator() {
         const threshold = opts.viabilityThreshold != null ? opts.viabilityThreshold : 70;
         const topPct = opts.topPercentile != null ? opts.topPercentile : 25;
 
-        // Extract and sort by viability
-        const records = printData
-            .filter(function(d) { return d && d.print_data && d.print_info; })
-            .map(function(d) {
-                return {
-                    viability: d.print_data.livePercent || 0,
-                    pressure: d.print_info.pressure
-                        ? Math.max(d.print_info.pressure.extruder1 || 0, d.print_info.pressure.extruder2 || 0)
-                        : 0,
-                    clDuration: (d.print_info.crosslinking && d.print_info.crosslinking.cl_duration) || 0,
-                    clIntensity: (d.print_info.crosslinking && d.print_info.crosslinking.cl_intensity) || 0,
-                    layerHeight: (d.print_info.resolution && d.print_info.resolution.layerHeight) || 0,
-                    layerNum: (d.print_info.resolution && d.print_info.resolution.layerNum) || 0,
-                };
-            })
-            .sort(function(a, b) { return b.viability - a.viability; });
+        // Extract and sort by viability — reuse _extractRecordParams to
+        // keep parameter extraction logic in a single place.
+        const records = [];
+        for (var di = 0; di < printData.length; di++) {
+            var extracted = _extractRecordParams(printData[di]);
+            if (!extracted) continue;
+            records.push({
+                viability: extracted.actual,
+                pressure: extracted.params.pressure,
+                clDuration: extracted.params.crosslinkDuration,
+                clIntensity: extracted.params.crosslinkIntensity,
+                layerHeight: extracted.params.layerHeight,
+                layerNum: (printData[di].print_info.resolution && printData[di].print_info.resolution.layerNum) || 0,
+            });
+        }
+        records.sort(function(a, b) { return b.viability - a.viability; });
 
         if (records.length === 0) {
             throw new Error('No valid print records found');
