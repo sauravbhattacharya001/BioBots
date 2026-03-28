@@ -67,6 +67,7 @@ var manifest = [
     ['createLabNotebookGenerator',     './docs/shared/labNotebook',        'createLabNotebookGenerator'],
     ['createLabSafetyChecklist',       './docs/shared/labSafetyChecklist', 'createLabSafetyChecklist'],
     ['createSampleLabelGenerator',     './docs/shared/sampleLabel',        'createSampleLabelGenerator'],
+    ['createCellViabilityCalculator',  './docs/shared/cellViability',      'createCellViabilityCalculator'],
 ];
 
 // ── Pre-computed lookup structures ─────────────────────────────────
