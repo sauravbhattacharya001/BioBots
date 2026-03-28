@@ -1,5 +1,7 @@
 'use strict';
 
+var _escapeCSV = require('./sanitize').escapeCSVField;
+
 /**
  * Waste Tracker — Track, analyze, and reduce bioprinting material waste.
  *
@@ -228,11 +230,7 @@ function createWasteTracker() {
                 var row = headers.map(function(h) {
                     var v = data[i][h];
                     if (v === null || v === undefined) return '';
-                    var s = String(v);
-                    if (s.indexOf(',') !== -1 || s.indexOf('"') !== -1) {
-                        return '"' + s.replace(/"/g, '""') + '"';
-                    }
-                    return s;
+                    return _escapeCSV(String(v));
                 });
                 lines.push(row.join(','));
             }

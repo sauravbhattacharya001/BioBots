@@ -395,12 +395,12 @@ function truncate(str, max) {
     return str.substring(0, max - 1) + '…';
 }
 
-function csvEscape(str) {
-    if (!str) return '';
-    if (str.indexOf(',') >= 0 || str.indexOf('"') >= 0) {
-        return '"' + str.replace(/"/g, '""') + '"';
-    }
-    return str;
-}
+var _sanitize = require('./sanitize');
+
+/**
+ * Escape a value for safe CSV inclusion with formula injection defense.
+ * Delegates to the shared sanitize module (OWASP-compliant).
+ */
+var csvEscape = _sanitize.escapeCSVField;
 
 module.exports = { createPlateMapGenerator: createPlateMapGenerator };

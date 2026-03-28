@@ -118,6 +118,8 @@ function createSampleLabelGenerator() {
         return labels;
     }
 
+    var _escapeCSV = require('./sanitize').escapeCSVField;
+
     function toCSV(labels) {
         if (!labels || labels.length === 0) return '';
         var headers = ['ID', 'Type', 'Project', 'Operator', 'Date', 'Notes', 'Barcode'];
@@ -125,13 +127,13 @@ function createSampleLabelGenerator() {
         for (var i = 0; i < labels.length; i++) {
             var l = labels[i];
             rows.push([
-                l.id,
-                l.sampleType,
-                '"' + (l.project || '').replace(/"/g, '""') + '"',
-                '"' + (l.operator || '').replace(/"/g, '""') + '"',
-                l.date,
-                '"' + (l.notes || '').replace(/"/g, '""') + '"',
-                l.barcode
+                _escapeCSV(l.id),
+                _escapeCSV(l.sampleType),
+                _escapeCSV(l.project),
+                _escapeCSV(l.operator),
+                _escapeCSV(l.date),
+                _escapeCSV(l.notes),
+                _escapeCSV(l.barcode)
             ].join(','));
         }
         return rows.join('\n');

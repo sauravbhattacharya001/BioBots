@@ -101,9 +101,45 @@ function safeResolvePath(obj, path) {
     return current === undefined ? null : current;
 }
 
+/**
+ * Escape a value for safe CSV inclusion.
+ *
+ * Defends against CSV formula injection (OWASP): if the string starts
+ * with a character that spreadsheet applications interpret as a formula
+ * or command (= + - @ \t \r), it is prefixed with a single-quote to
+ * force text mode.  Legitimate negative/positive numbers are preserved.
+ *
+ * Also handles RFC 4180 quoting for commas, double-quotes, newlines,
+ * and leading/trailing whitespace.
+ *
+ * @param {*} value - The value to escape.
+ * @returns {string} CSV-safe string.
+ */
+function escapeCSVField(value) {
+    if (value == null) return '';
+    var str = String(value);
+
+    var firstChar = str.charAt(0);
+    if (firstChar === '=' || firstChar === '+' || firstChar === '-' ||
+        firstChar === '@' || firstChar === '\t' || firstChar === '\r') {
+        // Preserve valid numbers like -3.14 or +1.5
+        if (!((firstChar === '-' || firstChar === '+') && str.length > 1 && isFinite(Number(str)))) {
+            str = "'" + str;
+        }
+    }
+
+    if (str.indexOf(',') !== -1 || str.indexOf('"') !== -1 ||
+        str.indexOf('\n') !== -1 || str.indexOf('\r') !== -1 ||
+        str !== str.trim()) {
+        return '"' + str.replace(/"/g, '""') + '"';
+    }
+    return str;
+}
+
 module.exports = {
     DANGEROUS_KEYS: DANGEROUS_KEYS,
     stripDangerousKeys: stripDangerousKeys,
     isDangerousKey: isDangerousKey,
-    safeResolvePath: safeResolvePath
+    safeResolvePath: safeResolvePath,
+    escapeCSVField: escapeCSVField
 };
