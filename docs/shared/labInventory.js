@@ -12,6 +12,8 @@
  *   inv.getForecast('Alginate 2%', 7);  // 7-day usage forecast
  */
 
+var _isDangerousKey = require('./sanitize').isDangerousKey;
+
 var CATEGORIES = ['bioink', 'crosslinker', 'reagent', 'consumable', 'scaffold', 'media', 'other'];
 
 function createLabInventoryManager() {
@@ -33,6 +35,9 @@ function createLabInventoryManager() {
     function addItem(opts) {
         if (!opts || !opts.name || typeof opts.name !== 'string') {
             throw new Error('Item name is required');
+        }
+        if (_isDangerousKey(opts.name)) {
+            throw new Error('Invalid item name');
         }
         if (!opts.category || CATEGORIES.indexOf(opts.category) === -1) {
             throw new Error('Category must be one of: ' + CATEGORIES.join(', '));
@@ -65,6 +70,9 @@ function createLabInventoryManager() {
      * Remove an item from inventory.
      */
     function removeItem(name) {
+        if (_isDangerousKey(name)) {
+            throw new Error('Invalid item name');
+        }
         if (!items[name]) {
             throw new Error('Item not found: ' + name);
         }
@@ -81,6 +89,9 @@ function createLabInventoryManager() {
      * @returns {Object} Updated item record
      */
     function recordUsage(name, amount, note) {
+        if (_isDangerousKey(name)) {
+            throw new Error('Invalid item name');
+        }
         if (!items[name]) {
             throw new Error('Item not found: ' + name);
         }

@@ -33,6 +33,8 @@ var DEGRADATION_MODELS = {
 /**
  * Cryoprotectant agents and their effectiveness multipliers.
  */
+var _isDangerousKey = require('./sanitize').isDangerousKey;
+
 var CRYOPROTECTANTS = {
     'DMSO':             { effectivenessMultiplier: 1.0, toxicityRisk: 'moderate' },
     'glycerol':         { effectivenessMultiplier: 0.85, toxicityRisk: 'low' },
@@ -58,6 +60,9 @@ function createFreezeThawTracker() {
     function addSample(opts) {
         if (!opts || !opts.id) {
             throw new Error('Sample id is required');
+        }
+        if (_isDangerousKey(opts.id)) {
+            throw new Error('Invalid sample id');
         }
         if (samples[opts.id]) {
             throw new Error('Sample ' + opts.id + ' already exists');
@@ -98,6 +103,9 @@ function createFreezeThawTracker() {
      * @param {string} [data.notes] - Notes about this cycle
      */
     function recordThaw(sampleId, data) {
+        if (_isDangerousKey(sampleId)) {
+            throw new Error('Invalid sample id');
+        }
         var sample = samples[sampleId];
         if (!sample) {
             throw new Error('Sample ' + sampleId + ' not found');
