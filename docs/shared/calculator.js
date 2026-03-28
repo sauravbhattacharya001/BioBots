@@ -130,8 +130,23 @@ function createMaterialCalculator() {
      *   and travelDistanceMm
      * @throws {Error} If speed is non-positive
      */
+    /**
+     * Estimate total print duration including crosslinking pauses.
+     *
+     * When called after calculateUsage(), pass the result as
+     * `params.precomputedUsage` to avoid recomputing the same values.
+     *
+     * @param {Object} params Print parameters (same as calculateUsage, plus below)
+     * @param {number} [params.extruderSpeed=5] Extruder speed in mm/s
+     * @param {number} [params.clDuration=0] Crosslinking duration per layer in seconds
+     * @param {Object} [params.precomputedUsage] Result from a prior calculateUsage() call
+     * @returns {Object} Duration report with printTimeMinutes,
+     *   crosslinkingTimeMinutes, totalTimeMinutes, totalTimeFormatted,
+     *   and travelDistanceMm
+     * @throws {Error} If speed is non-positive
+     */
     function estimateDuration(params) {
-        var usage = calculateUsage(params);
+        var usage = params.precomputedUsage || calculateUsage(params);
         var speed = params.extruderSpeed || 5;
         if (speed <= 0) throw new Error('Speed must be positive');
 
@@ -196,7 +211,8 @@ function createMaterialCalculator() {
         return configs.map(function(config, i) {
             try {
                 var usage = calculateUsage(config);
-                var duration = estimateDuration(config);
+                var durationParams = Object.assign({}, config, { precomputedUsage: usage });
+                var duration = estimateDuration(durationParams);
                 return { index: i, success: true, usage: usage, duration: duration };
             } catch (e) {
                 return { index: i, success: false, error: e.message };
