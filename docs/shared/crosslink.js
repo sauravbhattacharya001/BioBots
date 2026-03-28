@@ -16,6 +16,35 @@
  */
 function createCrosslinkAnalyzer() {
 
+    // ── Validation Helpers (resolve from shared utils or inline) ─
+    var _utils = (typeof requirePositive === 'function')
+        ? { requireNumber: requireNumber, requirePositive: requirePositive, requireNonNegative: requireNonNegative, requireNumberInRange: requireNumberInRange }
+        : (typeof module !== 'undefined' && module.exports)
+            ? (function () { try { var u = require('./utils'); return { requireNumber: u.requireNumber, requirePositive: u.requirePositive, requireNonNegative: u.requireNonNegative, requireNumberInRange: u.requireNumberInRange }; } catch (e) { return null; } })()
+            : null;
+
+    // Fallback inline implementations if utils is unavailable
+    var _requireNumber = (_utils && _utils.requireNumber) || function (v, name) {
+        if (typeof v !== 'number' || !isFinite(v)) throw new Error(name + ' must be a finite number, got: ' + v);
+        return v;
+    };
+    var _requirePositive = (_utils && _utils.requirePositive) || function (v, name) {
+        _requireNumber(v, name);
+        if (v <= 0) throw new Error(name + ' must be positive, got: ' + v);
+        return v;
+    };
+    var _requireNonNegative = (_utils && _utils.requireNonNegative) || function (v, name) {
+        _requireNumber(v, name);
+        if (v < 0) throw new Error(name + ' must be non-negative, got: ' + v);
+        return v;
+    };
+    var _requireNumberInRange = (_utils && _utils.requireNumberInRange) || function (v, name, min, max) {
+        _requireNumber(v, name);
+        if (min !== undefined && v < min) throw new Error(name + ' must be >= ' + min + ', got: ' + v);
+        if (max !== undefined && v > max) throw new Error(name + ' must be <= ' + max + ', got: ' + v);
+        return v;
+    };
+
     // ── Constants ────────────────────────────────────────────────
 
     /** Minimum cross-linking degree for structural integrity (Flory gel point). */
@@ -38,11 +67,8 @@ function createCrosslinkAnalyzer() {
      * @returns {number} Degree of cross-linking α ∈ [0, 1]
      */
     function crosslinkDegree(k, t) {
-        if (typeof k !== 'number' || typeof t !== 'number') {
-            throw new Error('Rate constant and time must be numbers');
-        }
-        if (k <= 0) throw new Error('Rate constant k must be positive');
-        if (t < 0) throw new Error('Time must be non-negative');
+        _requirePositive(k, 'Rate constant k');
+        _requireNonNegative(t, 'Time');
         if (t === 0) return 0;
         return 1 - Math.exp(-k * t);
     }
@@ -56,11 +82,8 @@ function createCrosslinkAnalyzer() {
      * @returns {{ time: number, degree: number }[]}
      */
     function crosslinkCurve(k, maxTime, points) {
-        if (typeof k !== 'number' || typeof maxTime !== 'number') {
-            throw new Error('Parameters must be numbers');
-        }
-        if (k <= 0) throw new Error('Rate constant k must be positive');
-        if (maxTime <= 0) throw new Error('Max time must be positive');
+        _requirePositive(k, 'Rate constant k');
+        _requirePositive(maxTime, 'Max time');
         points = points || 50;
         if (points < 2) throw new Error('Points must be at least 2');
 
@@ -81,10 +104,8 @@ function createCrosslinkAnalyzer() {
      * @returns {number} Time in seconds
      */
     function timeToTarget(k, targetDegree) {
-        if (typeof k !== 'number' || typeof targetDegree !== 'number') {
-            throw new Error('Parameters must be numbers');
-        }
-        if (k <= 0) throw new Error('Rate constant k must be positive');
+        _requirePositive(k, 'Rate constant k');
+        _requireNumberInRange(targetDegree, 'Target degree', 0.0001, 0.9999);
         if (targetDegree <= 0 || targetDegree >= 1) {
             throw new Error('Target degree must be in (0, 1)');
         }
@@ -118,11 +139,8 @@ function createCrosslinkAnalyzer() {
      * @returns {number} Predicted response
      */
     function hillResponse(intensity, ec50, hillCoeff, rMax) {
-        if (typeof intensity !== 'number' || typeof ec50 !== 'number') {
-            throw new Error('Intensity and EC50 must be numbers');
-        }
-        if (intensity < 0) throw new Error('Intensity must be non-negative');
-        if (ec50 <= 0) throw new Error('EC50 must be positive');
+        _requireNonNegative(intensity, 'Intensity');
+        _requirePositive(ec50, 'EC50');
         hillCoeff = (hillCoeff != null) ? hillCoeff : DEFAULT_HILL_COEFF;
         rMax = (rMax != null) ? rMax : 100;
         if (intensity === 0) return 0;
@@ -143,8 +161,7 @@ function createCrosslinkAnalyzer() {
      * @returns {{ dose: number, response: number }[]}
      */
     function doseResponseCurve(ec50, hillCoeff, rMax, maxDose, points) {
-        if (typeof ec50 !== 'number') throw new Error('EC50 must be a number');
-        if (ec50 <= 0) throw new Error('EC50 must be positive');
+        _requirePositive(ec50, 'EC50');
         hillCoeff = (hillCoeff != null) ? hillCoeff : DEFAULT_HILL_COEFF;
         rMax = (rMax != null) ? rMax : 100;
         maxDose = maxDose || ec50 * 5;
@@ -179,8 +196,7 @@ function createCrosslinkAnalyzer() {
      * @returns {{ viability: number, benefit: number, damage: number }}
      */
     function viabilityModel(dose, params) {
-        if (typeof dose !== 'number') throw new Error('Dose must be a number');
-        if (dose < 0) throw new Error('Dose must be non-negative');
+        _requireNonNegative(dose, 'Dose');
 
         params = params || {};
         var vMax = (params.vMax != null) ? params.vMax : DEFAULT_MAX_VIABILITY;
@@ -641,11 +657,8 @@ function createCrosslinkAnalyzer() {
      * @returns {{ totalDose: number, effectiveDose: number, radicalYield: number, efficiency: number }}
      */
     function photoInitiatorEfficiency(intensity, duration, params) {
-        if (typeof intensity !== 'number' || typeof duration !== 'number') {
-            throw new Error('Intensity and duration must be numbers');
-        }
-        if (intensity <= 0) throw new Error('Intensity must be positive');
-        if (duration <= 0) throw new Error('Duration must be positive');
+        _requirePositive(intensity, 'Intensity');
+        _requirePositive(duration, 'Duration');
 
         params = params || {};
         var qy = (params.quantumYield != null) ? params.quantumYield : 0.6;

@@ -113,3 +113,86 @@ function computeStats(values) {
     const median = percentile(values, 0.50);
     return { mean, std, q1, q3, iqr: q3 - q1, median };
 }
+
+// ── Validation Helpers ──────────────────────────────────────────
+
+/**
+ * Assert that a value is a finite number.
+ * @param {*} value - Value to check.
+ * @param {string} name - Parameter name for error messages.
+ * @returns {number} The validated number.
+ * @throws {Error} If value is not a finite number.
+ */
+function requireNumber(value, name) {
+    if (typeof value !== 'number' || !isFinite(value)) {
+        throw new Error(name + ' must be a finite number, got: ' + value);
+    }
+    return value;
+}
+
+/**
+ * Assert that a value is a finite number within a range.
+ * @param {*} value - Value to check.
+ * @param {string} name - Parameter name for error messages.
+ * @param {number} [min] - Minimum allowed value (inclusive).
+ * @param {number} [max] - Maximum allowed value (inclusive).
+ * @returns {number} The validated number.
+ * @throws {Error} If value is out of range or not a number.
+ */
+function requireNumberInRange(value, name, min, max) {
+    requireNumber(value, name);
+    if (min !== undefined && value < min) {
+        throw new Error(name + ' must be >= ' + min + ', got: ' + value);
+    }
+    if (max !== undefined && value > max) {
+        throw new Error(name + ' must be <= ' + max + ', got: ' + value);
+    }
+    return value;
+}
+
+/**
+ * Assert that a value is a positive number (> 0).
+ * @param {*} value - Value to check.
+ * @param {string} name - Parameter name for error messages.
+ * @returns {number} The validated number.
+ * @throws {Error} If value is not positive.
+ */
+function requirePositive(value, name) {
+    requireNumber(value, name);
+    if (value <= 0) {
+        throw new Error(name + ' must be positive, got: ' + value);
+    }
+    return value;
+}
+
+/**
+ * Assert that a value is a non-negative number (>= 0).
+ * @param {*} value - Value to check.
+ * @param {string} name - Parameter name for error messages.
+ * @returns {number} The validated number.
+ * @throws {Error} If value is negative.
+ */
+function requireNonNegative(value, name) {
+    requireNumber(value, name);
+    if (value < 0) {
+        throw new Error(name + ' must be non-negative, got: ' + value);
+    }
+    return value;
+}
+
+
+// -- Module Exports (Node.js / CommonJS) --
+if (typeof module !== 'undefined' && module.exports) {
+    module.exports = {
+        escapeHtml: escapeHtml,
+        getMetricValue: getMetricValue,
+        stripDangerousKeys: stripDangerousKeys,
+        formatNum: formatNum,
+        percentile: percentile,
+        computeStats: computeStats,
+        requireNumber: requireNumber,
+        requireNumberInRange: requireNumberInRange,
+        requirePositive: requirePositive,
+        requireNonNegative: requireNonNegative
+    };
+}
