@@ -582,23 +582,39 @@ function createNozzlePlanner(userConfig) {
         var totalSwitches = plan.summary.totalNozzleSwitches;
         var switchOverhead = plan.summary.switchOverhead;
 
+        // Single pass: collect switch sequence, heavy layers, and switch times
         var switchSequence = [];
+        var heavySwitchLayers = [];
+        var switchTimes = [];
+        var pingPongs = 0;
+
         for (var i = 0; i < plan.layers.length; i++) {
             var steps = plan.layers[i].steps;
+            if (plan.layers[i].nozzleSwitches > 3) {
+                heavySwitchLayers.push(i + 1);
+            }
             for (var j = 0; j < steps.length; j++) {
                 if (steps[j].type === 'switch') {
-                    switchSequence.push({ from: steps[j].from, to: steps[j].to, layer: i });
+                    var sw = { from: steps[j].from, to: steps[j].to, layer: i };
+                    // Check ping-pong against previous switch
+                    if (switchSequence.length > 0) {
+                        var prev = switchSequence[switchSequence.length - 1];
+                        if (sw.to === prev.from && sw.from === prev.to) {
+                            pingPongs++;
+                        }
+                    }
+                    switchSequence.push(sw);
+                    switchTimes.push({
+                        layer: i + 1,
+                        from: steps[j].from,
+                        to: steps[j].to,
+                        time: steps[j].time
+                    });
                 }
             }
         }
 
-        var pingPongs = 0;
-        for (var k = 1; k < switchSequence.length; k++) {
-            if (switchSequence[k].to === switchSequence[k - 1].from &&
-                switchSequence[k].from === switchSequence[k - 1].to) {
-                pingPongs++;
-            }
-        }
+        switchTimes.sort(function(a, b) { return b.time - a.time; });
 
         if (pingPongs > 0) {
             suggestions.push({
@@ -625,12 +641,6 @@ function createNozzlePlanner(userConfig) {
             });
         }
 
-        var heavySwitchLayers = [];
-        for (var m = 0; m < plan.layers.length; m++) {
-            if (plan.layers[m].nozzleSwitches > 3) {
-                heavySwitchLayers.push(m + 1);
-            }
-        }
         if (heavySwitchLayers.length > 0) {
             suggestions.push({
                 type: 'layer-complexity',
@@ -639,22 +649,6 @@ function createNozzlePlanner(userConfig) {
                          ' have >3 nozzle switches. Consider simplifying region layout.'
             });
         }
-
-        var switchTimes = [];
-        for (var p = 0; p < plan.layers.length; p++) {
-            var lsteps = plan.layers[p].steps;
-            for (var q = 0; q < lsteps.length; q++) {
-                if (lsteps[q].type === 'switch') {
-                    switchTimes.push({
-                        layer: p + 1,
-                        from: lsteps[q].from,
-                        to: lsteps[q].to,
-                        time: lsteps[q].time
-                    });
-                }
-            }
-        }
-        switchTimes.sort(function(a, b) { return b.time - a.time; });
 
         return {
             totalSwitches: totalSwitches,
@@ -696,6 +690,7 @@ function createNozzlePlanner(userConfig) {
             }
         }
 
+        var spread = 0;
         if (temps.length >= 2) {
             var minT = temps[0].temp;
             var maxT = temps[0].temp;
@@ -703,7 +698,7 @@ function createNozzlePlanner(userConfig) {
                 if (temps[t].temp < minT) minT = temps[t].temp;
                 if (temps[t].temp > maxT) maxT = temps[t].temp;
             }
-            var spread = maxT - minT;
+            spread = maxT - minT;
 
             if (spread > 40) {
                 warnings.push({
@@ -763,16 +758,7 @@ function createNozzlePlanner(userConfig) {
             compatible: compatible,
             warnings: warnings,
             materialCount: temps.length,
-            temperatureSpread: temps.length >= 2
-                ? (function() {
-                    var mn = temps[0].temp, mx = temps[0].temp;
-                    for (var ii = 1; ii < temps.length; ii++) {
-                        if (temps[ii].temp < mn) mn = temps[ii].temp;
-                        if (temps[ii].temp > mx) mx = temps[ii].temp;
-                    }
-                    return mx - mn;
-                })()
-                : 0,
+            temperatureSpread: spread,
             materials: temps
         };
     }
