@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lab Safety Checklist — BioBots</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#0f172a;color:#e2e8f0;min-height:100vh}
+.header{background:linear-gradient(135deg,#dc2626,#991b1b);padding:2rem;text-align:center}
+.header h1{font-size:1.8rem;margin-bottom:.4rem}
+.header p{opacity:.85;font-size:.95rem}
+.container{max-width:1100px;margin:0 auto;padding:1.5rem}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:1.2rem;margin-bottom:1.5rem}
+.card{background:#1e293b;border-radius:12px;padding:1.5rem;border:1px solid #334155}
+.card h2{font-size:1.1rem;color:#f87171;margin-bottom:1rem;display:flex;align-items:center;gap:.5rem}
+label{display:block;font-size:.85rem;color:#94a3b8;margin-bottom:.3rem;margin-top:.8rem}
+select,input[type=text]{width:100%;padding:.5rem;border-radius:6px;border:1px solid #475569;background:#0f172a;color:#e2e8f0;font-size:.9rem}
+button{padding:.6rem 1.2rem;border:none;border-radius:6px;cursor:pointer;font-size:.9rem;font-weight:600;margin-top:.8rem;margin-right:.5rem}
+.btn-primary{background:#dc2626;color:#fff}
+.btn-primary:hover{background:#b91c1c}
+.btn-secondary{background:#334155;color:#e2e8f0}
+.btn-secondary:hover{background:#475569}
+.checklist-item{display:flex;align-items:center;gap:.6rem;padding:.5rem 0;border-bottom:1px solid #1e293b}
+.checklist-item:last-child{border-bottom:none}
+.checklist-item input[type=checkbox]{width:18px;height:18px;accent-color:#dc2626}
+.checklist-item .critical{color:#fbbf24;font-size:.7rem;font-weight:700;margin-left:auto}
+.checklist-item .category-tag{font-size:.7rem;background:#334155;padding:2px 6px;border-radius:4px;color:#94a3b8}
+.score-display{text-align:center;padding:1.5rem}
+.score-number{font-size:3rem;font-weight:800}
+.score-pass{color:#22c55e}
+.score-conditional{color:#fbbf24}
+.score-fail{color:#ef4444}
+.grade{font-size:1.2rem;margin-top:.3rem}
+.findings-list{max-height:300px;overflow-y:auto}
+.finding{background:#0f172a;padding:.8rem;border-radius:8px;margin-bottom:.5rem;border-left:3px solid #475569}
+.finding.critical{border-left-color:#ef4444}
+.finding.high{border-left-color:#f59e0b}
+.finding.moderate{border-left-color:#3b82f6}
+.finding.low{border-left-color:#22c55e}
+.finding .risk-badge{font-size:.7rem;padding:2px 6px;border-radius:4px;font-weight:700;display:inline-block}
+.ppe-status{display:flex;flex-wrap:wrap;gap:.4rem;margin-top:.5rem}
+.ppe-tag{font-size:.75rem;padding:3px 8px;border-radius:4px}
+.ppe-present{background:#166534;color:#bbf7d0}
+.ppe-missing{background:#991b1b;color:#fecaca}
+.ppe-recommended{background:#92400e;color:#fde68a}
+#output{background:#0f172a;border:1px solid #334155;border-radius:8px;padding:1rem;margin-top:1rem;max-height:400px;overflow-y:auto;font-family:'Fira Code',monospace;font-size:.8rem;white-space:pre-wrap;display:none}
+.stats-row{display:flex;gap:1rem;flex-wrap:wrap;margin-bottom:1rem}
+.stat{background:#1e293b;border-radius:8px;padding:1rem;flex:1;min-width:120px;text-align:center;border:1px solid #334155}
+.stat .num{font-size:1.5rem;font-weight:700;color:#f87171}
+.stat .lbl{font-size:.75rem;color:#94a3b8;margin-top:.2rem}
+</style>
+</head>
+<body>
+<div class="header">
+<h1>🛡️ Lab Safety Checklist</h1>
+<p>Safety compliance tracking for bioprinting labs — PPE, hazards, inspections & findings</p>
+</div>
+<div class="container">
+<div class="stats-row" id="stats"></div>
+<div class="grid">
+  <div class="card">
+    <h2>📋 Run Checklist</h2>
+    <label>Template</label>
+    <select id="tpl"><option value="daily">Daily Safety Check</option><option value="weekly">Weekly Safety Inspection</option><option value="monthly">Monthly Safety Audit</option></select>
+    <label>Area</label>
+    <input type="text" id="area" placeholder="e.g. Cell Culture Room" value="Cell Culture Room">
+    <label>Inspector</label>
+    <input type="text" id="inspector" placeholder="Your name" value="Lab Tech">
+    <button class="btn-primary" onclick="loadTemplate()">Load Template</button>
+    <div id="checklist-items" style="margin-top:1rem"></div>
+    <button class="btn-primary" id="submit-btn" style="display:none" onclick="submitChecklist()">Submit Checklist</button>
+  </div>
+  <div class="card">
+    <h2>🧤 PPE Compliance Check</h2>
+    <label>Hazard Level</label>
+    <select id="hazard"><option value="bsl1">BSL-1</option><option value="bsl2">BSL-2</option><option value="chemical">Chemical</option><option value="uv">UV Exposure</option><option value="thermal">Thermal</option></select>
+    <label>PPE Worn (comma-separated)</label>
+    <input type="text" id="ppe-worn" placeholder="lab coat, gloves, safety glasses">
+    <button class="btn-primary" onclick="checkPpe()">Check Compliance</button>
+    <div id="ppe-result" style="margin-top:1rem"></div>
+  </div>
+  <div class="card">
+    <h2>⚠️ Report Finding</h2>
+    <label>Area</label>
+    <input type="text" id="finding-area" placeholder="Area name" value="Cell Culture Room">
+    <label>Category</label>
+    <select id="finding-cat"><option value="ppe">PPE</option><option value="chemical">Chemical</option><option value="fire">Fire</option><option value="waste">Waste</option><option value="equipment">Equipment</option><option value="general">General</option></select>
+    <label>Risk Level</label>
+    <select id="finding-risk"><option value="low">Low</option><option value="moderate" selected>Moderate</option><option value="high">High</option><option value="critical">Critical</option></select>
+    <label>Description</label>
+    <input type="text" id="finding-desc" placeholder="Describe the safety finding">
+    <label>Reporter</label>
+    <input type="text" id="finding-reporter" placeholder="Your name" value="Lab Tech">
+    <button class="btn-primary" onclick="addFinding()">Report Finding</button>
+  </div>
+  <div class="card">
+    <h2>📊 Safety Score</h2>
+    <div id="score-display" class="score-display"><p style="color:#64748b">Complete a checklist to see your score</p></div>
+  </div>
+</div>
+<div class="card">
+  <h2>🔍 Open Findings</h2>
+  <div id="findings-list" class="findings-list"><p style="color:#64748b">No findings reported</p></div>
+</div>
+<div id="output"></div>
+</div>
+<script src="shared/labSafetyChecklist.js"></script>
+<script>
+var mgr=createLabSafetyChecklist();
+mgr.registerArea({name:'Cell Culture Room',hazardLevel:'bsl2',responsible:'Lab Manager'});
+mgr.registerArea({name:'Print Bay',hazardLevel:'thermal',responsible:'Print Lead'});
+mgr.registerArea({name:'Chemistry Lab',hazardLevel:'chemical',responsible:'Chemistry Lead'});
+var allFindings=[];
+function updateStats(){var r=mgr.generateAuditReport().report;var h='<div class="stat"><div class="num">'+r.totalChecklists+'</div><div class="lbl">Checklists</div></div>';h+='<div class="stat"><div class="num">'+r.totalFindings+'</div><div class="lbl">Findings</div></div>';h+='<div class="stat"><div class="num">'+r.openFindings+'</div><div class="lbl">Open</div></div>';h+='<div class="stat"><div class="num">'+(r.overallScore!==null?r.overallScore+'%':'—')+'</div><div class="lbl">Safety Score</div></div>';document.getElementById('stats').innerHTML=h}
+function loadTemplate(){var tpl=document.getElementById('tpl').value;var templates={daily:{items:[{category:'ppe',item:'Appropriate PPE available and worn',critical:true},{category:'waste',item:'Biohazard waste containers < 75% full',critical:true},{category:'waste',item:'Sharps containers < 75% full',critical:true},{category:'equipment',item:'BSC certified and operational',critical:true},{category:'general',item:'Bench surfaces clean and disinfected',critical:false},{category:'general',item:'No food or drink in lab area',critical:true},{category:'emergency',item:'Emergency exits unobstructed',critical:true},{category:'chemical',item:'Chemical containers properly labelled',critical:true}]},weekly:{items:[{category:'emergency',item:'Eye wash station tested',critical:true},{category:'emergency',item:'Safety shower accessible',critical:true},{category:'emergency',item:'First aid kit stocked',critical:false},{category:'emergency',item:'Fire extinguisher tag current',critical:true},{category:'chemical',item:'SDS binder up to date',critical:true},{category:'chemical',item:'Flammable storage within limits',critical:true},{category:'equipment',item:'Fume hood face velocity checked',critical:true},{category:'waste',item:'Waste pickup schedule on track',critical:false},{category:'general',item:'Spill kit supplies complete',critical:true},{category:'general',item:'Lab access log reviewed',critical:false}]},monthly:{items:[{category:'training',item:'All personnel training records current',critical:true},{category:'training',item:'New personnel orientation completed',critical:true},{category:'equipment',item:'Autoclave validation current',critical:true},{category:'equipment',item:'Incubator calibration verified',critical:true},{category:'equipment',item:'Centrifuge rotor inspection',critical:false},{category:'chemical',item:'Chemical inventory reconciled',critical:true},{category:'chemical',item:'Expired chemicals removed',critical:true},{category:'emergency',item:'Emergency contact list updated',critical:true},{category:'emergency',item:'Evacuation drill conducted',critical:false},{category:'general',item:'Ventilation system inspection',critical:true},{category:'general',item:'Signage correct',critical:false},{category:'waste',item:'Waste manifests filed correctly',critical:true}]}};var t=templates[tpl];var el=document.getElementById('checklist-items');var h='';t.items.forEach(function(it,i){h+='<div class="checklist-item"><input type="checkbox" id="ci'+i+'" checked><span>'+it.item+'</span><span class="category-tag">'+it.category+'</span>'+(it.critical?'<span class="critical">CRITICAL</span>':'')+'</div>'});el.innerHTML=h;document.getElementById('submit-btn').style.display='inline-block';window._tplItems=t.items}
+function submitChecklist(){if(!window._tplItems)return;var items=window._tplItems.map(function(it,i){return{category:it.category,item:it.item,critical:it.critical,checked:document.getElementById('ci'+i).checked}});var res=mgr.createChecklist({area:document.getElementById('area').value,inspector:document.getElementById('inspector').value,items:items});if(res.success){var s=res.checklist.summary;var cls=s.status==='PASS'?'score-pass':s.status==='CONDITIONAL'?'score-conditional':'score-fail';document.getElementById('score-display').innerHTML='<div class="score-number '+cls+'">'+s.score+'%</div><div class="grade">'+s.status+'</div><div style="color:#64748b;margin-top:.5rem">'+s.passed+'/'+s.total+' items passed</div>'+(s.criticalFailures.length?'<div style="color:#ef4444;margin-top:.5rem;font-size:.85rem">Critical failures: '+s.criticalFailures.join(', ')+'</div>':'');updateStats()}}
+function checkPpe(){var worn=document.getElementById('ppe-worn').value.split(',').map(function(s){return s.trim()}).filter(Boolean);var res=mgr.checkPpeCompliance(document.getElementById('hazard').value,worn);if(!res.success){document.getElementById('ppe-result').innerHTML='<p style="color:#ef4444">'+res.error+'</p>';return}var h='<p style="font-weight:700;'+(res.compliant?'color:#22c55e':'color:#ef4444')+'">'+res.message+'</p><div class="ppe-status">';res.present.forEach(function(p){h+='<span class="ppe-tag ppe-present">✓ '+p+'</span>'});res.missing.forEach(function(p){h+='<span class="ppe-tag ppe-missing">✗ '+p+'</span>'});res.missingRecommended.forEach(function(p){h+='<span class="ppe-tag ppe-recommended">⚡ '+p+'</span>'});h+='</div>';document.getElementById('ppe-result').innerHTML=h}
+function addFinding(){var desc=document.getElementById('finding-desc').value;if(!desc){alert('Please describe the finding');return}var res=mgr.reportFinding({area:document.getElementById('finding-area').value,category:document.getElementById('finding-cat').value,risk:document.getElementById('finding-risk').value,description:desc,reporter:document.getElementById('finding-reporter').value});if(res.success){allFindings.push(res.finding);renderFindings();document.getElementById('finding-desc').value='';updateStats()}}
+function renderFindings(){var open=allFindings.filter(function(f){return f.status==='open'});if(!open.length){document.getElementById('findings-list').innerHTML='<p style="color:#64748b">No open findings 🎉</p>';return}var h='';open.forEach(function(f){var colors={critical:'#ef4444',high:'#f59e0b',moderate:'#3b82f6',low:'#22c55e'};var rk=f.risk.label.toLowerCase();h+='<div class="finding '+rk+'"><div style="display:flex;justify-content:space-between;align-items:center"><strong>'+f.description+'</strong><span class="risk-badge" style="background:'+colors[rk]+'20;color:'+colors[rk]+'">'+f.risk.label+'</span></div><div style="font-size:.8rem;color:#64748b;margin-top:.3rem">'+f.area+' · '+f.category+' · reported by '+f.reporter+'</div><button class="btn-secondary" style="margin-top:.4rem;padding:.3rem .8rem;font-size:.8rem" onclick="resolve(\''+f.id+'\')">Resolve</button></div>'});document.getElementById('findings-list').innerHTML=h}
+function resolve(id){mgr.resolveFinding(id,{correctedBy:'Lab Tech',action:'Corrected'});allFindings=allFindings.map(function(f){if(f.id===id)f.status='closed';return f});renderFindings();updateStats()}
+updateStats();
+</script>
+</body>
+</html>

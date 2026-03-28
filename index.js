@@ -65,6 +65,7 @@ var manifest = [
     ['createSerialDilutionCalculator', './docs/shared/serialDilution',     'createSerialDilutionCalculator'],
     ['createWesternBlotAnalyzer',      './docs/shared/westernBlot',        'createWesternBlotAnalyzer'],
     ['createLabNotebookGenerator',     './docs/shared/labNotebook',        'createLabNotebookGenerator'],
+    ['createLabSafetyChecklist',       './docs/shared/labSafetyChecklist', 'createLabSafetyChecklist'],
 ];
 
 // ── Pre-computed lookup structures ─────────────────────────────────
