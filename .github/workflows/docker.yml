@@ -1,4 +1,4 @@
-name: Docker Build
+name: Docker Build & Publish
 
 on:
   push:
@@ -6,42 +6,93 @@ on:
     tags: ['v*']
   pull_request:
     branches: [master]
+  schedule:
+    - cron: '0 6 * * 1'  # Weekly rebuild for base image security patches
 
 env:
-  IMAGE_NAME: biobots-tool
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository_owner }}/biobots-tool
+
+concurrency:
+  group: docker-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   docker:
     runs-on: windows-latest
-
     permissions:
       contents: read
       packages: write
+      security-events: write
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v4
 
-      - name: Log in to GitHub Container Registry
-        if: github.event_name != 'pull_request'
-        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
-
-      - name: Build Docker image
+      - name: Compute image metadata
+        id: meta
+        shell: pwsh
         run: |
-          $tag = "ghcr.io/${{ github.repository_owner }}/${{ env.IMAGE_NAME }}".ToLower()
-          docker build -t "${tag}:latest" -t "${tag}:${{ github.sha }}" .
-          echo "IMAGE_TAG=${tag}" >> $env:GITHUB_ENV
+          $img = "${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}".ToLower()
+          $tags = @("${img}:sha-${{ github.sha }}")
 
-      - name: Push Docker image
-        if: github.event_name != 'pull_request'
-        run: |
-          $tag = "ghcr.io/${{ github.repository_owner }}/${{ env.IMAGE_NAME }}".ToLower()
-          docker push "${tag}:latest"
-          docker push "${tag}:${{ github.sha }}"
-
-          # Tag with version if this is a release tag
-          if ("${{ github.ref }}" -match "^refs/tags/v") {
-            $version = "${{ github.ref_name }}"
-            docker tag "${tag}:latest" "${tag}:${version}"
-            docker push "${tag}:${version}"
+          if ("${{ github.ref }}" -match "^refs/tags/v(.+)$") {
+            $ver = $Matches[1]
+            $tags += "${img}:${ver}"
+            $parts = $ver -split '\.'
+            if ($parts.Count -ge 2) { $tags += "${img}:$($parts[0]).$($parts[1])" }
+            $tags += "${img}:latest"
+          } elseif ("${{ github.ref }}" -eq "refs/heads/master" -and "${{ github.event_name }}" -ne "pull_request") {
+            $tags += "${img}:edge"
+          } elseif ("${{ github.event_name }}" -eq "pull_request") {
+            $tags += "${img}:pr-${{ github.event.number }}"
           }
+
+          echo "tags=$($tags -join ',')" >> $env:GITHUB_OUTPUT
+          echo "image=${img}" >> $env:GITHUB_OUTPUT
+
+      - name: Log in to GHCR
+        if: github.event_name != 'pull_request'
+        shell: pwsh
+        run: |
+          echo "${{ secrets.GITHUB_TOKEN }}" | docker login ${{ env.REGISTRY }} -u ${{ github.actor }} --password-stdin
+
+      - name: Build image
+        shell: pwsh
+        run: |
+          $tags = "${{ steps.meta.outputs.tags }}".Split(',')
+          $tagArgs = ($tags | ForEach-Object { "-t", $_ })
+          docker build @tagArgs --label "org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}" --label "org.opencontainers.image.revision=${{ github.sha }}" .
+
+      - name: Run Trivy vulnerability scan
+        if: github.event_name != 'pull_request'
+        shell: pwsh
+        run: |
+          $img = "${{ steps.meta.outputs.image }}".ToLower()
+          # Pull trivy and scan the built image
+          docker run --rm -v //var/run/docker.sock://var/run/docker.sock aquasec/trivy:latest image --exit-code 0 --severity HIGH,CRITICAL --format table "${img}:sha-${{ github.sha }}" 2>&1 || echo "Trivy scan completed (informational)"
+
+      - name: Push images
+        if: github.event_name != 'pull_request'
+        shell: pwsh
+        run: |
+          $tags = "${{ steps.meta.outputs.tags }}".Split(',')
+          foreach ($tag in $tags) {
+            docker push $tag
+          }
+
+      - name: Generate SBOM
+        if: startsWith(github.ref, 'refs/tags/v')
+        shell: pwsh
+        run: |
+          $img = "${{ steps.meta.outputs.image }}:sha-${{ github.sha }}"
+          # Syft SBOM generation (informational)
+          docker run --rm -v //var/run/docker.sock://var/run/docker.sock anchore/syft:latest packages "${img}" -o spdx-json > sbom.spdx.json 2>&1 || echo "SBOM generation skipped"
+
+      - name: Upload SBOM artifact
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: actions/upload-artifact@v4
+        with:
+          name: sbom
+          path: sbom.spdx.json
+          retention-days: 90
