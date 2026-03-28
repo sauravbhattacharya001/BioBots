@@ -246,6 +246,12 @@ function createViabilityEstimator() {
         const p = modelParams || DEFAULT_PARAMS.crosslink;
         if (duration <= 0 || intensity <= 0) return 1.0;
         const dose = duration * intensity;
+        // Fast path for common Hill coefficient n=2: avoid 3× Math.pow
+        if (p.n === 2) {
+            var doseSq = dose * dose;
+            var ec50Sq = p.ec50 * p.ec50;
+            return 1 - doseSq / (ec50Sq + doseSq);
+        }
         return 1 - Math.pow(dose, p.n) / (Math.pow(p.ec50, p.n) + Math.pow(dose, p.n));
     }
 
@@ -278,6 +284,29 @@ function createViabilityEstimator() {
     }
 
     // ── Combined Estimation ─────────────────────────────────────
+
+    /**
+     * Fast internal viability calculation that skips validation,
+     * quality classification, warning generation, and object allocation.
+     * Returns only the viability percentage as a number.
+     *
+     * Used in hot loops (calibrate, parameterSweep) where params are
+     * already validated and we only need the numeric result.
+     *
+     * @param {Object} vp - Pre-validated print parameters
+     * @param {Object} mp - Model parameters (must not be null)
+     * @returns {number} Viability percentage (0-100)
+     */
+    function _estimateRaw(vp, mp) {
+        var shearRate = estimateShearRate(vp);
+        var combined = (mp.baseline || DEFAULT_PARAMS.baseline)
+            * shearSurvival(shearRate, mp.shear)
+            * pressureSurvival(vp.pressure, mp.pressure)
+            * crosslinkSurvival(vp.crosslinkDuration, vp.crosslinkIntensity, mp.crosslink)
+            * (vp.temperature != null ? thermalSurvival(vp.temperature, mp.thermal) : 1.0)
+            * (vp.printDuration != null ? durationSurvival(vp.printDuration, mp.duration) : 1.0);
+        return Math.round(combined * 100 * 100) / 100;
+    }
 
     /**
      * Estimate overall cell viability given print parameters.
@@ -755,6 +784,9 @@ function createViabilityEstimator() {
         var grid = [];
         var peak = { value: -Infinity, p1: 0, p2: 0 };
         var trough = { value: Infinity, p1: 0, p2: 0 };
+        var sweepMp = opts.modelParams || DEFAULT_PARAMS;
+        // Validate base params once; inner loop only mutates sweep fields
+        var validatedBase = _validateParams(baseParams);
 
         for (var i = 0; i <= res; i++) {
             var v1 = range1.min + (range1.max - range1.min) * (i / res);
@@ -762,7 +794,7 @@ function createViabilityEstimator() {
             // Reuse a single testParams object per sweep instead of
             // allocating a new shallow copy on every grid cell (was
             // (res+1)² Object.assign calls, now 1 copy + field updates).
-            var testParams = Object.assign({}, baseParams);
+            var testParams = Object.assign({}, validatedBase);
             testParams[param1] = v1;
 
             for (var j = 0; j <= res; j++) {
@@ -770,19 +802,19 @@ function createViabilityEstimator() {
                 testParams[param2] = v2;
 
                 try {
-                    var est = estimate(testParams, opts.modelParams);
+                    var vPct = _estimateRaw(testParams, sweepMp);
                     var cell = {
-                        viability: est.viabilityPercent,
+                        viability: vPct,
                     };
                     cell[param1] = Math.round(v1 * 1000) / 1000;
                     cell[param2] = Math.round(v2 * 1000) / 1000;
                     row.push(cell);
 
-                    if (est.viabilityPercent > peak.value) {
-                        peak = { value: est.viabilityPercent, p1: v1, p2: v2 };
+                    if (vPct > peak.value) {
+                        peak = { value: vPct, p1: v1, p2: v2 };
                     }
-                    if (est.viabilityPercent < trough.value) {
-                        trough = { value: est.viabilityPercent, p1: v1, p2: v2 };
+                    if (vPct < trough.value) {
+                        trough = { value: vPct, p1: v1, p2: v2 };
                     }
                 } catch (e) {
                     row.push(null);
@@ -887,12 +919,12 @@ function createViabilityEstimator() {
 
                 for (var xi = 0; xi < preExtracted.length; xi++) {
                     try {
-                        var est = estimate(preExtracted[xi].params, baseCalibrateModel);
-                        predictions[xi] = est.viabilityPercent;
-                        var error = est.viabilityPercent - preExtracted[xi].actual;
+                        var vPct = _estimateRaw(preExtracted[xi].params, baseCalibrateModel);
+                        predictions[xi] = vPct;
+                        var error = vPct - preExtracted[xi].actual;
                         sumSquaredError += error * error;
                         sumAbsError += Math.abs(error);
-                        totalPredicted += est.viabilityPercent;
+                        totalPredicted += vPct;
                         totalActual += preExtracted[xi].actual;
                         count++;
                     } catch (e) {
