@@ -1,0 +1,639 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>BioBots 1 — Statistical Analysis Calculator</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧬</text></svg>">
+    <style>
+        :root {
+            --bg: #0f172a;
+            --surface: #1e293b;
+            --border: #334155;
+            --text: #e2e8f0;
+            --muted: #94a3b8;
+            --accent: #38bdf8;
+            --accent-hover: #7dd3fc;
+            --success: #4ade80;
+            --error: #f87171;
+            --warning: #fbbf24;
+            --purple: #a78bfa;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg); color: var(--text);
+            min-height: 100vh; display: flex; flex-direction: column; align-items: center; padding: 2rem 1rem;
+        }
+        nav { display: flex; gap: 0.5rem; margin-bottom: 2rem; flex-wrap: wrap; justify-content: center; }
+        nav a { color: var(--muted); padding: 0.5rem 1rem; border-radius: 8px; text-decoration: none; font-size: 0.9rem; transition: all 0.2s; }
+        nav a:hover { color: var(--accent); background: var(--surface); }
+        nav a.active { color: var(--accent); background: var(--surface); border: 1px solid var(--border); }
+        header { text-align: center; margin-bottom: 2rem; }
+        header h1 { font-size: 2rem; font-weight: 700; background: linear-gradient(135deg, var(--accent), var(--purple)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+        header p { color: var(--muted); margin-top: 0.5rem; }
+        .container { width: 100%; max-width: 960px; }
+        .tabs { display: flex; gap: 0.5rem; margin-bottom: 1.5rem; flex-wrap: wrap; }
+        .tab-btn { background: var(--surface); border: 1px solid var(--border); color: var(--muted); padding: 0.6rem 1.2rem; border-radius: 8px; cursor: pointer; font-size: 0.9rem; transition: all 0.2s; }
+        .tab-btn:hover { color: var(--accent); border-color: var(--accent); }
+        .tab-btn.active { color: var(--accent); border-color: var(--accent); background: rgba(56,189,248,0.1); }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+        .card { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 1.5rem; margin-bottom: 1.5rem; }
+        .card h2 { font-size: 1.1rem; margin-bottom: 0.5rem; color: var(--muted); font-weight: 500; }
+        .card p.hint { font-size: 0.8rem; color: var(--muted); margin-bottom: 1rem; }
+        .form-group { display: flex; flex-direction: column; gap: 0.3rem; margin-bottom: 0.8rem; }
+        label { font-size: 0.8rem; color: var(--muted); font-weight: 500; }
+        textarea, input[type="number"], select {
+            background: var(--bg); border: 1px solid var(--border); color: var(--text);
+            padding: 0.5rem 0.7rem; border-radius: 8px; font-size: 0.9rem; outline: none;
+            transition: border-color 0.2s; font-family: 'Consolas', 'Monaco', monospace;
+        }
+        textarea { resize: vertical; min-height: 80px; }
+        textarea:focus, input:focus, select:focus { border-color: var(--accent); }
+        .btn { background: var(--accent); color: var(--bg); border: none; padding: 0.7rem 1.5rem; border-radius: 8px; font-size: 0.95rem; font-weight: 600; cursor: pointer; transition: background 0.2s; width: 100%; margin-top: 0.5rem; }
+        .btn:hover { background: var(--accent-hover); }
+        .btn-secondary { background: var(--surface); color: var(--accent); border: 1px solid var(--border); }
+        .btn-secondary:hover { background: var(--bg); }
+        .result-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 0.8rem; margin-top: 1rem; }
+        .result-item { background: var(--bg); border: 1px solid var(--border); border-radius: 10px; padding: 0.8rem; text-align: center; }
+        .result-item .value { font-size: 1.2rem; font-weight: 700; color: var(--accent); }
+        .result-item .label { font-size: 0.7rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; margin-top: 0.2rem; }
+        .result-item.success .value { color: var(--success); }
+        .result-item.warning .value { color: var(--warning); }
+        .result-item.error .value { color: var(--error); }
+        .result-item.purple .value { color: var(--purple); }
+        .result-table { width: 100%; border-collapse: collapse; margin-top: 1rem; }
+        .result-table th, .result-table td { padding: 0.5rem 0.8rem; text-align: left; border-bottom: 1px solid var(--border); font-size: 0.85rem; }
+        .result-table th { color: var(--muted); font-weight: 500; }
+        .significance { display: inline-block; padding: 0.2rem 0.6rem; border-radius: 4px; font-size: 0.75rem; font-weight: 600; }
+        .sig-yes { background: rgba(74,222,128,0.15); color: var(--success); }
+        .sig-no { background: rgba(248,113,113,0.15); color: var(--error); }
+        .row { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+        @media (max-width: 700px) { .row { grid-template-columns: 1fr; } }
+        .hidden { display: none; }
+        .export-bar { display: flex; gap: 0.5rem; margin-top: 1rem; }
+        .export-bar .btn { width: auto; padding: 0.5rem 1rem; font-size: 0.8rem; }
+    </style>
+</head>
+<body>
+    <nav>
+        <a href="index.html">Query Tool</a>
+        <a href="explorer.html">Data Explorer</a>
+        <a href="table.html">Data Table</a>
+        <a href="calculator.html">Calculator</a>
+        <a href="correlation.html">Correlation</a>
+        <a href="doe.html">DOE</a>
+        <a href="spc.html">SPC</a>
+        <a href="stats.html" class="active">📊 Stats</a>
+    </nav>
+
+    <header>
+        <h1>📊 Statistical Analysis Calculator</h1>
+        <p>Descriptive statistics, t-tests, chi-square, and ANOVA for bioprint experimental data</p>
+    </header>
+
+    <div class="container">
+        <div class="tabs">
+            <button class="tab-btn active" data-tab="descriptive">Descriptive Stats</button>
+            <button class="tab-btn" data-tab="ttest">T-Test</button>
+            <button class="tab-btn" data-tab="anova">One-Way ANOVA</button>
+            <button class="tab-btn" data-tab="chisquare">Chi-Square</button>
+            <button class="tab-btn" data-tab="normality">Normality Check</button>
+        </div>
+
+        <!-- Descriptive Statistics -->
+        <div id="tab-descriptive" class="tab-content active">
+            <div class="card">
+                <h2>Descriptive Statistics</h2>
+                <p class="hint">Enter numeric values separated by commas, spaces, or newlines. E.g. viability percentages from multiple prints.</p>
+                <div class="form-group">
+                    <label>Dataset Label (optional)</label>
+                    <input type="text" id="desc-label" placeholder="e.g. Cell Viability (%)">
+                </div>
+                <div class="form-group">
+                    <label>Data Values</label>
+                    <textarea id="desc-data" placeholder="92.3, 88.1, 95.0, 91.4, 87.6, 93.2, 90.8, 89.5"></textarea>
+                </div>
+                <button class="btn" onclick="calcDescriptive()">Calculate</button>
+            </div>
+            <div id="desc-results" class="card hidden">
+                <h2>Results</h2>
+                <div id="desc-grid" class="result-grid"></div>
+                <div id="desc-histogram" style="margin-top:1rem;"></div>
+                <div class="export-bar">
+                    <button class="btn btn-secondary" onclick="exportCSV('descriptive')">Export CSV</button>
+                    <button class="btn btn-secondary" onclick="copyResults('descriptive')">Copy</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- T-Test -->
+        <div id="tab-ttest" class="tab-content">
+            <div class="card">
+                <h2>Two-Sample T-Test</h2>
+                <p class="hint">Compare means of two groups (e.g. viability with two different bioinks). Assumes independent samples.</p>
+                <div class="form-group">
+                    <label>Test Type</label>
+                    <select id="ttest-type">
+                        <option value="independent">Independent (unpaired)</option>
+                        <option value="paired">Paired</option>
+                        <option value="onesample">One-sample (vs. known mean)</option>
+                    </select>
+                </div>
+                <div class="row">
+                    <div class="form-group">
+                        <label>Group A / Sample Data</label>
+                        <textarea id="ttest-a" placeholder="92.3, 88.1, 95.0, 91.4, 87.6"></textarea>
+                    </div>
+                    <div class="form-group" id="ttest-b-group">
+                        <label>Group B Data</label>
+                        <textarea id="ttest-b" placeholder="85.2, 82.9, 88.4, 84.1, 80.7"></textarea>
+                    </div>
+                </div>
+                <div class="form-group hidden" id="ttest-mu-group">
+                    <label>Population Mean (μ₀)</label>
+                    <input type="number" id="ttest-mu" value="90" step="any">
+                </div>
+                <div class="form-group">
+                    <label>Significance Level (α)</label>
+                    <select id="ttest-alpha">
+                        <option value="0.05">0.05</option>
+                        <option value="0.01">0.01</option>
+                        <option value="0.001">0.001</option>
+                        <option value="0.1">0.10</option>
+                    </select>
+                </div>
+                <button class="btn" onclick="calcTTest()">Run T-Test</button>
+            </div>
+            <div id="ttest-results" class="card hidden">
+                <h2>T-Test Results</h2>
+                <div id="ttest-grid" class="result-grid"></div>
+                <div id="ttest-conclusion" style="margin-top:1rem; font-size:0.9rem;"></div>
+                <div class="export-bar">
+                    <button class="btn btn-secondary" onclick="exportCSV('ttest')">Export CSV</button>
+                    <button class="btn btn-secondary" onclick="copyResults('ttest')">Copy</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ANOVA -->
+        <div id="tab-anova" class="tab-content">
+            <div class="card">
+                <h2>One-Way ANOVA</h2>
+                <p class="hint">Compare means across 3+ groups. Enter each group on a separate line, values comma-separated.</p>
+                <div class="form-group">
+                    <label>Groups (one per line)</label>
+                    <textarea id="anova-data" rows="5" placeholder="Group 1: 92.3, 88.1, 95.0, 91.4
+Group 2: 85.2, 82.9, 88.4, 84.1
+Group 3: 78.6, 81.2, 79.8, 80.5"></textarea>
+                </div>
+                <div class="form-group">
+                    <label>Significance Level (α)</label>
+                    <select id="anova-alpha">
+                        <option value="0.05">0.05</option>
+                        <option value="0.01">0.01</option>
+                        <option value="0.001">0.001</option>
+                    </select>
+                </div>
+                <button class="btn" onclick="calcAnova()">Run ANOVA</button>
+            </div>
+            <div id="anova-results" class="card hidden">
+                <h2>ANOVA Results</h2>
+                <table class="result-table" id="anova-table"></table>
+                <div id="anova-conclusion" style="margin-top:1rem; font-size:0.9rem;"></div>
+                <div class="export-bar">
+                    <button class="btn btn-secondary" onclick="exportCSV('anova')">Export CSV</button>
+                    <button class="btn btn-secondary" onclick="copyResults('anova')">Copy</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Chi-Square -->
+        <div id="tab-chisquare" class="tab-content">
+            <div class="card">
+                <h2>Chi-Square Test of Independence</h2>
+                <p class="hint">Enter a contingency table. Rows = categories, columns = observed counts, comma-separated. One row per line.</p>
+                <div class="form-group">
+                    <label>Contingency Table</label>
+                    <textarea id="chi-data" rows="4" placeholder="Pass, Fail
+50, 10
+35, 25
+42, 18"></textarea>
+                </div>
+                <div class="form-group">
+                    <label>Significance Level (α)</label>
+                    <select id="chi-alpha">
+                        <option value="0.05">0.05</option>
+                        <option value="0.01">0.01</option>
+                        <option value="0.001">0.001</option>
+                    </select>
+                </div>
+                <button class="btn" onclick="calcChiSquare()">Run Chi-Square Test</button>
+            </div>
+            <div id="chi-results" class="card hidden">
+                <h2>Chi-Square Results</h2>
+                <div id="chi-grid" class="result-grid"></div>
+                <div id="chi-expected" style="margin-top:1rem;"></div>
+                <div id="chi-conclusion" style="margin-top:1rem; font-size:0.9rem;"></div>
+                <div class="export-bar">
+                    <button class="btn btn-secondary" onclick="exportCSV('chisquare')">Export CSV</button>
+                    <button class="btn btn-secondary" onclick="copyResults('chisquare')">Copy</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Normality Check -->
+        <div id="tab-normality" class="tab-content">
+            <div class="card">
+                <h2>Normality Check (Shapiro-Wilk Approximation)</h2>
+                <p class="hint">Check whether your data is approximately normally distributed. Important before running parametric tests.</p>
+                <div class="form-group">
+                    <label>Data Values</label>
+                    <textarea id="norm-data" placeholder="92.3, 88.1, 95.0, 91.4, 87.6, 93.2, 90.8, 89.5"></textarea>
+                </div>
+                <button class="btn" onclick="calcNormality()">Check Normality</button>
+            </div>
+            <div id="norm-results" class="card hidden">
+                <h2>Normality Results</h2>
+                <div id="norm-grid" class="result-grid"></div>
+                <div id="norm-conclusion" style="margin-top:1rem; font-size:0.9rem;"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+    // --- Utilities ---
+    function parseData(str) {
+        return str.replace(/\n/g, ',').split(',').map(s => s.trim()).filter(s => s !== '' && !isNaN(Number(s))).map(Number);
+    }
+    function mean(arr) { return arr.reduce((a, b) => a + b, 0) / arr.length; }
+    function variance(arr, ddof = 1) {
+        const m = mean(arr);
+        return arr.reduce((s, v) => s + (v - m) ** 2, 0) / (arr.length - ddof);
+    }
+    function stdev(arr, ddof = 1) { return Math.sqrt(variance(arr, ddof)); }
+    function median(arr) {
+        const s = [...arr].sort((a, b) => a - b);
+        const mid = Math.floor(s.length / 2);
+        return s.length % 2 ? s[mid] : (s[mid - 1] + s[mid]) / 2;
+    }
+    function quartiles(arr) {
+        const s = [...arr].sort((a, b) => a - b);
+        return { q1: median(s.slice(0, Math.floor(s.length / 2))), q3: median(s.slice(Math.ceil(s.length / 2))) };
+    }
+    function sem(arr) { return stdev(arr) / Math.sqrt(arr.length); }
+    function skewness(arr) {
+        const m = mean(arr), s = stdev(arr), n = arr.length;
+        return (n / ((n - 1) * (n - 2))) * arr.reduce((acc, v) => acc + ((v - m) / s) ** 3, 0);
+    }
+    function kurtosis(arr) {
+        const m = mean(arr), s = stdev(arr), n = arr.length;
+        const k4 = arr.reduce((acc, v) => acc + ((v - m) / s) ** 4, 0) / n;
+        return k4 - 3; // excess kurtosis
+    }
+    function fmt(v, d = 4) { return typeof v === 'number' ? (Number.isInteger(v) ? v.toString() : v.toFixed(d)) : v; }
+
+    // Approximate two-tailed p-value from t-distribution using regularized incomplete beta
+    function tDistP(t, df) {
+        const x = df / (df + t * t);
+        return betaRegularized(df / 2, 0.5, x);
+    }
+    function betaRegularized(a, b, x) {
+        // continued fraction approximation (Lentz)
+        if (x < 0 || x > 1) return 0;
+        if (x === 0) return 0;
+        if (x === 1) return 1;
+        const lbeta = lgamma(a) + lgamma(b) - lgamma(a + b);
+        const front = Math.exp(Math.log(x) * a + Math.log(1 - x) * b - lbeta) / a;
+        let f = 1, c = 1, d = 0;
+        for (let i = 0; i <= 200; i++) {
+            let m = Math.floor(i / 2);
+            let num;
+            if (i === 0) num = 1;
+            else if (i % 2 === 0) num = (m * (b - m) * x) / ((a + 2 * m - 1) * (a + 2 * m));
+            else num = -((a + m) * (a + b + m) * x) / ((a + 2 * m) * (a + 2 * m + 1));
+            d = 1 + num * d; if (Math.abs(d) < 1e-30) d = 1e-30; d = 1 / d;
+            c = 1 + num / c; if (Math.abs(c) < 1e-30) c = 1e-30;
+            f *= c * d;
+            if (Math.abs(c * d - 1) < 1e-10) break;
+        }
+        return front * (f - 1);  // This gives I_x(a,b) — but we need the two-tailed p
+    }
+    function lgamma(x) {
+        const c = [76.18009172947146, -86.50532032941677, 24.01409824083091, -1.231739572450155, 0.1208650973866179e-2, -0.5395239384953e-5];
+        let y = x, tmp = x + 5.5; tmp -= (x + 0.5) * Math.log(tmp);
+        let ser = 1.000000000190015;
+        for (let j = 0; j < 6; j++) ser += c[j] / ++y;
+        return -tmp + Math.log(2.5066282746310005 * ser / x);
+    }
+    function twoTailP(t, df) {
+        const p = tDistP(Math.abs(t), df);
+        return Math.min(p, 1);
+    }
+
+    // F-distribution p-value approximation
+    function fDistP(f, df1, df2) {
+        if (f <= 0) return 1;
+        const x = df2 / (df2 + df1 * f);
+        return betaRegularized(df2 / 2, df1 / 2, x);
+    }
+
+    // Chi-square p-value via incomplete gamma
+    function chiSqP(x, k) {
+        return 1 - lowerGammaReg(k / 2, x / 2);
+    }
+    function lowerGammaReg(a, x) {
+        // series expansion
+        if (x < 0) return 0;
+        if (x === 0) return 0;
+        let sum = 0, term = 1 / a;
+        for (let n = 1; n < 200; n++) {
+            sum += term;
+            term *= x / (a + n);
+            if (Math.abs(term) < 1e-12) break;
+        }
+        sum += term;
+        return sum * Math.exp(-x + a * Math.log(x) - lgamma(a));
+    }
+
+    // --- Tab switching ---
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+            btn.classList.add('active');
+            document.getElementById('tab-' + btn.dataset.tab).classList.add('active');
+        });
+    });
+
+    // T-test type switching
+    document.getElementById('ttest-type').addEventListener('change', function() {
+        const v = this.value;
+        document.getElementById('ttest-b-group').classList.toggle('hidden', v === 'onesample');
+        document.getElementById('ttest-mu-group').classList.toggle('hidden', v !== 'onesample');
+    });
+
+    // --- Descriptive Stats ---
+    let lastResults = {};
+    function calcDescriptive() {
+        const data = parseData(document.getElementById('desc-data').value);
+        if (data.length < 2) return alert('Need at least 2 values');
+        const label = document.getElementById('desc-label').value || 'Dataset';
+        const sorted = [...data].sort((a, b) => a - b);
+        const q = quartiles(data);
+        const results = {
+            n: data.length, mean: mean(data), median: median(data),
+            stdev: stdev(data), sem: sem(data), variance: variance(data),
+            min: sorted[0], max: sorted[sorted.length - 1],
+            range: sorted[sorted.length - 1] - sorted[0],
+            q1: q.q1, q3: q.q3, iqr: q.q3 - q.q1,
+            skewness: skewness(data), kurtosis: kurtosis(data),
+            cv: (stdev(data) / mean(data) * 100)
+        };
+        lastResults.descriptive = { label, ...results };
+
+        const grid = document.getElementById('desc-grid');
+        const items = [
+            { k: 'N', v: results.n, c: '' }, { k: 'Mean', v: fmt(results.mean), c: 'success' },
+            { k: 'Median', v: fmt(results.median), c: '' }, { k: 'Std Dev', v: fmt(results.stdev), c: '' },
+            { k: 'SEM', v: fmt(results.sem), c: 'purple' }, { k: 'Variance', v: fmt(results.variance), c: '' },
+            { k: 'Min', v: fmt(results.min), c: '' }, { k: 'Max', v: fmt(results.max), c: '' },
+            { k: 'Range', v: fmt(results.range), c: '' }, { k: 'Q1', v: fmt(results.q1), c: '' },
+            { k: 'Q3', v: fmt(results.q3), c: '' }, { k: 'IQR', v: fmt(results.iqr), c: '' },
+            { k: 'Skewness', v: fmt(results.skewness), c: '' }, { k: 'Kurtosis', v: fmt(results.kurtosis), c: '' },
+            { k: 'CV (%)', v: fmt(results.cv, 2), c: 'warning' },
+        ];
+        grid.innerHTML = items.map(i => `<div class="result-item ${i.c}"><div class="value">${i.v}</div><div class="label">${i.k}</div></div>`).join('');
+
+        // Simple ASCII histogram
+        const hist = document.getElementById('desc-histogram');
+        const bins = 8, min = results.min, step = results.range / bins || 1;
+        const counts = Array(bins).fill(0);
+        data.forEach(v => { const b = Math.min(Math.floor((v - min) / step), bins - 1); counts[b]++; });
+        const maxC = Math.max(...counts);
+        hist.innerHTML = '<div style="font-family:monospace;font-size:0.75rem;color:var(--muted);margin-top:0.5rem;"><strong>Distribution</strong><br>' +
+            counts.map((c, i) => {
+                const lo = fmt(min + i * step, 1), hi = fmt(min + (i + 1) * step, 1);
+                const bar = '█'.repeat(Math.round(c / maxC * 20));
+                return `${lo.padStart(7)}–${hi.padEnd(7)} │ <span style="color:var(--accent)">${bar}</span> ${c}`;
+            }).join('<br>') + '</div>';
+
+        document.getElementById('desc-results').classList.remove('hidden');
+    }
+
+    // --- T-Test ---
+    function calcTTest() {
+        const type = document.getElementById('ttest-type').value;
+        const a = parseData(document.getElementById('ttest-a').value);
+        const alpha = parseFloat(document.getElementById('ttest-alpha').value);
+        if (a.length < 2) return alert('Need at least 2 values in Group A');
+
+        let t, df, pValue, desc;
+        if (type === 'onesample') {
+            const mu0 = parseFloat(document.getElementById('ttest-mu').value);
+            t = (mean(a) - mu0) / sem(a);
+            df = a.length - 1;
+            pValue = twoTailP(t, df);
+            desc = `One-sample t-test: sample mean (${fmt(mean(a))}) vs μ₀ = ${mu0}`;
+        } else {
+            const b = parseData(document.getElementById('ttest-b').value);
+            if (b.length < 2) return alert('Need at least 2 values in Group B');
+            if (type === 'paired') {
+                if (a.length !== b.length) return alert('Paired test requires equal-length groups');
+                const diffs = a.map((v, i) => v - b[i]);
+                t = mean(diffs) / sem(diffs);
+                df = diffs.length - 1;
+                pValue = twoTailP(t, df);
+                desc = `Paired t-test: mean diff = ${fmt(mean(diffs))}`;
+            } else {
+                // Welch's t-test
+                const v1 = variance(a), v2 = variance(b);
+                const n1 = a.length, n2 = b.length;
+                t = (mean(a) - mean(b)) / Math.sqrt(v1 / n1 + v2 / n2);
+                df = ((v1 / n1 + v2 / n2) ** 2) / ((v1 / n1) ** 2 / (n1 - 1) + (v2 / n2) ** 2 / (n2 - 1));
+                pValue = twoTailP(t, df);
+                desc = `Welch's independent t-test: A̅ = ${fmt(mean(a))}, B̅ = ${fmt(mean(b))}`;
+            }
+        }
+
+        const sig = pValue < alpha;
+        lastResults.ttest = { t, df, pValue, alpha, significant: sig, desc };
+
+        const grid = document.getElementById('ttest-grid');
+        grid.innerHTML = [
+            { k: 't-statistic', v: fmt(t), c: '' },
+            { k: 'Degrees of Freedom', v: fmt(df, 1), c: '' },
+            { k: 'p-value', v: pValue < 0.0001 ? pValue.toExponential(3) : fmt(pValue), c: sig ? 'success' : 'error' },
+            { k: 'α (threshold)', v: alpha, c: '' },
+            { k: 'Significant?', v: sig ? '✅ Yes' : '❌ No', c: sig ? 'success' : 'error' },
+        ].map(i => `<div class="result-item ${i.c}"><div class="value">${i.v}</div><div class="label">${i.k}</div></div>`).join('');
+
+        document.getElementById('ttest-conclusion').innerHTML = `<p>${desc}</p><p style="margin-top:0.5rem">${
+            sig ? `<span class="significance sig-yes">The difference is statistically significant (p = ${fmt(pValue)} < α = ${alpha})</span>`
+                : `<span class="significance sig-no">No statistically significant difference detected (p = ${fmt(pValue)} ≥ α = ${alpha})</span>`
+        }</p>`;
+        document.getElementById('ttest-results').classList.remove('hidden');
+    }
+
+    // --- ANOVA ---
+    function calcAnova() {
+        const lines = document.getElementById('anova-data').value.trim().split('\n').filter(l => l.trim());
+        const groups = lines.map(l => {
+            const cleaned = l.replace(/^[^:]*:\s*/, '');
+            return parseData(cleaned);
+        }).filter(g => g.length > 0);
+        if (groups.length < 3) return alert('Need at least 3 groups for ANOVA');
+
+        const alpha = parseFloat(document.getElementById('anova-alpha').value);
+        const k = groups.length;
+        const N = groups.reduce((s, g) => s + g.length, 0);
+        const grandMean = groups.flat().reduce((a, b) => a + b, 0) / N;
+
+        const SSB = groups.reduce((s, g) => s + g.length * (mean(g) - grandMean) ** 2, 0);
+        const SSW = groups.reduce((s, g) => s + g.reduce((ss, v) => ss + (v - mean(g)) ** 2, 0), 0);
+        const SST = SSB + SSW;
+        const dfB = k - 1, dfW = N - k, dfT = N - 1;
+        const MSB = SSB / dfB, MSW = SSW / dfW;
+        const F = MSB / MSW;
+        const pValue = fDistP(F, dfB, dfW);
+        const sig = pValue < alpha;
+        const eta2 = SSB / SST;
+
+        lastResults.anova = { k, N, SSB, SSW, SST, dfB, dfW, MSB, MSW, F, pValue, alpha, sig, eta2 };
+
+        const tbl = document.getElementById('anova-table');
+        tbl.innerHTML = `
+            <tr><th>Source</th><th>SS</th><th>df</th><th>MS</th><th>F</th><th>p</th></tr>
+            <tr><td>Between</td><td>${fmt(SSB)}</td><td>${dfB}</td><td>${fmt(MSB)}</td><td>${fmt(F)}</td><td>${pValue < 0.0001 ? pValue.toExponential(3) : fmt(pValue)}</td></tr>
+            <tr><td>Within</td><td>${fmt(SSW)}</td><td>${dfW}</td><td>${fmt(MSW)}</td><td></td><td></td></tr>
+            <tr><td>Total</td><td>${fmt(SST)}</td><td>${dfT}</td><td></td><td></td><td></td></tr>
+        `;
+        document.getElementById('anova-conclusion').innerHTML = `
+            <p>η² (effect size) = ${fmt(eta2)}</p>
+            <p style="margin-top:0.5rem">${sig
+                ? `<span class="significance sig-yes">Significant difference among groups (F(${dfB},${dfW}) = ${fmt(F)}, p = ${fmt(pValue)} < α = ${alpha})</span>`
+                : `<span class="significance sig-no">No significant difference among groups (F(${dfB},${dfW}) = ${fmt(F)}, p = ${fmt(pValue)} ≥ α = ${alpha})</span>`
+            }</p>
+            <p style="color:var(--muted);font-size:0.8rem;margin-top:0.5rem">Group means: ${groups.map((g, i) => `G${i + 1}=${fmt(mean(g))}`).join(', ')}</p>
+        `;
+        document.getElementById('anova-results').classList.remove('hidden');
+    }
+
+    // --- Chi-Square ---
+    function calcChiSquare() {
+        const lines = document.getElementById('chi-data').value.trim().split('\n').filter(l => l.trim());
+        // First line might be headers
+        let startIdx = 0;
+        const firstLine = lines[0].split(',').map(s => s.trim());
+        if (firstLine.some(s => isNaN(Number(s)))) startIdx = 1;
+
+        const observed = [];
+        for (let i = startIdx; i < lines.length; i++) {
+            const row = lines[i].split(',').map(s => parseFloat(s.trim())).filter(v => !isNaN(v));
+            if (row.length > 0) observed.push(row);
+        }
+        if (observed.length < 2 || observed[0].length < 2) return alert('Need at least a 2×2 table');
+
+        const alpha = parseFloat(document.getElementById('chi-alpha').value);
+        const rows = observed.length, cols = observed[0].length;
+        const rowTotals = observed.map(r => r.reduce((a, b) => a + b, 0));
+        const colTotals = Array(cols).fill(0);
+        observed.forEach(r => r.forEach((v, j) => colTotals[j] += v));
+        const total = rowTotals.reduce((a, b) => a + b, 0);
+
+        const expected = observed.map((r, i) => r.map((_, j) => rowTotals[i] * colTotals[j] / total));
+        let chiSq = 0;
+        observed.forEach((r, i) => r.forEach((o, j) => { chiSq += (o - expected[i][j]) ** 2 / expected[i][j]; }));
+
+        const df = (rows - 1) * (cols - 1);
+        const pValue = chiSqP(chiSq, df);
+        const sig = pValue < alpha;
+        const cramersV = Math.sqrt(chiSq / (total * (Math.min(rows, cols) - 1)));
+
+        lastResults.chisquare = { chiSq, df, pValue, alpha, sig, cramersV, observed, expected };
+
+        const grid = document.getElementById('chi-grid');
+        grid.innerHTML = [
+            { k: 'χ²', v: fmt(chiSq), c: '' },
+            { k: 'df', v: df, c: '' },
+            { k: 'p-value', v: pValue < 0.0001 ? pValue.toExponential(3) : fmt(pValue), c: sig ? 'success' : 'error' },
+            { k: "Cramér's V", v: fmt(cramersV), c: 'purple' },
+            { k: 'Significant?', v: sig ? '✅ Yes' : '❌ No', c: sig ? 'success' : 'error' },
+        ].map(i => `<div class="result-item ${i.c}"><div class="value">${i.v}</div><div class="label">${i.k}</div></div>`).join('');
+
+        // Show expected table
+        document.getElementById('chi-expected').innerHTML = '<table class="result-table"><tr><th>Expected</th>' +
+            expected[0].map((_, j) => `<th>Col ${j + 1}</th>`).join('') + '</tr>' +
+            expected.map((r, i) => '<tr><td>Row ' + (i + 1) + '</td>' + r.map(v => `<td>${fmt(v, 2)}</td>`).join('') + '</tr>').join('') + '</table>';
+
+        document.getElementById('chi-conclusion').innerHTML = sig
+            ? `<span class="significance sig-yes">Variables are significantly associated (χ² = ${fmt(chiSq)}, p = ${fmt(pValue)})</span>`
+            : `<span class="significance sig-no">No significant association detected (χ² = ${fmt(chiSq)}, p = ${fmt(pValue)})</span>`;
+
+        document.getElementById('chi-results').classList.remove('hidden');
+    }
+
+    // --- Normality Check ---
+    function calcNormality() {
+        const data = parseData(document.getElementById('norm-data').value);
+        if (data.length < 3) return alert('Need at least 3 values');
+
+        const n = data.length, m = mean(data), s = stdev(data);
+        const sorted = [...data].sort((a, b) => a - b);
+        const sk = skewness(data), ku = kurtosis(data);
+
+        // D'Agostino-Pearson omnibus: combine skewness + kurtosis z-scores
+        const z_sk = sk / Math.sqrt(6 / n);
+        const z_ku = ku / Math.sqrt(24 / n);
+        const k2 = z_sk ** 2 + z_ku ** 2;
+        const pDP = chiSqP(k2, 2);
+
+        // Jarque-Bera
+        const jb = (n / 6) * (sk ** 2 + (ku ** 2) / 4);
+        const pJB = chiSqP(jb, 2);
+
+        const normal = pJB > 0.05;
+
+        const grid = document.getElementById('norm-grid');
+        grid.innerHTML = [
+            { k: 'N', v: n, c: '' },
+            { k: 'Skewness', v: fmt(sk), c: Math.abs(sk) > 1 ? 'warning' : '' },
+            { k: 'Kurtosis (excess)', v: fmt(ku), c: Math.abs(ku) > 2 ? 'warning' : '' },
+            { k: 'Jarque-Bera', v: fmt(jb), c: '' },
+            { k: 'JB p-value', v: pJB < 0.0001 ? pJB.toExponential(3) : fmt(pJB), c: normal ? 'success' : 'error' },
+            { k: 'Normal?', v: normal ? '✅ Likely' : '⚠️ Non-normal', c: normal ? 'success' : 'warning' },
+        ].map(i => `<div class="result-item ${i.c}"><div class="value">${i.v}</div><div class="label">${i.k}</div></div>`).join('');
+
+        document.getElementById('norm-conclusion').innerHTML = normal
+            ? '<span class="significance sig-yes">Data appears approximately normal — parametric tests (t-test, ANOVA) are appropriate</span>'
+            : '<span class="significance sig-no">Data may not be normally distributed — consider non-parametric tests (Mann-Whitney, Kruskal-Wallis)</span>';
+
+        document.getElementById('norm-results').classList.remove('hidden');
+    }
+
+    // --- Export ---
+    function exportCSV(type) {
+        const r = lastResults[type];
+        if (!r) return;
+        let csv = '';
+        if (type === 'descriptive') {
+            csv = Object.entries(r).map(([k, v]) => `${k},${v}`).join('\n');
+        } else if (type === 'ttest') {
+            csv = `t,${r.t}\ndf,${r.df}\np-value,${r.pValue}\nalpha,${r.alpha}\nsignificant,${r.significant}`;
+        } else if (type === 'anova') {
+            csv = `Source,SS,df,MS,F,p\nBetween,${r.SSB},${r.dfB},${r.MSB},${r.F},${r.pValue}\nWithin,${r.SSW},${r.dfW},${r.MSW},,\nTotal,${r.SST},${r.dfB + r.dfW},,,`;
+        } else if (type === 'chisquare') {
+            csv = `chi-square,${r.chiSq}\ndf,${r.df}\np-value,${r.pValue}\nCramers-V,${r.cramersV}\nsignificant,${r.sig}`;
+        }
+        const blob = new Blob([csv], { type: 'text/csv' });
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob); a.download = `biobots-${type}.csv`; a.click();
+    }
+    function copyResults(type) {
+        const el = document.getElementById(type === 'descriptive' ? 'desc-results' : type === 'ttest' ? 'ttest-results' : type === 'anova' ? 'anova-results' : 'chi-results');
+        navigator.clipboard.writeText(el.innerText).then(() => alert('Copied to clipboard'));
+    }
+    </script>
+</body>
+</html>
