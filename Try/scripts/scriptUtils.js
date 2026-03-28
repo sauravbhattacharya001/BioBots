@@ -5,7 +5,18 @@
  *
  * Extracted from degradation.js, compatibility.js, parameterOptimizer.js,
  * and maturation.js to eliminate duplication.
+ *
+ * Validation and rounding are delegated to the canonical shared/validation
+ * module to maintain a single source of truth.
  */
+
+var validation = require('../../docs/shared/validation');
+
+// Re-export canonical validation helpers — keeps the public API identical
+// for all 17+ consumer modules while eliminating duplicate definitions.
+var validatePositive  = validation.validatePositive;
+var validateNonNegative = validation.validateNonNegative;
+var round = validation.round;
 
 /**
  * Clamp a value between lo and hi (inclusive).
@@ -15,30 +26,6 @@
  * @returns {number} Clamped value.
  */
 function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
-
-/**
- * Validate that a value is a positive finite number.
- * @param {number} val - Value to check.
- * @param {string} name - Parameter name for error messages.
- * @throws {Error} If val is not a positive finite number.
- */
-function validatePositive(val, name) {
-  if (typeof val !== 'number' || !isFinite(val) || val <= 0) {
-    throw new Error(`${name} must be a positive finite number, got ${val}`);
-  }
-}
-
-/**
- * Validate that a value is a non-negative finite number.
- * @param {number} val - Value to check.
- * @param {string} name - Parameter name for error messages.
- * @throws {Error} If val is not a non-negative finite number.
- */
-function validateNonNegative(val, name) {
-  if (typeof val !== 'number' || !isFinite(val) || val < 0) {
-    throw new Error(`${name} must be a non-negative finite number, got ${val}`);
-  }
-}
 
 /**
  * Arithmetic mean of an array of numbers.
@@ -87,17 +74,6 @@ function percentile(arr, p) {
   const hi = Math.ceil(idx);
   if (lo === hi) return sorted[lo];
   return sorted[lo] + (sorted[hi] - sorted[lo]) * (idx - lo);
-}
-
-/**
- * Round a number to a fixed number of decimal places.
- * @param {number} n - Value to round.
- * @param {number} decimals - Number of decimal places.
- * @returns {number} Rounded value.
- */
-function round(n, decimals) {
-  var factor = Math.pow(10, decimals);
-  return Math.round(n * factor) / factor;
 }
 
 module.exports = { clamp, validatePositive, validateNonNegative, mean, stddev, median, percentile, round };

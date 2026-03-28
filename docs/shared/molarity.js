@@ -49,10 +49,7 @@ var REAGENT_DB = {
     'bsa':        { name: 'Bovine Serum Albumin',     mw: 66430  },
 };
 
-function round(n, dp) {
-    var f = Math.pow(10, dp || 4);
-    return Math.round(n * f) / f;
-}
+var round = require('./validation').round;
 
 function resolveMw(opts) {
     if (typeof opts.mw === 'number' && opts.mw > 0) return opts.mw;
