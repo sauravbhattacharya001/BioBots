@@ -4,6 +4,8 @@ var _utils = require('./scriptUtils');
 var clamp = _utils.clamp;
 var round = _utils.round;
 var mean = _utils.mean;
+var _sanitize = require('../../docs/shared/sanitize');
+var _stripDangerousKeys = _sanitize.stripDangerousKeys;
 
 /**
  * Contamination Tracker for BioBots
@@ -645,8 +647,8 @@ function createContaminationTracker() {
 
   function exportData() {
     return {
-      events: events.map(function (e) { return Object.assign({}, e); }),
-      quarantines: quarantines.map(function (q) { return Object.assign({}, q); }),
+      events: events.map(function (e) { return _stripDangerousKeys(e, { deep: false }); }),
+      quarantines: quarantines.map(function (q) { return _stripDangerousKeys(q, { deep: false }); }),
       exportedAt: new Date().toISOString()
     };
   }
@@ -656,13 +658,13 @@ function createContaminationTracker() {
       throw new Error('Invalid import data: events array required');
     }
     data.events.forEach(function (e) {
-      events.push(Object.assign({}, e));
+      events.push(_stripDangerousKeys(e, { deep: false }));
       var num = parseInt((e.id || '').replace('CONTAM-', ''), 10);
       if (!isNaN(num) && num >= nextId) nextId = num + 1;
     });
     if (Array.isArray(data.quarantines)) {
       data.quarantines.forEach(function (q) {
-        quarantines.push(Object.assign({}, q));
+        quarantines.push(_stripDangerousKeys(q, { deep: false }));
         var num = parseInt((q.id || '').replace('QUAR-', ''), 10);
         if (!isNaN(num) && num >= nextQId) nextQId = num + 1;
       });
