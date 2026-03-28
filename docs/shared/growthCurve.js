@@ -277,6 +277,8 @@ function createGrowthCurveAnalyzer() {
         //       = P/K  –  P² · e^(-r·t) / (K · N0)
         var lr = 0.0001;
         var prevMSE = Infinity;
+        // Cache final-iteration predictions to avoid recomputing for R²
+        var lastPredictions = new Array(valid.length);
         for (var iter = 0; iter < maxIter; iter++) {
             var gradR = 0, gradK = 0;
             var totalErr = 0;
@@ -290,6 +292,7 @@ function createGrowthCurveAnalyzer() {
                 var predicted = k / denom;
                 var err = predicted - observed;
                 totalErr += err * err;
+                lastPredictions[i] = predicted;
 
                 // Analytical partial derivatives
                 var pOverDenom = predicted / denom;   // P / (1 + A·e^(-rt)) = P²/K
@@ -306,21 +309,28 @@ function createGrowthCurveAnalyzer() {
             // Early termination: stop if MSE barely changes
             var mse = totalErr / valid.length;
             if (iter > 0 && Math.abs(prevMSE - mse) / (prevMSE + 1e-20) < 1e-10) {
+                // Recompute predictions with final r, k for accurate R²
+                A = (k - n0) / n0;
+                for (var i = 0; i < valid.length; i++) {
+                    var denom = 1 + A * Math.exp(-r * valid[i].time);
+                    lastPredictions[i] = k / denom;
+                }
                 break;
             }
             prevMSE = mse;
         }
 
-        // R-squared
+        // R-squared — reuse cached predictions instead of recomputing logisticGrowth
         var meanCount = 0;
         for (var i = 0; i < valid.length; i++) meanCount += valid[i].count;
         meanCount /= valid.length;
 
         var ssTot = 0, ssRes = 0;
         for (var i = 0; i < valid.length; i++) {
-            ssTot += Math.pow(valid[i].count - meanCount, 2);
-            var pred = logisticGrowth(n0, r, k, valid[i].time);
-            ssRes += Math.pow(valid[i].count - pred, 2);
+            var diff = valid[i].count - meanCount;
+            ssTot += diff * diff;
+            var resid = valid[i].count - lastPredictions[i];
+            ssRes += resid * resid;
         }
         var rSq = ssTot > 0 ? 1 - ssRes / ssTot : 0;
 
