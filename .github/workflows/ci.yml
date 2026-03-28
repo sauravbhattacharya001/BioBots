@@ -45,6 +45,24 @@ jobs:
       - name: Run tests with coverage
         run: npx jest --verbose --coverage --coverageReporters=text --coverageReporters=lcov --coverageReporters=json-summary
 
+      - name: Enforce coverage thresholds
+        run: |
+          node -e "
+            const s = require('./coverage/coverage-summary.json').total;
+            const thresholds = { lines: 70, branches: 60, functions: 70, statements: 70 };
+            let fail = false;
+            for (const [metric, min] of Object.entries(thresholds)) {
+              const pct = s[metric].pct;
+              if (pct < min) {
+                console.error('❌ ' + metric + ': ' + pct + '% < ' + min + '% threshold');
+                fail = true;
+              } else {
+                console.log('✅ ' + metric + ': ' + pct + '% >= ' + min + '%');
+              }
+            }
+            if (fail) process.exit(1);
+          "
+
       - name: Coverage summary
         if: always()
         run: |
