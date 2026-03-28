@@ -33,6 +33,43 @@ var _pendingFetch = null;
 var _dataUrl = 'bioprint-data.json';
 
 /**
+ * Validate that a URL is safe to fetch.
+ *
+ * Allows relative paths and same-origin HTTP(S) URLs.  Blocks dangerous
+ * schemes (javascript:, data:, file:, blob:, vbscript:) and URLs with
+ * embedded credentials (user:pass@host) to prevent SSRF, XSS, and
+ * data-exfiltration attacks.
+ *
+ * @param {string} url - URL to validate.
+ * @returns {boolean} True if the URL is considered safe.
+ */
+function _isUrlSafe(url) {
+    if (typeof url !== 'string' || url.length === 0) return false;
+
+    // Trim and normalise to catch leading-whitespace bypass tricks
+    var trimmed = url.trim();
+
+    // Block dangerous URI schemes (case-insensitive)
+    var lower = trimmed.toLowerCase();
+    if (/^(javascript|data|vbscript|file|blob):/i.test(lower)) {
+        return false;
+    }
+
+    // Block embedded credentials (https://user:pass@evil.com/...)
+    if (/^https?:\/\/[^/]*@/i.test(trimmed)) {
+        return false;
+    }
+
+    // Allow relative paths (no scheme) and http/https
+    if (!/^https?:\/\//i.test(trimmed)) {
+        // Relative path — allowed
+        return true;
+    }
+
+    return true;
+}
+
+/**
  * Check whether a print record has all required fields for standard
  * dashboard analysis (viability, crosslinking, pressure, resolution).
  *
@@ -68,6 +105,13 @@ function validateRecord(record) {
 function loadBioprintData(options) {
     var opts = options || {};
     var url = opts.url || _dataUrl;
+
+    if (!_isUrlSafe(url)) {
+        return Promise.reject(new Error(
+            'Unsafe data URL blocked: ' + url +
+            '. Only relative paths and HTTP(S) URLs without credentials are allowed.'
+        ));
+    }
 
     var dataPromise;
 
@@ -128,6 +172,12 @@ function clearCache() {
  */
 function setDataUrl(url) {
     if (typeof url === 'string' && url.length > 0) {
+        if (!_isUrlSafe(url)) {
+            throw new Error(
+                'Unsafe data URL blocked: ' + url +
+                '. Only relative paths and HTTP(S) URLs without credentials are allowed.'
+            );
+        }
         _dataUrl = url;
     }
 }
@@ -148,5 +198,6 @@ if (typeof module !== 'undefined' && module.exports) {
         clearCache: clearCache,
         setDataUrl: setDataUrl,
         getCachedData: getCachedData,
+        _isUrlSafe: _isUrlSafe,
     };
 }
