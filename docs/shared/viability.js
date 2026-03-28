@@ -391,20 +391,89 @@ function createViabilityEstimator() {
             nozzleDiameter: { min: 0.1, max: 2.0, unit: 'mm' },
         };
 
+        const mp = opts.modelParams || DEFAULT_PARAMS;
+
+        // Pre-compute baseline: validate once, compute all survival
+        // factors once.  When sweeping a parameter we only recompute
+        // the factor it affects instead of calling estimate() (which
+        // re-validates, re-computes shear rate, and evaluates all 5
+        // survival functions every time).  For a typical 4-param ×
+        // 21-step sweep this cuts ~336 redundant survival-function
+        // evaluations and ~84 redundant _validateParams calls.
+        const baseVP = _validateParams(baseParams);
+        const baseShearRate = estimateShearRate(baseVP);
+        const baseSurvival = {
+            shear: shearSurvival(baseShearRate, mp.shear),
+            pressure: pressureSurvival(baseVP.pressure, mp.pressure),
+            crosslink: crosslinkSurvival(
+                baseVP.crosslinkDuration, baseVP.crosslinkIntensity, mp.crosslink
+            ),
+            thermal: baseVP.temperature != null
+                ? thermalSurvival(baseVP.temperature, mp.thermal) : 1.0,
+            duration: baseVP.printDuration != null
+                ? durationSurvival(baseVP.printDuration, mp.duration) : 1.0,
+        };
+        const baseline = mp.baseline || DEFAULT_PARAMS.baseline;
+        // Product of all baseline factors (excluding the one being swept)
+        const baseProduct = baseline * baseSurvival.shear * baseSurvival.pressure *
+            baseSurvival.crosslink * baseSurvival.thermal * baseSurvival.duration;
+
+        // Map each sweepable parameter to the survival factor(s) it
+        // affects and a function that recomputes just that factor.
+        // pressure and nozzleDiameter both affect shear (via shear
+        // rate) AND pressure affects pressureSurvival directly.
+        const _factorRecompute = {
+            pressure: function(value) {
+                // Pressure affects both shear rate and pressure survival
+                const vp = Object.assign({}, baseVP, { pressure: value });
+                const sr = estimateShearRate(vp);
+                return {
+                    replace: { shear: shearSurvival(sr, mp.shear), pressure: pressureSurvival(value, mp.pressure) },
+                };
+            },
+            nozzleDiameter: function(value) {
+                const vp = Object.assign({}, baseVP, { nozzleDiameter: value });
+                const sr = estimateShearRate(vp);
+                return { replace: { shear: shearSurvival(sr, mp.shear) } };
+            },
+            crosslinkDuration: function(value) {
+                return { replace: { crosslink: crosslinkSurvival(value, baseVP.crosslinkIntensity, mp.crosslink) } };
+            },
+            crosslinkIntensity: function(value) {
+                return { replace: { crosslink: crosslinkSurvival(baseVP.crosslinkDuration, value, mp.crosslink) } };
+            },
+        };
+
         const result = {};
 
         for (const param of Object.keys(ranges)) {
             const range = ranges[param];
             const curve = [];
+            const recompute = _factorRecompute[param];
+
             for (let i = 0; i <= steps; i++) {
                 const value = range.min + (range.max - range.min) * (i / steps);
-                const testParams = Object.assign({}, baseParams);
-                testParams[param] = value;
                 try {
-                    const est = estimate(testParams, opts.modelParams);
+                    let viabilityPercent;
+                    if (recompute) {
+                        // Fast path: recompute only the affected factor(s)
+                        const delta = recompute(value);
+                        let product = baseProduct;
+                        for (const key of Object.keys(delta.replace)) {
+                            // Divide out the old factor, multiply in the new
+                            product = product / baseSurvival[key] * delta.replace[key];
+                        }
+                        viabilityPercent = Math.round(product * 100 * 100) / 100;
+                    } else {
+                        // Fallback for unknown parameters (custom ranges)
+                        const testParams = Object.assign({}, baseParams);
+                        testParams[param] = value;
+                        const est = estimate(testParams, opts.modelParams);
+                        viabilityPercent = est.viabilityPercent;
+                    }
                     curve.push({
                         value: Math.round(value * 1000) / 1000,
-                        viability: est.viabilityPercent,
+                        viability: viabilityPercent,
                     });
                 } catch (e) {
                     // Skip invalid parameter combinations
