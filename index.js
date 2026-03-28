@@ -66,6 +66,7 @@ var manifest = [
     ['createWesternBlotAnalyzer',      './docs/shared/westernBlot',        'createWesternBlotAnalyzer'],
     ['createLabNotebookGenerator',     './docs/shared/labNotebook',        'createLabNotebookGenerator'],
     ['createLabSafetyChecklist',       './docs/shared/labSafetyChecklist', 'createLabSafetyChecklist'],
+    ['createSampleLabelGenerator',     './docs/shared/sampleLabel',        'createSampleLabelGenerator'],
 ];
 
 // ── Pre-computed lookup structures ─────────────────────────────────
