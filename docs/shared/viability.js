@@ -346,12 +346,7 @@ function createViabilityEstimator() {
         const viabilityPercent = combined * 100;
 
         // Classify overall quality
-        let quality;
-        if (viabilityPercent >= 90) quality = 'excellent';
-        else if (viabilityPercent >= 75) quality = 'good';
-        else if (viabilityPercent >= 60) quality = 'acceptable';
-        else if (viabilityPercent >= 40) quality = 'poor';
-        else quality = 'critical';
+        const quality = _classifyQuality(viabilityPercent);
 
         // Identify limiting factor
         const factors = {
@@ -671,15 +666,46 @@ function createViabilityEstimator() {
      * @param {Object} [modelParams] - Override model parameters
      * @returns {Object} Batch analysis with per-print estimates and aggregates
      */
+    /**
+     * Classify viability percentage into a quality tier.
+     * Extracted to avoid duplicating the threshold ladder.
+     * @param {number} pct - Viability percentage (0-100)
+     * @returns {string} Quality tier
+     */
+    function _classifyQuality(pct) {
+        if (pct >= 90) return 'excellent';
+        if (pct >= 75) return 'good';
+        if (pct >= 60) return 'acceptable';
+        if (pct >= 40) return 'poor';
+        return 'critical';
+    }
+
+    /**
+     * Find the limiting factor (lowest survival) from pre-computed
+     * survival values. Avoids Object.entries() allocation in hot paths.
+     * @param {number} sShear - Shear survival
+     * @param {number} sPressure - Pressure survival
+     * @param {number} sCrosslink - Crosslink survival
+     * @returns {{ name: string, value: number }}
+     */
+    function _findLimitingFactor(sShear, sPressure, sCrosslink) {
+        var name = 'shear', value = sShear;
+        if (sPressure < value) { name = 'pressure'; value = sPressure; }
+        if (sCrosslink < value) { name = 'crosslink'; value = sCrosslink; }
+        return { name: name, value: value };
+    }
+
     function batchAnalyze(printData, modelParams) {
         if (!Array.isArray(printData) || printData.length === 0) {
             throw new Error('printData must be a non-empty array');
         }
 
+        var mp = modelParams || DEFAULT_PARAMS;
         var results = [];
         var totalPredicted = 0;
         var totalActual = 0;
         var sumSquaredError = 0;
+        var sumAbsError = 0;
         var count = 0;
         var predictedArr = [];
         var actualArr = [];
@@ -689,25 +715,55 @@ function createViabilityEstimator() {
             if (!extracted) continue;
 
             try {
-                var est = estimate(extracted.params, modelParams);
-                var error = est.viabilityPercent - extracted.actual;
+                // Use _estimateRaw to skip validation, warning generation,
+                // and heavy object allocation per record.  The params from
+                // _extractRecordParams are known-valid (numeric, in-range).
+                var vp = extracted.params;
+                var vPct = _estimateRaw(vp, mp);
+                var error = vPct - extracted.actual;
+                var absError = Math.abs(error);
+
+                // Compute limiting factor with minimal allocation —
+                // only the 3 core factors (thermal/duration not in
+                // _extractRecordParams output).
+                var shearRate = estimateShearRate(vp);
+                var sShear = shearSurvival(shearRate, mp.shear);
+                var sPressure = pressureSurvival(vp.pressure, mp.pressure);
+                var sCrosslink = crosslinkSurvival(
+                    vp.crosslinkDuration, vp.crosslinkIntensity, mp.crosslink
+                );
+                var limiting = _findLimitingFactor(sShear, sPressure, sCrosslink);
+
+                // Generate warnings only for problematic prints (< 70% viability)
+                // to avoid allocating arrays for healthy prints.
+                var warnings;
+                if (vPct < 70) {
+                    warnings = [];
+                    if (sShear < 0.5) warnings.push('High shear stress — consider larger nozzle or lower pressure');
+                    if (sPressure < 0.5) warnings.push('Excessive pressure — risk of cell lysis');
+                    if (sCrosslink < 0.5) warnings.push('Cross-linking dose may be cytotoxic — reduce duration or intensity');
+                    if (vPct < 40) warnings.push('CRITICAL: predicted viability below 40% — adjust parameters');
+                } else {
+                    warnings = [];
+                }
 
                 results.push({
                     serial: extracted.serial,
-                    predicted: est.viabilityPercent,
+                    predicted: vPct,
                     actual: extracted.actual,
                     error: Math.round(error * 100) / 100,
-                    absError: Math.round(Math.abs(error) * 100) / 100,
-                    quality: est.quality,
-                    limitingFactor: est.limitingFactor,
-                    warnings: est.warnings,
+                    absError: Math.round(absError * 100) / 100,
+                    quality: _classifyQuality(vPct),
+                    limitingFactor: limiting.name,
+                    warnings: warnings,
                 });
 
-                predictedArr.push(est.viabilityPercent);
+                predictedArr.push(vPct);
                 actualArr.push(extracted.actual);
-                totalPredicted += est.viabilityPercent;
+                totalPredicted += vPct;
                 totalActual += extracted.actual;
                 sumSquaredError += error * error;
+                sumAbsError += absError;
                 count++;
             } catch (e) {
                 // Skip records with invalid data
@@ -721,7 +777,7 @@ function createViabilityEstimator() {
         var meanPredicted = totalPredicted / count;
         var meanActual = totalActual / count;
         var rmse = Math.sqrt(sumSquaredError / count);
-        var mae = results.reduce(function(s, r) { return s + r.absError; }, 0) / count;
+        var mae = sumAbsError / count;
 
         var correlation = _pearsonCorrelation(predictedArr, actualArr, meanPredicted, meanActual);
 
