@@ -2,6 +2,9 @@
 
 var _stripDangerous = require('./sanitize').stripDangerousKeys;
 var _sharedMaterials = require('./materials');
+var _v = require('./validation');
+var round = _v.round;
+var clamp = _v.clamp;
 
 /**
  * Print Job Estimator for BioBots
@@ -78,8 +81,6 @@ var DEFAULT_TIMING = {
 // ── Helpers ────────────────────────────────────────────────────
 
 function isPositive(v) { return typeof v === 'number' && isFinite(v) && v > 0; }
-function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
-function round(v, d) { var f = Math.pow(10, d || 2); return Math.round(v * f) / f; }
 
 /**
  * Parse infill from geometry spec (0.05-1.0, default 100%).

@@ -47,6 +47,19 @@ function round(val, decimals) {
   return Math.round(val * factor) / factor;
 }
 
+/**
+ * Clamp a number between a minimum and maximum value.
+ *
+ * @param {number} val - Value to clamp.
+ * @param {number} lo - Minimum bound.
+ * @param {number} hi - Maximum bound.
+ * @returns {number} Clamped value.
+ */
+function clamp(val, lo, hi) {
+  return val < lo ? lo : val > hi ? hi : val;
+}
+
 exports.validatePositive = validatePositive;
 exports.validateNonNegative = validateNonNegative;
 exports.round = round;
+exports.clamp = clamp;

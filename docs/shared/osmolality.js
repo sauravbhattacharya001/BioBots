@@ -21,6 +21,9 @@
 
 'use strict';
 
+var _v = require('./validation');
+var round = _v.round;
+
 /* ------------------------------------------------------------------ */
 /*  Solute Database                                                    */
 /* ------------------------------------------------------------------ */
@@ -163,11 +166,6 @@ var TARGET_RANGES = {
 /* ------------------------------------------------------------------ */
 /*  Helpers                                                            */
 /* ------------------------------------------------------------------ */
-
-function round(value, decimals) {
-    var factor = Math.pow(10, decimals || 2);
-    return Math.round(value * factor) / factor;
-}
 
 /**
  * Convert a concentration to molarity (mol/L).

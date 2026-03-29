@@ -79,7 +79,9 @@ var NOZZLE_LENGTH_DEFAULT = 12.7;
  * @throws {Error} If val is not a positive finite number.
  * @private
  */
-var validatePositive = require('./validation').validatePositive;
+var _v = require('./validation');
+var validatePositive = _v.validatePositive;
+var clamp = _v.clamp;
 
 /**
  * Resolve nozzle inner diameter from either a direct value or gauge string.
@@ -109,10 +111,6 @@ function resolveNozzleDiameter(opts) {
  * @param {number} lo - Lower bound.
  * @param {number} hi - Upper bound.
  * @returns {number} Clamped value.
- * @private
- */
-function clamp(v, lo, hi) { return v < lo ? lo : v > hi ? hi : v; }
-
 // ── Core calculator ────────────────────────────────────────────────────
 
 /**

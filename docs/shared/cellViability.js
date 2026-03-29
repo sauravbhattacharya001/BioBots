@@ -1,5 +1,8 @@
 'use strict';
 
+var _v = require('./validation');
+var round = _v.round;
+
 /**
  * Cell Viability Calculator — compute viability from live/dead counts,
  * absorbance readings, or fluorescence data across common assay types.
@@ -29,11 +32,6 @@
  *   calc.batchCounts([{ live: 90, dead: 10 }, { live: 85, dead: 15 }, { live: 92, dead: 8 }]);
  *   // => { mean: 89.0, sd: 2.94, n: 3, replicates: [...] }
  */
-
-function round(n, dp) {
-    var f = Math.pow(10, dp || 2);
-    return Math.round(n * f) / f;
-}
 
 function mean(arr) {
     if (!arr.length) return 0;
