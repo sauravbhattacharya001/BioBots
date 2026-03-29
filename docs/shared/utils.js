@@ -182,11 +182,32 @@ function requireNonNegative(value, name) {
 
 
 // -- Module Exports (Node.js / CommonJS) --
+// Re-export escapeHtml and stripDangerousKeys from their canonical
+// modules so consumers can import everything from utils if they prefer.
+// When loaded via eval (browser-style tests), these globals already exist;
+// fall back to require() only in a true CommonJS context.
 if (typeof module !== 'undefined' && module.exports) {
+    var _escapeHtml;
+    try {
+        _escapeHtml = (typeof escapeHtml === 'function')
+            ? escapeHtml
+            : require('./constants').escapeHtml;
+    } catch (_e) {
+        _escapeHtml = function(s) { return String(s == null ? '' : s); };
+    }
+    var _stripDangerousKeys;
+    try {
+        _stripDangerousKeys = (typeof stripDangerousKeys === 'function')
+            ? stripDangerousKeys
+            : require('./sanitize').stripDangerousKeys;
+    } catch (_e) {
+        _stripDangerousKeys = function() { throw new Error('sanitize module not loaded'); };
+    }
+
     module.exports = {
-        escapeHtml: escapeHtml,
+        escapeHtml: _escapeHtml,
         getMetricValue: getMetricValue,
-        stripDangerousKeys: stripDangerousKeys,
+        stripDangerousKeys: _stripDangerousKeys,
         formatNum: formatNum,
         percentile: percentile,
         computeStats: computeStats,
