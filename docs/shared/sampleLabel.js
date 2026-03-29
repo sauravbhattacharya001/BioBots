@@ -118,6 +118,31 @@ function createSampleLabelGenerator() {
         return labels;
     }
 
+    /**
+     * Escape a value for safe CSV inclusion, defending against formula
+     * injection (CWE-1236).  Characters that spreadsheet applications
+     * interpret as formula leaders (= + - @ \t \r) are prefixed with a
+     * single-quote to force text mode — unless the value is a valid
+     * number (e.g. -3.14).
+     */
+    function csvSafe(value) {
+        if (value == null) return '';
+        var str = String(value);
+        var first = str.charAt(0);
+        if (first === '=' || first === '+' || first === '-' ||
+            first === '@' || first === '\t' || first === '\r') {
+            if (!((first === '-' || first === '+') && str.length > 1 && isFinite(Number(str)))) {
+                str = "'" + str;
+            }
+        }
+        if (str.indexOf(',') !== -1 || str.indexOf('"') !== -1 ||
+            str.indexOf('\n') !== -1 || str.indexOf('\r') !== -1 ||
+            str !== str.trim()) {
+            return '"' + str.replace(/"/g, '""') + '"';
+        }
+        return str;
+    }
+
     function toCSV(labels) {
         if (!labels || labels.length === 0) return '';
         var headers = ['ID', 'Type', 'Project', 'Operator', 'Date', 'Notes', 'Barcode'];
@@ -125,13 +150,13 @@ function createSampleLabelGenerator() {
         for (var i = 0; i < labels.length; i++) {
             var l = labels[i];
             rows.push([
-                l.id,
-                l.sampleType,
-                '"' + (l.project || '').replace(/"/g, '""') + '"',
-                '"' + (l.operator || '').replace(/"/g, '""') + '"',
-                l.date,
-                '"' + (l.notes || '').replace(/"/g, '""') + '"',
-                l.barcode
+                csvSafe(l.id),
+                csvSafe(l.sampleType),
+                csvSafe(l.project),
+                csvSafe(l.operator),
+                csvSafe(l.date),
+                csvSafe(l.notes),
+                csvSafe(l.barcode)
             ].join(','));
         }
         return rows.join('\n');
