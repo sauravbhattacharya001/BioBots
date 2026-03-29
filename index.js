@@ -69,6 +69,7 @@ var manifest = [
     ['createSampleLabelGenerator',     './docs/shared/sampleLabel',        'createSampleLabelGenerator'],
     ['createCellViabilityCalculator',  './docs/shared/cellViability',      'createCellViabilityCalculator'],
     ['createContaminationRiskScorer',  './docs/shared/contaminationRisk',  'createContaminationRiskScorer'],
+    ['createMediaOptimizer',           './docs/shared/mediaOptimizer',     'createMediaOptimizer'],
 ];
 
 // ── Pre-computed lookup structures ─────────────────────────────────
