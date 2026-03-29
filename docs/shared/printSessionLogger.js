@@ -322,11 +322,16 @@ function createPrintSessionLogger() {
                 if (v == null) return '';
                 if (Array.isArray(v)) v = v.join(';');
                 v = String(v);
-                // Formula injection guard MUST run before quoting, otherwise
-                // dangerous leaders like "=" get wrapped in quotes first and
-                // the guard check is bypassed (CWE-1236).
-                if (/^[=+\-@\t\r]/.test(v)) {
-                    v = "'" + v;
+                // Formula injection guard (CWE-1236): prefix dangerous
+                // leaders with a single-quote to force text mode in
+                // spreadsheets. Skip legitimate negative/positive numbers
+                // (e.g. -3.14, +1.5) to avoid corrupting numeric data.
+                var ch = v.charAt(0);
+                if (ch === '=' || ch === '+' || ch === '-' ||
+                    ch === '@' || ch === '\t' || ch === '\r') {
+                    if (!((ch === '-' || ch === '+') && v.length > 1 && isFinite(Number(v)))) {
+                        v = "'" + v;
+                    }
                 }
                 // CSV-safe: quote if contains comma, newline, or quote
                 if (/[,"\n\r]/.test(v)) {

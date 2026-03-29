@@ -134,6 +134,17 @@ describe('PrintSessionLogger', function () {
             assert.strictEqual(lines.length, 2);
             assert.ok(lines[0].startsWith('id,'));
         });
+
+        it('guards formula injection but preserves negative numbers', function () {
+            logger.logSession({ material: 'alginate', outcome: 'success', pressure: -5, notes: '=SUM(A1)' });
+            var csv = logger.exportCSV();
+            var lines = csv.split('\n');
+            var dataLine = lines[lines.length - 1];
+            // Negative pressure should NOT be prefixed with '
+            assert.ok(dataLine.indexOf("'-5") === -1, 'negative number should not be quote-prefixed');
+            // Formula in notes should be prefixed
+            assert.ok(dataLine.indexOf("'=SUM(A1)") >= 0, 'formula should be quote-prefixed');
+        });
     });
 
     describe('bestParams', function () {
