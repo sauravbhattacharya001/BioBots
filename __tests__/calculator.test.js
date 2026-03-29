@@ -168,7 +168,7 @@ describe('createMaterialCalculator', () => {
     describe('getMaterials', () => {
         test('returns all profiles', () => {
             var mats = calc.getMaterials();
-            expect(Object.keys(mats).length).toBe(5);
+            expect(Object.keys(mats).length).toBeGreaterThanOrEqual(5);
             expect(mats['gelatin-methacrylate'].name).toBe('GelMA');
         });
 

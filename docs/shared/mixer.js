@@ -1,5 +1,7 @@
 'use strict';
 
+var _sharedMaterials = require('./materials');
+
 /**
  * Bioink Mixing Calculator for BioBots.
  *
@@ -17,64 +19,57 @@
 
 function createBioinkMixer() {
 
-    var MATERIALS = {
+    // Base profiles from shared module, extended with mixer-specific properties.
+    var _base = _sharedMaterials.MATERIAL_PROFILES;
+    var MIXER_EXTENSIONS = {
         'gelatin-methacrylate': {
-            name: 'GelMA', density: 1.05, costPerMl: 12.50,
             viscosity: 850, cellAdhesion: 0.9, degradability: 0.7,
             crosslinkable: true, tempSensitive: true,
-            printTemp: { min: 20, max: 37 },
-            color: '#e74c3c'
+            printTemp: { min: 20, max: 37 }, color: '#e74c3c'
         },
         'alginate': {
-            name: 'Alginate', density: 1.02, costPerMl: 3.80,
             viscosity: 200, cellAdhesion: 0.3, degradability: 0.4,
             crosslinkable: true, tempSensitive: false,
-            printTemp: { min: 18, max: 40 },
-            color: '#2ecc71'
+            printTemp: { min: 18, max: 40 }, color: '#2ecc71'
         },
         'collagen-type-1': {
-            name: 'Collagen Type I', density: 1.08, costPerMl: 45.00,
             viscosity: 3200, cellAdhesion: 0.95, degradability: 0.85,
             crosslinkable: false, tempSensitive: true,
-            printTemp: { min: 4, max: 25 },
-            color: '#3498db'
+            printTemp: { min: 4, max: 25 }, color: '#3498db'
         },
         'pluronic-f127': {
-            name: 'Pluronic F-127', density: 1.06, costPerMl: 8.20,
             viscosity: 1500, cellAdhesion: 0.15, degradability: 0.1,
             crosslinkable: false, tempSensitive: true,
-            printTemp: { min: 20, max: 37 },
-            color: '#9b59b6'
+            printTemp: { min: 20, max: 37 }, color: '#9b59b6'
         },
         'hyaluronic-acid': {
-            name: 'Hyaluronic Acid', density: 1.03, costPerMl: 28.00,
             viscosity: 600, cellAdhesion: 0.7, degradability: 0.6,
             crosslinkable: true, tempSensitive: false,
-            printTemp: { min: 18, max: 37 },
-            color: '#f39c12'
+            printTemp: { min: 18, max: 37 }, color: '#f39c12'
         },
         'fibrin': {
-            name: 'Fibrin', density: 1.04, costPerMl: 35.00,
             viscosity: 150, cellAdhesion: 0.85, degradability: 0.9,
             crosslinkable: false, tempSensitive: true,
-            printTemp: { min: 20, max: 37 },
-            color: '#e67e22'
+            printTemp: { min: 20, max: 37 }, color: '#e67e22'
         },
         'silk-fibroin': {
-            name: 'Silk Fibroin', density: 1.10, costPerMl: 22.00,
             viscosity: 1100, cellAdhesion: 0.6, degradability: 0.3,
             crosslinkable: true, tempSensitive: false,
-            printTemp: { min: 18, max: 40 },
-            color: '#1abc9c'
+            printTemp: { min: 18, max: 40 }, color: '#1abc9c'
         },
         'pectin': {
-            name: 'Pectin', density: 1.01, costPerMl: 2.50,
             viscosity: 350, cellAdhesion: 0.25, degradability: 0.5,
             crosslinkable: true, tempSensitive: false,
-            printTemp: { min: 18, max: 45 },
-            color: '#95a5a6'
+            printTemp: { min: 18, max: 45 }, color: '#95a5a6'
         }
     };
+
+    var MATERIALS = {};
+    var _keys = Object.keys(MIXER_EXTENSIONS);
+    for (var _i = 0; _i < _keys.length; _i++) {
+        var _k = _keys[_i];
+        MATERIALS[_k] = Object.assign({}, _base[_k] || {}, MIXER_EXTENSIONS[_k]);
+    }
 
     // Known compatibility modifiers between material pairs.
     // Values > 1 mean synergistic, < 1 means antagonistic.

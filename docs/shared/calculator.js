@@ -1,25 +1,14 @@
 'use strict';
 
+var _sharedMaterials = require('./materials');
+
 /**
  * Material Usage Calculator for BioBots 1 bioprinter.
  * Estimates bioink/material consumption based on print parameters.
  */
 function createMaterialCalculator() {
-    var MATERIAL_PROFILES = {
-        'gelatin-methacrylate': { name: 'GelMA', density: 1.05, costPerMl: 12.50, viscosity: 'medium' },
-        'alginate': { name: 'Alginate', density: 1.02, costPerMl: 3.80, viscosity: 'low' },
-        'collagen-type-1': { name: 'Collagen Type I', density: 1.08, costPerMl: 45.00, viscosity: 'high' },
-        'pluronic-f127': { name: 'Pluronic F-127', density: 1.06, costPerMl: 8.20, viscosity: 'medium' },
-        'custom': { name: 'Custom', density: 1.00, costPerMl: 0, viscosity: 'medium' }
-    };
-
-    var WELLPLATE_SPECS = {
-        6:  { wells: 6,  diameter: 34.8, area: 951.1 },
-        12: { wells: 12, diameter: 22.1, area: 383.5 },
-        24: { wells: 24, diameter: 15.6, area: 191.1 },
-        48: { wells: 48, diameter: 11.05, area: 95.9 },
-        96: { wells: 96, diameter: 6.35, area: 31.7 }
-    };
+    var MATERIAL_PROFILES = _sharedMaterials.MATERIAL_PROFILES;
+    var WELLPLATE_SPECS = _sharedMaterials.WELLPLATE_SPECS;
 
     /**
      * Compute the bioink volume for a single layer in one well.

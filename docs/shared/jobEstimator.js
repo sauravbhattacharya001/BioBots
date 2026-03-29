@@ -1,6 +1,7 @@
 'use strict';
 
 var _stripDangerous = require('./sanitize').stripDangerousKeys;
+var _sharedMaterials = require('./materials');
 
 /**
  * Print Job Estimator for BioBots
@@ -32,35 +33,32 @@ var _stripDangerous = require('./sanitize').stripDangerousKeys;
 
 // ── Constants ──────────────────────────────────────────────────
 
-var MATERIAL_PROFILES = {
-    'gelatin-methacrylate': { name: 'GelMA', density: 1.05, costPerMl: 12.50, viscosity: 'medium', printSpeedFactor: 1.0 },
-    'alginate':             { name: 'Alginate', density: 1.02, costPerMl: 3.80, viscosity: 'low', printSpeedFactor: 1.2 },
-    'collagen-type-1':      { name: 'Collagen Type I', density: 1.08, costPerMl: 45.00, viscosity: 'high', printSpeedFactor: 0.7 },
-    'pluronic-f127':        { name: 'Pluronic F-127', density: 1.06, costPerMl: 8.20, viscosity: 'medium', printSpeedFactor: 1.0 },
-    'pcl':                  { name: 'PCL', density: 1.14, costPerMl: 6.50, viscosity: 'high', printSpeedFactor: 0.6 },
-    'hyaluronic-acid':      { name: 'Hyaluronic Acid', density: 1.01, costPerMl: 28.00, viscosity: 'low', printSpeedFactor: 1.1 },
-    'fibrin':               { name: 'Fibrin', density: 1.03, costPerMl: 35.00, viscosity: 'low', printSpeedFactor: 1.15 },
-    'silk-fibroin':         { name: 'Silk Fibroin', density: 1.10, costPerMl: 22.00, viscosity: 'medium', printSpeedFactor: 0.9 }
+// Material, cell, and wellplate profiles imported from shared module.
+// Domain-specific extensions (printSpeedFactor) are merged in below.
+var _baseMaterials = _sharedMaterials.MATERIAL_PROFILES;
+var CELL_PROFILES = _sharedMaterials.CELL_PROFILES;
+var WELLPLATE_SPECS = _sharedMaterials.WELLPLATE_SPECS;
+
+// Extend base material profiles with job-estimation-specific fields.
+var PRINT_SPEED_FACTORS = {
+    'gelatin-methacrylate': 1.0,
+    'alginate':             1.2,
+    'collagen-type-1':      0.7,
+    'pluronic-f127':        1.0,
+    'pcl':                  0.6,
+    'hyaluronic-acid':      1.1,
+    'fibrin':               1.15,
+    'silk-fibroin':         0.9
 };
 
-var CELL_PROFILES = {
-    'HEK293':    { name: 'HEK293', viabilityBase: 0.92, costPer1M: 150, shearSensitivity: 0.8 },
-    'CHO':       { name: 'CHO', viabilityBase: 0.90, costPer1M: 120, shearSensitivity: 0.7 },
-    'MSC':       { name: 'Mesenchymal Stem Cell', viabilityBase: 0.88, costPer1M: 500, shearSensitivity: 1.2 },
-    'iPSC':      { name: 'iPSC', viabilityBase: 0.85, costPer1M: 800, shearSensitivity: 1.5 },
-    'chondrocyte': { name: 'Chondrocyte', viabilityBase: 0.89, costPer1M: 350, shearSensitivity: 1.0 },
-    'hepatocyte': { name: 'Hepatocyte', viabilityBase: 0.82, costPer1M: 600, shearSensitivity: 1.3 },
-    'fibroblast': { name: 'Fibroblast', viabilityBase: 0.93, costPer1M: 100, shearSensitivity: 0.6 },
-    'keratinocyte': { name: 'Keratinocyte', viabilityBase: 0.87, costPer1M: 250, shearSensitivity: 0.9 }
-};
-
-var WELLPLATE_SPECS = {
-    6:  { wells: 6,  diameter: 34.8, areaMm2: 951.1 },
-    12: { wells: 12, diameter: 22.1, areaMm2: 383.5 },
-    24: { wells: 24, diameter: 15.6, areaMm2: 191.1 },
-    48: { wells: 48, diameter: 11.05, areaMm2: 95.9 },
-    96: { wells: 96, diameter: 6.35, areaMm2: 31.7 }
-};
+var MATERIAL_PROFILES = {};
+var _matKeys = Object.keys(_baseMaterials);
+for (var _mk = 0; _mk < _matKeys.length; _mk++) {
+    var _key = _matKeys[_mk];
+    MATERIAL_PROFILES[_key] = Object.assign({}, _baseMaterials[_key], {
+        printSpeedFactor: PRINT_SPEED_FACTORS[_key] || 1.0
+    });
+}
 
 var RISK_THRESHOLDS = {
     viability: { critical: 0.5, warning: 0.7, good: 0.85 },
