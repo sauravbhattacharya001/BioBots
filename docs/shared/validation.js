@@ -39,11 +39,11 @@ function validateNonNegative(val, name) {
  * Round a number to a given number of decimal places.
  *
  * @param {number} val - Number to round.
- * @param {number} [decimals=2] - Decimal places.
+ * @param {number} [decimals=4] - Decimal places.
  * @returns {number} Rounded value.
  */
 function round(val, decimals) {
-  var factor = Math.pow(10, decimals || 2);
+  var factor = Math.pow(10, decimals || 4);
   return Math.round(val * factor) / factor;
 }
 

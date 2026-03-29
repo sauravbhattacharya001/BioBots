@@ -52,17 +52,14 @@ var PAGE_RECOMMENDATIONS = [
 
 /* ---------- Helpers ---------- */
 
-var validatePositive = require('./validation').validatePositive;
+var _v = require('./validation');
+var validatePositive = _v.validatePositive;
+var round = _v.round;
 
 function validateArray(arr, name, minLen) {
   if (!Array.isArray(arr) || arr.length < (minLen || 1)) {
     throw new Error(name + ' must be an array with at least ' + (minLen || 1) + ' element(s)');
   }
-}
-
-function round(val, decimals) {
-  var factor = Math.pow(10, decimals || 4);
-  return Math.round(val * factor) / factor;
 }
 
 /**

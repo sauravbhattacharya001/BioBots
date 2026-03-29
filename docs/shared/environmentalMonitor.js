@@ -86,10 +86,10 @@ function maxVal(arr) {
   var v = arr[0]; for (var i = 1; i < arr.length; i++) if (arr[i] > v) v = arr[i];
   return v;
 }
+var _round = require('./validation').round;
 function round(n, d) {
   if (n === null) return null;
-  var f = Math.pow(10, d || 2);
-  return Math.round(n * f) / f;
+  return _round(n, d || 2);
 }
 
 /* ── factory ─────────────────────────────────────────────────── */

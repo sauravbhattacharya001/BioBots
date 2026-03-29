@@ -1,5 +1,7 @@
 'use strict';
 
+var _vRound = require('./validation').round;
+
 /**
  * PCR Master Mix Calculator for BioBots bioprinting & molecular biology workflows.
  *
@@ -17,6 +19,9 @@
  */
 
 function createPcrMasterMixCalculator() {
+
+    /** Round to 2 decimal places by default (volume precision for µL). */
+    function round(n, dp) { return _vRound(n, dp || 2); }
 
     /* ── Polymerase presets ── */
     var POLYMERASE_PRESETS = {
@@ -249,10 +254,6 @@ function createPcrMasterMixCalculator() {
                 notes: p.notes
             };
         });
-    }
-
-    function round(n) {
-        return Math.round(n * 100) / 100;
     }
 
     return {

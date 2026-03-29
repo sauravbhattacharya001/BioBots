@@ -1,6 +1,7 @@
 'use strict';
 
 var _sharedMaterials = require('./materials');
+var _vRound = require('./validation').round;
 
 /**
  * Material Usage Calculator for BioBots 1 bioprinter.
@@ -195,14 +196,14 @@ function createMaterialCalculator() {
 
     /**
      * Round a number to a fixed number of decimal places.
+     * Delegates to the shared validation utility.
      *
      * @param {number} val      Value to round
      * @param {number} decimals Number of decimal places
      * @returns {number} Rounded value
      */
     function round(val, decimals) {
-        var factor = Math.pow(10, decimals);
-        return Math.round(val * factor) / factor;
+        return _vRound(val, decimals);
     }
 
     /**

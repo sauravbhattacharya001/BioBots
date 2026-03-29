@@ -109,10 +109,7 @@ var BUFFER_SYSTEMS = {
 /*  Helpers                                                            */
 /* ------------------------------------------------------------------ */
 
-function round(val, decimals) {
-    var f = Math.pow(10, decimals || 4);
-    return Math.round(val * f) / f;
-}
+var round = require('./validation').round;
 
 /**
  * Calculate buffer capacity (β) at a given pH for a single pKa system.

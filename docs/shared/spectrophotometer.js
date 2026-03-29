@@ -40,11 +40,7 @@ var DEFAULT_OD_COEFFICIENTS = {
 var _v = require('./validation');
 var validatePositive = _v.validatePositive;
 var validateNonNegative = _v.validateNonNegative;
-
-function round(val, decimals) {
-  var factor = Math.pow(10, decimals || 4);
-  return Math.round(val * factor) / factor;
-}
+var round = _v.round;
 
 function mean(arr) {
   var sum = 0;

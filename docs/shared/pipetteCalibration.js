@@ -93,9 +93,9 @@ function getISOTolerance(nominalVolume) {
     return ISO_TOLERANCES[ISO_TOLERANCES.length - 1];
 }
 
+var _round = require('./validation').round;
 function round(val, decimals) {
-    var factor = Math.pow(10, decimals || 3);
-    return Math.round(val * factor) / factor;
+    return _round(val, decimals || 3);
 }
 
 function createPipetteCalibrationChecker() {

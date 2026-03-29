@@ -157,10 +157,7 @@ function createSerialDilutionCalculator() {
     };
 }
 
-function round(val, decimals) {
-    var f = Math.pow(10, decimals);
-    return Math.round(val * f) / f;
-}
+var round = require('./validation').round;
 
 function pad(val, width) {
     var s = String(val);
