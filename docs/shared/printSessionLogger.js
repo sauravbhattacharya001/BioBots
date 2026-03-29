@@ -328,7 +328,8 @@ function createPrintSessionLogger() {
                 // (e.g. -3.14, +1.5) to avoid corrupting numeric data.
                 var ch = v.charAt(0);
                 if (ch === '=' || ch === '+' || ch === '-' ||
-                    ch === '@' || ch === '\t' || ch === '\r') {
+                    ch === '@' || ch === '\t' || ch === '\r' ||
+                    ch === '|') {
                     if (!((ch === '-' || ch === '+') && v.length > 1 && isFinite(Number(v)))) {
                         v = "'" + v;
                     }
