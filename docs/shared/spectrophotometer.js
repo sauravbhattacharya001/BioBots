@@ -41,24 +41,21 @@ var _v = require('./validation');
 var validatePositive = _v.validatePositive;
 var validateNonNegative = _v.validateNonNegative;
 
+var _stats = require('./stats');
+var _mean = _stats.mean;
+var _pstddev = _stats.pstddev;
+
 function round(val, decimals) {
   var factor = Math.pow(10, decimals || 4);
   return Math.round(val * factor) / factor;
 }
 
 function mean(arr) {
-  var sum = 0;
-  for (var i = 0; i < arr.length; i++) sum += arr[i];
-  return sum / arr.length;
+  return _mean(arr);
 }
 
 function stdDev(arr) {
-  var m = mean(arr);
-  var sqDiffs = 0;
-  for (var i = 0; i < arr.length; i++) {
-    sqDiffs += (arr[i] - m) * (arr[i] - m);
-  }
-  return Math.sqrt(sqDiffs / arr.length);
+  return _pstddev(arr);
 }
 
 /* Simple linear regression: y = slope * x + intercept */

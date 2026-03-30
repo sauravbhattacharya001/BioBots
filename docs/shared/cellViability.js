@@ -2,6 +2,9 @@
 
 var _v = require('./validation');
 var round = _v.round;
+var _s = require('./stats');
+var mean = _s.mean;
+var stddev = _s.stddev;
 
 /**
  * Cell Viability Calculator — compute viability from live/dead counts,
@@ -32,21 +35,6 @@ var round = _v.round;
  *   calc.batchCounts([{ live: 90, dead: 10 }, { live: 85, dead: 15 }, { live: 92, dead: 8 }]);
  *   // => { mean: 89.0, sd: 2.94, n: 3, replicates: [...] }
  */
-
-function mean(arr) {
-    if (!arr.length) return 0;
-    var s = 0;
-    for (var i = 0; i < arr.length; i++) s += arr[i];
-    return s / arr.length;
-}
-
-function stddev(arr) {
-    if (arr.length < 2) return 0;
-    var m = mean(arr);
-    var ss = 0;
-    for (var i = 0; i < arr.length; i++) ss += (arr[i] - m) * (arr[i] - m);
-    return Math.sqrt(ss / (arr.length - 1));
-}
 
 function validate(val, name) {
     if (typeof val !== 'number' || isNaN(val)) {

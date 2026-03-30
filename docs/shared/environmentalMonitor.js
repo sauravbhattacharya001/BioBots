@@ -65,16 +65,15 @@ var PROFILES = {
 var PARAMS = ['temperature', 'co2', 'humidity', 'o2'];
 
 /* ── helpers ─────────────────────────────────────────────────── */
+var _stats = require('./stats');
+
 function mean(arr) {
   if (!arr.length) return null;
-  var s = 0; for (var i = 0; i < arr.length; i++) s += arr[i];
-  return s / arr.length;
+  return _stats.mean(arr);
 }
 function stddev(arr) {
   if (arr.length < 2) return null;
-  var m = mean(arr);
-  var ss = 0; for (var i = 0; i < arr.length; i++) ss += (arr[i] - m) * (arr[i] - m);
-  return Math.sqrt(ss / (arr.length - 1));
+  return _stats.stddev(arr);
 }
 function minVal(arr) {
   if (!arr.length) return null;

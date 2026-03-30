@@ -37,18 +37,9 @@ function round(n, dp) {
     return Math.round(n * f) / f;
 }
 
-function mean(arr) {
-    var s = 0;
-    for (var i = 0; i < arr.length; i++) s += arr[i];
-    return s / arr.length;
-}
-
-function stddev(arr) {
-    var m = mean(arr);
-    var ss = 0;
-    for (var i = 0; i < arr.length; i++) ss += (arr[i] - m) * (arr[i] - m);
-    return Math.sqrt(ss / (arr.length - 1));
-}
+var _stats = require('./stats');
+var mean = _stats.mean;
+var stddev = _stats.stddev;
 
 // ── Common molecular weight markers (kDa) ──────────────────────────
 var MARKER_LADDERS = {

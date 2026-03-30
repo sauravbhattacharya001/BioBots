@@ -35,45 +35,11 @@ function normalCDF(x) {
     return sign === 1 ? 1 - p * poly : p * poly;
 }
 
-/**
- * Compute mean of an array.
- */
-function mean(arr) {
-    if (!arr || arr.length === 0) return 0;
-    var sum = 0;
-    for (var i = 0; i < arr.length; i++) {
-        sum += arr[i];
-    }
-    return sum / arr.length;
-}
+var _stats = require('./stats');
+var mean = _stats.mean;
+var stddev = _stats.pstddev;   // population stddev for Cp/Cpk
+var sampleStddev = _stats.stddev; // sample stddev (Bessel-corrected) for Pp/Ppk
 
-/**
- * Compute standard deviation (population).
- */
-function stddev(arr, avg) {
-    if (!arr || arr.length < 2) return 0;
-    if (avg === undefined) avg = mean(arr);
-    var sumSq = 0;
-    for (var i = 0; i < arr.length; i++) {
-        var diff = arr[i] - avg;
-        sumSq += diff * diff;
-    }
-    return Math.sqrt(sumSq / arr.length);
-}
-
-/**
- * Compute sample standard deviation (Bessel's correction).
- */
-function sampleStddev(arr, avg) {
-    if (!arr || arr.length < 2) return 0;
-    if (avg === undefined) avg = mean(arr);
-    var sumSq = 0;
-    for (var i = 0; i < arr.length; i++) {
-        var diff = arr[i] - avg;
-        sumSq += diff * diff;
-    }
-    return Math.sqrt(sumSq / (arr.length - 1));
-}
 
 /**
  * Estimate within-subgroup sigma using average range method.
