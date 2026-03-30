@@ -38,12 +38,20 @@ function validateNonNegative(val, name) {
 /**
  * Round a number to a given number of decimal places.
  *
+ * Uses a pre-computed lookup table for common decimal counts (0–10)
+ * to avoid repeated Math.pow(10, n) calls on the hot path.  This
+ * function is invoked thousands of times per analysis run across
+ * most SDK modules.
+ *
  * @param {number} val - Number to round.
- * @param {number} [decimals=2] - Decimal places.
+ * @param {number} [decimals=2] - Decimal places (0–10 use fast path).
  * @returns {number} Rounded value.
  */
+var _powTable = [1, 10, 100, 1000, 1e4, 1e5, 1e6, 1e7, 1e8, 1e9, 1e10];
+
 function round(val, decimals) {
-  var factor = Math.pow(10, decimals != null ? decimals : 2);
+  var d = decimals != null ? decimals : 2;
+  var factor = d >= 0 && d <= 10 ? _powTable[d] : Math.pow(10, d);
   return Math.round(val * factor) / factor;
 }
 

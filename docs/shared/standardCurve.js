@@ -43,13 +43,14 @@ function _linearRegression(points) {
     var n = points.length;
     var sumX = 0, sumY = 0, sumXY = 0, sumX2 = 0, sumY2 = 0;
 
-    points.forEach(function (p) {
-        sumX  += p.x;
-        sumY  += p.y;
-        sumXY += p.x * p.y;
-        sumX2 += p.x * p.x;
-        sumY2 += p.y * p.y;
-    });
+    for (var i = 0; i < n; i++) {
+        var px = points[i].x, py = points[i].y;
+        sumX  += px;
+        sumY  += py;
+        sumXY += px * py;
+        sumX2 += px * px;
+        sumY2 += py * py;
+    }
 
     var denom = n * sumX2 - sumX * sumX;
     if (denom === 0) throw new Error('Cannot fit line — all X values are identical');
@@ -57,13 +58,13 @@ function _linearRegression(points) {
     var slope     = (n * sumXY - sumX * sumY) / denom;
     var intercept = (sumY - slope * sumX) / n;
 
-    // R²
+    // Single-pass R² using algebraic identity:
+    // ssRes = sumY2 - 2*slope*sumXY - 2*intercept*sumY
+    //       + slope²*sumX2 + 2*slope*intercept*sumX + n*intercept²
     var ssTot = sumY2 - (sumY * sumY) / n;
-    var ssRes = 0;
-    points.forEach(function (p) {
-        var predicted = slope * p.x + intercept;
-        ssRes += (p.y - predicted) * (p.y - predicted);
-    });
+    var ssRes = sumY2 - 2 * slope * sumXY - 2 * intercept * sumY
+              + slope * slope * sumX2 + 2 * slope * intercept * sumX
+              + n * intercept * intercept;
     var rSquared = ssTot === 0 ? 1 : 1 - ssRes / ssTot;
 
     return { slope: slope, intercept: intercept, rSquared: rSquared };
