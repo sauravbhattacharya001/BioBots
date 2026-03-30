@@ -43,7 +43,7 @@ describe('SterilityAssurance', function() {
     });
 
     test('throws on invalid exposure time', function() {
-      expect(function() { sa.calculateSAL({ method: 'autoclave', exposureTime: -1 }); }).toThrow('positive number');
+      expect(function() { sa.calculateSAL({ method: 'autoclave', exposureTime: -1 }); }).toThrow(/positive.*number/);
     });
 
     test('throws for filtration method', function() {

@@ -1,5 +1,7 @@
 'use strict';
 
+var validatePositive = require('./validation').validatePositive;
+
 /**
  * Nozzle Selection Advisor for BioBots bioprinter.
  * Recommends optimal nozzle sizes based on material properties, target resolution,
@@ -186,8 +188,8 @@ function createNozzleAdvisor() {
     function recommend(opts) {
         opts = opts || {};
 
-        if (opts.targetResolutionMm !== undefined && (typeof opts.targetResolutionMm !== 'number' || opts.targetResolutionMm <= 0)) {
-            throw new Error('targetResolutionMm must be a positive number');
+        if (opts.targetResolutionMm !== undefined) {
+            validatePositive(opts.targetResolutionMm, 'targetResolutionMm');
         }
         if (opts.viscosity && !MATERIAL_VISCOSITY[opts.viscosity]) {
             throw new Error('Unknown viscosity class: ' + opts.viscosity + '. Use: low, medium, high, or paste');
@@ -270,9 +272,7 @@ function createNozzleAdvisor() {
      * @returns {Object} Closest matching nozzle
      */
     function findClosestNozzle(targetDiameterMm, type) {
-        if (typeof targetDiameterMm !== 'number' || targetDiameterMm <= 0) {
-            throw new Error('targetDiameterMm must be a positive number');
-        }
+        validatePositive(targetDiameterMm, 'targetDiameterMm');
         var catalog = NOZZLE_CATALOG;
         if (type) {
             catalog = catalog.filter(function(n) { return n.type === type; });

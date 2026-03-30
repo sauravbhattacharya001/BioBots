@@ -196,7 +196,7 @@ describe('NozzleAdvisor', function() {
         it('throws on negative targetResolutionMm', function() {
             expect(function() {
                 advisor.recommend({ targetResolutionMm: -1 });
-            }).toThrow(/positive number/);
+            }).toThrow(/positive.*number/);
         });
 
         it('includes flow rate and shear in metrics', function() {
@@ -234,13 +234,13 @@ describe('NozzleAdvisor', function() {
         it('throws on invalid input', function() {
             expect(function() {
                 advisor.findClosestNozzle(-1);
-            }).toThrow(/positive number/);
+            }).toThrow(/positive.*number/);
         });
 
         it('throws on non-number input', function() {
             expect(function() {
                 advisor.findClosestNozzle('big');
-            }).toThrow(/positive number/);
+            }).toThrow(/positive.*number/);
         });
     });
 });

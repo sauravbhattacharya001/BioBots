@@ -1,5 +1,7 @@
 'use strict';
 
+var validatePositive = require('./validation').validatePositive;
+
 /**
  * Centrifuge Protocol Calculator
  *
@@ -48,12 +50,8 @@ function createCentrifugeCalculator() {
      * @returns {object} { rpm, radiusCm, rcf }
      */
     function rpmToRcf(rpm, radiusCm) {
-        if (typeof rpm !== 'number' || rpm <= 0) {
-            throw new Error('rpm must be a positive number');
-        }
-        if (typeof radiusCm !== 'number' || radiusCm <= 0) {
-            throw new Error('radiusCm must be a positive number');
-        }
+        validatePositive(rpm, 'rpm');
+        validatePositive(radiusCm, 'radiusCm');
         var rcf = 1.118e-5 * radiusCm * Math.pow(rpm, 2);
         return { rpm: rpm, radiusCm: radiusCm, rcf: Math.round(rcf * 10) / 10 };
     }
@@ -65,12 +63,8 @@ function createCentrifugeCalculator() {
      * @returns {object} { rcf, radiusCm, rpm }
      */
     function rcfToRpm(rcf, radiusCm) {
-        if (typeof rcf !== 'number' || rcf <= 0) {
-            throw new Error('rcf must be a positive number');
-        }
-        if (typeof radiusCm !== 'number' || radiusCm <= 0) {
-            throw new Error('radiusCm must be a positive number');
-        }
+        validatePositive(rcf, 'rcf');
+        validatePositive(radiusCm, 'radiusCm');
         var rpm = Math.sqrt(rcf / (1.118e-5 * radiusCm));
         return { rcf: rcf, radiusCm: radiusCm, rpm: Math.round(rpm) };
     }

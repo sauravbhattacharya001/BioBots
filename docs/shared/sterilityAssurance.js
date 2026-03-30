@@ -7,6 +7,8 @@
  */
 'use strict';
 
+var validatePositive = require('./validation').validatePositive;
+
 /* ---------- constants ---------- */
 
 var STERILIZATION_METHODS = {
@@ -62,7 +64,7 @@ function calculateSAL(opts) {
   if (method.dValue === null) throw new Error('SAL calculation not applicable for ' + method.name);
 
   var exposure = opts.exposureTime;
-  if (typeof exposure !== 'number' || exposure <= 0) throw new Error('exposureTime must be a positive number');
+  validatePositive(exposure, 'exposureTime');
 
   var dVal = opts.dValue || method.dValue;
   var bioburden = opts.bioburden || 100;
