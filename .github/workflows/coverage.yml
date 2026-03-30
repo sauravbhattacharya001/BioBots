@@ -31,7 +31,7 @@ jobs:
         run: npx jest --verbose --coverage --coverageReporters=text --coverageReporters=lcov --coverageReporters=json-summary
 
       - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v5
+        uses: codecov/codecov-action@v6
         with:
           files: ./coverage/lcov.info
           flags: unittests
