@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Standard Curve Calculator — BioBots</title>
+<link rel="stylesheet" href="shared/constants.css" onerror="">
+<style>
+:root{--bg:#0f172a;--surface:#1e293b;--border:#334155;--text:#e2e8f0;--accent:#38bdf8;--warn:#fbbf24;--err:#f87171;--ok:#34d399}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;padding:1.5rem}
+h1{font-size:1.5rem;margin-bottom:.25rem}
+.subtitle{color:#94a3b8;margin-bottom:1.5rem}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:1.5rem}
+@media(max-width:800px){.grid{grid-template-columns:1fr}}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:.75rem;padding:1.25rem}
+.card h2{font-size:1.1rem;margin-bottom:.75rem;color:var(--accent)}
+label{display:block;font-size:.85rem;color:#94a3b8;margin-bottom:.25rem}
+input,select,textarea{width:100%;padding:.5rem;background:#0f172a;border:1px solid var(--border);border-radius:.375rem;color:var(--text);font-size:.9rem;margin-bottom:.75rem}
+textarea{font-family:monospace;resize:vertical}
+button{padding:.5rem 1.25rem;background:var(--accent);color:#0f172a;border:none;border-radius:.375rem;font-weight:600;cursor:pointer}
+button:hover{opacity:.9}
+button.secondary{background:transparent;border:1px solid var(--border);color:var(--text)}
+table{width:100%;border-collapse:collapse;font-size:.85rem;margin-top:.5rem}
+th,td{padding:.4rem .6rem;border-bottom:1px solid var(--border);text-align:left}
+th{color:#94a3b8;font-weight:500}
+.metric{text-align:center;padding:.75rem}
+.metric .value{font-size:1.75rem;font-weight:700}
+.metric .label{font-size:.75rem;color:#94a3b8;margin-top:.25rem}
+.metrics-row{display:flex;gap:1rem;margin-bottom:1rem;flex-wrap:wrap}
+.metrics-row .metric{flex:1;min-width:100px;background:#0f172a;border-radius:.5rem;padding:.75rem}
+canvas{width:100%;height:280px;background:#0f172a;border-radius:.5rem;margin-top:.5rem}
+.badge{display:inline-block;padding:.15rem .5rem;border-radius:1rem;font-size:.75rem;font-weight:600}
+.badge.excellent{background:#065f4620;color:var(--ok)}
+.badge.good{background:#065f4620;color:var(--ok)}
+.badge.acceptable{background:#78350f30;color:var(--warn)}
+.badge.poor{background:#7f1d1d30;color:var(--err)}
+.range-warn{color:var(--warn);font-size:.8rem}
+#stdTable input{margin-bottom:0;text-align:center}
+.actions{display:flex;gap:.5rem;margin-top:.75rem;flex-wrap:wrap}
+</style>
+</head>
+<body>
+<h1>🧪 Standard Curve Calculator</h1>
+<p class="subtitle">Linear regression for Bradford, BCA, ELISA & more — fit standards, interpolate unknowns, assess quality</p>
+
+<div class="grid">
+  <!-- Left: Standards Input -->
+  <div>
+    <div class="card">
+      <h2>📊 Standard Data</h2>
+      <label>Assay Preset</label>
+      <select id="preset" onchange="loadPreset()">
+        <option value="">Custom</option>
+        <option value="bradford">Bradford (BSA, 595nm)</option>
+        <option value="bca">BCA Assay</option>
+        <option value="elisa">ELISA (450nm)</option>
+        <option value="dna260">DNA (A260)</option>
+      </select>
+      <table>
+        <thead><tr><th>#</th><th>Concentration</th><th>Signal</th><th></th></tr></thead>
+        <tbody id="stdTable"></tbody>
+      </table>
+      <div class="actions">
+        <button class="secondary" onclick="addRow()">+ Add Point</button>
+        <button onclick="fitCurve()">Fit Curve</button>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:1.5rem">
+      <h2>🔬 Interpolate Unknowns</h2>
+      <label>Signal values (one per line or comma-separated)</label>
+      <textarea id="unknowns" rows="4" placeholder="0.45&#10;0.72&#10;1.10"></textarea>
+      <button onclick="interpolateUnknowns()">Calculate Concentrations</button>
+      <table id="unknownResults" style="display:none">
+        <thead><tr><th>Signal</th><th>Concentration</th><th>Status</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Right: Results -->
+  <div>
+    <div class="card">
+      <h2>📈 Curve Fit Results</h2>
+      <div class="metrics-row">
+        <div class="metric"><div class="value" id="rSq">—</div><div class="label">R²</div></div>
+        <div class="metric"><div class="value" id="slopeVal">—</div><div class="label">Slope</div></div>
+        <div class="metric"><div class="value" id="intVal">—</div><div class="label">Intercept</div></div>
+        <div class="metric"><div class="value" id="qualBadge">—</div><div class="label">Quality</div></div>
+      </div>
+      <div id="eqText" style="font-family:monospace;color:var(--accent);margin-bottom:.5rem"></div>
+      <canvas id="chart"></canvas>
+    </div>
+
+    <div class="card" style="margin-top:1.5rem">
+      <h2>📐 Residuals</h2>
+      <table id="residualTable" style="display:none">
+        <thead><tr><th>Conc.</th><th>Observed</th><th>Predicted</th><th>Residual</th></tr></thead>
+        <tbody></tbody>
+      </table>
+      <p id="residualPlaceholder" style="color:#64748b;font-size:.85rem">Fit a curve to see residuals</p>
+    </div>
+
+    <div class="card" style="margin-top:1.5rem">
+      <h2>🎯 Detection Limits</h2>
+      <label>Blank readings (comma-separated)</label>
+      <input id="blanks" placeholder="0.048, 0.051, 0.053, 0.049, 0.050">
+      <button onclick="calcLimits()">Calculate LOD/LOQ</button>
+      <div class="metrics-row" id="lodResults" style="display:none;margin-top:.75rem">
+        <div class="metric"><div class="value" id="lodVal">—</div><div class="label">LOD</div></div>
+        <div class="metric"><div class="value" id="loqVal">—</div><div class="label">LOQ</div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="shared/standardCurve.js"></script>
+<script>
+var calc = createStandardCurveCalculator();
+var currentCurve = null;
+var standards = [];
+
+var PRESETS = {
+    bradford: [
+        {concentration:0,signal:0.050},{concentration:0.125,signal:0.12},
+        {concentration:0.25,signal:0.21},{concentration:0.5,signal:0.38},
+        {concentration:1.0,signal:0.68},{concentration:1.5,signal:0.99},{concentration:2.0,signal:1.28}
+    ],
+    bca: [
+        {concentration:0,signal:0.08},{concentration:0.025,signal:0.15},
+        {concentration:0.125,signal:0.32},{concentration:0.25,signal:0.56},
+        {concentration:0.5,signal:1.05},{concentration:1.0,signal:2.00},{concentration:2.0,signal:3.85}
+    ],
+    elisa: [
+        {concentration:0,signal:0.06},{concentration:15.6,signal:0.11},
+        {concentration:31.25,signal:0.20},{concentration:62.5,signal:0.38},
+        {concentration:125,signal:0.72},{concentration:250,signal:1.38},{concentration:500,signal:2.65}
+    ],
+    dna260: [
+        {concentration:0,signal:0.00},{concentration:5,signal:0.10},
+        {concentration:10,signal:0.20},{concentration:25,signal:0.50},
+        {concentration:50,signal:1.00}
+    ]
+};
+
+function initTable(){
+    standards=[{concentration:0,signal:0.05},{concentration:0.25,signal:0.18},{concentration:0.5,signal:0.34},{concentration:1.0,signal:0.65},{concentration:2.0,signal:1.28}];
+    renderTable();
+}
+function renderTable(){
+    var tb=document.getElementById('stdTable');
+    tb.innerHTML='';
+    standards.forEach(function(s,i){
+        var tr=document.createElement('tr');
+        tr.innerHTML='<td>'+(i+1)+'</td><td><input type="number" step="any" value="'+s.concentration+'" onchange="standards['+i+'].concentration=parseFloat(this.value)"></td><td><input type="number" step="any" value="'+s.signal+'" onchange="standards['+i+'].signal=parseFloat(this.value)"></td><td><button class="secondary" style="padding:.2rem .5rem;font-size:.75rem" onclick="standards.splice('+i+',1);renderTable()">✕</button></td>';
+        tb.appendChild(tr);
+    });
+}
+function addRow(){standards.push({concentration:0,signal:0});renderTable();}
+function loadPreset(){
+    var v=document.getElementById('preset').value;
+    if(v&&PRESETS[v]){standards=JSON.parse(JSON.stringify(PRESETS[v]));renderTable();}
+}
+
+function fitCurve(){
+    try{
+        currentCurve=calc.fitCurve({standards:standards});
+    }catch(e){alert(e.message);return;}
+    document.getElementById('rSq').textContent=currentCurve.rSquared.toFixed(4);
+    document.getElementById('slopeVal').textContent=currentCurve.slope.toFixed(4);
+    document.getElementById('intVal').textContent=currentCurve.intercept.toFixed(4);
+    document.getElementById('qualBadge').innerHTML='<span class="badge '+currentCurve.quality+'">'+currentCurve.quality+'</span>';
+    document.getElementById('eqText').textContent=currentCurve.equation;
+    drawChart();
+    showResiduals();
+}
+
+function drawChart(){
+    var canvas=document.getElementById('chart');
+    var ctx=canvas.getContext('2d');
+    canvas.width=canvas.offsetWidth*2;canvas.height=280*2;
+    ctx.scale(2,2);
+    var W=canvas.offsetWidth,H=280;
+    ctx.clearRect(0,0,W,H);
+    var pad={t:20,r:20,b:35,l:50};
+    var pw=W-pad.l-pad.r,ph=H-pad.t-pad.b;
+
+    var xs=standards.map(function(s){return s.concentration;});
+    var ys=standards.map(function(s){return s.signal;});
+    var xMin=Math.min.apply(null,xs),xMax=Math.max.apply(null,xs);
+    var yMin=Math.min.apply(null,ys),yMax=Math.max.apply(null,ys);
+    var xPad=(xMax-xMin)*0.1||1,yPad=(yMax-yMin)*0.1||0.1;
+    xMin-=xPad;xMax+=xPad;yMin-=yPad;yMax+=yPad;
+
+    function tx(v){return pad.l+(v-xMin)/(xMax-xMin)*pw;}
+    function ty(v){return pad.t+ph-(v-yMin)/(yMax-yMin)*ph;}
+
+    // axes
+    ctx.strokeStyle='#334155';ctx.lineWidth=1;
+    ctx.beginPath();ctx.moveTo(pad.l,pad.t);ctx.lineTo(pad.l,pad.t+ph);ctx.lineTo(pad.l+pw,pad.t+ph);ctx.stroke();
+
+    // regression line
+    ctx.strokeStyle='#38bdf8';ctx.lineWidth=2;
+    ctx.beginPath();
+    var lx0=xMin,lx1=xMax;
+    ctx.moveTo(tx(lx0),ty(currentCurve.slope*lx0+currentCurve.intercept));
+    ctx.lineTo(tx(lx1),ty(currentCurve.slope*lx1+currentCurve.intercept));
+    ctx.stroke();
+
+    // data points
+    ctx.fillStyle='#f59e0b';
+    standards.forEach(function(s){
+        ctx.beginPath();ctx.arc(tx(s.concentration),ty(s.signal),5,0,Math.PI*2);ctx.fill();
+    });
+
+    // labels
+    ctx.fillStyle='#94a3b8';ctx.font='11px sans-serif';ctx.textAlign='center';
+    ctx.fillText('Concentration',pad.l+pw/2,H-5);
+    ctx.save();ctx.translate(12,pad.t+ph/2);ctx.rotate(-Math.PI/2);ctx.fillText('Signal',0,0);ctx.restore();
+}
+
+function showResiduals(){
+    var res=calc.residuals({curve:currentCurve,standards:standards});
+    var tb=document.querySelector('#residualTable tbody');
+    tb.innerHTML='';
+    res.forEach(function(r){
+        var tr=document.createElement('tr');
+        tr.innerHTML='<td>'+r.concentration+'</td><td>'+r.observedSignal+'</td><td>'+r.predictedSignal+'</td><td>'+r.residual+'</td>';
+        tb.appendChild(tr);
+    });
+    document.getElementById('residualTable').style.display='';
+    document.getElementById('residualPlaceholder').style.display='none';
+}
+
+function interpolateUnknowns(){
+    if(!currentCurve){alert('Fit a curve first');return;}
+    var raw=document.getElementById('unknowns').value.trim();
+    if(!raw)return;
+    var signals=raw.split(/[\n,]+/).map(function(s){return parseFloat(s.trim());}).filter(function(n){return !isNaN(n);});
+    var results=calc.interpolateBatch({curve:currentCurve,signals:signals});
+    var tb=document.querySelector('#unknownResults tbody');
+    tb.innerHTML='';
+    results.forEach(function(r){
+        var tr=document.createElement('tr');
+        var status=r.withinRange?'<span style="color:var(--ok)">✓ In range</span>':'<span class="range-warn">⚠ '+r.warning+'</span>';
+        tr.innerHTML='<td>'+r.signal+'</td><td>'+r.concentration.toFixed(4)+'</td><td>'+status+'</td>';
+        tb.appendChild(tr);
+    });
+    document.getElementById('unknownResults').style.display='';
+}
+
+function calcLimits(){
+    if(!currentCurve){alert('Fit a curve first');return;}
+    var raw=document.getElementById('blanks').value.trim();
+    var blanks=raw.split(/[,\s]+/).map(function(s){return parseFloat(s);}).filter(function(n){return !isNaN(n);});
+    try{
+        var lim=calc.detectionLimits({curve:currentCurve,blankSignals:blanks});
+        document.getElementById('lodVal').textContent=lim.LOD.toFixed(4);
+        document.getElementById('loqVal').textContent=lim.LOQ.toFixed(4);
+        document.getElementById('lodResults').style.display='flex';
+    }catch(e){alert(e.message);}
+}
+
+initTable();
+</script>
+</body>
+</html>

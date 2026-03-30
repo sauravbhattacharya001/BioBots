@@ -72,6 +72,7 @@ var manifest = [
     ['createMediaOptimizer',           './docs/shared/mediaOptimizer',     'createMediaOptimizer'],
     ['createExperimentRandomizer',     './docs/shared/experimentRandomizer', 'createExperimentRandomizer'],
     ['createMycoplasmaTestLogger',     './docs/shared/mycoplasmaTest',       'createMycoplasmaTestLogger'],
+    ['createStandardCurveCalculator',  './docs/shared/standardCurve',        'createStandardCurveCalculator'],
 ];
 
 // ── Pre-computed lookup structures ─────────────────────────────────
