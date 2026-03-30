@@ -71,6 +71,7 @@ var manifest = [
     ['createContaminationRiskScorer',  './docs/shared/contaminationRisk',  'createContaminationRiskScorer'],
     ['createMediaOptimizer',           './docs/shared/mediaOptimizer',     'createMediaOptimizer'],
     ['createExperimentRandomizer',     './docs/shared/experimentRandomizer', 'createExperimentRandomizer'],
+    ['createMycoplasmaTestLogger',     './docs/shared/mycoplasmaTest',       'createMycoplasmaTestLogger'],
 ];
 
 // ── Pre-computed lookup structures ─────────────────────────────────
