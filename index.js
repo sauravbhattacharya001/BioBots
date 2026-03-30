@@ -70,6 +70,7 @@ var manifest = [
     ['createCellViabilityCalculator',  './docs/shared/cellViability',      'createCellViabilityCalculator'],
     ['createContaminationRiskScorer',  './docs/shared/contaminationRisk',  'createContaminationRiskScorer'],
     ['createMediaOptimizer',           './docs/shared/mediaOptimizer',     'createMediaOptimizer'],
+    ['createExperimentRandomizer',     './docs/shared/experimentRandomizer', 'createExperimentRandomizer'],
 ];
 
 // ── Pre-computed lookup structures ─────────────────────────────────
