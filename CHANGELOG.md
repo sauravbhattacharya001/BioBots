@@ -5,6 +5,17 @@ All notable changes to the BioBots Tool project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.13.0] - 2026-03-30
+
+### Added
+- **Standard Curve Calculator** — linear regression for assay quantification with R² goodness-of-fit
+- **Mycoplasma Test Logger** — track and log mycoplasma contamination testing results
+
+### Changed
+- **Performance:** optimized hot-path `round()` with lookup table and single-pass regression
+- **Refactor:** consolidated duplicated `round`/`clamp` into shared `validation.js` imports
+- **Refactor:** use shared `validatePositive` in centrifuge, nozzleAdvisor, sterilityAssurance modules
+
 ## [1.4.1] - 2026-03-24
 
 ### Changed
