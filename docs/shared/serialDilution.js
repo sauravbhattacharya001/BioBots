@@ -1,5 +1,7 @@
 'use strict';
 
+var round = require('./validation').round;
+
 /**
  * Serial Dilution Calculator
  *
@@ -155,11 +157,6 @@ function createSerialDilutionCalculator() {
             return lines.join('\n');
         }
     };
-}
-
-function round(val, decimals) {
-    var f = Math.pow(10, decimals);
-    return Math.round(val * f) / f;
 }
 
 function pad(val, width) {

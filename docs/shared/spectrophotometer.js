@@ -40,15 +40,11 @@ var DEFAULT_OD_COEFFICIENTS = {
 var _v = require('./validation');
 var validatePositive = _v.validatePositive;
 var validateNonNegative = _v.validateNonNegative;
+var round = _v.round;
 
 var _stats = require('./stats');
 var _mean = _stats.mean;
 var _pstddev = _stats.pstddev;
-
-function round(val, decimals) {
-  var factor = Math.pow(10, decimals || 4);
-  return Math.round(val * factor) / factor;
-}
 
 function mean(arr) {
   return _mean(arr);

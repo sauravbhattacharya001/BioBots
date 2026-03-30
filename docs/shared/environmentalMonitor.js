@@ -66,6 +66,7 @@ var PARAMS = ['temperature', 'co2', 'humidity', 'o2'];
 
 /* ── helpers ─────────────────────────────────────────────────── */
 var _stats = require('./stats');
+var _round = require('./validation').round;
 
 function mean(arr) {
   if (!arr.length) return null;
@@ -87,8 +88,7 @@ function maxVal(arr) {
 }
 function round(n, d) {
   if (n === null) return null;
-  var f = Math.pow(10, d || 2);
-  return Math.round(n * f) / f;
+  return _round(n, d);
 }
 
 /* ── factory ─────────────────────────────────────────────────── */

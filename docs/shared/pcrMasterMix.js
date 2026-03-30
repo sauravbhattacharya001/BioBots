@@ -1,5 +1,7 @@
 'use strict';
 
+var round = require('./validation').round;
+
 /**
  * PCR Master Mix Calculator for BioBots bioprinting & molecular biology workflows.
  *
@@ -249,10 +251,6 @@ function createPcrMasterMixCalculator() {
                 notes: p.notes
             };
         });
-    }
-
-    function round(n) {
-        return Math.round(n * 100) / 100;
     }
 
     return {

@@ -32,10 +32,7 @@
 
 // ── Helpers ────────────────────────────────────────────────────────
 
-function round(n, dp) {
-    var f = Math.pow(10, dp || 4);
-    return Math.round(n * f) / f;
-}
+var round = require('./validation').round;
 
 var _stats = require('./stats');
 var mean = _stats.mean;

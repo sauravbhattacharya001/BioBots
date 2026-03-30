@@ -1,5 +1,7 @@
 'use strict';
 
+var round = require('./validation').round;
+
 /**
  * Pipette Calibration Checker
  *
@@ -91,11 +93,6 @@ function getISOTolerance(nominalVolume) {
         }
     }
     return ISO_TOLERANCES[ISO_TOLERANCES.length - 1];
-}
-
-function round(val, decimals) {
-    var factor = Math.pow(10, decimals || 3);
-    return Math.round(val * factor) / factor;
 }
 
 function createPipetteCalibrationChecker() {

@@ -1,5 +1,7 @@
 'use strict';
 
+var round = require('./validation').round;
+
 /**
  * Tissue Culture Media Optimizer — helps researchers formulate, compare,
  * and troubleshoot cell culture media compositions.
@@ -259,11 +261,6 @@ var CELL_REQUIREMENTS = {
     'primary':    { preferredMedia: ['dmem', 'f12'], glucoseNeed: 'medium', glutamineNeed: 'medium', serumPercent: 15, notes: 'Primary cells often need higher serum + growth factors' },
     'stem':       { preferredMedia: ['dmem'], glucoseNeed: 'high', glutamineNeed: 'high', serumPercent: 15, notes: 'May need LIF, bFGF, or other stemness factors' }
 };
-
-function round(n, dp) {
-    var f = Math.pow(10, dp || 2);
-    return Math.round(n * f) / f;
-}
 
 function resolveMedia(key) {
     var k = key.toLowerCase().replace(/[\s\-\']/g, '');
