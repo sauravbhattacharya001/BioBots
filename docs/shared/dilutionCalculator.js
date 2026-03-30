@@ -1,5 +1,7 @@
 'use strict';
 
+var _vRound = require('./validation').round;
+
 /**
  * Reagent Dilution Calculator for BioBots bioprinting workflows.
  *
@@ -334,7 +336,7 @@ function createDilutionCalculator() {
     }
 
     function _round(n) {
-        return Math.round(n * 10000) / 10000;
+        return _vRound(n, 4);
     }
 
     return {

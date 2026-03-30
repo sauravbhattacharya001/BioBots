@@ -1,5 +1,7 @@
 'use strict';
 
+var _vRound = require('./validation').round;
+
 /**
  * Scaffold Geometry Calculator for bioprinting.
  *
@@ -76,8 +78,7 @@ var TISSUE_TARGETS = {
  */
 function _round(val, decimals) {
     if (typeof val !== 'number' || isNaN(val)) return 0;
-    var factor = Math.pow(10, decimals || 4);
-    return Math.round(val * factor) / factor;
+    return _vRound(val, decimals || 4);
 }
 
 /**

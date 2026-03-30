@@ -43,7 +43,7 @@ function validateNonNegative(val, name) {
  * @returns {number} Rounded value.
  */
 function round(val, decimals) {
-  var factor = Math.pow(10, decimals || 2);
+  var factor = Math.pow(10, decimals != null ? decimals : 2);
   return Math.round(val * factor) / factor;
 }
 

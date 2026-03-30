@@ -1,5 +1,7 @@
 'use strict';
 
+var _vRound = require('./validation').round;
+
 /**
  * Standard Curve Calculator — fit a linear regression to known
  * standard concentrations vs. measured signals (absorbance, fluorescence,
@@ -68,8 +70,7 @@ function _linearRegression(points) {
 }
 
 function _round(v, d) {
-    var f = Math.pow(10, d || 6);
-    return Math.round(v * f) / f;
+    return _vRound(v, d || 6);
 }
 
 // ── Factory ────────────────────────────────────────────────────────

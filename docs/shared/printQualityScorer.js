@@ -1,5 +1,7 @@
 'use strict';
 
+var _vClamp = require('./validation').clamp;
+
 /**
  * Print Quality Scorer — evaluates completed bioprint results and assigns
  * composite quality scores with detailed per-dimension breakdowns.
@@ -79,7 +81,7 @@ function createPrintQualityScorer(options) {
 
     function _num(v, d) { return (v != null && typeof v === 'number' && !isNaN(v)) ? v : d; }
     function _r(v, d) { var f = Math.pow(10, d || 1); return Math.round(v * f) / f; }
-    function _clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
+    var _clamp = _vClamp;
 
     /** Linear interpolation score: 0 at low, 100 at high */
     function _linearScore(value, low, high) {
