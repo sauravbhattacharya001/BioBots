@@ -18,7 +18,7 @@
  */
 function validatePositive(val, name) {
   if (typeof val !== 'number' || val <= 0 || !isFinite(val)) {
-    throw new Error(name + ' must be a positive finite number');
+    throw new Error(name + ' must be a positive finite number, got ' + val);
   }
 }
 
@@ -31,7 +31,7 @@ function validatePositive(val, name) {
  */
 function validateNonNegative(val, name) {
   if (typeof val !== 'number' || val < 0 || !isFinite(val)) {
-    throw new Error(name + ' must be a non-negative finite number');
+    throw new Error(name + ' must be a non-negative finite number, got ' + val);
   }
 }
 
