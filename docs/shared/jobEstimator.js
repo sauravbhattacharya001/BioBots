@@ -119,6 +119,29 @@ function createJobEstimator(options) {
     var timingDefaults = Object.assign({}, DEFAULT_TIMING, _stripDangerous(opts.timing || {}));
 
     /**
+     * Validate and resolve layer parameters common to all shaped geometries.
+     * @returns {{ layers: number, layerHeight: number, infill: number }}
+     */
+    function resolveLayerParams(geo, heightMm) {
+        var lh = geo.layerHeight || 0.2;
+        if (lh <= 0 || lh > 5) throw new Error('layerHeight must be 0-5 mm');
+        var layers = geo.layers || (heightMm ? Math.ceil(heightMm / lh) : 1);
+        if (layers < 1 || layers > 500) throw new Error('layers must be 1-500');
+        return { layers: layers, layerHeight: lh, infill: parseInfill(geo) };
+    }
+
+    /**
+     * Apply infill, rounding, and volume unit conversion to a geometry result.
+     */
+    function finalizeVolume(result, rawVolumeMm3, params) {
+        result.layers = params.layers;
+        result.infill = params.infill;
+        result.volumeMm3 = round(rawVolumeMm3 * params.infill, 3);
+        applyVolumeUnits(result);
+        return result;
+    }
+
+    /**
      * Estimate geometry volumes.
      */
     function estimateGeometry(geo) {
@@ -129,26 +152,18 @@ function createJobEstimator(options) {
         if (geo.type === 'wellplate') {
             var spec = WELLPLATE_SPECS[geo.wellplate];
             if (!spec) throw new Error('Invalid wellplate: ' + geo.wellplate + '. Use 6, 12, 24, 48, or 96.');
-            var layers = geo.layers || 1;
-            var lh = geo.layerHeight || 0.2;
-            if (layers < 1 || layers > 500) throw new Error('layers must be 1-500');
-            if (lh <= 0 || lh > 5) throw new Error('layerHeight must be 0-5 mm');
-
-            var wellCount = geo.wellCount || spec.wells;
-            wellCount = Math.min(wellCount, spec.wells);
-
-            var volPerWellMm3 = spec.areaMm2 * lh * layers;
-            var infill = parseInfill(geo);
-            volPerWellMm3 *= infill;
+            var params = resolveLayerParams(geo);
+            var wellCount = Math.min(geo.wellCount || spec.wells, spec.wells);
+            var volPerWellMm3 = spec.areaMm2 * params.layerHeight * params.layers * params.infill;
 
             result.type = 'wellplate';
             result.wellplate = geo.wellplate;
             result.wellCount = wellCount;
             result.areaMm2 = spec.areaMm2;
-            result.layers = layers;
-            result.layerHeight = lh;
-            result.infill = infill;
+            result.layerHeight = params.layerHeight;
             result.volumePerWellMm3 = round(volPerWellMm3, 3);
+            finalizeVolume(result, volPerWellMm3 * wellCount / params.infill, params);
+            // Override volumeMm3 since wellplate computes it differently (already includes infill)
             result.volumeMm3 = round(volPerWellMm3 * wellCount, 3);
             applyVolumeUnits(result);
             result.units = wellCount;
@@ -156,36 +171,24 @@ function createJobEstimator(options) {
             var r = geo.radiusMm || geo.diameterMm / 2;
             var h = geo.heightMm;
             if (!isPositive(r) || !isPositive(h)) throw new Error('cylinder needs radiusMm/diameterMm and heightMm');
-            var layers = geo.layers || Math.ceil(h / (geo.layerHeight || 0.2));
-            var vol = Math.PI * r * r * h;
-            var infill = parseInfill(geo);
-            vol *= infill;
+            var params = resolveLayerParams(geo, h);
 
             result.type = 'cylinder';
             result.radiusMm = r;
             result.heightMm = h;
-            result.layers = layers;
-            result.infill = infill;
             result.areaMm2 = round(Math.PI * r * r, 2);
-            result.volumeMm3 = round(vol, 3);
-            applyVolumeUnits(result);
+            finalizeVolume(result, Math.PI * r * r * h, params);
         } else if (geo.type === 'cuboid') {
             var w = geo.widthMm, l = geo.lengthMm, h = geo.heightMm;
             if (!isPositive(w) || !isPositive(l) || !isPositive(h)) throw new Error('cuboid needs widthMm, lengthMm, heightMm');
-            var layers = geo.layers || Math.ceil(h / (geo.layerHeight || 0.2));
-            var vol = w * l * h;
-            var infill = parseInfill(geo);
-            vol *= infill;
+            var params = resolveLayerParams(geo, h);
 
             result.type = 'cuboid';
             result.widthMm = w;
             result.lengthMm = l;
             result.heightMm = h;
-            result.layers = layers;
-            result.infill = infill;
             result.areaMm2 = round(w * l, 2);
-            result.volumeMm3 = round(vol, 3);
-            applyVolumeUnits(result);
+            finalizeVolume(result, w * l * h, params);
         } else if (geo.type === 'custom' && isPositive(geo.volumeMl)) {
             result.type = 'custom';
             result.volumeMl = geo.volumeMl;
