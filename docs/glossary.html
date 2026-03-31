@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>BioBots 1 — Bioprinting Glossary</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧬</text></svg>">
+    <style>
+        :root {
+            --bg: #0f172a; --surface: #1e293b; --border: #334155;
+            --text: #e2e8f0; --muted: #94a3b8;
+            --accent: #38bdf8; --accent-hover: #7dd3fc;
+            --success: #4ade80; --error: #f87171; --warning: #fbbf24; --purple: #a78bfa;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg); color: var(--text);
+            min-height: 100vh; padding: 2rem 1rem;
+        }
+        .container { max-width: 900px; margin: 0 auto; }
+        header { text-align: center; margin-bottom: 2rem; }
+        header h1 {
+            font-size: 2rem; font-weight: 700;
+            background: linear-gradient(135deg, var(--accent), var(--success));
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+        }
+        header p { color: var(--muted); margin-top: 0.5rem; }
+        .back-link { display: inline-block; color: var(--accent); text-decoration: none; margin-bottom: 1.5rem; font-size: 0.9rem; }
+        .back-link:hover { color: var(--accent-hover); }
+
+        .search-bar {
+            display: flex; gap: 0.75rem; margin-bottom: 1.5rem; flex-wrap: wrap;
+        }
+        .search-bar input {
+            flex: 1; min-width: 200px; background: var(--surface); border: 1px solid var(--border);
+            color: var(--text); padding: 0.7rem 1rem; border-radius: 10px; font-size: 1rem; outline: none;
+        }
+        .search-bar input:focus { border-color: var(--accent); }
+        .search-bar input::placeholder { color: var(--muted); }
+
+        .category-filters { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 1.5rem; }
+        .cat-btn {
+            background: var(--surface); border: 1px solid var(--border); color: var(--muted);
+            padding: 0.4rem 0.9rem; border-radius: 20px; font-size: 0.8rem; cursor: pointer;
+            transition: all 0.2s;
+        }
+        .cat-btn:hover, .cat-btn.active { background: var(--accent); color: var(--bg); border-color: var(--accent); }
+
+        .alpha-nav { display: flex; gap: 0.25rem; flex-wrap: wrap; margin-bottom: 1.5rem; justify-content: center; }
+        .alpha-btn {
+            background: var(--surface); border: 1px solid var(--border); color: var(--muted);
+            width: 32px; height: 32px; border-radius: 6px; font-size: 0.8rem; cursor: pointer;
+            display: flex; align-items: center; justify-content: center; transition: all 0.2s;
+        }
+        .alpha-btn:hover { background: var(--accent); color: var(--bg); border-color: var(--accent); }
+        .alpha-btn.disabled { opacity: 0.3; cursor: default; }
+
+        .stats-row { display: flex; gap: 1rem; margin-bottom: 1.5rem; flex-wrap: wrap; }
+        .stat { background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
+            padding: 0.6rem 1rem; font-size: 0.85rem; }
+        .stat .val { color: var(--accent); font-weight: 700; }
+
+        .letter-section { margin-bottom: 2rem; }
+        .letter-header {
+            font-size: 1.5rem; font-weight: 700; color: var(--accent);
+            border-bottom: 2px solid var(--border); padding-bottom: 0.5rem; margin-bottom: 1rem;
+        }
+
+        .term-card {
+            background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
+            padding: 1.25rem; margin-bottom: 0.75rem; transition: border-color 0.2s;
+        }
+        .term-card:hover { border-color: var(--accent); }
+        .term-name { font-size: 1.1rem; font-weight: 600; color: var(--text); margin-bottom: 0.4rem; }
+        .term-category {
+            display: inline-block; font-size: 0.7rem; padding: 0.2rem 0.6rem; border-radius: 12px;
+            margin-bottom: 0.5rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em;
+        }
+        .cat-materials { background: rgba(74,222,128,0.15); color: var(--success); }
+        .cat-process { background: rgba(56,189,248,0.15); color: var(--accent); }
+        .cat-biology { background: rgba(167,139,250,0.15); color: var(--purple); }
+        .cat-hardware { background: rgba(251,191,36,0.15); color: var(--warning); }
+        .cat-quality { background: rgba(248,113,113,0.15); color: var(--error); }
+        .cat-analysis { background: rgba(56,189,248,0.15); color: var(--accent-hover); }
+        .term-def { color: var(--muted); font-size: 0.9rem; line-height: 1.6; margin-bottom: 0.5rem; }
+        .term-related { font-size: 0.8rem; color: var(--muted); }
+        .term-related a { color: var(--accent); text-decoration: none; cursor: pointer; }
+        .term-related a:hover { text-decoration: underline; }
+        .term-tool { font-size: 0.8rem; margin-top: 0.4rem; }
+        .term-tool a { color: var(--success); text-decoration: none; }
+        .term-tool a:hover { text-decoration: underline; }
+
+        .no-results { text-align: center; padding: 3rem; color: var(--muted); font-size: 1.1rem; }
+
+        .custom-section { background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
+            padding: 1.5rem; margin-bottom: 2rem; }
+        .custom-section h2 { font-size: 1rem; color: var(--muted); margin-bottom: 1rem; }
+        .custom-form { display: flex; flex-direction: column; gap: 0.5rem; }
+        .custom-form input, .custom-form textarea, .custom-form select {
+            background: var(--bg); border: 1px solid var(--border); color: var(--text);
+            padding: 0.5rem 0.7rem; border-radius: 8px; font-size: 0.9rem; outline: none;
+            font-family: inherit;
+        }
+        .custom-form textarea { resize: vertical; min-height: 60px; }
+        .custom-form input:focus, .custom-form textarea:focus { border-color: var(--accent); }
+        .custom-form button {
+            align-self: flex-start; background: var(--accent); color: var(--bg); border: none;
+            padding: 0.5rem 1.2rem; border-radius: 8px; font-weight: 600; cursor: pointer;
+        }
+        .custom-form button:hover { background: var(--accent-hover); }
+        .custom-tag { display: inline-flex; align-items: center; gap: 0.3rem; background: var(--bg);
+            border: 1px solid var(--border); border-radius: 8px; padding: 0.3rem 0.6rem; margin: 0.25rem;
+            font-size: 0.8rem; }
+        .custom-tag .remove { cursor: pointer; color: var(--error); font-weight: 700; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <a href="index.html" class="back-link">← Back to Dashboard</a>
+    <header>
+        <h1>📖 Bioprinting Glossary</h1>
+        <p>Searchable knowledge base of bioprinting terminology</p>
+    </header>
+
+    <div class="stats-row" id="stats"></div>
+
+    <div class="search-bar">
+        <input type="text" id="search" placeholder="Search terms, definitions, or categories…" autofocus />
+    </div>
+
+    <div class="category-filters" id="catFilters"></div>
+    <div class="alpha-nav" id="alphaNav"></div>
+
+    <div id="glossaryContent"></div>
+
+    <div class="custom-section">
+        <h2>➕ Add Custom Term</h2>
+        <div class="custom-form">
+            <input type="text" id="customTerm" placeholder="Term name" />
+            <select id="customCat">
+                <option value="materials">Materials</option>
+                <option value="process">Process</option>
+                <option value="biology">Biology</option>
+                <option value="hardware">Hardware</option>
+                <option value="quality">Quality</option>
+                <option value="analysis">Analysis</option>
+            </select>
+            <textarea id="customDef" placeholder="Definition"></textarea>
+            <button onclick="addCustomTerm()">Add Term</button>
+        </div>
+        <div id="customTermsList" style="margin-top:1rem;"></div>
+    </div>
+</div>
+
+<script>
+var GLOSSARY = [
+    { term: "Alginate", cat: "materials", def: "A natural polysaccharide derived from brown seaweed, widely used as a bioink base material due to its biocompatibility and ability to form hydrogels through ionic crosslinking with calcium chloride.", related: ["Hydrogel", "Crosslinking", "Bioink"], tool: { name: "Materials Library", url: "materials.html" } },
+    { term: "Biocompatibility", cat: "biology", def: "The ability of a material to perform with an appropriate host response when applied in tissue engineering. Biocompatible materials do not produce toxic, immunological, or carcinogenic effects in living tissue.", related: ["Cell Viability", "Cytotoxicity"], tool: { name: "Compatibility Matrix", url: "compatibility.html" } },
+    { term: "Bioink", cat: "materials", def: "A formulation of cells and biomaterials used as the 'ink' in bioprinting. Bioinks must maintain cell viability during printing while providing structural support after deposition.", related: ["Alginate", "Gelatin Methacrylate", "Hydrogel"], tool: { name: "Recipe Builder", url: "recipe.html" } },
+    { term: "Bioprinting", cat: "process", def: "An additive manufacturing process that uses living cells, biomaterials, and growth factors to fabricate biomedical structures. The BioBot 1 uses extrusion-based bioprinting where bioink is dispensed through a nozzle layer by layer.", related: ["Extrusion", "Layer Height", "Print Speed"] },
+    { term: "Calcium Chloride", cat: "materials", def: "A salt (CaCl₂) commonly used as a crosslinking agent for alginate-based bioinks. When alginate contacts calcium ions, it forms a gel through ionic bonds between polymer chains.", related: ["Alginate", "Crosslinking", "Ionic Gelation"], tool: { name: "Mixer", url: "mixer.html" } },
+    { term: "Cell Density", cat: "biology", def: "The concentration of cells within a bioink, typically expressed as cells per milliliter (cells/mL). Optimal cell density varies by tissue type and must balance printability with biological requirements.", related: ["Cell Viability", "Seeding Density"], tool: { name: "Cell Seeding", url: "seeding.html" } },
+    { term: "Cell Viability", cat: "biology", def: "The percentage of living cells that survive the bioprinting process. Measured using assays like live/dead staining or trypan blue exclusion. High viability (>85%) is critical for functional tissue constructs.", related: ["Cell Density", "Shear Stress", "Biocompatibility"], tool: { name: "Growth Tracker", url: "growth.html" } },
+    { term: "Collagen", cat: "materials", def: "The most abundant protein in the extracellular matrix. Used in bioinks to provide structural scaffolding that mimics native tissue architecture. Supports cell adhesion and proliferation.", related: ["Extracellular Matrix", "Gelatin Methacrylate", "Scaffold"] },
+    { term: "Crosslinking", cat: "process", def: "The process of forming chemical or physical bonds between polymer chains to create a stable hydrogel network. In bioprinting, crosslinking solidifies the printed structure. Methods include ionic (CaCl₂ + alginate), UV (photo-crosslinking), and thermal.", related: ["Alginate", "Calcium Chloride", "UV Curing"], tool: { name: "Calibration", url: "calibration.html" } },
+    { term: "Cytotoxicity", cat: "biology", def: "The quality of being toxic to cells. Materials and processes used in bioprinting must be tested for cytotoxicity to ensure they don't harm the cells being printed.", related: ["Biocompatibility", "Cell Viability"] },
+    { term: "Dispensing Pressure", cat: "hardware", def: "The pneumatic pressure (measured in PSI or kPa) applied to extrude bioink through the nozzle. Higher pressure increases flow rate but also shear stress on cells. The BioBot 1 supports precision pressure control.", related: ["Extrusion", "Shear Stress", "Nozzle Diameter"], tool: { name: "Nozzle Advisor", url: "nozzle.html" } },
+    { term: "Extrusion", cat: "process", def: "A bioprinting technique where bioink is forced through a nozzle by pneumatic pressure, mechanical piston, or screw mechanism. The BioBot 1 uses pneumatic extrusion for consistent material flow.", related: ["Dispensing Pressure", "Nozzle Diameter", "Print Speed"], tool: { name: "Simulator", url: "simulator.html" } },
+    { term: "Extracellular Matrix", cat: "biology", def: "The non-cellular component of tissues that provides structural and biochemical support to surrounding cells. Bioinks often incorporate ECM proteins (collagen, fibronectin) to mimic the native cell environment.", related: ["Collagen", "Scaffold", "Gelatin Methacrylate"] },
+    { term: "Filament Width", cat: "quality", def: "The width of the extruded bioink strand after deposition. Controlled by nozzle diameter, pressure, and print speed. Consistent filament width is essential for print resolution and structural integrity.", related: ["Print Resolution", "Nozzle Diameter", "Layer Height"], tool: { name: "Quality Control", url: "quality.html" } },
+    { term: "G-code", cat: "process", def: "The programming language used to control the motion of the bioprinter's print head. G-code commands specify coordinates, speeds, and extrusion parameters for each movement.", related: ["Toolpath", "Print Speed", "Layer Height"], tool: { name: "Toolpath Viewer", url: "toolpath.html" } },
+    { term: "Gelatin Methacrylate", cat: "materials", def: "A modified gelatin (GelMA) that can be photo-crosslinked using UV light. Combines the biocompatibility of gelatin with tunable mechanical properties. Popular bioink component for tissue engineering.", related: ["UV Curing", "Collagen", "Hydrogel"], tool: { name: "Materials Library", url: "materials.html" } },
+    { term: "Hydrogel", cat: "materials", def: "A water-swollen network of polymer chains used as the primary structural component of most bioinks. Hydrogels provide a 3D environment that mimics the extracellular matrix and supports cell growth.", related: ["Alginate", "Gelatin Methacrylate", "Crosslinking"], tool: { name: "Rheology Analyzer", url: "rheology.html" } },
+    { term: "Infill Density", cat: "process", def: "The percentage of internal volume filled with material in a printed construct. Higher infill provides more structural support but uses more bioink and increases print time.", related: ["Scaffold", "Porosity", "Toolpath"] },
+    { term: "Ionic Gelation", cat: "process", def: "A crosslinking method where multivalent ions (typically Ca²⁺) bridge negatively charged polymer chains (like alginate) to form a gel. Gentle enough to maintain high cell viability.", related: ["Calcium Chloride", "Alginate", "Crosslinking"] },
+    { term: "Layer Height", cat: "process", def: "The vertical thickness of each printed layer, typically 100–500 µm in bioprinting. Smaller layer heights improve resolution but increase print time. Must be matched to nozzle diameter.", related: ["Print Resolution", "Nozzle Diameter", "Z-axis"], tool: { name: "Data Explorer", url: "explorer.html" } },
+    { term: "Live/Dead Assay", cat: "biology", def: "A fluorescence-based assay used to assess cell viability after bioprinting. Live cells fluoresce green (calcein AM) while dead cells fluoresce red (ethidium homodimer). Results indicate print process biocompatibility.", related: ["Cell Viability", "Cytotoxicity", "Biocompatibility"] },
+    { term: "Nozzle Diameter", cat: "hardware", def: "The inner diameter of the print nozzle, typically ranging from 100 µm to 1 mm in bioprinting. Smaller nozzles improve resolution but require higher pressure and impose more shear stress on cells.", related: ["Print Resolution", "Dispensing Pressure", "Shear Stress"], tool: { name: "Nozzle Advisor", url: "nozzle.html" } },
+    { term: "Photo-crosslinking", cat: "process", def: "Crosslinking initiated by light (usually UV at 365–405 nm). Used with photo-sensitive bioinks like GelMA. Exposure time and intensity must be optimized to balance gelation with cell viability.", related: ["UV Curing", "Gelatin Methacrylate", "Crosslinking"] },
+    { term: "Pluronic", cat: "materials", def: "A thermosensitive triblock copolymer (Pluronic F-127) used as a sacrificial support material in bioprinting. It's a gel at room temperature but dissolves at lower temperatures, allowing complex geometries.", related: ["Scaffold", "Hydrogel"] },
+    { term: "Porosity", cat: "quality", def: "The fraction of void space within a printed scaffold. Controlled porosity is crucial for nutrient diffusion, waste removal, and cell migration in tissue-engineered constructs.", related: ["Scaffold", "Infill Density"], tool: { name: "Scaffold Designer", url: "scaffold.html" } },
+    { term: "Print Resolution", cat: "quality", def: "The smallest feature size that can be reliably reproduced by the bioprinter, determined by nozzle diameter, pressure, speed, and bioink rheology. The BioBot 1 achieves resolution down to ~100 µm.", related: ["Nozzle Diameter", "Filament Width", "Layer Height"], tool: { name: "Quality Control", url: "quality.html" } },
+    { term: "Print Speed", cat: "process", def: "The velocity of the print head during deposition, typically 1–20 mm/s in bioprinting. Affects filament width, print resolution, and shear stress on cells. Must be optimized with pressure.", related: ["Dispensing Pressure", "Filament Width", "Shear Stress"], tool: { name: "Optimizer", url: "optimizer.html" } },
+    { term: "Rheology", cat: "analysis", def: "The study of flow and deformation of materials. In bioprinting, rheological properties (viscosity, shear thinning, yield stress) determine a bioink's printability and shape fidelity after deposition.", related: ["Viscosity", "Shear Thinning", "Bioink"], tool: { name: "Rheology Analyzer", url: "rheology.html" } },
+    { term: "Scaffold", cat: "materials", def: "A 3D structure that provides mechanical support and guides tissue formation. In bioprinting, scaffolds are printed from bioinks and designed with controlled geometry and porosity for specific tissue applications.", related: ["Porosity", "Infill Density", "Extracellular Matrix"], tool: { name: "Scaffold Designer", url: "scaffold.html" } },
+    { term: "Seeding Density", cat: "biology", def: "The initial concentration of cells loaded into a bioink or deposited onto a scaffold. Optimal seeding density depends on cell type, construct geometry, and intended tissue application.", related: ["Cell Density", "Cell Viability"], tool: { name: "Cell Seeding", url: "seeding.html" } },
+    { term: "Shear Stress", cat: "biology", def: "The mechanical force per unit area experienced by cells as bioink flows through the nozzle. Excessive shear stress damages cell membranes and reduces viability. Managed by controlling pressure, nozzle size, and bioink viscosity.", related: ["Dispensing Pressure", "Nozzle Diameter", "Viscosity"] },
+    { term: "Shear Thinning", cat: "analysis", def: "A rheological property where a material's viscosity decreases under increasing shear rate. Ideal for bioinks: thick enough to hold shape at rest, but flows easily through the nozzle during printing.", related: ["Rheology", "Viscosity", "Bioink"] },
+    { term: "Sterility", cat: "quality", def: "The absence of viable microorganisms. Maintaining sterility throughout the bioprinting workflow is essential to prevent contamination of cell-laden constructs. Requires sterile materials, equipment, and environment.", related: ["Contamination", "Autoclave"], tool: { name: "Sterilization", url: "sterilization.html" } },
+    { term: "Tissue Engineering", cat: "biology", def: "An interdisciplinary field combining biology, materials science, and engineering to develop functional tissue substitutes. Bioprinting is a key fabrication technique in tissue engineering.", related: ["Bioprinting", "Scaffold", "Extracellular Matrix"] },
+    { term: "Toolpath", cat: "process", def: "The planned trajectory of the print head during bioprinting. Generated from a 3D model and determines the pattern of material deposition for each layer (rectilinear, honeycomb, concentric, etc.).", related: ["G-code", "Infill Density", "Print Speed"], tool: { name: "Toolpath Viewer", url: "toolpath.html" } },
+    { term: "UV Curing", cat: "process", def: "The process of using ultraviolet light to initiate photo-crosslinking of bioinks containing photo-sensitive components (e.g., GelMA). Exposure parameters (wavelength, intensity, duration) affect both gelation and cell viability.", related: ["Photo-crosslinking", "Gelatin Methacrylate", "Crosslinking"] },
+    { term: "Viscosity", cat: "analysis", def: "A measure of a fluid's resistance to flow, expressed in Pascal-seconds (Pa·s) or centipoise (cP). Bioink viscosity affects printability: too low and the structure collapses, too high and nozzle clogging occurs.", related: ["Rheology", "Shear Thinning", "Bioink"], tool: { name: "Rheology Analyzer", url: "rheology.html" } },
+    { term: "Yield Stress", cat: "analysis", def: "The minimum stress required to initiate flow in a material. Bioinks with appropriate yield stress maintain their shape after extrusion (shape fidelity) while still being extrudable at printing pressures.", related: ["Rheology", "Viscosity", "Shape Fidelity"] },
+    { term: "Z-axis", cat: "hardware", def: "The vertical axis of the bioprinter, controlling layer-by-layer build height. Precise Z-axis movement determines layer height accuracy and overall construct dimensions.", related: ["Layer Height", "Print Resolution"], tool: { name: "Calibration", url: "calibration.html" } }
+];
+
+var CATEGORIES = {
+    materials: { label: "Materials", cls: "cat-materials" },
+    process: { label: "Process", cls: "cat-process" },
+    biology: { label: "Biology", cls: "cat-biology" },
+    hardware: { label: "Hardware", cls: "cat-hardware" },
+    quality: { label: "Quality", cls: "cat-quality" },
+    analysis: { label: "Analysis", cls: "cat-analysis" }
+};
+
+var activeCategory = null;
+var activeLetter = null;
+var customTerms = JSON.parse(localStorage.getItem("biobots-glossary-custom") || "[]");
+
+function getAllTerms() {
+    return GLOSSARY.concat(customTerms).sort(function(a, b) {
+        return a.term.toLowerCase().localeCompare(b.term.toLowerCase());
+    });
+}
+
+function renderStats() {
+    var all = getAllTerms();
+    var cats = {};
+    all.forEach(function(t) { cats[t.cat] = (cats[t.cat] || 0) + 1; });
+    var html = '<div class="stat"><span class="val">' + all.length + '</span> Total Terms</div>';
+    Object.keys(CATEGORIES).forEach(function(c) {
+        if (cats[c]) html += '<div class="stat"><span class="val">' + cats[c] + '</span> ' + CATEGORIES[c].label + '</div>';
+    });
+    document.getElementById("stats").innerHTML = html;
+}
+
+function renderCatFilters() {
+    var html = '<button class="cat-btn' + (!activeCategory ? ' active' : '') + '" onclick="filterCat(null)">All</button>';
+    Object.keys(CATEGORIES).forEach(function(c) {
+        html += '<button class="cat-btn' + (activeCategory === c ? ' active' : '') + '" onclick="filterCat(\'' + c + '\')">' + CATEGORIES[c].label + '</button>';
+    });
+    document.getElementById("catFilters").innerHTML = html;
+}
+
+function renderAlphaNav() {
+    var all = getAllTerms();
+    var letters = {};
+    all.forEach(function(t) { letters[t.term.charAt(0).toUpperCase()] = true; });
+    var html = '';
+    for (var i = 65; i <= 90; i++) {
+        var ch = String.fromCharCode(i);
+        var has = !!letters[ch];
+        html += '<button class="alpha-btn' + (!has ? ' disabled' : '') + (activeLetter === ch ? ' active' : '') + '"' +
+            (has ? ' onclick="filterLetter(\'' + ch + '\')"' : '') + '>' + ch + '</button>';
+    }
+    document.getElementById("alphaNav").innerHTML = html;
+}
+
+function filterCat(cat) {
+    activeCategory = activeCategory === cat ? null : cat;
+    render();
+}
+
+function filterLetter(letter) {
+    activeLetter = activeLetter === letter ? null : letter;
+    render();
+}
+
+function render() {
+    var query = document.getElementById("search").value.toLowerCase().trim();
+    var all = getAllTerms();
+    var filtered = all.filter(function(t) {
+        if (activeCategory && t.cat !== activeCategory) return false;
+        if (activeLetter && t.term.charAt(0).toUpperCase() !== activeLetter) return false;
+        if (query) {
+            return t.term.toLowerCase().indexOf(query) !== -1 ||
+                t.def.toLowerCase().indexOf(query) !== -1 ||
+                (CATEGORIES[t.cat] && CATEGORIES[t.cat].label.toLowerCase().indexOf(query) !== -1);
+        }
+        return true;
+    });
+
+    renderStats();
+    renderCatFilters();
+    renderAlphaNav();
+
+    if (filtered.length === 0) {
+        document.getElementById("glossaryContent").innerHTML = '<div class="no-results">No terms found. Try a different search or add a custom term below.</div>';
+        return;
+    }
+
+    // Group by letter
+    var groups = {};
+    filtered.forEach(function(t) {
+        var l = t.term.charAt(0).toUpperCase();
+        if (!groups[l]) groups[l] = [];
+        groups[l].push(t);
+    });
+
+    var html = '';
+    Object.keys(groups).sort().forEach(function(letter) {
+        html += '<div class="letter-section" id="letter-' + letter + '">';
+        html += '<div class="letter-header">' + letter + '</div>';
+        groups[letter].forEach(function(t) {
+            html += '<div class="term-card">';
+            html += '<div class="term-name">' + escHtml(t.term) + '</div>';
+            html += '<span class="term-category ' + (CATEGORIES[t.cat] ? CATEGORIES[t.cat].cls : '') + '">' +
+                (CATEGORIES[t.cat] ? CATEGORIES[t.cat].label : t.cat) + '</span>';
+            html += '<div class="term-def">' + escHtml(t.def) + '</div>';
+            if (t.related && t.related.length) {
+                html += '<div class="term-related">Related: ' +
+                    t.related.map(function(r) { return '<a onclick="searchFor(\'' + escAttr(r) + '\')">' + escHtml(r) + '</a>'; }).join(', ') +
+                    '</div>';
+            }
+            if (t.tool) {
+                html += '<div class="term-tool">🔧 <a href="' + escAttr(t.tool.url) + '">' + escHtml(t.tool.name) + '</a></div>';
+            }
+            if (t.custom) {
+                html += '<div style="margin-top:0.4rem"><button onclick="removeCustom(\'' + escAttr(t.term) + '\')" style="background:var(--error);font-size:0.75rem;padding:0.2rem 0.6rem;">Remove</button></div>';
+            }
+            html += '</div>';
+        });
+        html += '</div>';
+    });
+
+    document.getElementById("glossaryContent").innerHTML = html;
+}
+
+function searchFor(term) {
+    document.getElementById("search").value = term;
+    activeCategory = null;
+    activeLetter = null;
+    render();
+}
+
+function escHtml(s) { var d = document.createElement("div"); d.textContent = s; return d.innerHTML; }
+function escAttr(s) { return s.replace(/'/g, "\\'").replace(/"/g, "&quot;"); }
+
+function addCustomTerm() {
+    var term = document.getElementById("customTerm").value.trim();
+    var cat = document.getElementById("customCat").value;
+    var def = document.getElementById("customDef").value.trim();
+    if (!term || !def) return;
+    customTerms.push({ term: term, cat: cat, def: def, related: [], custom: true });
+    localStorage.setItem("biobots-glossary-custom", JSON.stringify(customTerms));
+    document.getElementById("customTerm").value = "";
+    document.getElementById("customDef").value = "";
+    render();
+    renderCustomList();
+}
+
+function removeCustom(term) {
+    customTerms = customTerms.filter(function(t) { return t.term !== term; });
+    localStorage.setItem("biobots-glossary-custom", JSON.stringify(customTerms));
+    render();
+    renderCustomList();
+}
+
+function renderCustomList() {
+    if (!customTerms.length) { document.getElementById("customTermsList").innerHTML = ""; return; }
+    var html = customTerms.map(function(t) {
+        return '<span class="custom-tag">' + escHtml(t.term) + ' <span class="remove" onclick="removeCustom(\'' + escAttr(t.term) + '\')">×</span></span>';
+    }).join("");
+    document.getElementById("customTermsList").innerHTML = html;
+}
+
+document.getElementById("search").addEventListener("input", function() {
+    activeLetter = null;
+    render();
+});
+
+render();
+renderCustomList();
+</script>
+</body>
+</html>
