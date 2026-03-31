@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Unit Converter — BioBots 1</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧬</text></svg>">
+    <style>
+        :root {
+            --bg: #0f172a;
+            --surface: #1e293b;
+            --border: #334155;
+            --text: #e2e8f0;
+            --muted: #94a3b8;
+            --accent: #38bdf8;
+            --accent-hover: #7dd3fc;
+            --success: #4ade80;
+            --warning: #fbbf24;
+            --error: #f87171;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            padding: 2rem 1rem;
+        }
+        header { text-align: center; margin-bottom: 2rem; }
+        header h1 {
+            font-size: 2rem; font-weight: 700;
+            background: linear-gradient(135deg, var(--accent), var(--success));
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+        }
+        header p { color: var(--muted); margin-top: 0.5rem; }
+        nav { display: flex; justify-content: center; gap: 0.5rem; margin-bottom: 2rem; flex-wrap: wrap; }
+        nav a {
+            color: var(--muted); padding: 0.5rem 1rem; border-radius: 8px;
+            text-decoration: none; font-size: 0.9rem; transition: all 0.2s;
+        }
+        nav a:hover { color: var(--accent); }
+        .container { max-width: 800px; margin: 0 auto; }
+        .card {
+            background: var(--surface); border: 1px solid var(--border);
+            border-radius: 12px; padding: 1.5rem; margin-bottom: 1.5rem;
+        }
+        .card h2 { font-size: 1.1rem; margin-bottom: 1rem; color: var(--accent); }
+        label { display: block; color: var(--muted); font-size: 0.85rem; margin-bottom: 0.3rem; }
+        input, select {
+            width: 100%; padding: 0.6rem 0.8rem; border-radius: 8px;
+            border: 1px solid var(--border); background: var(--bg); color: var(--text);
+            font-size: 1rem; margin-bottom: 1rem; outline: none; transition: border 0.2s;
+        }
+        input:focus, select:focus { border-color: var(--accent); }
+        .row { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+        .swap-btn {
+            display: flex; align-items: center; justify-content: center;
+            background: var(--surface); border: 1px solid var(--border); color: var(--accent);
+            width: 40px; height: 40px; border-radius: 50%; cursor: pointer;
+            font-size: 1.2rem; margin: 0 auto 1rem; transition: all 0.2s;
+        }
+        .swap-btn:hover { background: var(--border); transform: rotate(180deg); }
+        .result-box {
+            background: var(--bg); border: 1px solid var(--border); border-radius: 8px;
+            padding: 1rem; text-align: center; font-size: 1.5rem; font-weight: 700;
+            color: var(--success); word-break: break-all;
+        }
+        .result-box .formula { font-size: 0.85rem; color: var(--muted); font-weight: 400; margin-top: 0.5rem; }
+        .all-conversions {
+            display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+            gap: 0.5rem; margin-top: 1rem;
+        }
+        .conv-item {
+            background: var(--bg); border: 1px solid var(--border); border-radius: 8px;
+            padding: 0.6rem 0.8rem; display: flex; justify-content: space-between;
+            align-items: center; cursor: pointer; transition: border 0.2s;
+        }
+        .conv-item:hover { border-color: var(--accent); }
+        .conv-item .unit { color: var(--muted); font-size: 0.85rem; }
+        .conv-item .val { font-weight: 600; color: var(--text); font-size: 0.95rem; }
+        .cat-tabs {
+            display: flex; flex-wrap: wrap; gap: 0.4rem; margin-bottom: 1.5rem; justify-content: center;
+        }
+        .cat-tab {
+            padding: 0.4rem 0.9rem; border-radius: 20px; border: 1px solid var(--border);
+            background: var(--surface); color: var(--muted); cursor: pointer;
+            font-size: 0.85rem; transition: all 0.2s;
+        }
+        .cat-tab:hover { color: var(--accent); border-color: var(--accent); }
+        .cat-tab.active { background: var(--accent); color: var(--bg); border-color: var(--accent); }
+        .quick-ref { margin-top: 1rem; }
+        .quick-ref table {
+            width: 100%; border-collapse: collapse; font-size: 0.85rem;
+        }
+        .quick-ref th, .quick-ref td {
+            padding: 0.5rem; text-align: right; border-bottom: 1px solid var(--border);
+        }
+        .quick-ref th { color: var(--accent); text-align: left; }
+        .quick-ref td:first-child { text-align: left; color: var(--muted); }
+        .copy-toast {
+            position: fixed; bottom: 2rem; left: 50%; transform: translateX(-50%);
+            background: var(--success); color: var(--bg); padding: 0.5rem 1.2rem;
+            border-radius: 8px; font-size: 0.9rem; opacity: 0; transition: opacity 0.3s;
+            pointer-events: none; z-index: 100;
+        }
+        .copy-toast.show { opacity: 1; }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>🔄 Unit Converter</h1>
+        <p>Convert between laboratory and bioprinting units — volume, mass, temperature, pressure, and more</p>
+    </header>
+
+    <nav>
+        <a href="index.html">Dashboard</a>
+        <a href="calculator.html">Calculator</a>
+        <a href="explorer.html">Explorer</a>
+        <a href="unit-converter.html" class="active" style="color:var(--accent);background:var(--surface);border:1px solid var(--border);">Unit Converter</a>
+    </nav>
+
+    <div class="container">
+        <!-- Category tabs -->
+        <div class="cat-tabs" id="catTabs"></div>
+
+        <!-- Converter card -->
+        <div class="card">
+            <h2>Convert</h2>
+            <div class="row">
+                <div>
+                    <label>Value</label>
+                    <input type="number" id="inputValue" value="1" step="any" />
+                </div>
+                <div>
+                    <label>From</label>
+                    <select id="fromUnit"></select>
+                </div>
+            </div>
+            <button class="swap-btn" id="swapBtn" title="Swap units">⇅</button>
+            <div class="row">
+                <div>
+                    <label>Result</label>
+                    <div class="result-box" id="resultBox">—</div>
+                </div>
+                <div>
+                    <label>To</label>
+                    <select id="toUnit"></select>
+                </div>
+            </div>
+        </div>
+
+        <!-- All conversions -->
+        <div class="card">
+            <h2>All Conversions</h2>
+            <div class="all-conversions" id="allConversions"></div>
+        </div>
+
+        <!-- Quick reference -->
+        <div class="card">
+            <h2>Quick Reference</h2>
+            <div class="quick-ref" id="quickRef"></div>
+        </div>
+    </div>
+
+    <div class="copy-toast" id="copyToast">Copied!</div>
+
+    <script src="shared/unitConverter.js"></script>
+    <script>
+        var converter = createUnitConverter();
+        var categories = converter.listCategories();
+        var currentCat = 'Volume';
+
+        var catTabs = document.getElementById('catTabs');
+        var fromUnit = document.getElementById('fromUnit');
+        var toUnit = document.getElementById('toUnit');
+        var inputValue = document.getElementById('inputValue');
+        var resultBox = document.getElementById('resultBox');
+        var allConversions = document.getElementById('allConversions');
+        var quickRef = document.getElementById('quickRef');
+        var swapBtn = document.getElementById('swapBtn');
+        var copyToast = document.getElementById('copyToast');
+
+        var catEmojis = {
+            'Flow Rate': '💧', 'Force': '💪', 'Length': '📏', 'Mass': '⚖️',
+            'Pressure': '🔧', 'Print Speed': '🖨️', 'Temperature': '🌡️',
+            'Time': '⏱️', 'Volume': '🧪'
+        };
+
+        function renderTabs() {
+            catTabs.innerHTML = '';
+            categories.forEach(function(cat) {
+                var btn = document.createElement('button');
+                btn.className = 'cat-tab' + (cat === currentCat ? ' active' : '');
+                btn.textContent = (catEmojis[cat] || '') + ' ' + cat;
+                btn.onclick = function() { currentCat = cat; renderTabs(); populateUnits(); doConvert(); renderQuickRef(); };
+                catTabs.appendChild(btn);
+            });
+        }
+
+        function populateUnits() {
+            var units = converter.listUnits(currentCat);
+            fromUnit.innerHTML = '';
+            toUnit.innerHTML = '';
+            units.forEach(function(u, i) {
+                fromUnit.appendChild(new Option(u, u));
+                toUnit.appendChild(new Option(u, u));
+            });
+            if (units.length > 1) toUnit.selectedIndex = 1;
+        }
+
+        function formatNumber(n) {
+            if (Math.abs(n) === 0) return '0';
+            if (Math.abs(n) >= 1e9 || (Math.abs(n) < 1e-6 && n !== 0)) return n.toExponential(4);
+            // Show up to 6 significant digits
+            var s = parseFloat(n.toPrecision(6));
+            return s.toString();
+        }
+
+        function doConvert() {
+            var val = parseFloat(inputValue.value);
+            if (isNaN(val)) { resultBox.innerHTML = '—'; allConversions.innerHTML = ''; return; }
+            try {
+                var res = converter.convert(val, fromUnit.value, toUnit.value);
+                resultBox.innerHTML = formatNumber(res.value) +
+                    '<div class="formula">' + val + ' ' + fromUnit.value + ' = ' + formatNumber(res.value) + ' ' + toUnit.value + '</div>';
+
+                var all = converter.convertAll(val, fromUnit.value);
+                allConversions.innerHTML = '';
+                var keys = Object.keys(all.conversions);
+                keys.forEach(function(u) {
+                    var item = document.createElement('div');
+                    item.className = 'conv-item';
+                    item.innerHTML = '<span class="val">' + formatNumber(all.conversions[u]) + '</span><span class="unit">' + u + '</span>';
+                    item.onclick = function() {
+                        navigator.clipboard.writeText(formatNumber(all.conversions[u]));
+                        copyToast.classList.add('show');
+                        setTimeout(function() { copyToast.classList.remove('show'); }, 1200);
+                    };
+                    allConversions.appendChild(item);
+                });
+            } catch(e) {
+                resultBox.innerHTML = '<span style="color:var(--error)">' + e.message + '</span>';
+            }
+        }
+
+        function renderQuickRef() {
+            if (currentCat === 'Temperature') {
+                var ref = converter.referenceTable('Temperature');
+                var html = '<table><tr><th>Reference</th><th>°C</th><th>°F</th><th>K</th></tr>';
+                ref.references.forEach(function(r) {
+                    html += '<tr><td>' + r.label + '</td><td>' + r.conversions['°C'] + '</td><td>' + r.conversions['°F'] + '</td><td>' + r.conversions['K'] + '</td></tr>';
+                });
+                html += '</table>';
+                quickRef.innerHTML = html;
+            } else {
+                var units = converter.listUnits(currentCat);
+                if (units.length > 8) {
+                    quickRef.innerHTML = '<p style="color:var(--muted);font-size:0.85rem;">Use the converter above for this category.</p>';
+                    return;
+                }
+                var html = '<table><tr><th></th>';
+                units.forEach(function(u) { html += '<th>' + u + '</th>'; });
+                html += '</tr>';
+                units.forEach(function(from) {
+                    html += '<tr><td>' + from + '</td>';
+                    units.forEach(function(to) {
+                        try {
+                            var r = converter.convert(1, from, to);
+                            html += '<td>' + formatNumber(r.value) + '</td>';
+                        } catch(e) { html += '<td>—</td>'; }
+                    });
+                    html += '</tr>';
+                });
+                html += '</table>';
+                quickRef.innerHTML = html;
+            }
+        }
+
+        swapBtn.onclick = function() {
+            var tmp = fromUnit.selectedIndex;
+            fromUnit.selectedIndex = toUnit.selectedIndex;
+            toUnit.selectedIndex = tmp;
+            doConvert();
+        };
+
+        inputValue.oninput = doConvert;
+        fromUnit.onchange = doConvert;
+        toUnit.onchange = doConvert;
+
+        renderTabs();
+        populateUnits();
+        doConvert();
+        renderQuickRef();
+    </script>
+</body>
+</html>

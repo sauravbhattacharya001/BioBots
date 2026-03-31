@@ -73,6 +73,7 @@ var manifest = [
     ['createExperimentRandomizer',     './docs/shared/experimentRandomizer', 'createExperimentRandomizer'],
     ['createMycoplasmaTestLogger',     './docs/shared/mycoplasmaTest',       'createMycoplasmaTestLogger'],
     ['createStandardCurveCalculator',  './docs/shared/standardCurve',        'createStandardCurveCalculator'],
+    ['createUnitConverter',            './docs/shared/unitConverter',         'createUnitConverter'],
 ];
 
 // ── Pre-computed lookup structures ─────────────────────────────────
