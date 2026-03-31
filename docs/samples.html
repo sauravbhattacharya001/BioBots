@@ -735,7 +735,7 @@ function exportLabels() {
         </div>
     `).join('');
     const win = window.open('','_blank');
-    win.document.write(`<html><head><title>Sample Labels</title><style>@media print{body{margin:0}}</style></head><body>${labels}</body></html>`);
+    win.document.write(`<html><head><title>Sample Labels</title><style>@media print{body{margin:0}}</style></head><body>${labels}    <script src="shared/commandPalette.js"></script>`n</body></html>`);
     win.document.close();
 }
 
@@ -857,5 +857,5 @@ function renderAll() {
 /* ── Init ─────────────────────────────────────────────── */
 renderAll();
 </script>
-</body>
+    <script src="shared/commandPalette.js"></script>`n</body>
 </html>

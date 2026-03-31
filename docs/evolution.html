@@ -156,5 +156,5 @@
     function renderBars(t,snap){const c=document.getElementById('fb-'+t);if(!c)return;const e=Object.entries(snap.frequencies).sort((a,b)=>b[1]-a[1]),sk=[...new Set(Object.keys(snap.frequencies))].sort();c.innerHTML=e.map(([a,f])=>{const ci=sk.indexOf(a)%COLORS.length;return`<div class="freq-bar"><span class="allele">${esc(a)}</span><div class="track"><div class="fill" style="width:${(f*100).toFixed(1)}%;background:${COLORS[ci]}"></div></div><span class="pct">${(f*100).toFixed(1)}%</span></div>`}).join('')}
     function renderEvents(){const ec=document.getElementById('events-card');if(!tracker||!tracker.selectionEvents.length){ec.style.display='none';return}ec.style.display='block';document.getElementById('event-count').textContent=tracker.selectionEvents.length+' events detected';const el=document.getElementById('event-list'),ev=[...tracker.selectionEvents].reverse().slice(0,50);el.innerHTML=ev.map(e=>{const s=e.direction==='positive'?'+':'';return`<div class="event-item"><span><strong>${esc(e.traitName)}</strong> allele ${esc(e.allele)} @ gen ${e.generation}</span><span class="tag ${esc(e.direction)}">${s}${e.coefficient.toFixed(3)}</span></div>`}).join('')}
     </script>
-</body>
+    <script src="shared/commandPalette.js"></script>`n</body>
 </html>

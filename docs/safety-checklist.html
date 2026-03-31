@@ -121,5 +121,5 @@ function renderFindings(){var open=allFindings.filter(function(f){return f.statu
 function resolve(id){mgr.resolveFinding(id,{correctedBy:'Lab Tech',action:'Corrected'});allFindings=allFindings.map(function(f){if(f.id===id)f.status='closed';return f});renderFindings();updateStats()}
 updateStats();
 </script>
-</body>
+    <script src="shared/commandPalette.js"></script>`n</body>
 </html>
