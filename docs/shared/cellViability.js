@@ -136,16 +136,18 @@ function createCellViabilityCalculator() {
     }
 
     /**
-     * Batch analysis: compute mean, SD from replicate count-based measurements.
+     * Generic batch analysis: run an assay function over replicates and
+     * compute summary statistics (mean, SD) on viabilityPct.
+     * @private
      */
-    function batchCounts(replicates) {
+    function _batchAnalysis(replicates, assayFn) {
         if (!Array.isArray(replicates) || replicates.length === 0) {
             throw new Error('Replicates must be a non-empty array');
         }
         var results = [];
         var viabilities = [];
         for (var i = 0; i < replicates.length; i++) {
-            var r = fromCounts(replicates[i]);
+            var r = assayFn(replicates[i]);
             results.push(r);
             viabilities.push(r.viabilityPct);
         }
@@ -158,25 +160,31 @@ function createCellViabilityCalculator() {
     }
 
     /**
+     * Batch analysis: compute mean, SD from replicate count-based measurements.
+     */
+    function batchCounts(replicates) {
+        return _batchAnalysis(replicates, fromCounts);
+    }
+
+    /**
      * Batch analysis for absorbance-based assays.
      */
     function batchAbsorbance(replicates) {
-        if (!Array.isArray(replicates) || replicates.length === 0) {
-            throw new Error('Replicates must be a non-empty array');
-        }
-        var results = [];
-        var viabilities = [];
-        for (var i = 0; i < replicates.length; i++) {
-            var r = fromAbsorbance(replicates[i]);
-            results.push(r);
-            viabilities.push(r.viabilityPct);
-        }
-        return {
-            mean: round(mean(viabilities)),
-            sd: round(stddev(viabilities)),
-            n: replicates.length,
-            replicates: results
-        };
+        return _batchAnalysis(replicates, fromAbsorbance);
+    }
+
+    /**
+     * Batch analysis for LDH-based assays.
+     */
+    function batchLdh(replicates) {
+        return _batchAnalysis(replicates, fromLdh);
+    }
+
+    /**
+     * Batch analysis for fluorescence-based assays.
+     */
+    function batchFluorescence(replicates) {
+        return _batchAnalysis(replicates, fromFluorescence);
     }
 
     /**
@@ -229,6 +237,8 @@ function createCellViabilityCalculator() {
         fromFluorescence: fromFluorescence,
         batchCounts: batchCounts,
         batchAbsorbance: batchAbsorbance,
+        batchLdh: batchLdh,
+        batchFluorescence: batchFluorescence,
         doseResponse: doseResponse
     };
 }
