@@ -11,15 +11,52 @@
 
 /**
  * Arithmetic mean of a numeric array.
+ * Uses Kahan compensated summation for improved numerical stability
+ * when accumulating many floating-point values.
  *
  * @param {number[]} arr - Array of numbers.
  * @returns {number} Mean value, or 0 for empty arrays.
  */
 function mean(arr) {
     if (!arr.length) return 0;
-    var s = 0;
-    for (var i = 0; i < arr.length; i++) s += arr[i];
-    return s / arr.length;
+    var sum = 0;
+    var compensation = 0;
+    for (var i = 0; i < arr.length; i++) {
+        var y = arr[i] - compensation;
+        var t = sum + y;
+        compensation = (t - sum) - y;
+        sum = t;
+    }
+    return sum / arr.length;
+}
+
+/**
+ * Median of a numeric array (returns the average of the two middle
+ * values for even-length arrays).
+ *
+ * @param {number[]} arr - Array of numbers (not modified).
+ * @returns {number} Median value, or 0 for empty arrays.
+ */
+function median(arr) {
+    if (!arr.length) return 0;
+    var sorted = arr.slice().sort(function (a, b) { return a - b; });
+    var mid = Math.floor(sorted.length / 2);
+    return sorted.length % 2 !== 0
+        ? sorted[mid]
+        : (sorted[mid - 1] + sorted[mid]) / 2;
+}
+
+/**
+ * Coefficient of variation (CV) as a percentage: (stddev / mean) * 100.
+ * Returns 0 when mean is zero to avoid division by zero.
+ *
+ * @param {number[]} arr - Array of numbers.
+ * @returns {number} CV percentage, or 0 for degenerate inputs.
+ */
+function cv(arr) {
+    var m = mean(arr);
+    if (m === 0) return 0;
+    return (stddev(arr, m) / Math.abs(m)) * 100;
 }
 
 /**
@@ -53,5 +90,7 @@ function pstddev(arr, avg) {
 }
 
 exports.mean = mean;
+exports.median = median;
+exports.cv = cv;
 exports.stddev = stddev;
 exports.pstddev = pstddev;
