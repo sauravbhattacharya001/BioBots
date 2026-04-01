@@ -30,6 +30,10 @@ var _vClamp = require('./validation').clamp;
  *
  * @module printQualityScorer
  */
+// Priority sort order — hoisted outside the factory to avoid re-creating
+// on every _generateRecommendations call.
+var _PRIORITY_ORDER = { high: 0, medium: 1, low: 2 };
+
 function createPrintQualityScorer(options) {
     options = options || {};
 
@@ -404,9 +408,11 @@ function createPrintQualityScorer(options) {
      * Score a single print record.
      *
      * @param {Object} record - A print record with print_data and print_info
+     * @param {Object} [opts] - Options
+     * @param {boolean} [opts.skipRecommendations=false] - Skip generating recommendations for faster batch scoring
      * @returns {Object} Score result with composite, grade, and dimension breakdowns
      */
-    function score(record) {
+    function score(record, opts) {
         if (!record || typeof record !== 'object') {
             throw new Error('Record must be a non-null object');
         }
@@ -450,7 +456,7 @@ function createPrintQualityScorer(options) {
         var weakest = dimensions[0];
         var strongest = dimensions[dimensions.length - 1];
 
-        return {
+        var result = {
             composite: composite,
             grade: g,
             label: _gradeLabel(g),
@@ -465,8 +471,10 @@ function createPrintQualityScorer(options) {
                 pressure: pressure
             },
             weights: Object.assign({}, weights),
-            recommendations: _generateRecommendations(viability, structural, crosslinking, resolution, pressure)
+            recommendations: (opts && opts.skipRecommendations) ? [] : _generateRecommendations(viability, structural, crosslinking, resolution, pressure)
         };
+
+        return result;
     }
 
     /**
@@ -537,9 +545,8 @@ function createPrintQualityScorer(options) {
         }
 
         recs.sort(function (a, b) {
-            var priorityOrder = { high: 0, medium: 1, low: 2 };
-            var pa = priorityOrder[a.priority] != null ? priorityOrder[a.priority] : 2;
-            var pb = priorityOrder[b.priority] != null ? priorityOrder[b.priority] : 2;
+            var pa = _PRIORITY_ORDER[a.priority] != null ? _PRIORITY_ORDER[a.priority] : 2;
+            var pb = _PRIORITY_ORDER[b.priority] != null ? _PRIORITY_ORDER[b.priority] : 2;
             return pa - pb;
         });
 
@@ -548,6 +555,11 @@ function createPrintQualityScorer(options) {
 
     /**
      * Score multiple print records and produce aggregate statistics.
+     *
+     * Skips per-record recommendation generation for performance; batch
+     * consumers typically care about aggregate stats, not individual
+     * improvement suggestions. To get recommendations for specific
+     * records, call score() directly on those records.
      *
      * @param {Array} records - Array of print records
      * @returns {Object} Batch results with individual scores, summary stats, and distribution
@@ -563,9 +575,13 @@ function createPrintQualityScorer(options) {
         var flagCount = {};
         var dimSums = { viability: 0, structural: 0, crosslinking: 0, resolution: 0, pressure: 0 };
 
+        // Use skipRecommendations to avoid per-record string/array
+        // allocation overhead that isn't needed for aggregate stats
+        var batchOpts = { skipRecommendations: true };
+
         for (var i = 0; i < records.length; i++) {
             try {
-                var result = score(records[i]);
+                var result = score(records[i], batchOpts);
                 results.push(result);
                 composites.push(result.composite);
 
@@ -587,20 +603,21 @@ function createPrintQualityScorer(options) {
         }
 
         var validCount = composites.length;
-        var sorted = composites.slice().sort(function (a, b) { return a - b; });
+        // Sort composites in place — it's a local array, no need to clone
+        composites.sort(function (a, b) { return a - b; });
 
         var mean = 0;
-        for (var j = 0; j < sorted.length; j++) mean += sorted[j];
+        for (var j = 0; j < composites.length; j++) mean += composites[j];
         mean = validCount > 0 ? mean / validCount : 0;
 
         var variance = 0;
-        for (var k = 0; k < sorted.length; k++) variance += (sorted[k] - mean) * (sorted[k] - mean);
+        for (var k = 0; k < composites.length; k++) variance += (composites[k] - mean) * (composites[k] - mean);
         var stddev = validCount > 1 ? Math.sqrt(variance / (validCount - 1)) : 0;
 
         var median = 0;
-        if (sorted.length > 0) {
-            var mid = Math.floor(sorted.length / 2);
-            median = sorted.length % 2 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
+        if (composites.length > 0) {
+            var mid = Math.floor(composites.length / 2);
+            median = composites.length % 2 ? composites[mid] : (composites[mid - 1] + composites[mid]) / 2;
         }
 
         return {
@@ -612,8 +629,8 @@ function createPrintQualityScorer(options) {
                 mean: _r(mean),
                 median: _r(median),
                 stddev: _r(stddev),
-                min: sorted.length > 0 ? sorted[0] : 0,
-                max: sorted.length > 0 ? sorted[sorted.length - 1] : 0,
+                min: composites.length > 0 ? composites[0] : 0,
+                max: composites.length > 0 ? composites[composites.length - 1] : 0,
                 overallGrade: _grade(mean),
                 overallLabel: _gradeLabel(_grade(mean))
             },
