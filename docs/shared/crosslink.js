@@ -16,34 +16,26 @@
  */
 function createCrosslinkAnalyzer() {
 
-    // ── Validation Helpers (resolve from shared utils or inline) ─
+    // ── Validation Helpers (resolved from shared utils) ────────
+    // Resolve validators from utils.js — either via global scope
+    // (browser <script> load order) or CommonJS require (Node/tests).
+    // No inline fallbacks: utils.js is a hard dependency that must be
+    // loaded before crosslink.js. This eliminates 30 lines of duplicated
+    // validation logic that would drift out of sync with utils.js.
     var _utils = (typeof requirePositive === 'function')
         ? { requireNumber: requireNumber, requirePositive: requirePositive, requireNonNegative: requireNonNegative, requireNumberInRange: requireNumberInRange }
         : (typeof module !== 'undefined' && module.exports)
-            ? (function () { try { var u = require('./utils'); return { requireNumber: u.requireNumber, requirePositive: u.requirePositive, requireNonNegative: u.requireNonNegative, requireNumberInRange: u.requireNumberInRange }; } catch (e) { return null; } })()
+            ? require('./utils')
             : null;
 
-    // Fallback inline implementations if utils is unavailable
-    var _requireNumber = (_utils && _utils.requireNumber) || function (v, name) {
-        if (typeof v !== 'number' || !isFinite(v)) throw new Error(name + ' must be a finite number, got: ' + v);
-        return v;
-    };
-    var _requirePositive = (_utils && _utils.requirePositive) || function (v, name) {
-        _requireNumber(v, name);
-        if (v <= 0) throw new Error(name + ' must be positive, got: ' + v);
-        return v;
-    };
-    var _requireNonNegative = (_utils && _utils.requireNonNegative) || function (v, name) {
-        _requireNumber(v, name);
-        if (v < 0) throw new Error(name + ' must be non-negative, got: ' + v);
-        return v;
-    };
-    var _requireNumberInRange = (_utils && _utils.requireNumberInRange) || function (v, name, min, max) {
-        _requireNumber(v, name);
-        if (min !== undefined && v < min) throw new Error(name + ' must be >= ' + min + ', got: ' + v);
-        if (max !== undefined && v > max) throw new Error(name + ' must be <= ' + max + ', got: ' + v);
-        return v;
-    };
+    if (!_utils || typeof _utils.requireNumber !== 'function') {
+        throw new Error('crosslink.js requires utils.js to be loaded first');
+    }
+
+    var _requireNumber = _utils.requireNumber;
+    var _requirePositive = _utils.requirePositive;
+    var _requireNonNegative = _utils.requireNonNegative;
+    var _requireNumberInRange = _utils.requireNumberInRange;
 
     // ── Constants ────────────────────────────────────────────────
 
@@ -682,30 +674,17 @@ function createCrosslinkAnalyzer() {
     }
 
     // ── Utilities ────────────────────────────────────────────────
+    // Delegate to shared computeStats (Welford's algorithm, sample std)
+    // instead of maintaining local _mean/_std copies that can drift.
+
+    var _computeStats = _utils.computeStats;
 
     function _mean(arr) {
-        if (arr.length === 0) return 0;
-        var sum = 0;
-        for (var i = 0; i < arr.length; i++) sum += arr[i];
-        return Math.round((sum / arr.length) * 100) / 100;
+        return Math.round(_computeStats(arr.slice()).mean * 100) / 100;
     }
 
     function _std(arr) {
-        if (arr.length < 2) return 0;
-        // Use exact mean (not rounded _mean()) to avoid inflated variance.
-        // _mean() rounds to 2 decimal places for display, which introduces
-        // systematic error into deviation calculations — e.g. for values
-        // near 1.00x, the rounded mean shifts by ~0.002, inflating std by
-        // up to 2-3x and causing false "high variation" warnings.
-        var sum = 0;
-        for (var i = 0; i < arr.length; i++) sum += arr[i];
-        var m = sum / arr.length;
-        var sumSq = 0;
-        for (var i = 0; i < arr.length; i++) {
-            var d = arr[i] - m;
-            sumSq += d * d;
-        }
-        return Math.sqrt(sumSq / (arr.length - 1));
+        return _computeStats(arr.slice()).std;
     }
 
     // ── Public API ──────────────────────────────────────────────
