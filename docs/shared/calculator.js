@@ -145,23 +145,41 @@ function createMaterialCalculator() {
     }
 
     /**
-     * Return a deep copy of all built-in material profiles.
+     * Return a defensive copy of all built-in material profiles.
+     *
+     * Uses Object.assign() shallow copies instead of JSON.parse(JSON.stringify())
+     * because the profile objects are flat (no nested references). This avoids
+     * the serialization round-trip overhead, which is significant when called
+     * repeatedly (e.g. in UI render loops or batch comparisons).
      *
      * @returns {Object.<string, {name: string, density: number, costPerMl: number, viscosity: string}>}
      *   Material profiles keyed by slug (e.g. 'gelatin-methacrylate')
      */
     function getMaterials() {
-        return JSON.parse(JSON.stringify(MATERIAL_PROFILES));
+        var result = {};
+        var keys = Object.keys(MATERIAL_PROFILES);
+        for (var i = 0; i < keys.length; i++) {
+            result[keys[i]] = Object.assign({}, MATERIAL_PROFILES[keys[i]]);
+        }
+        return result;
     }
 
     /**
-     * Return a deep copy of all wellplate specifications.
+     * Return a defensive copy of all wellplate specifications.
+     *
+     * Uses Object.assign() shallow copies instead of JSON.parse(JSON.stringify())
+     * because the spec objects are flat (no nested references).
      *
      * @returns {Object.<number, {wells: number, diameter: number, area: number}>}
      *   Wellplate specs keyed by well count (6, 12, 24, 48, 96)
      */
     function getWellplates() {
-        return JSON.parse(JSON.stringify(WELLPLATE_SPECS));
+        var result = {};
+        var keys = Object.keys(WELLPLATE_SPECS);
+        for (var i = 0; i < keys.length; i++) {
+            result[keys[i]] = Object.assign({}, WELLPLATE_SPECS[keys[i]]);
+        }
+        return result;
     }
 
     /**

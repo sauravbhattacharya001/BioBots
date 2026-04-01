@@ -287,9 +287,17 @@ function createWesternBlotAnalyzer() {
             };
         },
 
-        /** List available marker ladders. */
+        /** List available marker ladders.
+         * Uses per-key array.slice() instead of JSON round-trip since
+         * each ladder is a simple number array (no nested objects).
+         */
         listLadders: function () {
-            return JSON.parse(JSON.stringify(MARKER_LADDERS));
+            var result = {};
+            var keys = Object.keys(MARKER_LADDERS);
+            for (var i = 0; i < keys.length; i++) {
+                result[keys[i]] = MARKER_LADDERS[keys[i]].slice();
+            }
+            return result;
         },
 
         /** List common loading controls. */

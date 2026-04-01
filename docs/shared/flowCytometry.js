@@ -441,7 +441,14 @@ function createFlowCytometryAnalyzer() {
         if (!panel) {
             throw new Error('Unknown panel: ' + panelName + '. Available: ' + Object.keys(COMMON_PANELS).join(', '));
         }
-        return JSON.parse(JSON.stringify(panel));
+        // Shallow-copy panel and deep-copy only the markers array (which
+        // contains objects). Avoids JSON.parse(JSON.stringify()) overhead
+        // for a small, known-shape structure.
+        var copy = { name: panel.name, markers: new Array(panel.markers.length) };
+        for (var i = 0; i < panel.markers.length; i++) {
+            copy.markers[i] = Object.assign({}, panel.markers[i]);
+        }
+        return copy;
     }
 
     /**
