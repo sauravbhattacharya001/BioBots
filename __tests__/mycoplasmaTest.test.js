@@ -68,6 +68,25 @@ describe('MycoplasmaTestLogger', function () {
         expect(csv).toContain('HeLa');
     });
 
+    test('CSV export escapes formula injection characters', function () {
+        logger.logTest({ cellLine: '=CMD()', method: 'PCR', result: 'negative', date: '2026-03-01', operator: 'JD', notes: '+dangerous' });
+        var csv = logger.exportRecords('csv');
+        var lines = csv.split('\n');
+        var dataLine = lines[1];
+        // Formula-injection leading chars should be prefixed with single-quote
+        expect(dataLine).toContain("'=CMD()");
+        expect(dataLine).toContain("'+dangerous");
+    });
+
+    test('CSV export properly quotes fields with commas and double-quotes', function () {
+        logger.logTest({ cellLine: 'HeLa', method: 'PCR', result: 'negative', date: '2026-03-01', operator: 'JD', notes: 'contains, comma and "quotes"' });
+        var csv = logger.exportRecords('csv');
+        var lines = csv.split('\n');
+        var dataLine = lines[1];
+        // Field with commas/quotes should be wrapped in double-quotes with internal quotes doubled
+        expect(dataLine).toContain('"contains, comma and ""quotes"""');
+    });
+
     test('getHistory filters by cell line', function () {
         logger.logTest({ cellLine: 'HeLa', method: 'PCR', result: 'negative', date: '2026-03-01' });
         logger.logTest({ cellLine: 'MCF7', method: 'PCR', result: 'negative', date: '2026-03-02' });
