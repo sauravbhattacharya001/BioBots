@@ -1,0 +1,521 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>BioBots 1 — Bioink Material Database</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧬</text></svg>">
+    <style>
+        :root {
+            --bg: #0f172a; --surface: #1e293b; --border: #334155;
+            --text: #e2e8f0; --muted: #94a3b8;
+            --accent: #38bdf8; --accent-hover: #7dd3fc;
+            --success: #4ade80; --error: #f87171; --warning: #fbbf24; --purple: #a78bfa;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg); color: var(--text);
+            min-height: 100vh; padding: 2rem 1rem;
+        }
+        .container { max-width: 1100px; margin: 0 auto; }
+        header { text-align: center; margin-bottom: 2rem; }
+        header h1 {
+            font-size: 2rem; font-weight: 700;
+            background: linear-gradient(135deg, var(--accent), var(--success));
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+        }
+        header p { color: var(--muted); margin-top: 0.5rem; }
+        .back-link { display: inline-block; color: var(--accent); text-decoration: none; margin-bottom: 1.5rem; font-size: 0.9rem; }
+        .back-link:hover { color: var(--accent-hover); }
+
+        .controls { display: flex; gap: 0.75rem; margin-bottom: 1rem; flex-wrap: wrap; }
+        .controls input, .controls select {
+            background: var(--surface); border: 1px solid var(--border); color: var(--text);
+            padding: 0.6rem 1rem; border-radius: 10px; font-size: 0.9rem; outline: none;
+        }
+        .controls input { flex: 1; min-width: 200px; }
+        .controls input:focus, .controls select:focus { border-color: var(--accent); }
+        .controls input::placeholder { color: var(--muted); }
+
+        .tag-filters { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 1.5rem; }
+        .tag-btn {
+            background: var(--surface); border: 1px solid var(--border); color: var(--muted);
+            padding: 0.35rem 0.8rem; border-radius: 20px; font-size: 0.78rem; cursor: pointer; transition: all 0.2s;
+        }
+        .tag-btn:hover, .tag-btn.active { background: var(--accent); color: var(--bg); border-color: var(--accent); }
+
+        .stats-row { display: flex; gap: 1rem; margin-bottom: 1.5rem; flex-wrap: wrap; }
+        .stat { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 0.7rem 1.1rem; text-align: center; }
+        .stat .val { font-size: 1.3rem; font-weight: 700; color: var(--accent); }
+        .stat .lbl { font-size: 0.7rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; }
+
+        .compare-bar {
+            background: var(--surface); border: 1px solid var(--accent); border-radius: 10px;
+            padding: 0.7rem 1rem; margin-bottom: 1rem; display: none; align-items: center; gap: 0.75rem; flex-wrap: wrap;
+        }
+        .compare-bar.visible { display: flex; }
+        .compare-bar .chips { display: flex; gap: 0.4rem; flex-wrap: wrap; flex: 1; }
+        .compare-chip {
+            background: var(--accent); color: var(--bg); padding: 0.25rem 0.6rem; border-radius: 12px;
+            font-size: 0.78rem; font-weight: 600; display: flex; align-items: center; gap: 0.3rem;
+        }
+        .compare-chip .x { cursor: pointer; font-weight: 700; }
+        .btn { background: var(--accent); color: var(--bg); border: none; padding: 0.5rem 1rem; border-radius: 8px; font-size: 0.85rem; font-weight: 600; cursor: pointer; }
+        .btn:hover { background: var(--accent-hover); }
+        .btn-sm { padding: 0.3rem 0.7rem; font-size: 0.75rem; }
+        .btn-outline { background: transparent; border: 1px solid var(--accent); color: var(--accent); }
+        .btn-outline:hover { background: var(--accent); color: var(--bg); }
+
+        .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 1rem; }
+        .card {
+            background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
+            padding: 1.2rem; transition: border-color 0.2s; cursor: default; position: relative;
+        }
+        .card:hover { border-color: var(--accent); }
+        .card.selected { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+        .card-head { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.6rem; }
+        .card-head h3 { font-size: 1rem; font-weight: 600; }
+        .card-head .cat-badge {
+            font-size: 0.7rem; padding: 0.2rem 0.55rem; border-radius: 10px; font-weight: 600;
+        }
+        .card-desc { color: var(--muted); font-size: 0.82rem; margin-bottom: 0.8rem; line-height: 1.45; }
+        .props { display: grid; grid-template-columns: 1fr 1fr; gap: 0.4rem; margin-bottom: 0.7rem; }
+        .prop { font-size: 0.78rem; }
+        .prop .key { color: var(--muted); }
+        .prop .value { color: var(--text); font-weight: 500; }
+        .tags { display: flex; gap: 0.3rem; flex-wrap: wrap; margin-bottom: 0.6rem; }
+        .tag { background: rgba(56,189,248,0.12); color: var(--accent); padding: 0.15rem 0.5rem; border-radius: 8px; font-size: 0.7rem; }
+        .card-actions { display: flex; gap: 0.5rem; }
+
+        .modal-overlay {
+            position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.7);
+            display: none; align-items: center; justify-content: center; z-index: 100; padding: 1rem;
+        }
+        .modal-overlay.open { display: flex; }
+        .modal {
+            background: var(--surface); border: 1px solid var(--border); border-radius: 14px;
+            max-width: 800px; width: 100%; max-height: 85vh; overflow-y: auto; padding: 2rem;
+        }
+        .modal h2 { font-size: 1.4rem; margin-bottom: 1rem; }
+        .modal .close-btn { position: absolute; top: 1rem; right: 1rem; background: none; border: none; color: var(--muted); font-size: 1.5rem; cursor: pointer; }
+        .compare-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+        .compare-table th, .compare-table td { padding: 0.6rem 0.8rem; text-align: left; border-bottom: 1px solid var(--border); }
+        .compare-table th { color: var(--muted); font-weight: 600; font-size: 0.75rem; text-transform: uppercase; }
+        .compare-table td:first-child { color: var(--muted); font-weight: 500; }
+        .bar-fill { height: 6px; border-radius: 3px; background: var(--accent); }
+        .bar-bg { width: 60px; height: 6px; border-radius: 3px; background: var(--border); display: inline-block; vertical-align: middle; margin-left: 0.4rem; }
+
+        .empty-state { text-align: center; padding: 3rem 1rem; color: var(--muted); }
+        .empty-state .icon { font-size: 3rem; margin-bottom: 1rem; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <a href="index.html" class="back-link">← Back to Dashboard</a>
+    <header>
+        <h1>🧪 Bioink Material Database</h1>
+        <p>Searchable reference of bioprinting materials with properties, compatibility, and comparison</p>
+    </header>
+
+    <div class="stats-row" id="stats"></div>
+
+    <div class="controls">
+        <input type="text" id="search" placeholder="Search materials (name, type, crosslinker...)">
+        <select id="catFilter"><option value="">All Categories</option></select>
+        <select id="sortBy">
+            <option value="name">Sort: Name</option>
+            <option value="viscosity">Sort: Viscosity</option>
+            <option value="viability">Sort: Cell Viability</option>
+            <option value="printTemp">Sort: Print Temp</option>
+            <option value="resolution">Sort: Resolution</option>
+        </select>
+    </div>
+    <div class="tag-filters" id="tagFilters"></div>
+
+    <div class="compare-bar" id="compareBar">
+        <span style="font-size:0.85rem;font-weight:600;">Compare:</span>
+        <div class="chips" id="compareChips"></div>
+        <button class="btn btn-sm" onclick="openCompare()">Compare Now</button>
+        <button class="btn btn-sm btn-outline" onclick="clearCompare()">Clear</button>
+    </div>
+
+    <div class="grid" id="grid"></div>
+    <div class="empty-state" id="empty" style="display:none">
+        <div class="icon">🔍</div>
+        <p>No materials match your search.</p>
+    </div>
+</div>
+
+<div class="modal-overlay" id="compareModal">
+    <div class="modal" style="position:relative;">
+        <button class="close-btn" onclick="closeCompare()">×</button>
+        <h2>📊 Material Comparison</h2>
+        <div id="compareContent"></div>
+    </div>
+</div>
+
+<div class="modal-overlay" id="detailModal">
+    <div class="modal" style="position:relative;">
+        <button class="close-btn" onclick="closeDetail()">×</button>
+        <div id="detailContent"></div>
+    </div>
+</div>
+
+<script>
+const MATERIALS = [
+    {
+        name: "Alginate", category: "Polysaccharide", 
+        desc: "One of the most widely used bioinks. Derived from brown seaweed, forms hydrogels via ionic crosslinking with calcium chloride. Excellent printability and biocompatibility.",
+        viscosity: "50–500 mPa·s", viscosityNum: 275, crosslinker: "CaCl₂ (ionic)",
+        viability: 85, printTemp: "20–37°C", printTempNum: 28, resolution: "200–500 µm", resolutionNum: 350,
+        concentration: "2–4% w/v", degradation: "Weeks–months", cellTypes: ["Chondrocytes", "MSCs", "Fibroblasts"],
+        tags: ["hydrogel", "natural", "ionic-crosslink", "FDA-approved"],
+        pros: ["Low cost", "Easy gelation", "Good printability", "Biocompatible"],
+        cons: ["Low cell adhesion", "Limited mechanical strength", "Slow degradation"]
+    },
+    {
+        name: "GelMA", category: "Protein-based",
+        desc: "Gelatin methacryloyl — a photocrosslinkable gelatin derivative. Retains cell-binding motifs (RGD) from gelatin while enabling UV-curable hydrogels.",
+        viscosity: "20–2000 mPa·s", viscosityNum: 500, crosslinker: "UV light + photoinitiator (LAP/Irgacure)",
+        viability: 90, printTemp: "18–25°C", printTempNum: 22, resolution: "100–400 µm", resolutionNum: 250,
+        concentration: "5–15% w/v", degradation: "Weeks", cellTypes: ["Endothelial", "MSCs", "Hepatocytes", "Chondrocytes"],
+        tags: ["hydrogel", "natural", "photo-crosslink", "cell-adhesive"],
+        pros: ["Excellent cell adhesion", "Tunable stiffness", "Photo-patternable", "Widely studied"],
+        cons: ["UV exposure risk", "Temperature sensitive", "Requires photoinitiator"]
+    },
+    {
+        name: "Collagen Type I", category: "Protein-based",
+        desc: "The most abundant ECM protein. Provides native-like cell environment. Gels thermally at 37°C. Excellent bioactivity but challenging to print due to low viscosity.",
+        viscosity: "5–100 mPa·s", viscosityNum: 50, crosslinker: "Thermal (37°C) / pH neutralization",
+        viability: 95, printTemp: "4–10°C", printTempNum: 7, resolution: "300–800 µm", resolutionNum: 550,
+        concentration: "3–10 mg/mL", degradation: "Days–weeks", cellTypes: ["Fibroblasts", "Keratinocytes", "Neurons", "Cardiomyocytes"],
+        tags: ["hydrogel", "natural", "thermal-crosslink", "ECM-derived"],
+        pros: ["Native ECM protein", "Excellent bioactivity", "Promotes cell adhesion"],
+        cons: ["Very low viscosity", "Hard to print alone", "Batch variability", "Expensive"]
+    },
+    {
+        name: "Hyaluronic Acid (HA)", category: "Polysaccharide",
+        desc: "A glycosaminoglycan naturally found in ECM. Highly hydrophilic. Often modified (methacrylated HA) for crosslinkability. Promotes cell migration.",
+        viscosity: "100–10000 mPa·s", viscosityNum: 2000, crosslinker: "UV (methacrylated) / Chemical",
+        viability: 88, printTemp: "20–37°C", printTempNum: 28, resolution: "200–600 µm", resolutionNum: 400,
+        concentration: "1–3% w/v", degradation: "Days–months (tunable)", cellTypes: ["MSCs", "Chondrocytes", "Neural cells"],
+        tags: ["hydrogel", "natural", "photo-crosslink", "ECM-derived"],
+        pros: ["Promotes cell migration", "Tunable properties", "Native ECM component", "Anti-inflammatory"],
+        cons: ["Poor mechanical strength alone", "Needs modification for crosslinking", "Expensive"]
+    },
+    {
+        name: "Fibrin", category: "Protein-based",
+        desc: "Formed from fibrinogen + thrombin. Mimics blood clot formation. Excellent for wound healing and vascular constructs. Rapid gelation.",
+        viscosity: "10–50 mPa·s", viscosityNum: 30, crosslinker: "Thrombin (enzymatic)",
+        viability: 92, printTemp: "20–37°C", printTempNum: 28, resolution: "300–700 µm", resolutionNum: 500,
+        concentration: "10–40 mg/mL", degradation: "Days", cellTypes: ["Endothelial", "SMCs", "Fibroblasts", "Keratinocytes"],
+        tags: ["hydrogel", "natural", "enzymatic-crosslink", "wound-healing"],
+        pros: ["Rapid gelation", "Excellent biocompatibility", "Promotes angiogenesis"],
+        cons: ["Very soft", "Rapid degradation", "Low printability alone", "Batch variation"]
+    },
+    {
+        name: "Silk Fibroin", category: "Protein-based",
+        desc: "Derived from Bombyx mori silkworm. Outstanding mechanical properties for a natural bioink. Slow degradation rate matches tissue remodeling.",
+        viscosity: "50–5000 mPa·s", viscosityNum: 1500, crosslinker: "Enzymatic (HRP) / Physical / UV",
+        viability: 82, printTemp: "20–37°C", printTempNum: 28, resolution: "200–500 µm", resolutionNum: 350,
+        concentration: "5–30% w/v", degradation: "Months–years", cellTypes: ["Osteoblasts", "MSCs", "Fibroblasts"],
+        tags: ["hydrogel", "natural", "multi-crosslink", "high-strength"],
+        pros: ["Excellent mechanical properties", "Slow degradation", "FDA-approved", "Tunable"],
+        cons: ["Processing complexity", "Immune response risk", "Gelation control challenging"]
+    },
+    {
+        name: "Matrigel", category: "ECM-derived",
+        desc: "Basement membrane matrix extracted from mouse sarcoma. Rich in laminin, collagen IV, entactin. Gold standard for organoid culture. Temperature-sensitive gelation.",
+        viscosity: "10–100 mPa·s", viscosityNum: 50, crosslinker: "Thermal (37°C)",
+        viability: 95, printTemp: "4°C (liquid)", printTempNum: 4, resolution: "400–1000 µm", resolutionNum: 700,
+        concentration: "100%", degradation: "Days", cellTypes: ["Epithelial", "Stem cells", "Organoids", "Neurons"],
+        tags: ["hydrogel", "natural", "thermal-crosslink", "ECM-derived", "organoid"],
+        pros: ["Rich ECM composition", "Excellent for organoids", "Promotes differentiation"],
+        cons: ["Animal-derived (batch variability)", "Not clinically translatable", "Very expensive", "Poor printability"]
+    },
+    {
+        name: "Pluronic F-127", category: "Synthetic",
+        desc: "Thermoresponsive triblock copolymer. Liquid at 4°C, gel at room temp. Often used as a sacrificial/fugitive ink for creating channels in constructs.",
+        viscosity: "1000–50000 mPa·s", viscosityNum: 15000, crosslinker: "Thermal (reverse, >20°C)",
+        viability: 60, printTemp: "20–25°C", printTempNum: 22, resolution: "100–300 µm", resolutionNum: 200,
+        concentration: "20–40% w/v", degradation: "Dissolves at 4°C", cellTypes: ["Sacrificial — not for cell encapsulation"],
+        tags: ["synthetic", "thermal-crosslink", "sacrificial", "fugitive-ink"],
+        pros: ["Excellent printability", "Reversible gelation", "Great for channels/vascular"],
+        cons: ["Cytotoxic at high conc.", "Not for permanent constructs", "Cells cannot survive long-term"]
+    },
+    {
+        name: "PEG-based", category: "Synthetic",
+        desc: "Poly(ethylene glycol) derivatives (PEGDA, PEG-4Arm). Highly tunable synthetic hydrogels. Bioinert — requires functionalization with RGD for cell adhesion.",
+        viscosity: "10–500 mPa·s", viscosityNum: 200, crosslinker: "UV (PEGDA) / Michael addition / Click chemistry",
+        viability: 80, printTemp: "20–37°C", printTempNum: 28, resolution: "50–300 µm", resolutionNum: 175,
+        concentration: "5–20% w/v", degradation: "Weeks–months (tunable)", cellTypes: ["MSCs", "Chondrocytes", "Fibroblasts"],
+        tags: ["synthetic", "photo-crosslink", "tunable", "bioinert"],
+        pros: ["Highly tunable", "Reproducible", "Defined chemistry", "High resolution"],
+        cons: ["Bioinert — no cell adhesion sites", "Requires functionalization", "UV exposure"]
+    },
+    {
+        name: "PCL (Polycaprolactone)", category: "Thermoplastic",
+        desc: "Biodegradable thermoplastic printed at high temperature. Used as structural scaffolds combined with softer bioinks. Excellent mechanical strength.",
+        viscosity: "Melt (>60°C)", viscosityNum: 50000, crosslinker: "Thermal (melt/solidify)",
+        viability: 0, printTemp: "60–90°C", printTempNum: 75, resolution: "100–400 µm", resolutionNum: 250,
+        concentration: "100% (pellets/filament)", degradation: "Months–years", cellTypes: ["Seeded post-print — osteoblasts, chondrocytes"],
+        tags: ["thermoplastic", "synthetic", "scaffold", "high-strength", "FDA-approved"],
+        pros: ["Excellent mechanical strength", "FDA-approved", "Long degradation", "Low cost"],
+        cons: ["No cell encapsulation (high temp)", "Hydrophobic", "Slow degradation", "Needs surface treatment"]
+    },
+    {
+        name: "Chitosan", category: "Polysaccharide",
+        desc: "Derived from chitin (crustacean shells). Antimicrobial properties. pH-responsive gelation. Used in wound healing and cartilage tissue engineering.",
+        viscosity: "50–2000 mPa·s", viscosityNum: 500, crosslinker: "pH change / Ionic (TPP) / Chemical (glutaraldehyde)",
+        viability: 78, printTemp: "20–37°C", printTempNum: 28, resolution: "300–600 µm", resolutionNum: 450,
+        concentration: "2–5% w/v", degradation: "Weeks–months", cellTypes: ["Chondrocytes", "Fibroblasts", "Osteoblasts"],
+        tags: ["hydrogel", "natural", "antimicrobial", "pH-responsive"],
+        pros: ["Antimicrobial", "Promotes wound healing", "Low cost", "Biodegradable"],
+        cons: ["pH-sensitive", "Limited mechanical properties", "Acidic solutions needed"]
+    },
+    {
+        name: "Agarose", category: "Polysaccharide",
+        desc: "Seaweed-derived polysaccharide. Thermal gelation upon cooling. Simple to use, good structural integrity. Common in cartilage tissue engineering.",
+        viscosity: "5–100 mPa·s (hot)", viscosityNum: 50, crosslinker: "Thermal (cools to gel, ~30–40°C)",
+        viability: 75, printTemp: "37–42°C (liquid)", printTempNum: 40, resolution: "200–500 µm", resolutionNum: 350,
+        concentration: "1–3% w/v", degradation: "Very slow (non-enzymatic)", cellTypes: ["Chondrocytes", "Neural cells"],
+        tags: ["hydrogel", "natural", "thermal-crosslink"],
+        pros: ["Easy gelation", "Good stiffness", "Inexpensive", "Reproducible"],
+        cons: ["No cell adhesion sites", "Non-degradable in vivo", "Narrow printing window"]
+    },
+    {
+        name: "dECM (Decellularized ECM)", category: "ECM-derived",
+        desc: "Tissue-specific ECM obtained by removing cells from donor tissue. Retains native architecture and growth factors. Ultimate biomimicry.",
+        viscosity: "10–500 mPa·s", viscosityNum: 200, crosslinker: "Thermal (37°C) / pH / Chemical",
+        viability: 92, printTemp: "4–15°C", printTempNum: 10, resolution: "200–600 µm", resolutionNum: 400,
+        concentration: "1–3% w/v", degradation: "Weeks", cellTypes: ["Tissue-specific (heart, liver, cartilage, skin)"],
+        tags: ["hydrogel", "natural", "ECM-derived", "tissue-specific", "thermal-crosslink"],
+        pros: ["Tissue-specific cues", "Excellent bioactivity", "Promotes differentiation", "Native growth factors"],
+        cons: ["Complex preparation", "Batch variability", "Low mechanical strength", "Supply limitations"]
+    },
+    {
+        name: "Gelatin", category: "Protein-based",
+        desc: "Denatured collagen. Thermoresponsive — liquid at 37°C, gel below ~25°C. Often used as a support bath material or blended with other bioinks.",
+        viscosity: "50–5000 mPa·s", viscosityNum: 1000, crosslinker: "Thermal / Chemical (glutaraldehyde, mTG)",
+        viability: 88, printTemp: "25–30°C", printTempNum: 28, resolution: "200–500 µm", resolutionNum: 350,
+        concentration: "5–15% w/v", degradation: "Days–weeks", cellTypes: ["Fibroblasts", "Hepatocytes", "MSCs"],
+        tags: ["hydrogel", "natural", "thermal-crosslink", "cell-adhesive", "support-bath"],
+        pros: ["Cell adhesion (RGD sites)", "Low cost", "Thermoresponsive", "Versatile"],
+        cons: ["Melts at 37°C", "Needs secondary crosslinking", "Weak alone"]
+    },
+    {
+        name: "Cellulose Nanofibrils (CNF)", category: "Polysaccharide",
+        desc: "Plant-derived nanofibers with excellent shear-thinning behavior. Great structural support. Often combined with alginate for dual crosslinking.",
+        viscosity: "1000–50000 mPa·s", viscosityNum: 10000, crosslinker: "Physical (entanglement) + ionic (if blended with alginate)",
+        viability: 80, printTemp: "20–37°C", printTempNum: 28, resolution: "100–400 µm", resolutionNum: 250,
+        concentration: "1–3% w/v", degradation: "Months (slow enzymatic)", cellTypes: ["Chondrocytes", "iPSCs", "MSCs"],
+        tags: ["hydrogel", "natural", "shear-thinning", "nanofiber", "plant-derived"],
+        pros: ["Excellent shear-thinning", "High shape fidelity", "Plant-derived", "Sustainable"],
+        cons: ["Non-degradable in vivo", "No cell adhesion", "Needs blending for biology"]
+    },
+    {
+        name: "Alginate-GelMA Blend", category: "Composite",
+        desc: "Combines alginate's ionic crosslinking with GelMA's photo-crosslinking and cell adhesion. One of the most popular dual-network bioinks.",
+        viscosity: "100–2000 mPa·s", viscosityNum: 600, crosslinker: "CaCl₂ (ionic) + UV (photo) — dual network",
+        viability: 90, printTemp: "20–25°C", printTempNum: 22, resolution: "150–400 µm", resolutionNum: 275,
+        concentration: "2% alginate + 5–10% GelMA", degradation: "Weeks–months", cellTypes: ["MSCs", "Chondrocytes", "Osteoblasts", "Endothelial"],
+        tags: ["composite", "dual-crosslink", "cell-adhesive", "popular"],
+        pros: ["Dual network stability", "Cell adhesion + printability", "Tunable", "Well-characterized"],
+        cons: ["More complex preparation", "Two crosslinking steps", "UV exposure"]
+    },
+    {
+        name: "FRESH Support Bath (Gelatin slurry)", category: "Support Material",
+        desc: "Freeform Reversible Embedding of Suspended Hydrogels. Gelatin microparticle bath supports low-viscosity bioinks during printing, then melts at 37°C.",
+        viscosity: "N/A (bath)", viscosityNum: 0, crosslinker: "N/A — melts at 37°C to release print",
+        viability: 95, printTemp: "22°C (bath)", printTempNum: 22, resolution: "20–200 µm", resolutionNum: 110,
+        concentration: "Slurry", degradation: "Melts at 37°C", cellTypes: ["Supports any embedded bioink"],
+        tags: ["support-bath", "FRESH", "embedded-printing", "high-resolution"],
+        pros: ["Enables printing of very soft bioinks", "Excellent resolution", "Simple removal", "Widely adopted"],
+        cons: ["Adds preparation step", "Bath uniformity critical", "Post-processing needed"]
+    },
+    {
+        name: "Xanthan Gum", category: "Polysaccharide",
+        desc: "Microbial polysaccharide with strong shear-thinning. Used as a rheology modifier and blending agent. Improves printability of weak bioinks.",
+        viscosity: "500–10000 mPa·s", viscosityNum: 3000, crosslinker: "Physical (entanglement) / Ionic",
+        viability: 75, printTemp: "20–37°C", printTempNum: 28, resolution: "200–500 µm", resolutionNum: 350,
+        concentration: "0.5–2% w/v", degradation: "Slow", cellTypes: ["Blending agent — supports various cell types"],
+        tags: ["hydrogel", "natural", "shear-thinning", "rheology-modifier"],
+        pros: ["Strong shear-thinning", "Improves printability", "Food-grade safe", "Low cost"],
+        cons: ["No biological activity", "No cell adhesion", "Usually a co-ink"]
+    }
+];
+
+let compareSet = new Set();
+
+function getCategories() { return [...new Set(MATERIALS.map(m => m.category))].sort(); }
+function getAllTags() {
+    const t = new Set();
+    MATERIALS.forEach(m => m.tags.forEach(tag => t.add(tag)));
+    return [...t].sort();
+}
+
+let activeTag = '';
+
+function init() {
+    const catSel = document.getElementById('catFilter');
+    getCategories().forEach(c => { const o = document.createElement('option'); o.value = c; o.textContent = c; catSel.appendChild(o); });
+
+    const tagDiv = document.getElementById('tagFilters');
+    getAllTags().forEach(t => {
+        const b = document.createElement('button');
+        b.className = 'tag-btn'; b.textContent = t; b.dataset.tag = t;
+        b.onclick = () => { activeTag = activeTag === t ? '' : t; render(); };
+        tagDiv.appendChild(b);
+    });
+
+    document.getElementById('search').oninput = render;
+    catSel.onchange = render;
+    document.getElementById('sortBy').onchange = render;
+    render();
+}
+
+function render() {
+    const q = document.getElementById('search').value.toLowerCase();
+    const cat = document.getElementById('catFilter').value;
+    const sort = document.getElementById('sortBy').value;
+
+    let items = MATERIALS.filter(m => {
+        if (cat && m.category !== cat) return false;
+        if (activeTag && !m.tags.includes(activeTag)) return false;
+        if (q) {
+            const hay = (m.name + ' ' + m.category + ' ' + m.desc + ' ' + m.crosslinker + ' ' + m.tags.join(' ')).toLowerCase();
+            if (!hay.includes(q)) return false;
+        }
+        return true;
+    });
+
+    const sortFns = {
+        name: (a,b) => a.name.localeCompare(b.name),
+        viscosity: (a,b) => a.viscosityNum - b.viscosityNum,
+        viability: (a,b) => b.viability - a.viability,
+        printTemp: (a,b) => a.printTempNum - b.printTempNum,
+        resolution: (a,b) => a.resolutionNum - b.resolutionNum
+    };
+    items.sort(sortFns[sort] || sortFns.name);
+
+    // Stats
+    document.getElementById('stats').innerHTML = `
+        <div class="stat"><div class="val">${MATERIALS.length}</div><div class="lbl">Materials</div></div>
+        <div class="stat"><div class="val">${getCategories().length}</div><div class="lbl">Categories</div></div>
+        <div class="stat"><div class="val">${items.length}</div><div class="lbl">Showing</div></div>
+        <div class="stat"><div class="val">${compareSet.size}</div><div class="lbl">Comparing</div></div>
+    `;
+
+    // Tags
+    document.querySelectorAll('.tag-btn').forEach(b => b.classList.toggle('active', b.dataset.tag === activeTag));
+
+    // Grid
+    const grid = document.getElementById('grid');
+    grid.innerHTML = items.map(m => {
+        const catColor = catColors(m.category);
+        const sel = compareSet.has(m.name);
+        return `<div class="card ${sel ? 'selected' : ''}" id="card-${m.name.replace(/[^a-zA-Z]/g,'')}">
+            <div class="card-head">
+                <h3>${m.name}</h3>
+                <span class="cat-badge" style="background:${catColor}22;color:${catColor};border:1px solid ${catColor}44">${m.category}</span>
+            </div>
+            <div class="card-desc">${m.desc.substring(0, 120)}${m.desc.length > 120 ? '...' : ''}</div>
+            <div class="props">
+                <div class="prop"><span class="key">Viscosity:</span> <span class="value">${m.viscosity}</span></div>
+                <div class="prop"><span class="key">Cell Viability:</span> <span class="value">${m.viability > 0 ? m.viability + '%' : 'N/A'}</span> ${m.viability > 0 ? barHTML(m.viability) : ''}</div>
+                <div class="prop"><span class="key">Print Temp:</span> <span class="value">${m.printTemp}</span></div>
+                <div class="prop"><span class="key">Resolution:</span> <span class="value">${m.resolution}</span></div>
+            </div>
+            <div class="tags">${m.tags.map(t => `<span class="tag">${t}</span>`).join('')}</div>
+            <div class="card-actions">
+                <button class="btn btn-sm btn-outline" onclick="toggleCompare('${m.name}')">${sel ? '✓ Selected' : '+ Compare'}</button>
+                <button class="btn btn-sm" onclick="showDetail('${m.name}')">Details</button>
+            </div>
+        </div>`;
+    }).join('');
+
+    document.getElementById('empty').style.display = items.length ? 'none' : 'block';
+    updateCompareBar();
+}
+
+function catColors(cat) {
+    const map = { 'Polysaccharide': '#4ade80', 'Protein-based': '#38bdf8', 'Synthetic': '#a78bfa',
+        'ECM-derived': '#fbbf24', 'Thermoplastic': '#f87171', 'Composite': '#fb923c', 'Support Material': '#94a3b8' };
+    return map[cat] || '#38bdf8';
+}
+
+function barHTML(pct) {
+    return `<span class="bar-bg"><span class="bar-fill" style="width:${pct}%"></span></span>`;
+}
+
+function toggleCompare(name) {
+    if (compareSet.has(name)) compareSet.delete(name); else if (compareSet.size < 5) compareSet.add(name);
+    render();
+}
+
+function clearCompare() { compareSet.clear(); render(); }
+
+function updateCompareBar() {
+    const bar = document.getElementById('compareBar');
+    const chips = document.getElementById('compareChips');
+    bar.classList.toggle('visible', compareSet.size > 0);
+    chips.innerHTML = [...compareSet].map(n => `<span class="compare-chip">${n} <span class="x" onclick="toggleCompare('${n}')">×</span></span>`).join('');
+}
+
+function openCompare() {
+    if (compareSet.size < 2) return alert('Select at least 2 materials to compare.');
+    const mats = [...compareSet].map(n => MATERIALS.find(m => m.name === n)).filter(Boolean);
+    const fields = [
+        ['Category', m => m.category], ['Viscosity', m => m.viscosity],
+        ['Cell Viability', m => m.viability > 0 ? m.viability + '%' : 'N/A'],
+        ['Print Temp', m => m.printTemp], ['Resolution', m => m.resolution],
+        ['Concentration', m => m.concentration], ['Crosslinker', m => m.crosslinker],
+        ['Degradation', m => m.degradation], ['Cell Types', m => Array.isArray(m.cellTypes) ? m.cellTypes.join(', ') : m.cellTypes],
+        ['Pros', m => m.pros.join(', ')], ['Cons', m => m.cons.join(', ')]
+    ];
+    let html = `<table class="compare-table"><thead><tr><th>Property</th>${mats.map(m => `<th>${m.name}</th>`).join('')}</tr></thead><tbody>`;
+    fields.forEach(([label, fn]) => {
+        html += `<tr><td>${label}</td>${mats.map(m => `<td>${fn(m)}</td>`).join('')}</tr>`;
+    });
+    html += '</tbody></table>';
+    document.getElementById('compareContent').innerHTML = html;
+    document.getElementById('compareModal').classList.add('open');
+}
+function closeCompare() { document.getElementById('compareModal').classList.remove('open'); }
+
+function showDetail(name) {
+    const m = MATERIALS.find(x => x.name === name);
+    if (!m) return;
+    const c = catColors(m.category);
+    document.getElementById('detailContent').innerHTML = `
+        <h2>${m.name} <span class="cat-badge" style="background:${c}22;color:${c};border:1px solid ${c}44;font-size:0.8rem">${m.category}</span></h2>
+        <p style="color:var(--muted);margin:0.8rem 0 1.2rem;line-height:1.5">${m.desc}</p>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.8rem;margin-bottom:1.2rem">
+            <div class="prop"><span class="key">Viscosity:</span> <span class="value">${m.viscosity}</span></div>
+            <div class="prop"><span class="key">Cell Viability:</span> <span class="value">${m.viability > 0 ? m.viability + '%' : 'N/A'}</span></div>
+            <div class="prop"><span class="key">Print Temp:</span> <span class="value">${m.printTemp}</span></div>
+            <div class="prop"><span class="key">Resolution:</span> <span class="value">${m.resolution}</span></div>
+            <div class="prop"><span class="key">Concentration:</span> <span class="value">${m.concentration}</span></div>
+            <div class="prop"><span class="key">Degradation:</span> <span class="value">${m.degradation}</span></div>
+            <div class="prop"><span class="key">Crosslinker:</span> <span class="value">${m.crosslinker}</span></div>
+            <div class="prop"><span class="key">Cell Types:</span> <span class="value">${Array.isArray(m.cellTypes) ? m.cellTypes.join(', ') : m.cellTypes}</span></div>
+        </div>
+        <div style="display:flex;gap:1.5rem;margin-bottom:1rem">
+            <div><h4 style="color:var(--success);font-size:0.85rem;margin-bottom:0.4rem">✅ Pros</h4><ul style="padding-left:1.2rem;font-size:0.85rem;color:var(--text)">${m.pros.map(p=>`<li>${p}</li>`).join('')}</ul></div>
+            <div><h4 style="color:var(--error);font-size:0.85rem;margin-bottom:0.4rem">❌ Cons</h4><ul style="padding-left:1.2rem;font-size:0.85rem;color:var(--text)">${m.cons.map(p=>`<li>${p}</li>`).join('')}</ul></div>
+        </div>
+        <div class="tags" style="margin-top:0.5rem">${m.tags.map(t => `<span class="tag">${t}</span>`).join('')}</div>
+    `;
+    document.getElementById('detailModal').classList.add('open');
+}
+function closeDetail() { document.getElementById('detailModal').classList.remove('open'); }
+
+// Close modals on overlay click
+document.querySelectorAll('.modal-overlay').forEach(el => el.addEventListener('click', e => { if (e.target === el) el.classList.remove('open'); }));
+document.addEventListener('keydown', e => { if (e.key === 'Escape') document.querySelectorAll('.modal-overlay').forEach(el => el.classList.remove('open')); });
+
+init();
+</script>
+</body>
+</html>
