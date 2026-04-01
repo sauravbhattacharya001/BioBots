@@ -89,8 +89,26 @@ function pstddev(arr, avg) {
     return Math.sqrt(ss / arr.length);
 }
 
+/**
+ * Linear-interpolation percentile (p ∈ 0–100).
+ *
+ * @param {number[]} arr - Array of numbers (not modified).
+ * @param {number} p - Percentile (0–100).
+ * @returns {number} Interpolated value, or 0 for empty arrays.
+ */
+function percentile(arr, p) {
+    if (!arr.length) return 0;
+    var sorted = arr.slice().sort(function (a, b) { return a - b; });
+    var idx = (p / 100) * (sorted.length - 1);
+    var lo = Math.floor(idx);
+    var hi = Math.ceil(idx);
+    if (lo === hi) return sorted[lo];
+    return sorted[lo] + (sorted[hi] - sorted[lo]) * (idx - lo);
+}
+
 exports.mean = mean;
 exports.median = median;
 exports.cv = cv;
 exports.stddev = stddev;
 exports.pstddev = pstddev;
+exports.percentile = percentile;
