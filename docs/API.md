@@ -34,6 +34,14 @@ const biobots = require('@sauravbhattacharya001/biobots');
 - [Compatibility Matrix](#compatibility-matrix)
 - [Lab Inventory Manager](#lab-inventory-manager)
 - [Waste Tracker](#waste-tracker)
+- [Dilution Calculator](#dilution-calculator)
+- [Plate Map Generator](#plate-map-generator)
+- [Cell Counter](#cell-counter)
+- [Serial Dilution Calculator](#serial-dilution-calculator)
+- [Standard Curve Calculator](#standard-curve-calculator)
+- [Cell Viability Calculator](#cell-viability-calculator)
+- [PCR Master Mix Calculator](#pcr-master-mix-calculator)
+- [Flow Cytometry Analyzer](#flow-cytometry-analyzer)
 
 ---
 
@@ -506,6 +514,210 @@ Get all waste entries for a specific material.
 ### `wt.reset()`
 
 Clear all waste tracking data.
+
+---
+
+## Dilution Calculator
+
+```js
+var diluter = biobots.createDilutionCalculator();
+```
+
+Provides C1V1 dilution calculations, serial dilution planning, molarity ↔ mass conversions, buffer preparation recipes, and working solution preparation from stock.
+
+### Key Methods
+
+| Method | Description |
+|---|---|
+| `diluter.c1v1({ c1, v1, c2, v2 })` | Solve C1V1 = C2V2 (set one to `null` to solve for it) |
+| `diluter.serialDilution({ stockConcentration, dilutionFactor, steps, transferVolume, finalVolume })` | Plan a serial dilution series |
+| `diluter.molarityToMass({ molarity, volumeL, reagent \| mw })` | Convert molar concentration to mass (g) |
+| `diluter.massToMolarity({ massG, volumeL, reagent \| mw })` | Convert mass to molar concentration |
+| `diluter.percentSolution({ massG, volumeML })` | Calculate weight/volume percent |
+| `diluter.prepareBuffer(bufferKey, volumeML)` | Get recipe for a standard buffer |
+| `diluter.workingSolution({ stockConcentration, workingConcentration, finalVolume })` | Calculate volumes for working solution |
+| `diluter.listReagents()` | List available reagents with molecular weights |
+| `diluter.listBuffers()` | List available buffer recipes |
+
+```js
+var result = diluter.c1v1({ c1: 10, v1: null, c2: 2, v2: 50 });
+// => { c1: 10, v1: 10, c2: 2, v2: 50, diluentVolume: 40, dilutionFactor: 5 }
+```
+
+---
+
+## Plate Map Generator
+
+```js
+var gen = biobots.createPlateMapGenerator();
+```
+
+Generates well plate layouts (6, 12, 24, 48, 96, 384-well) with sample/control/blank assignment, randomization, and edge-effect avoidance.
+
+### Key Methods
+
+| Method | Description |
+|---|---|
+| `gen.generate(opts)` | Generate a plate map with samples, controls, blanks |
+| `gen.render(map)` | ASCII visual rendering of the plate |
+| `gen.toCSV(map)` | Export plate map as CSV string |
+| `gen.toJSON(map)` | Export plate map as JSON string |
+| `gen.getFormats()` | List supported plate sizes |
+
+```js
+var map = gen.generate({
+  plateSize: 96,
+  samples: [{ name: 'BioinkA', replicates: 3 }, { name: 'BioinkB', replicates: 3 }],
+  controls: { positive: 3, negative: 3 },
+  blanks: 6,
+  randomize: true,
+  edgeBlanks: true
+});
+console.log(gen.render(map));
+```
+
+---
+
+## Cell Counter
+
+```js
+var counter = biobots.createCellCounter();
+```
+
+Hemocytometer-based cell counting with viability assessment, dilution planning, and multiple chamber type support.
+
+### Key Methods
+
+| Method | Description |
+|---|---|
+| `counter.count({ counts, dilutionFactor, chamberType? })` | Calculate cells/mL from square counts |
+| `counter.viability({ live, dead })` | Calculate cell viability percentage |
+| `counter.diluteTo({ currentCellsPerMl, targetCellsPerMl, targetVolumeMl })` | Calculate dilution volumes |
+| `counter.getChamberTypes()` | List supported chamber types |
+| `counter.getChamberSpec(type)` | Get specs for a chamber type |
+
+```js
+var result = counter.count({ counts: [45, 52, 48, 50], dilutionFactor: 2 });
+// => { cellsPerMl: 975000, averagePerSquare: 48.75, quality: 'good', ... }
+```
+
+---
+
+## Serial Dilution Calculator
+
+```js
+var sd = biobots.createSerialDilutionCalculator();
+```
+
+Plans serial dilution series with volume calculations and preset schemes (half-log, quarter-log, etc.).
+
+### Key Methods
+
+| Method | Description |
+|---|---|
+| `sd.calculate(opts)` | Calculate a serial dilution series from parameters |
+| `sd.calculateToTarget(opts)` | Plan dilution to reach a target final concentration |
+| `sd.preset(scheme, initialConcentration, steps, finalVolume, unit?)` | Generate from preset scheme (e.g. `'half-log'`) |
+| `sd.format(result)` | Format result as human-readable text |
+
+```js
+var result = sd.calculate({
+  initialConcentration: 1000,
+  dilutionFactor: 10,
+  steps: 4,
+  transferVolume: 100,
+  finalVolume: 1000,
+  unit: 'ng/mL'
+});
+```
+
+---
+
+## Standard Curve Calculator
+
+```js
+var sc = biobots.createStandardCurveCalculator();
+```
+
+Fits calibration curves (linear regression), calculates R², determines LOD/LOQ, and interpolates unknown concentrations from measured signals.
+
+### Key Methods
+
+| Method | Description |
+|---|---|
+| `sc.fitCurve(standards)` | Fit a linear standard curve from `[{ concentration, signal }]` |
+| `sc.interpolate(curve, signal)` | Interpolate concentration from a signal value |
+| `sc.interpolateBatch(curve, signals)` | Batch interpolation for multiple signals |
+
+```js
+var curve = sc.fitCurve([
+  { concentration: 0, signal: 0.05 },
+  { concentration: 10, signal: 0.52 },
+  { concentration: 50, signal: 2.45 },
+  { concentration: 100, signal: 4.90 }
+]);
+var unknown = sc.interpolate(curve, 1.25);
+// => { concentration: 25.1, signal: 1.25, withinRange: true }
+```
+
+---
+
+## Cell Viability Calculator
+
+```js
+var cv = biobots.createCellViabilityCalculator();
+```
+
+Calculates cell viability using multiple assay methods (trypan blue, MTT/MTS, live/dead fluorescent staining, etc.) with bioprinting suitability assessment.
+
+### Key Methods
+
+| Method | Description |
+|---|---|
+| `cv.trypanBlue({ live, dead })` | Viability from trypan blue exclusion counts |
+| `cv.mtt({ treated, control, blank? })` | Viability from MTT/MTS absorbance |
+| `cv.liveDead({ liveFluorescence, deadFluorescence })` | Viability from fluorescent staining |
+
+```js
+var result = cv.trypanBlue({ live: 450, dead: 50 });
+// => { viabilityPct: 90, totalCells: 500, live: 450, dead: 50, method: 'trypan-blue' }
+```
+
+---
+
+## PCR Master Mix Calculator
+
+```js
+var pcr = biobots.createPcrMasterMixCalculator();
+```
+
+Calculates reagent volumes for PCR master mix preparation with support for multiple polymerase presets and custom protocols.
+
+### Key Methods
+
+| Method | Description |
+|---|---|
+| `pcr.calculate(opts)` | Calculate master mix volumes for n reactions |
+| `pcr.listPresets()` | List available polymerase presets |
+| `pcr.getPreset(name)` | Get details of a specific preset |
+
+---
+
+## Flow Cytometry Analyzer
+
+```js
+var fc = biobots.createFlowCytometryAnalyzer();
+```
+
+Analyzes flow cytometry event data with gating, channel statistics, compensation, and panel-based multi-marker analysis.
+
+### Key Methods
+
+| Method | Description |
+|---|---|
+| `fc.analyzeChannel(events, channel)` | Compute statistics for a single channel |
+| `fc.gate(events, gates)` | Apply gating criteria to filter events |
+| `fc.listPanels()` | List available fluorochrome panels |
 
 ---
 
