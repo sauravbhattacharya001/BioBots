@@ -68,9 +68,13 @@ jobs:
         if: github.event_name != 'pull_request'
         shell: pwsh
         run: |
-          $img = "${{ steps.meta.outputs.image }}".ToLower()
-          # Pull trivy and scan the built image
-          docker run --rm -v //var/run/docker.sock://var/run/docker.sock aquasec/trivy:latest image --exit-code 0 --severity HIGH,CRITICAL --format table "${img}:sha-${{ github.sha }}" 2>&1 || echo "Trivy scan completed (informational)"
+          $img = "${{ steps.meta.outputs.image }}:sha-${{ github.sha }}".ToLower()
+          # Export image to tarball for Trivy scanning (Windows containers lack Unix socket)
+          $tarPath = "${{ runner.temp }}\biobots-image.tar"
+          docker save -o $tarPath $img
+          # Run Trivy on the exported tarball using --input flag
+          docker run --rm -v "${{ runner.temp }}:/scandir" aquasec/trivy:latest image --exit-code 0 --severity HIGH,CRITICAL --format table --input /scandir/biobots-image.tar 2>&1 || echo "Trivy scan completed (informational)"
+          Remove-Item $tarPath -ErrorAction SilentlyContinue
 
       - name: Push images
         if: github.event_name != 'pull_request'
@@ -85,9 +89,11 @@ jobs:
         if: startsWith(github.ref, 'refs/tags/v')
         shell: pwsh
         run: |
-          $img = "${{ steps.meta.outputs.image }}:sha-${{ github.sha }}"
-          # Syft SBOM generation (informational)
-          docker run --rm -v //var/run/docker.sock://var/run/docker.sock anchore/syft:latest packages "${img}" -o spdx-json > sbom.spdx.json 2>&1 || echo "SBOM generation skipped"
+          $img = "${{ steps.meta.outputs.image }}:sha-${{ github.sha }}".ToLower()
+          $tarPath = "${{ runner.temp }}\biobots-sbom.tar"
+          docker save -o $tarPath $img
+          docker run --rm -v "${{ runner.temp }}:/scandir" anchore/syft:latest scan file:/scandir/biobots-sbom.tar -o spdx-json > sbom.spdx.json 2>&1 || echo "SBOM generation skipped"
+          Remove-Item $tarPath -ErrorAction SilentlyContinue
 
       - name: Upload SBOM artifact
         if: startsWith(github.ref, 'refs/tags/v')
