@@ -1,5 +1,7 @@
 'use strict';
 
+var round = require('./validation').round;
+
 /**
  * GCode Analyzer for BioBots bioprinter.
  *
@@ -363,34 +365,34 @@ function createGCodeAnalyzer() {
                 lineCount: lineCount,
                 commandCount: commandCount,
                 layerCount: layerArray.length,
-                estimatedTimeMin: round2(totalTimeMin),
-                estimatedTimeSec: round2(totalTimeMin * 60)
+                estimatedTimeMin: round(totalTimeMin),
+                estimatedTimeSec: round(totalTimeMin * 60)
             },
             extrusion: {
-                filamentLengthMm: round2(totalExtrusionLength),
-                volumeMm3: round2(extrusionVolumeMm3),
-                volumeMl: round4(extrusionVolumeMl),
+                filamentLengthMm: round(totalExtrusionLength),
+                volumeMm3: round(extrusionVolumeMm3),
+                volumeMl: round(extrusionVolumeMl, 4),
                 filamentDiameter: filamentDiameter,
                 nozzleDiameter: nozzleDiameter
             },
             movement: {
-                totalPrintDistMm: round2(totalPrintDist),
-                totalTravelDistMm: round2(totalTravelDist),
-                totalDistMm: round2(totalPrintDist + totalTravelDist),
+                totalPrintDistMm: round(totalPrintDist),
+                totalTravelDistMm: round(totalTravelDist),
+                totalDistMm: round(totalPrintDist + totalTravelDist),
                 printTravelRatio: totalTravelDist > 0
-                    ? round4(totalPrintDist / totalTravelDist)
+                    ? round(totalPrintDist / totalTravelDist, 4)
                     : totalPrintDist > 0 ? Infinity : 0
             },
             feedrate: feedrateStats,
             retraction: {
                 count: retractionCount,
-                totalDistMm: round2(totalRetractionDist),
-                avgDistMm: retractionCount > 0 ? round4(totalRetractionDist / retractionCount) : 0
+                totalDistMm: round(totalRetractionDist),
+                avgDistMm: retractionCount > 0 ? round(totalRetractionDist / retractionCount, 4) : 0
             },
             bounds: {
-                x: { min: round2(bounds.minX), max: round2(bounds.maxX), range: round2(bounds.maxX - bounds.minX) },
-                y: { min: round2(bounds.minY), max: round2(bounds.maxY), range: round2(bounds.maxY - bounds.minY) },
-                z: { min: round2(bounds.minZ), max: round2(bounds.maxZ), range: round2(bounds.maxZ - bounds.minZ) }
+                x: { min: round(bounds.minX), max: round(bounds.maxX), range: round(bounds.maxX - bounds.minX) },
+                y: { min: round(bounds.minY), max: round(bounds.maxY), range: round(bounds.maxY - bounds.minY) },
+                z: { min: round(bounds.minZ), max: round(bounds.maxZ), range: round(bounds.maxZ - bounds.minZ) }
             },
             temperature: {
                 hotend: temperatures.length > 0 ? temperatures[temperatures.length - 1] : null,
@@ -427,9 +429,9 @@ function createGCodeAnalyzer() {
             return { min: 0, max: 0, avg: 0, count: 0 };
         }
         return {
-            min: round2(acc.min),
-            max: round2(acc.max),
-            avg: round2(acc.sum / acc.count),
+            min: round(acc.min),
+            max: round(acc.max),
+            avg: round(acc.sum / acc.count),
             count: acc.count
         };
     }
@@ -445,12 +447,12 @@ function createGCodeAnalyzer() {
         return analysis.layers.map(function (layer) {
             return {
                 layer: layer.index,
-                z: round2(layer.z),
+                z: round(layer.z),
                 moves: layer.moves,
-                extrusionMm: round2(layer.extrusionLength),
-                printDistMm: round2(layer.printDist),
-                travelDistMm: round2(layer.travelDist),
-                timeSec: round2(layer.timeMin * 60)
+                extrusionMm: round(layer.extrusionLength),
+                printDistMm: round(layer.printDist),
+                travelDistMm: round(layer.travelDist),
+                timeSec: round(layer.timeMin * 60)
             };
         });
     }
@@ -468,7 +470,7 @@ function createGCodeAnalyzer() {
         function delta(va, vb) {
             var diff = vb - va;
             var pct = va !== 0 ? (diff / va) * 100 : (vb !== 0 ? 100 : 0);
-            return { a: va, b: vb, diff: round2(diff), pctChange: round2(pct) };
+            return { a: va, b: vb, diff: round(diff), pctChange: round(pct) };
         }
 
         return {
@@ -517,23 +519,20 @@ function createGCodeAnalyzer() {
         var totalCost = materialCost + machineCost + laborCost + consumables;
 
         return {
-            materialMl: round4(volumeMl * wasteMultiplier),
-            materialCost: round2(materialCost),
-            machineCost: round2(machineCost),
-            laborCost: round2(laborCost),
-            consumablesCost: round2(consumables),
-            totalCost: round2(totalCost),
+            materialMl: round(volumeMl * wasteMultiplier, 4),
+            materialCost: round(materialCost),
+            machineCost: round(machineCost),
+            laborCost: round(laborCost),
+            consumablesCost: round(consumables),
+            totalCost: round(totalCost),
             breakdown: {
-                material: totalCost > 0 ? round2((materialCost / totalCost) * 100) : 0,
-                machine: totalCost > 0 ? round2((machineCost / totalCost) * 100) : 0,
-                labor: totalCost > 0 ? round2((laborCost / totalCost) * 100) : 0,
-                consumables: totalCost > 0 ? round2((consumables / totalCost) * 100) : 0
+                material: totalCost > 0 ? round((materialCost / totalCost) * 100) : 0,
+                machine: totalCost > 0 ? round((machineCost / totalCost) * 100) : 0,
+                labor: totalCost > 0 ? round((laborCost / totalCost) * 100) : 0,
+                consumables: totalCost > 0 ? round((consumables / totalCost) * 100) : 0
             }
         };
     }
-
-    function round2(n) { return Math.round(n * 100) / 100; }
-    function round4(n) { return Math.round(n * 10000) / 10000; }
 
     return {
         parseLine: parseLine,

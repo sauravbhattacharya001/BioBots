@@ -1,5 +1,7 @@
 'use strict';
 
+var round = require('./validation').round;
+
 /**
  * Process Capability Analyzer — Six Sigma Cp/Cpk/Pp/Ppk computation.
  *
@@ -188,20 +190,20 @@ function createCapabilityAnalyzer() {
             }
 
             return {
-                cp: round4(cp),
-                cpk: round4(cpk),
-                pp: round4(pp),
-                ppk: round4(ppk),
-                cpm: round4(cpm),
-                sigmaLevel: round4(sigmaLevel),
-                pctOutOfSpec: round6(pctOutOfSpec * 100),
-                pctAboveUSL: round6(pctAboveUSL * 100),
-                pctBelowLSL: round6(pctBelowLSL * 100),
+                cp: round(cp, 4),
+                cpk: round(cpk, 4),
+                pp: round(pp, 4),
+                ppk: round(ppk, 4),
+                cpm: round(cpm, 4),
+                sigmaLevel: round(sigmaLevel, 4),
+                pctOutOfSpec: round(pctOutOfSpec * 100, 6),
+                pctAboveUSL: round(pctAboveUSL * 100, 6),
+                pctBelowLSL: round(pctBelowLSL * 100, 6),
                 verdict: verdict,
                 stats: {
-                    mean: round4(overallMean),
-                    overallSigma: round6(overallSigma),
-                    withinSigma: round6(withinSigma),
+                    mean: round(overallMean, 4),
+                    overallSigma: round(overallSigma, 6),
+                    withinSigma: round(withinSigma, 6),
                     n: measurements.length,
                     nBatches: batches.length,
                     target: target,
@@ -231,14 +233,8 @@ function createCapabilityAnalyzer() {
     };
 }
 
-function round4(n) {
-    return Math.round(n * 10000) / 10000;
-}
-
-function round6(n) {
-    return Math.round(n * 1000000) / 1000000;
-}
-
 module.exports = {
     createCapabilityAnalyzer: createCapabilityAnalyzer
 };
+
+
