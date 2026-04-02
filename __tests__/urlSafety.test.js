@@ -42,6 +42,11 @@ describe('URL safety validation', function () {
         expect(_isUrlSafe('http://admin:secret@192.168.1.1/api')).toBe(false);
     });
 
+    test('blocks protocol-relative URLs', function () {
+        expect(_isUrlSafe('//evil.com/data.json')).toBe(false);
+        expect(_isUrlSafe('//attacker.io/payload')).toBe(false);
+    });
+
     test('rejects empty or non-string input', function () {
         expect(_isUrlSafe('')).toBe(false);
         expect(_isUrlSafe(null)).toBe(false);

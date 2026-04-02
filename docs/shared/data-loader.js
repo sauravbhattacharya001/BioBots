@@ -55,6 +55,12 @@ function _isUrlSafe(url) {
         return false;
     }
 
+    // Block protocol-relative URLs (//evil.com/...) which inherit the
+    // current page's scheme and can point to attacker-controlled servers.
+    if (/^\/\//.test(trimmed)) {
+        return false;
+    }
+
     // Block embedded credentials (https://user:pass@evil.com/...)
     if (/^https?:\/\/[^/]*@/i.test(trimmed)) {
         return false;
