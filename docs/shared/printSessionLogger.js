@@ -45,12 +45,7 @@ function matchesFilter(session, filters) {
     return true;
 }
 
-function median(arr) {
-    if (!arr.length) return 0;
-    var s = arr.slice().sort(function(a, b) { return a - b; });
-    var mid = Math.floor(s.length / 2);
-    return s.length % 2 ? s[mid] : (s[mid - 1] + s[mid]) / 2;
-}
+var median = require('./stats').median;
 
 /* ── valid values ────────────────────────────────────────────────── */
 

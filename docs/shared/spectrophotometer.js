@@ -43,16 +43,8 @@ var validateNonNegative = _v.validateNonNegative;
 var round = _v.round;
 
 var _stats = require('./stats');
-var _mean = _stats.mean;
-var _pstddev = _stats.pstddev;
-
-function mean(arr) {
-  return _mean(arr);
-}
-
-function stdDev(arr) {
-  return _pstddev(arr);
-}
+var mean = _stats.mean;
+var stdDev = _stats.pstddev;
 
 /* Simple linear regression: y = slope * x + intercept */
 function linearRegression(xVals, yVals) {
