@@ -8,7 +8,7 @@ Technical overview of the BioBots Tool codebase — a browser-based bioprinting 
 BioBots/
 ├── docs/                    # GitHub Pages site (HTML + shared JS)
 │   ├── index.html           # Landing page / dashboard hub
-│   ├── shared/              # Core computation modules (16 modules)
+│   ├── shared/              # Core computation modules (66 modules)
 │   │   ├── calculator.js    # Bioink volume & cost calculator
 │   │   ├── capability.js    # Six Sigma process capability (Cp/Cpk/Pp/Ppk)
 │   │   ├── constants.js     # Shared constants & defaults
@@ -23,9 +23,9 @@ BioBots/
 │   │   ├── scaffold.js      # Scaffold geometry, porosity, mechanics
 │   │   ├── utils.js         # DOM helpers, formatting, rounding
 │   │   └── viability.js     # Cell viability estimator
-│   ├── *.html               # Dashboard pages (45 pages)
+│   ├── *.html               # Dashboard pages (66 pages)
 │   └── bioprint-data.json   # Sample print dataset
-├── __tests__/               # Jest test suite (74 files)
+├── __tests__/               # Jest test suite (125 files)
 ├── tests/                   # Assert-based tests (viability)
 ├── Try/                     # ASP.NET Web API project
 │   └── scripts/             # 27 bioprinting simulation modules
@@ -36,7 +36,7 @@ BioBots/
 
 ### 1. Shared Computation Layer (`docs/shared/`)
 
-Pure-function JavaScript modules with no DOM dependencies. Each module uses
+Pure-function JavaScript modules with no DOM dependencies. 66 modules use
 the revealing module pattern (`function createXxx() { ... return { ... }; }`)
 for encapsulation and testability.
 
@@ -67,7 +67,7 @@ for encapsulation and testability.
 
 ### 2. Dashboard Layer (`docs/*.html`)
 
-46 single-page HTML dashboards, each focused on one analysis domain. Pages
+66 single-page HTML dashboards, each focused on one analysis domain. Pages
 load shared modules via `<script>` and use vanilla JavaScript for interactivity.
 
 | Category | Pages | Description |
@@ -106,32 +106,36 @@ operations. Each exports a factory function returning domain-specific methods.
 
 ### 4. Test Layer
 
-**Jest suite** (`__tests__/`, 76 files): Tests for all shared modules,
+**Jest suite** (`__tests__/`, 125 files): Tests for all shared modules,
 simulation scripts, and dashboard logic. Uses `--env node` for pure
 computation tests. Organized by category:
 
 | Category | Test Files | Coverage |
 |----------|-----------|----------|
-| Core API & Utils | 5 | `runMethod`, `utils`, `constants`, `shared`, `data-loader` |
-| Shared Modules | 13 | `calculator`, `capability`, `crosslink`, `gcode`, `rheology`, `viability`, `export`, `mixer`, `passage`, `jobEstimator`, `scaffold`, `printQualityScorer`, `printResolution` |
+| Core API & Utils | 6 | `runMethod`, `utils`, `constants`, `shared`, `data-loader`, `validation` |
+| Shared Modules | 25 | `calculator`, `capability`, `crosslink`, `gcode`, `rheology`, `viability`, `export`, `mixer`, `passage`, `jobEstimator`, `scaffold`, `printQualityScorer`, `printResolution`, `cellViability`, `cellCounter`, `unitConverter`, `standardCurve`, `sampleLabel`, `sampleTracker`, `recipeBuilder`, `plateMap`, `growthCurve`, `yieldAnalyzer`, `westernBlot`, `spectrophotometer` |
 | Analysis | 8 | `compare`, `trends`, `cluster`, `predictor`, `recommender`, `pareto`, `optimizer`, `doe` |
 | Quality & SPC | 7 | `quality`, `spc`, `anomaly`, `reproducibility`, `batch`, `batchStats`, `compliance` |
-| Bioprinting Sim | 6 | `porosity`, `layerAdhesion`, `vascularization`, `maturation`, `degradation`, `cellSeeding` |
-| Lab Operations | 7 | `printQueue`, `protocolLibrary`, `protocol`, `sessionLogger`, `labAuditTrail`, `riskAssessor`, `scriptUtils` |
+| Bioprinting Sim | 7 | `porosity`, `layerAdhesion`, `vascularization`, `maturation`, `degradation`, `cellSeeding`, `toolpath` |
+| Lab Operations | 16 | `printQueue`, `protocolLibrary`, `protocol`, `protocolGenerator`, `protocolGenerator-extended`, `protocolTemplates`, `sessionLogger`, `labAuditTrail`, `riskAssessor`, `scriptUtils`, `labInventory`, `labNotebook`, `printSessionLogger`, `sampleRegistry`, `nozzleAdvisor`, `printComparator` |
 | Diagnostics | 5 | `failureDiagnostic`, `mlDiagnostic`, `mlDiagnostic-extended`, `mlDiagnosticDeep`, `failure` |
-| Materials | 7 | `compatibility`, `formulationCalculator`, `costEstimator`, `shelfLife`, `sterilization`, `waste`, `materialLotTracker` |
-| Infrastructure | 6 | `nozzlePlanner`, `environment`, `maintenance`, `calibration`, `printComparator`, `toolpath` |
-| Dashboards | 6 | `index`, `table`, `profile`, `coverage`, `wellplate`, `shelfLifeDashboard` |
-| Tracking | 2 | `contaminationTracker`, `experimentTracker` |
-| Security | 3 | `logbook-xss`, `passage-csv-security`, `healthDashboard` |
+| Materials | 12 | `compatibility`, `compatibilityMatrix`, `formulationCalculator`, `costEstimator`, `shelfLife`, `shelfLifeDashboard`, `shelfLifeTracker`, `sterilization`, `sterilityAssurance`, `waste`, `wasteTracker`, `materialLotTracker` |
+| Infrastructure | 7 | `nozzlePlanner`, `environment`, `environmentalMonitor`, `maintenance`, `calibration`, `recipe`, `healthDashboard` |
+| Dashboards | 6 | `index`, `table`, `profile`, `coverage`, `wellplate`, `logbook-xss` |
+| Tracking | 3 | `contaminationTracker`, `contaminationRisk`, `experimentTracker` |
+| Security | 3 | `logbook-xss`, `passage-csv-security`, `prototype-pollution` |
 | Parameter Opt. | 1 | `parameterOptimizer` |
+| Lab Chemistry | 12 | `molarity`, `phAdjustment`, `osmolality`, `dilutionCalculator`, `serialDilution`, `bufferPrep`, `mediaPrep`, `mediaOptimizer`, `pcrMasterMix`, `washProtocol`, `electroporation`, `freezeThaw` |
+| Lab QC | 4 | `mycoplasmaTest`, `pipetteCalibration`, `autoclave`, `flowCytometry` |
+| Experiment Mgmt | 2 | `experimentRandomizer`, `gelElectrophoresis` |
+| URL Safety | 1 | `urlSafety` |
 
 **Assert suite** (`tests/`, 1 file): Standalone `node`-runnable test for the
 viability estimator (72 tests) using Node's built-in `assert` module.
 
 **Running tests:**
 ```bash
-npx jest --env node         # Jest (all 74 suites)
+npx jest --env node         # Jest (all 125 suites)
 node tests/viability.test.js  # Assert-based viability tests
 ```
 

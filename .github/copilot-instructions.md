@@ -10,7 +10,7 @@ BioBots Tool is a REST API and interactive web frontend for querying BioBot 1 3D
 - **Language:** C# (backend) + JavaScript (frontend)
 - **Build:** MSBuild + NuGet (not .NET Core — uses `packages.config`, not PackageReference)
 - **Data:** JSON file (`bioprint-data.json`) stream-deserialized via Newtonsoft.Json into typed models
-- **Frontend tests:** Jest + jsdom (3342 tests across 64 suites with coverage thresholds)
+- **Frontend tests:** Jest + jsdom (125 test files across 125 suites with coverage thresholds)
 - **Python module:** `evolution_tracker.py` — population genetics analysis with pytest tests
 - **Hosting:** IIS Express (development) / IIS (production) / GitHub Pages (docs site)
 
@@ -172,7 +172,7 @@ npx jest --watch
 | **Infrastructure** | `nozzlePlanner`, `environment`, `maintenance`, `calibration`, `scriptUtils` | Nozzle coordination, environment monitoring, calibration |
 | **Dashboards** | `index`, `table`, `explorer`, `profile`, `coverage`, `wellplate`, `logbook` | Dashboard page logic |
 
-**64 test files, 3342 tests** across all modules (as of March 2026).
+**125 test files** across all modules (as of April 2026).
 
 ### Manual Testing Checklist
 

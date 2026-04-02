@@ -23,7 +23,7 @@ npx jest --watch
 
 ## Test Suite Overview
 
-The project contains **124 test files** in `__tests__/` covering every computation module, dashboard feature, and security concern. Tests use [Jest](https://jestjs.io/) with the setup in `jest.setup.js`.
+The project contains **125 test files** in `__tests__/` covering every computation module, dashboard feature, and security concern. Tests use [Jest](https://jestjs.io/) with the setup in `jest.setup.js`.
 
 ## Test Structure
 
