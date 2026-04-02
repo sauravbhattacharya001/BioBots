@@ -3,6 +3,12 @@
 var _utils = require('./scriptUtils');
 var clamp = _utils.clamp;
 var round = _utils.round;
+
+/** Keys that must never be accepted from untrusted input (prototype pollution). */
+var DANGEROUS_KEYS = { '__proto__': 1, 'constructor': 1, 'prototype': 1 };
+
+/** Check whether a property name is a prototype-pollution vector. */
+function _isDangerousKey(key) { return DANGEROUS_KEYS[key] === 1; }
 var mean = _utils.mean;
 var stddev = _utils.stddev;
 
@@ -134,7 +140,7 @@ function createMaterialLotTracker(opts) {
 
   if (opts.specs && typeof opts.specs === 'object') {
     Object.keys(opts.specs).forEach(function (cat) {
-      customSpecs[cat] = opts.specs[cat];
+      if (!_isDangerousKey(cat)) customSpecs[cat] = opts.specs[cat];
     });
   }
 
@@ -255,8 +261,8 @@ function createMaterialLotTracker(opts) {
     var base = DEFAULT_SPECS[category] || {};
     var custom = customSpecs[category] || {};
     var merged = {};
-    Object.keys(base).forEach(function (k) { merged[k] = base[k]; });
-    Object.keys(custom).forEach(function (k) { merged[k] = custom[k]; });
+    Object.keys(base).forEach(function (k) { if (!_isDangerousKey(k)) merged[k] = base[k]; });
+    Object.keys(custom).forEach(function (k) { if (!_isDangerousKey(k)) merged[k] = custom[k]; });
     return merged;
   }
 
@@ -754,6 +760,7 @@ function createMaterialLotTracker(opts) {
 
     if (data.lots && typeof data.lots === 'object') {
       Object.keys(data.lots).forEach(function (id) {
+        if (_isDangerousKey(id)) return;
         if (mode === 'merge' && lots[id]) return;
         lots[id] = data.lots[id];
       });
@@ -782,7 +789,7 @@ function createMaterialLotTracker(opts) {
     }
     if (data.customSpecs && typeof data.customSpecs === 'object') {
       Object.keys(data.customSpecs).forEach(function (cat) {
-        customSpecs[cat] = data.customSpecs[cat];
+        if (!_isDangerousKey(cat)) customSpecs[cat] = data.customSpecs[cat];
       });
     }
 
