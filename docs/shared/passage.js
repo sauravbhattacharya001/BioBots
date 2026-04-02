@@ -1,5 +1,7 @@
 'use strict';
 
+var round = require('./validation').round;
+
 /**
  * Cell Passage Tracker — tracks cell line passages for bioprinting workflows.
  *
@@ -157,8 +159,8 @@ function createPassageTracker() {
 
         return {
             trend: trend,
-            slope: Math.round(slope * 100) / 100,
-            intercept: Math.round(intercept * 100) / 100,
+            slope: round(slope),
+            intercept: round(intercept),
             points: n,
             currentViability: ps[ps.length - 1].viability,
             projectedLimitPassage: projectedLimit,
@@ -186,9 +188,9 @@ function createPassageTracker() {
         return {
             profile: inRange / ps.length >= 0.7 ? 'well_managed' : 'needs_attention',
             points: ps.length,
-            averageConfluence: Math.round(avg * 10) / 10,
+            averageConfluence: round(avg, 1),
             optimalRange: optimal,
-            inRangePercent: Math.round(inRange / ps.length * 100),
+            inRangePercent: round(inRange / ps.length * 100, 0),
             overConfluentCount: overConfluent,
             underConfluentCount: underConfluent,
             lastConfluence: ps[ps.length - 1].confluence
@@ -267,7 +269,7 @@ function createPassageTracker() {
             risk: risk,
             currentPassage: current,
             maxPassage: cl.maxPassage,
-            passageRatio: Math.round(ratio * 100),
+            passageRatio: round(ratio * 100, 0),
             remainingPassages: cl.maxPassage - current,
             viabilityTrend: viabilityTrend.trend,
             action: getSenescenceAction(risk, viabilityTrend.trend)

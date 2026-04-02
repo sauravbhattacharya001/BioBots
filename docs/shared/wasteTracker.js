@@ -1,5 +1,7 @@
 'use strict';
 
+var round = require('./validation').round;
+
 /**
  * Waste Tracker — Track, analyze, and reduce bioprinting material waste.
  *
@@ -135,19 +137,19 @@ function createWasteTracker() {
         }
 
         // Round values
-        totalVolumeMl = Math.round(totalVolumeMl * 1000) / 1000;
-        totalCost = Math.round(totalCost * 100) / 100;
+        totalVolumeMl = round(totalVolumeMl, 3);
+        totalCost = round(totalCost);
 
         var typeKeys = Object.keys(byType);
         for (var t = 0; t < typeKeys.length; t++) {
-            byType[typeKeys[t]].volumeMl = Math.round(byType[typeKeys[t]].volumeMl * 1000) / 1000;
-            byType[typeKeys[t]].cost = Math.round(byType[typeKeys[t]].cost * 100) / 100;
-            byType[typeKeys[t]].pct = Math.round((byType[typeKeys[t]].volumeMl / totalVolumeMl) * 10000) / 100;
+            byType[typeKeys[t]].volumeMl = round(byType[typeKeys[t]].volumeMl, 3);
+            byType[typeKeys[t]].cost = round(byType[typeKeys[t]].cost);
+            byType[typeKeys[t]].pct = round((byType[typeKeys[t]].volumeMl / totalVolumeMl) * 100);
         }
         var matKeys = Object.keys(byMaterial);
         for (var m = 0; m < matKeys.length; m++) {
-            byMaterial[matKeys[m]].volumeMl = Math.round(byMaterial[matKeys[m]].volumeMl * 1000) / 1000;
-            byMaterial[matKeys[m]].cost = Math.round(byMaterial[matKeys[m]].cost * 100) / 100;
+            byMaterial[matKeys[m]].volumeMl = round(byMaterial[matKeys[m]].volumeMl, 3);
+            byMaterial[matKeys[m]].cost = round(byMaterial[matKeys[m]].cost);
         }
 
         return {
@@ -168,8 +170,8 @@ function createWasteTracker() {
         return {
             wasteVolumeMl: summary.totalVolumeMl,
             usedVolumeMl: totalUsedMl,
-            totalVolumeMl: Math.round((totalUsedMl + summary.totalVolumeMl) * 1000) / 1000,
-            wasteRatePct: Math.round(rate * 10000) / 100,
+            totalVolumeMl: round(totalUsedMl + summary.totalVolumeMl, 3),
+            wasteRatePct: round(rate * 100),
             rating: rate < 0.05 ? 'excellent' : rate < 0.10 ? 'good' : rate < 0.20 ? 'fair' : 'poor'
         };
     }
