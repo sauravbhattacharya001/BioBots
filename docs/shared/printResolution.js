@@ -1,6 +1,7 @@
 'use strict';
 
 var _sanitize = require('./sanitize');
+var round = require('./validation').round;
 
 /**
  * Print Resolution Calculator
@@ -195,19 +196,19 @@ function calculateResolution(opts) {
   var shearRate = (4 * Q) / (Math.PI * Math.pow(R_m, 3));           // 1/s
 
   return {
-    nozzleDiameter:   round4(nozzleDia),
+    nozzleDiameter:   round(nozzleDia, 4),
     material:         material,
-    pressure_kPa:     round4(pressure),
-    stageSpeed_mm_s:  round4(stageSpeed),
-    viscosity_Pa_s:   round4(viscosity),
-    swellRatio:       round4(swellRatio),
-    flowRate_uL_s:    round4(Q_uL_s),
-    exitVelocity_mm_s:round4(v_exit * 1000),
-    strandDiameter_mm:round4(strandDia),
-    layerHeight_mm:   round4(layerHeight),
-    minFeatureSize_mm:round4(minFeatureSize),
-    strandSpacing_mm: round4(strandSpacing),
-    shearRate_1_s:    round4(shearRate),
+    pressure_kPa:     round(pressure, 4),
+    stageSpeed_mm_s:  round(stageSpeed, 4),
+    viscosity_Pa_s:   round(viscosity, 4),
+    swellRatio:       round(swellRatio, 4),
+    flowRate_uL_s:    round(Q_uL_s, 4),
+    exitVelocity_mm_s:round(v_exit * 1000, 4),
+    strandDiameter_mm:round(strandDia, 4),
+    layerHeight_mm:   round(layerHeight, 4),
+    minFeatureSize_mm:round(minFeatureSize, 4),
+    strandSpacing_mm: round(strandSpacing, 4),
+    shearRate_1_s:    round(shearRate, 4),
     fidelityScore:    Math.round(fidelity),
     resolutionClass:  resClass
   };
@@ -218,9 +219,8 @@ function calculateResolution(opts) {
  *
  * @param {number} v - Value to round.
  * @returns {number} Rounded value.
- * @private
+ * @private - now imported from validation.js
  */
-function round4(v) { return Math.round(v * 10000) / 10000; }
 
 /**
  * Compare multiple print configurations and rank by quality.
@@ -303,7 +303,7 @@ function findOptimalPressure(opts) {
     optimalResult: bestResult,
     targetStrandDiameter_mm: targetStrand,
     achievedStrandDiameter_mm: bestResult.strandDiameter_mm,
-    deviation_mm: round4(bestDiff)
+    deviation_mm: round(bestDiff, 4)
   };
 }
 
@@ -366,3 +366,4 @@ function createPrintResolutionCalculator() {
 }
 
 module.exports = { createPrintResolutionCalculator: createPrintResolutionCalculator };
+
