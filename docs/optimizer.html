@@ -4,6 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>BioBots 1 — Parameter Optimizer</title>
+    <script src="shared/data-loader.js"></script>
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧬</text></svg>">
     <style>
         :root {
@@ -247,15 +248,20 @@ var allData = null;
 
 function loadData(cb) {
     if (allData) return cb(allData);
-    var xhr = new XMLHttpRequest();
-    xhr.open("GET", "bioprint-data.json");
-    xhr.onload = function() {
-        if (xhr.status === 200) {
-            allData = JSON.parse(xhr.responseText);
+    if (typeof window.loadBioprintData === 'function') {
+        window.loadBioprintData({ validate: true }).then(function(data) {
+            allData = data;
             cb(allData);
-        }
-    };
-    xhr.send();
+        }).catch(function() { /* no-op: page renders empty state */ });
+    } else {
+        fetch('bioprint-data.json').then(function(r) {
+            if (!r.ok) throw new Error('HTTP ' + r.status);
+            return r.json();
+        }).then(function(data) {
+            allData = data;
+            cb(allData);
+        }).catch(function() { /* no-op */ });
+    }
 }
 
 /* ===== Utilities ===== */

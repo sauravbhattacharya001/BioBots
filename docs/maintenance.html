@@ -390,16 +390,24 @@
 
         function loadPrintData() {
             if (typeof window.loadBioprintData === 'function') {
-                window.loadBioprintData(function(data) { printData = data || []; refresh(); });
-            } else {
-                var xhr = new XMLHttpRequest();
-                xhr.open('GET', 'bioprint-data.json');
-                xhr.onload = function() {
-                    if (xhr.status === 200) { try { printData = JSON.parse(xhr.responseText); } catch (e) { printData = []; } }
+                window.loadBioprintData({ validate: true }).then(function(data) {
+                    printData = data || [];
                     refresh();
-                };
-                xhr.onerror = function() { refresh(); };
-                xhr.send();
+                }).catch(function() {
+                    printData = [];
+                    refresh();
+                });
+            } else {
+                fetch('bioprint-data.json').then(function(r) {
+                    if (!r.ok) throw new Error('HTTP ' + r.status);
+                    return r.json();
+                }).then(function(data) {
+                    printData = Array.isArray(data) ? data : [];
+                    refresh();
+                }).catch(function() {
+                    printData = [];
+                    refresh();
+                });
             }
         }
 
