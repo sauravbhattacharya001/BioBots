@@ -1,0 +1,64 @@
+---
+name: 📝 Documentation Improvement
+description: Suggest improvements to BioBots documentation — missing content, unclear instructions, or outdated information
+title: "[Docs]: "
+labels: ["documentation"]
+assignees: []
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Good docs make BioBots easier for everyone. Let us know what needs improvement!
+
+  - type: dropdown
+    id: doc-type
+    attributes:
+      label: Documentation Area
+      description: Which documentation needs improvement?
+      options:
+        - README.md
+        - API reference / endpoint docs
+        - Architecture docs (ARCHITECTURE.md)
+        - GitHub Pages site
+        - Code comments / JSDoc / XML docs
+        - CONTRIBUTING.md / developer setup
+        - Protocol submission guide
+        - Other
+    validations:
+      required: true
+
+  - type: dropdown
+    id: issue-type
+    attributes:
+      label: Issue Type
+      description: What kind of documentation issue is this?
+      options:
+        - Missing documentation
+        - Incorrect / outdated information
+        - Unclear or confusing instructions
+        - Missing code examples
+        - Broken links
+        - Typos / formatting
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: Describe what's wrong or missing. Include links to the affected docs page if applicable.
+      placeholder: "The API docs don't explain how to use the batch statistics endpoint with custom date ranges."
+    validations:
+      required: true
+
+  - type: textarea
+    id: suggestion
+    attributes:
+      label: Suggested Improvement
+      description: How would you improve this documentation? Draft content is welcome!
+
+  - type: textarea
+    id: additional
+    attributes:
+      label: Additional Context
+      description: Screenshots, links to similar projects with good docs, or anything else that helps.

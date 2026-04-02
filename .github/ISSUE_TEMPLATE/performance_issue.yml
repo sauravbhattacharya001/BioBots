@@ -1,0 +1,114 @@
+---
+name: 🐌 Performance Issue
+description: Report slow queries, high memory usage, or performance regressions in BioBots
+title: "[Perf]: "
+labels: ["performance"]
+assignees: []
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Help us keep BioBots fast! Report performance problems with details so we can benchmark and fix them.
+
+  - type: dropdown
+    id: component
+    attributes:
+      label: Component
+      description: Which part of BioBots is slow or using excessive resources?
+      options:
+        - API query execution (C# backend)
+        - Data loading / bioprint-data.json parsing
+        - Statistical calculations (batch stats, cell viability, etc.)
+        - Web UI rendering
+        - Docker build / container startup
+        - Jest test suite
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Performance Issue
+      description: Describe what is slow or resource-intensive.
+      placeholder: "Querying all prints with livePercent > 50 takes over 10 seconds with 500 records."
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps to Reproduce
+      description: How can we reproduce the performance problem?
+      placeholder: |
+        1. Load bioprint-data.json with 500+ records
+        2. Call POST /api/prints/query with metric "livePercent", comparison "greater", value "50"
+        3. Observe response time > 10s
+    validations:
+      required: true
+
+  - type: input
+    id: dataset-size
+    attributes:
+      label: Dataset Size
+      description: How many records / how large is the data file?
+      placeholder: "500 prints, bioprint-data.json is 2.1 MB"
+
+  - type: textarea
+    id: timing
+    attributes:
+      label: Observed Timing / Resource Usage
+      description: Include response times, memory usage, CPU %, or profiler output if available.
+      placeholder: |
+        - Response time: 12.3s (expected < 1s)
+        - Memory: 450 MB RSS
+        - CPU: 100% single-core during query
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected Performance
+      description: What performance do you consider acceptable for this operation?
+      placeholder: "Query should complete in < 500ms for 500 records"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: environment
+    attributes:
+      label: Environment
+      description: How are you running BioBots?
+      options:
+        - IIS / Visual Studio (local)
+        - Docker container
+        - Node.js (Jest / JS modules)
+        - Other
+    validations:
+      required: true
+
+  - type: dropdown
+    id: regression
+    attributes:
+      label: Is this a regression?
+      description: Did this used to be faster in a previous version?
+      options:
+        - "Yes — it was faster before"
+        - "No — it has always been this slow"
+        - "Unknown / first time testing"
+    validations:
+      required: true
+
+  - type: textarea
+    id: profiling
+    attributes:
+      label: Profiling Data
+      description: Paste any profiler output, flame graphs, or benchmark results.
+      render: shell
+
+  - type: textarea
+    id: additional
+    attributes:
+      label: Additional Context
+      description: Hardware specs, deployment config, related issues, or proposed optimizations.
