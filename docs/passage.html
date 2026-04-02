@@ -1,0 +1,678 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Cell Passage Tracker — BioBots</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧫</text></svg>">
+    <style>
+        :root{--bg:#0f172a;--surface:#1e293b;--border:#334155;--text:#e2e8f0;--muted:#94a3b8;--accent:#38bdf8;--accent-hover:#7dd3fc;--success:#4ade80;--warn:#fbbf24;--error:#f87171;--purple:#a78bfa}
+        *{margin:0;padding:0;box-sizing:border-box}
+        body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;padding:1.5rem}
+        header{text-align:center;margin-bottom:1.5rem}
+        header h1{font-size:1.8rem;font-weight:700;background:linear-gradient(135deg,var(--accent),var(--purple));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+        header p{color:var(--muted);margin-top:.3rem;font-size:.9rem}
+        nav{display:flex;gap:.5rem;flex-wrap:wrap;justify-content:center;margin-bottom:1.5rem}
+        nav a{color:var(--muted);padding:.4rem .8rem;border-radius:8px;text-decoration:none;font-size:.85rem;transition:all .2s}
+        nav a:hover{color:var(--accent)}
+        nav a.active{color:var(--accent);background:var(--surface);border:1px solid var(--border)}
+        .layout{display:grid;grid-template-columns:340px 1fr;gap:1.5rem;max-width:1400px;margin:0 auto}
+        @media(max-width:900px){.layout{grid-template-columns:1fr}}
+        .card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:1.5rem;margin-bottom:1rem}
+        .card h2{font-size:1rem;margin-bottom:1rem;color:var(--muted);font-weight:500}
+        .form-group{margin-bottom:.8rem}
+        .form-group label{display:block;font-size:.8rem;color:var(--muted);margin-bottom:.3rem}
+        select,input[type=number],input[type=text]{width:100%;background:var(--bg);border:1px solid var(--border);color:var(--text);padding:.5rem .7rem;border-radius:6px;font-size:.9rem;outline:none}
+        select:focus,input:focus{border-color:var(--accent)}
+        .btn{background:var(--accent);color:var(--bg);border:none;padding:.5rem 1rem;border-radius:6px;font-size:.85rem;font-weight:600;cursor:pointer;transition:all .2s;display:inline-flex;align-items:center;gap:.3rem}
+        .btn:hover{background:var(--accent-hover);transform:translateY(-1px)}
+        .btn.secondary{background:transparent;color:var(--accent);border:1px solid var(--accent)}
+        .btn.secondary:hover{background:rgba(56,189,248,.1)}
+        .btn.danger{background:var(--error);color:#fff}
+        .btn.danger:hover{opacity:.85}
+        .btn-row{display:flex;gap:.5rem;flex-wrap:wrap;margin-top:.8rem}
+        .stat-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:.8rem;margin-bottom:1rem}
+        .stat{background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:.8rem;text-align:center}
+        .stat .val{font-size:1.2rem;font-weight:700;color:var(--accent)}
+        .stat .lbl{font-size:.7rem;color:var(--muted);text-transform:uppercase;margin-top:.2rem}
+        table{width:100%;border-collapse:collapse;font-size:.85rem}
+        th,td{padding:.5rem .6rem;text-align:left;border-bottom:1px solid var(--border)}
+        th{color:var(--muted);font-weight:500;font-size:.75rem;text-transform:uppercase}
+        .badge{display:inline-block;padding:.15rem .5rem;border-radius:4px;font-size:.7rem;font-weight:600}
+        .badge-low{background:rgba(74,222,128,.15);color:var(--success)}
+        .badge-moderate{background:rgba(251,191,36,.15);color:var(--warn)}
+        .badge-high{background:rgba(248,113,113,.2);color:var(--error)}
+        .badge-critical{background:rgba(248,113,113,.35);color:#fca5a5}
+        .badge-active{background:rgba(56,189,248,.15);color:var(--accent)}
+        .badge-new{background:rgba(167,139,250,.15);color:var(--purple)}
+        .badge-exhausted{background:rgba(148,163,184,.15);color:var(--muted)}
+        .progress-bar{height:8px;background:var(--bg);border:1px solid var(--border);border-radius:4px;overflow:hidden;margin-top:.3rem}
+        .progress-fill{height:100%;border-radius:4px;transition:width .3s}
+        .alert-item{padding:.6rem .8rem;border-radius:6px;margin-bottom:.5rem;font-size:.85rem;display:flex;justify-content:space-between;align-items:center}
+        .alert-warning{background:rgba(251,191,36,.1);border:1px solid rgba(251,191,36,.3)}
+        .alert-critical{background:rgba(248,113,113,.1);border:1px solid rgba(248,113,113,.3)}
+        canvas{width:100%!important;max-height:350px}
+        .tabs{display:flex;gap:.3rem;margin-bottom:1rem;border-bottom:1px solid var(--border);padding-bottom:.5rem}
+        .tab{padding:.4rem .8rem;border-radius:6px 6px 0 0;font-size:.85rem;cursor:pointer;color:var(--muted);transition:all .2s;border:none;background:none}
+        .tab:hover{color:var(--text)}
+        .tab.active{color:var(--accent);background:var(--surface);border:1px solid var(--border);border-bottom-color:var(--surface)}
+        .tab-content{display:none}
+        .tab-content.active{display:block}
+        .empty{text-align:center;padding:2rem;color:var(--muted);font-size:.9rem}
+        .cell-line-card{background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:.8rem;margin-bottom:.6rem;cursor:pointer;transition:all .2s}
+        .cell-line-card:hover{border-color:var(--accent)}
+        .cell-line-card.selected{border-color:var(--accent);background:rgba(56,189,248,.05)}
+        .cell-line-card h3{font-size:.9rem;font-weight:600;margin-bottom:.3rem}
+        .cell-line-card .meta{font-size:.75rem;color:var(--muted);display:flex;gap:.8rem;flex-wrap:wrap}
+        .recommendation{background:rgba(56,189,248,.08);border:1px solid rgba(56,189,248,.2);border-radius:8px;padding:.8rem;font-size:.85rem;margin-top:.8rem}
+        footer{text-align:center;color:var(--muted);font-size:.75rem;margin-top:2rem;padding:1rem}
+        footer a{color:var(--accent);text-decoration:none}
+    </style>
+</head>
+<body>
+
+<header>
+    <h1>🧫 Cell Passage Tracker</h1>
+    <p>Monitor cell line passages, viability trends, senescence risk &amp; optimal passage windows</p>
+</header>
+
+<nav>
+    <a href="index.html">Query Tool</a>
+    <a href="explorer.html">Data Explorer</a>
+    <a href="growth.html">📈 Growth Curve</a>
+    <a href="seeding.html">🌱 Cell Seeding</a>
+    <a href="passage.html" class="active">🧫 Passage Tracker</a>
+    <a href="protocol.html">📋 Protocol Library</a>
+    <a href="glossary.html">📖 Glossary</a>
+    <a href="workflow-builder.html">🔧 Workflow Builder</a>
+</nav>
+
+<div class="layout">
+    <!-- Left Panel -->
+    <div>
+        <div class="card">
+            <h2>➕ Add Cell Line</h2>
+            <div class="form-group">
+                <label>Cell Line ID</label>
+                <input type="text" id="cl-id" placeholder="e.g. HEK293">
+            </div>
+            <div class="form-group">
+                <label>Name</label>
+                <input type="text" id="cl-name" placeholder="e.g. HEK-293T">
+            </div>
+            <div class="form-group">
+                <label>Species</label>
+                <select id="cl-species">
+                    <option value="human">Human</option>
+                    <option value="mouse">Mouse</option>
+                    <option value="rat">Rat</option>
+                    <option value="hamster">Hamster</option>
+                    <option value="other">Other</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Tissue Origin</label>
+                <input type="text" id="cl-tissue" placeholder="e.g. kidney, liver">
+            </div>
+            <div class="form-group">
+                <label>Max Passage</label>
+                <input type="number" id="cl-max" value="30" min="1" max="200">
+            </div>
+            <div class="form-group">
+                <label>Doubling Time (hours)</label>
+                <input type="number" id="cl-doubling" placeholder="e.g. 24" min="1">
+            </div>
+            <div class="form-group">
+                <label>Culture Medium</label>
+                <input type="text" id="cl-medium" placeholder="e.g. DMEM + 10% FBS">
+            </div>
+            <div class="btn-row">
+                <button class="btn" onclick="addCellLine()">Add Cell Line</button>
+                <button class="btn secondary" onclick="loadPresets()">Load Presets</button>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>📋 Cell Lines</h2>
+            <div id="cell-line-list">
+                <div class="empty">No cell lines added. Add one above or load presets.</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Right Panel -->
+    <div>
+        <div class="card" id="record-panel" style="display:none">
+            <h2>📝 Record Passage — <span id="record-for"></span></h2>
+            <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:.8rem">
+                <div class="form-group">
+                    <label>Passage #</label>
+                    <input type="number" id="rec-passage" min="1">
+                </div>
+                <div class="form-group">
+                    <label>Viability (%)</label>
+                    <input type="number" id="rec-viability" min="0" max="100" placeholder="e.g. 95">
+                </div>
+                <div class="form-group">
+                    <label>Confluence (%)</label>
+                    <input type="number" id="rec-confluence" min="0" max="100" placeholder="e.g. 85">
+                </div>
+                <div class="form-group">
+                    <label>Cell Count</label>
+                    <input type="number" id="rec-count" min="0" placeholder="e.g. 1000000">
+                </div>
+                <div class="form-group">
+                    <label>Split Ratio</label>
+                    <input type="text" id="rec-split" placeholder="e.g. 1:3">
+                </div>
+                <div class="form-group">
+                    <label>Operator</label>
+                    <input type="text" id="rec-operator" placeholder="Your name">
+                </div>
+            </div>
+            <div class="btn-row">
+                <button class="btn" onclick="recordPassage()">Record Passage</button>
+            </div>
+        </div>
+
+        <div class="card" id="report-panel" style="display:none">
+            <div class="tabs">
+                <button class="tab active" data-tab="overview" onclick="switchTab(this)">Overview</button>
+                <button class="tab" data-tab="history" onclick="switchTab(this)">History</button>
+                <button class="tab" data-tab="charts" onclick="switchTab(this)">Charts</button>
+                <button class="tab" data-tab="alerts" onclick="switchTab(this)">Alerts</button>
+            </div>
+
+            <div class="tab-content active" id="tab-overview">
+                <div class="stat-grid" id="overview-stats"></div>
+                <div id="overview-risk"></div>
+                <div id="overview-window"></div>
+                <div id="overview-recommendation"></div>
+                <div class="btn-row" style="margin-top:1rem">
+                    <button class="btn secondary" onclick="exportData('json')">Export JSON</button>
+                    <button class="btn secondary" onclick="exportData('csv')">Export CSV</button>
+                    <button class="btn danger" onclick="removeLine()">Remove Cell Line</button>
+                </div>
+            </div>
+
+            <div class="tab-content" id="tab-history">
+                <div id="history-table"></div>
+            </div>
+
+            <div class="tab-content" id="tab-charts">
+                <div style="margin-bottom:1rem">
+                    <canvas id="viability-chart" height="200"></canvas>
+                </div>
+                <div>
+                    <canvas id="confluence-chart" height="200"></canvas>
+                </div>
+            </div>
+
+            <div class="tab-content" id="tab-alerts">
+                <div id="alerts-list"></div>
+            </div>
+        </div>
+
+        <div class="card" id="fleet-panel">
+            <h2>🏠 Fleet Overview</h2>
+            <div id="fleet-content">
+                <div class="empty">Add cell lines to see the fleet overview.</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<footer>
+    <p>Built with 🧬 by <a href="https://github.com/sauravbhattacharya001">Saurav Bhattacharya</a></p>
+    <p><a href="https://github.com/sauravbhattacharya001/BioBots">View Source</a></p>
+</footer>
+
+<script>
+// Inline passage tracker (browser-compatible, no require)
+function createPassageTracker(){var cellLines={},passages={},alerts=[];function round(v,d){d=d||2;var m=Math.pow(10,d);return Math.round(v*m)/m}function addCellLine(o){if(!o||!o.id)throw new Error('Cell line id is required');if(cellLines[o.id])throw new Error('Cell line already exists: '+o.id);cellLines[o.id]={id:o.id,name:o.name||o.id,species:o.species||'unknown',tissue:o.tissue||'unknown',maxPassage:o.maxPassage||50,optimalConfluence:o.optimalConfluence||{min:70,max:90},doublingTime:o.doublingTime||null,medium:o.medium||'unknown',createdAt:o.createdAt||new Date().toISOString(),notes:o.notes||''};passages[o.id]=[];return cellLines[o.id]}function getCellLine(id){if(!cellLines[id])throw new Error('Cell line not found: '+id);return Object.assign({},cellLines[id])}function listCellLines(){return Object.keys(cellLines).map(function(id){var cl=cellLines[id],ps=passages[id]||[],latest=ps.length>0?ps[ps.length-1]:null;return{id:cl.id,name:cl.name,species:cl.species,totalPassages:ps.length,currentPassage:latest?latest.passage:0,latestViability:latest?latest.viability:null,status:getCellLineStatus(id)}})}function removeCellLine(id){if(!cellLines[id])throw new Error('Cell line not found: '+id);delete cellLines[id];delete passages[id];return true}function recordPassage(cid,data){if(!cellLines[cid])throw new Error('Cell line not found: '+cid);if(!data||typeof data.passage!=='number')throw new Error('Passage number is required');var record={passage:data.passage,viability:data.viability!==undefined?data.viability:null,confluence:data.confluence!==undefined?data.confluence:null,cellCount:data.cellCount||null,splitRatio:data.splitRatio||null,date:data.date||new Date().toISOString(),operator:data.operator||'unknown',medium:data.medium||cellLines[cid].medium,notes:data.notes||''};passages[cid].push(record);passages[cid].sort(function(a,b){return a.passage-b.passage});var na=checkAlerts(cid,record);alerts=alerts.concat(na);return{record:record,alerts:na}}function getPassageHistory(cid,opts){if(!cellLines[cid])throw new Error('Cell line not found: '+cid);var ps=passages[cid].slice();if(opts&&opts.limit)ps=ps.slice(-opts.limit);return ps}function getViabilityTrend(cid){if(!cellLines[cid])throw new Error('Cell line not found: '+cid);var ps=passages[cid].filter(function(p){return p.viability!==null});if(ps.length<2)return{trend:'insufficient_data',points:ps.length,slope:0,currentViability:ps.length?ps[ps.length-1].viability:null};var n=ps.length,sx=0,sy=0,sxy=0,sxx=0;ps.forEach(function(p){sx+=p.passage;sy+=p.viability;sxy+=p.passage*p.viability;sxx+=p.passage*p.passage});var den=n*sxx-sx*sx;if(den===0)return{trend:'insufficient_data',points:n,slope:0};var slope=(n*sxy-sx*sy)/den,intercept=(sy-slope*sx)/n;var trend='stable';if(slope<-1.5)trend='critical_decline';else if(slope<-0.5)trend='declining';else if(slope>0.5)trend='improving';var proj=null;if(slope<0)proj=Math.round((70-intercept)/slope);return{trend:trend,slope:round(slope),intercept:round(intercept),points:n,currentViability:ps[ps.length-1].viability,projectedLimitPassage:proj,recommendation:getViabilityRec(trend,ps[ps.length-1].viability)}}function getConfluenceProfile(cid){if(!cellLines[cid])throw new Error('Cell line not found: '+cid);var ps=passages[cid].filter(function(p){return p.confluence!==null});if(!ps.length)return{profile:'no_data',points:0};var cl=cellLines[cid],opt=cl.optimalConfluence,ir=0,ov=0,un=0;ps.forEach(function(p){if(p.confluence>=opt.min&&p.confluence<=opt.max)ir++;else if(p.confluence>opt.max)ov++;else un++});var avg=ps.reduce(function(s,p){return s+p.confluence},0)/ps.length;return{profile:ir/ps.length>=0.7?'well_managed':'needs_attention',points:ps.length,averageConfluence:round(avg,1),inRangePercent:round(ir/ps.length*100,0),lastConfluence:ps[ps.length-1].confluence}}function getOptimalPassageWindow(cid){if(!cellLines[cid])throw new Error('Cell line not found: '+cid);var cl=cellLines[cid],ps=passages[cid].filter(function(p){return p.viability!==null});if(ps.length<3)return{window:null,reason:'insufficient_data'};var hv=ps.filter(function(p){return p.viability>=85});if(!hv.length)return{window:null,reason:'no_high_viability_passages'};var bs=hv[0].passage,be=hv[0].passage,cs=hv[0].passage,ce=hv[0].passage;for(var i=1;i<hv.length;i++){if(hv[i].passage===hv[i-1].passage+1)ce=hv[i].passage;else{if(ce-cs>be-bs){bs=cs;be=ce}cs=hv[i].passage;ce=hv[i].passage}}if(ce-cs>be-bs){bs=cs;be=ce}var sm=Math.min(be,Math.floor(cl.maxPassage*.8));if(sm<bs)return{window:null,reason:'safe_limit_below_viable_range'};return{window:{from:bs,to:sm},maxPassageLimit:cl.maxPassage,recommendation:'Use cells between passages '+bs+'-'+sm+' for best results'}}function getSenescenceRisk(cid){if(!cellLines[cid])throw new Error('Cell line not found: '+cid);var cl=cellLines[cid],ps=passages[cid];if(!ps.length)return{risk:'unknown',currentPassage:0,maxPassage:cl.maxPassage,passageRatio:0,remainingPassages:cl.maxPassage};var cur=ps[ps.length-1].passage,r=cur/cl.maxPassage;var risk='low';if(r>0.9)risk='critical';else if(r>0.75)risk='high';else if(r>0.5)risk='moderate';var vt=getViabilityTrend(cid);return{risk:risk,currentPassage:cur,maxPassage:cl.maxPassage,passageRatio:round(r*100,0),remainingPassages:cl.maxPassage-cur,viabilityTrend:vt.trend,action:getSenescenceAction(risk,vt.trend)}}function getCellLineReport(cid){if(!cellLines[cid])throw new Error('Cell line not found: '+cid);return{cellLine:getCellLine(cid),passageCount:passages[cid].length,viabilityTrend:getViabilityTrend(cid),confluenceProfile:getConfluenceProfile(cid),optimalWindow:getOptimalPassageWindow(cid),senescenceRisk:getSenescenceRisk(cid),recentPassages:getPassageHistory(cid,{limit:10}),alerts:alerts.filter(function(a){return a.cellLineId===cid})}}function getFleetReport(){var ids=Object.keys(cellLines);if(!ids.length)return{cellLines:0,summary:'No cell lines registered'};var rc={low:0,moderate:0,high:0,critical:0,unknown:0};var reports=ids.map(function(id){var risk=getSenescenceRisk(id);rc[risk.risk]++;return{id:id,name:cellLines[id].name,currentPassage:risk.currentPassage,maxPassage:risk.maxPassage,risk:risk.risk,status:getCellLineStatus(id)}});return{cellLines:ids.length,riskDistribution:rc,needsAttention:reports.filter(function(r){return r.risk==='high'||r.risk==='critical'}),allLines:reports}}function exportPassageData(cid,fmt){if(!cellLines[cid])throw new Error('Cell line not found: '+cid);var ps=passages[cid];if(fmt==='csv'){var h='passage,viability,confluence,cellCount,splitRatio,date,operator,medium';return h+'\n'+ps.map(function(p){return[p.passage,p.viability,p.confluence,p.cellCount,p.splitRatio,p.date,p.operator,p.medium].join(',')}).join('\n')}return JSON.stringify({cellLine:cellLines[cid],passages:ps},null,2)}function getAlerts(opts){var r=alerts.slice();if(opts&&opts.cellLineId)r=r.filter(function(a){return a.cellLineId===opts.cellLineId});if(opts&&opts.unacknowledged)r=r.filter(function(a){return!a.acknowledged});return r}function acknowledgeAlert(i){if(i<0||i>=alerts.length)throw new Error('Invalid alert index');alerts[i].acknowledged=true;return alerts[i]}function getCellLineStatus(id){var ps=passages[id]||[];if(!ps.length)return'new';var cl=cellLines[id],cur=ps[ps.length-1].passage;if(cur>=cl.maxPassage)return'exhausted';if(cur>=cl.maxPassage*0.9)return'near_limit';var lv=ps[ps.length-1].viability;if(lv!==null&&lv<70)return'low_viability';return'active'}function checkAlerts(cid,rec){var cl=cellLines[cid],na=[];if(rec.passage>=cl.maxPassage*0.8)na.push({cellLineId:cid,type:'high_passage',severity:rec.passage>=cl.maxPassage*0.9?'critical':'warning',message:cl.name+' at passage '+rec.passage+'/'+cl.maxPassage,date:rec.date,acknowledged:false});if(rec.viability!==null&&rec.viability<80)na.push({cellLineId:cid,type:'low_viability',severity:rec.viability<70?'critical':'warning',message:cl.name+' viability dropped to '+rec.viability+'%',date:rec.date,acknowledged:false});if(rec.confluence!==null&&rec.confluence>90)na.push({cellLineId:cid,type:'over_confluence',severity:rec.confluence>95?'critical':'warning',message:cl.name+' confluence at '+rec.confluence+'%',date:rec.date,acknowledged:false});return na}function getViabilityRec(t,v){if(t==='critical_decline')return'URGENT: Thaw fresh stock. Viability declining rapidly.';if(t==='declining')return'Monitor closely. Consider thawing backup stock soon.';if(v<80)return'Viability below threshold. Check culture conditions.';if(t==='stable')return'Cell line performing well. Continue current protocol.';return'Viability trending upward. Current protocol is effective.'}function getSenescenceAction(risk,vt){if(risk==='critical')return'STOP: Thaw new vial immediately. Do not use for experiments.';if(risk==='high'&&vt==='declining')return'Thaw new vial within 1-2 passages.';if(risk==='high')return'Plan thaw of fresh stock. Current cells nearing limit.';if(risk==='moderate')return'Monitor passage count. Prepare backup vials.';return'No action needed. Cells within safe passage range.'}return{addCellLine:addCellLine,getCellLine:getCellLine,listCellLines:listCellLines,removeCellLine:removeCellLine,recordPassage:recordPassage,getPassageHistory:getPassageHistory,getViabilityTrend:getViabilityTrend,getConfluenceProfile:getConfluenceProfile,getOptimalPassageWindow:getOptimalPassageWindow,getSenescenceRisk:getSenescenceRisk,getCellLineReport:getCellLineReport,getFleetReport:getFleetReport,exportPassageData:exportPassageData,getAlerts:getAlerts,acknowledgeAlert:acknowledgeAlert}}
+
+var tracker = createPassageTracker();
+var selectedLine = null;
+
+// Preset cell lines
+var PRESETS = [
+    { id: 'HEK293', name: 'HEK-293T', species: 'human', tissue: 'kidney', maxPassage: 30, doublingTime: 24, medium: 'DMEM + 10% FBS' },
+    { id: 'CHO-K1', name: 'CHO-K1', species: 'hamster', tissue: 'ovary', maxPassage: 50, doublingTime: 20, medium: 'F-12K + 10% FBS' },
+    { id: 'HeLa', name: 'HeLa', species: 'human', tissue: 'cervix', maxPassage: 100, doublingTime: 23, medium: 'EMEM + 10% FBS' },
+    { id: 'NIH3T3', name: 'NIH-3T3', species: 'mouse', tissue: 'fibroblast', maxPassage: 25, doublingTime: 20, medium: 'DMEM + 10% BCS' },
+    { id: 'MSC-BM', name: 'Bone Marrow MSC', species: 'human', tissue: 'bone marrow', maxPassage: 8, doublingTime: 36, medium: 'αMEM + 15% FBS' },
+    { id: 'iPSC-01', name: 'iPSC Line 01', species: 'human', tissue: 'reprogrammed', maxPassage: 60, doublingTime: 30, medium: 'mTeSR Plus' }
+];
+
+function addCellLine() {
+    var id = document.getElementById('cl-id').value.trim();
+    var name = document.getElementById('cl-name').value.trim();
+    if (!id) { alert('Cell Line ID is required'); return; }
+    try {
+        tracker.addCellLine({
+            id: id,
+            name: name || id,
+            species: document.getElementById('cl-species').value,
+            tissue: document.getElementById('cl-tissue').value || 'unknown',
+            maxPassage: parseInt(document.getElementById('cl-max').value) || 30,
+            doublingTime: parseInt(document.getElementById('cl-doubling').value) || null,
+            medium: document.getElementById('cl-medium').value || 'unknown'
+        });
+        document.getElementById('cl-id').value = '';
+        document.getElementById('cl-name').value = '';
+        document.getElementById('cl-tissue').value = '';
+        document.getElementById('cl-medium').value = '';
+        saveState();
+        refreshAll();
+    } catch (e) { alert(e.message); }
+}
+
+function loadPresets() {
+    var added = 0;
+    PRESETS.forEach(function(p) {
+        try { tracker.addCellLine(p); added++; } catch(e) { /* already exists */ }
+    });
+    // Add some demo passage data
+    var demoData = {
+        'HEK293': [
+            {passage:1,viability:98,confluence:30,splitRatio:'1:6',operator:'Dr. Chen'},
+            {passage:2,viability:97,confluence:75,splitRatio:'1:4',operator:'Dr. Chen'},
+            {passage:3,viability:96,confluence:80,splitRatio:'1:4',operator:'Dr. Chen'},
+            {passage:5,viability:95,confluence:85,splitRatio:'1:3',operator:'Dr. Park'},
+            {passage:8,viability:94,confluence:82,splitRatio:'1:3',operator:'Dr. Park'},
+            {passage:12,viability:92,confluence:88,splitRatio:'1:3',operator:'Dr. Chen'},
+            {passage:15,viability:90,confluence:85,splitRatio:'1:3',operator:'Dr. Park'},
+            {passage:18,viability:87,confluence:80,splitRatio:'1:3',operator:'Dr. Chen'},
+            {passage:22,viability:83,confluence:78,splitRatio:'1:2',operator:'Dr. Park'},
+            {passage:25,viability:78,confluence:72,splitRatio:'1:2',operator:'Dr. Chen'}
+        ],
+        'MSC-BM': [
+            {passage:1,viability:96,confluence:40,splitRatio:'1:3',operator:'Dr. Kim'},
+            {passage:2,viability:95,confluence:70,splitRatio:'1:3',operator:'Dr. Kim'},
+            {passage:3,viability:93,confluence:75,splitRatio:'1:2',operator:'Dr. Kim'},
+            {passage:4,viability:90,confluence:80,splitRatio:'1:2',operator:'Dr. Kim'},
+            {passage:5,viability:85,confluence:82,splitRatio:'1:2',operator:'Dr. Kim'},
+            {passage:6,viability:78,confluence:70,splitRatio:'1:2',operator:'Dr. Kim'}
+        ],
+        'iPSC-01': [
+            {passage:1,viability:99,confluence:50,splitRatio:'1:6',operator:'Dr. Lee'},
+            {passage:5,viability:98,confluence:80,splitRatio:'1:6',operator:'Dr. Lee'},
+            {passage:10,viability:97,confluence:85,splitRatio:'1:5',operator:'Dr. Lee'},
+            {passage:15,viability:97,confluence:82,splitRatio:'1:5',operator:'Dr. Tanaka'},
+            {passage:20,viability:96,confluence:88,splitRatio:'1:4',operator:'Dr. Tanaka'}
+        ]
+    };
+    Object.keys(demoData).forEach(function(cid) {
+        demoData[cid].forEach(function(d) {
+            try { tracker.recordPassage(cid, d); } catch(e) {}
+        });
+    });
+    saveState();
+    refreshAll();
+    if (added) alert('Loaded ' + PRESETS.length + ' preset cell lines with demo data');
+}
+
+function selectLine(id) {
+    selectedLine = id;
+    document.querySelectorAll('.cell-line-card').forEach(function(c) {
+        c.classList.toggle('selected', c.dataset.id === id);
+    });
+    showReport();
+}
+
+function showReport() {
+    if (!selectedLine) return;
+    document.getElementById('record-panel').style.display = '';
+    document.getElementById('report-panel').style.display = '';
+    document.getElementById('record-for').textContent = selectedLine;
+
+    // Auto-fill next passage number
+    var hist = tracker.getPassageHistory(selectedLine);
+    var nextP = hist.length ? hist[hist.length-1].passage + 1 : 1;
+    document.getElementById('rec-passage').value = nextP;
+
+    var report = tracker.getCellLineReport(selectedLine);
+    renderOverview(report);
+    renderHistory(report);
+    renderCharts(report);
+    renderAlerts(report);
+}
+
+function renderOverview(report) {
+    var sr = report.senescenceRisk;
+    var vt = report.viabilityTrend;
+    var cp = report.confluenceProfile;
+
+    var statsHtml = '<div class="stat"><div class="val">' + sr.currentPassage + '/' + sr.maxPassage + '</div><div class="lbl">Passage</div></div>';
+    statsHtml += '<div class="stat"><div class="val">' + (vt.currentViability !== null ? vt.currentViability + '%' : 'N/A') + '</div><div class="lbl">Viability</div></div>';
+    statsHtml += '<div class="stat"><div class="val">' + report.passageCount + '</div><div class="lbl">Records</div></div>';
+    statsHtml += '<div class="stat"><div class="val"><span class="badge badge-' + sr.risk + '">' + sr.risk.toUpperCase() + '</span></div><div class="lbl">Senescence Risk</div></div>';
+    if (vt.trend !== 'insufficient_data') {
+        statsHtml += '<div class="stat"><div class="val">' + (vt.slope > 0 ? '+' : '') + vt.slope + '</div><div class="lbl">Viability Slope</div></div>';
+    }
+    if (cp.points > 0) {
+        statsHtml += '<div class="stat"><div class="val">' + cp.averageConfluence + '%</div><div class="lbl">Avg Confluence</div></div>';
+    }
+    document.getElementById('overview-stats').innerHTML = statsHtml;
+
+    // Passage progress bar
+    var pct = sr.passageRatio;
+    var color = pct > 90 ? 'var(--error)' : pct > 75 ? 'var(--warn)' : pct > 50 ? 'var(--accent)' : 'var(--success)';
+    document.getElementById('overview-risk').innerHTML = '<div style="margin-bottom:.5rem"><div style="display:flex;justify-content:space-between;font-size:.8rem;color:var(--muted)"><span>Passage Progress</span><span>' + pct + '%</span></div><div class="progress-bar"><div class="progress-fill" style="width:' + pct + '%;background:' + color + '"></div></div><div style="font-size:.8rem;color:var(--muted);margin-top:.3rem">' + sr.remainingPassages + ' passages remaining · ' + (sr.action || '') + '</div></div>';
+
+    // Optimal window
+    var ow = report.optimalWindow;
+    if (ow.window) {
+        document.getElementById('overview-window').innerHTML = '<div class="recommendation">🎯 <strong>Optimal Window:</strong> ' + ow.recommendation + '</div>';
+    } else {
+        document.getElementById('overview-window').innerHTML = '';
+    }
+
+    // Recommendation
+    if (vt.recommendation) {
+        document.getElementById('overview-recommendation').innerHTML = '<div class="recommendation" style="margin-top:.5rem">💡 ' + vt.recommendation + '</div>';
+    }
+}
+
+function renderHistory(report) {
+    var ps = report.recentPassages;
+    if (!ps.length) {
+        document.getElementById('history-table').innerHTML = '<div class="empty">No passages recorded yet.</div>';
+        return;
+    }
+    var html = '<table><thead><tr><th>P#</th><th>Viability</th><th>Confluence</th><th>Cell Count</th><th>Split</th><th>Operator</th><th>Date</th></tr></thead><tbody>';
+    ps.forEach(function(p) {
+        var vClass = p.viability !== null ? (p.viability >= 90 ? 'color:var(--success)' : p.viability >= 80 ? 'color:var(--warn)' : 'color:var(--error)') : '';
+        html += '<tr><td><strong>' + p.passage + '</strong></td>';
+        html += '<td style="' + vClass + '">' + (p.viability !== null ? p.viability + '%' : '—') + '</td>';
+        html += '<td>' + (p.confluence !== null ? p.confluence + '%' : '—') + '</td>';
+        html += '<td>' + (p.cellCount ? p.cellCount.toLocaleString() : '—') + '</td>';
+        html += '<td>' + (p.splitRatio || '—') + '</td>';
+        html += '<td>' + (p.operator || '—') + '</td>';
+        html += '<td>' + new Date(p.date).toLocaleDateString() + '</td></tr>';
+    });
+    html += '</tbody></table>';
+    document.getElementById('history-table').innerHTML = html;
+}
+
+function renderCharts(report) {
+    var ps = report.recentPassages;
+    var vc = document.getElementById('viability-chart');
+    var cc = document.getElementById('confluence-chart');
+    var vctx = vc.getContext('2d');
+    var cctx = cc.getContext('2d');
+
+    // Simple canvas charts (no external deps)
+    drawLineChart(vctx, vc, ps.filter(function(p){return p.viability!==null}), 'passage', 'viability', 'Viability Trend (%)', 'rgba(56,189,248,1)', 0, 100);
+    drawLineChart(cctx, cc, ps.filter(function(p){return p.confluence!==null}), 'passage', 'confluence', 'Confluence Trend (%)', 'rgba(167,139,250,1)', 0, 100);
+}
+
+function drawLineChart(ctx, canvas, data, xKey, yKey, title, color, yMin, yMax) {
+    var dpr = window.devicePixelRatio || 1;
+    var w = canvas.parentElement.offsetWidth;
+    var h = 200;
+    canvas.width = w * dpr;
+    canvas.height = h * dpr;
+    canvas.style.width = w + 'px';
+    canvas.style.height = h + 'px';
+    ctx.scale(dpr, dpr);
+
+    var pad = { t: 30, r: 20, b: 30, l: 45 };
+    var cw = w - pad.l - pad.r;
+    var ch = h - pad.t - pad.b;
+
+    ctx.clearRect(0, 0, w, h);
+
+    // Background
+    ctx.fillStyle = '#1e293b';
+    ctx.fillRect(0, 0, w, h);
+
+    // Title
+    ctx.fillStyle = '#94a3b8';
+    ctx.font = '12px -apple-system, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText(title, w / 2, 18);
+
+    if (!data.length) {
+        ctx.fillStyle = '#64748b';
+        ctx.font = '13px -apple-system, sans-serif';
+        ctx.fillText('No data available', w / 2, h / 2);
+        return;
+    }
+
+    var xVals = data.map(function(d) { return d[xKey]; });
+    var yVals = data.map(function(d) { return d[yKey]; });
+    var xMin = Math.min.apply(null, xVals);
+    var xMax = Math.max.apply(null, xVals);
+    if (xMin === xMax) { xMin -= 1; xMax += 1; }
+
+    function toX(v) { return pad.l + (v - xMin) / (xMax - xMin) * cw; }
+    function toY(v) { return pad.t + ch - (v - yMin) / (yMax - yMin) * ch; }
+
+    // Grid lines
+    ctx.strokeStyle = '#334155';
+    ctx.lineWidth = 0.5;
+    for (var g = yMin; g <= yMax; g += 20) {
+        var gy = toY(g);
+        ctx.beginPath(); ctx.moveTo(pad.l, gy); ctx.lineTo(w - pad.r, gy); ctx.stroke();
+        ctx.fillStyle = '#64748b';
+        ctx.font = '10px -apple-system, sans-serif';
+        ctx.textAlign = 'right';
+        ctx.fillText(g + '', pad.l - 5, gy + 3);
+    }
+
+    // X labels
+    ctx.textAlign = 'center';
+    ctx.fillStyle = '#64748b';
+    data.forEach(function(d) {
+        ctx.fillText('P' + d[xKey], toX(d[xKey]), h - 8);
+    });
+
+    // Area fill
+    ctx.beginPath();
+    ctx.moveTo(toX(data[0][xKey]), toY(data[0][yKey]));
+    for (var i = 1; i < data.length; i++) ctx.lineTo(toX(data[i][xKey]), toY(data[i][yKey]));
+    ctx.lineTo(toX(data[data.length-1][xKey]), toY(yMin));
+    ctx.lineTo(toX(data[0][xKey]), toY(yMin));
+    ctx.closePath();
+    var grad = ctx.createLinearGradient(0, pad.t, 0, h - pad.b);
+    grad.addColorStop(0, color.replace('1)', '0.2)'));
+    grad.addColorStop(1, color.replace('1)', '0.02)'));
+    ctx.fillStyle = grad;
+    ctx.fill();
+
+    // Line
+    ctx.beginPath();
+    ctx.moveTo(toX(data[0][xKey]), toY(data[0][yKey]));
+    for (var j = 1; j < data.length; j++) ctx.lineTo(toX(data[j][xKey]), toY(data[j][yKey]));
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    // Dots
+    data.forEach(function(d) {
+        ctx.beginPath();
+        ctx.arc(toX(d[xKey]), toY(d[yKey]), 4, 0, Math.PI * 2);
+        ctx.fillStyle = color;
+        ctx.fill();
+        ctx.strokeStyle = '#1e293b';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+    });
+}
+
+function renderAlerts(report) {
+    var als = report.alerts.filter(function(a) { return !a.acknowledged; });
+    if (!als.length) {
+        document.getElementById('alerts-list').innerHTML = '<div class="empty">No active alerts for this cell line. ✅</div>';
+        return;
+    }
+    var html = '';
+    als.forEach(function(a, i) {
+        html += '<div class="alert-item alert-' + a.severity + '"><span>' + a.message + '</span><button class="btn secondary" style="padding:.2rem .5rem;font-size:.75rem" onclick="ackAlert(' + i + ')">Dismiss</button></div>';
+    });
+    document.getElementById('alerts-list').innerHTML = html;
+}
+
+function ackAlert(i) {
+    try {
+        tracker.acknowledgeAlert(i);
+        showReport();
+    } catch(e) { alert(e.message); }
+}
+
+function recordPassage() {
+    if (!selectedLine) return;
+    var p = parseInt(document.getElementById('rec-passage').value);
+    if (!p || p < 1) { alert('Valid passage number required'); return; }
+    var data = { passage: p };
+    var v = document.getElementById('rec-viability').value;
+    if (v !== '') data.viability = parseFloat(v);
+    var c = document.getElementById('rec-confluence').value;
+    if (c !== '') data.confluence = parseFloat(c);
+    var cnt = document.getElementById('rec-count').value;
+    if (cnt !== '') data.cellCount = parseInt(cnt);
+    data.splitRatio = document.getElementById('rec-split').value || null;
+    data.operator = document.getElementById('rec-operator').value || 'unknown';
+    try {
+        var result = tracker.recordPassage(selectedLine, data);
+        if (result.alerts.length) {
+            alert('⚠️ ' + result.alerts.map(function(a){return a.message}).join('\n'));
+        }
+        // Clear inputs
+        document.getElementById('rec-viability').value = '';
+        document.getElementById('rec-confluence').value = '';
+        document.getElementById('rec-count').value = '';
+        document.getElementById('rec-split').value = '';
+        saveState();
+        refreshAll();
+        showReport();
+    } catch(e) { alert(e.message); }
+}
+
+function removeLine() {
+    if (!selectedLine) return;
+    if (!confirm('Remove ' + selectedLine + '? This cannot be undone.')) return;
+    try {
+        tracker.removeCellLine(selectedLine);
+        selectedLine = null;
+        document.getElementById('record-panel').style.display = 'none';
+        document.getElementById('report-panel').style.display = 'none';
+        saveState();
+        refreshAll();
+    } catch(e) { alert(e.message); }
+}
+
+function exportData(fmt) {
+    if (!selectedLine) return;
+    try {
+        var data = tracker.exportPassageData(selectedLine, fmt);
+        var blob = new Blob([data], { type: fmt === 'json' ? 'application/json' : 'text/csv' });
+        var url = URL.createObjectURL(blob);
+        var a = document.createElement('a');
+        a.href = url;
+        a.download = selectedLine + '_passages.' + fmt;
+        a.click();
+        URL.revokeObjectURL(url);
+    } catch(e) { alert(e.message); }
+}
+
+function switchTab(el) {
+    var tabId = el.dataset.tab;
+    document.querySelectorAll('.tab').forEach(function(t) { t.classList.remove('active'); });
+    document.querySelectorAll('.tab-content').forEach(function(c) { c.classList.remove('active'); });
+    el.classList.add('active');
+    document.getElementById('tab-' + tabId).classList.add('active');
+    if (tabId === 'charts' && selectedLine) {
+        var report = tracker.getCellLineReport(selectedLine);
+        renderCharts(report);
+    }
+}
+
+function refreshAll() {
+    renderCellLineList();
+    renderFleet();
+}
+
+function renderCellLineList() {
+    var lines = tracker.listCellLines();
+    if (!lines.length) {
+        document.getElementById('cell-line-list').innerHTML = '<div class="empty">No cell lines added. Add one above or load presets.</div>';
+        return;
+    }
+    var html = '';
+    lines.forEach(function(l) {
+        var sel = selectedLine === l.id ? ' selected' : '';
+        html += '<div class="cell-line-card' + sel + '" data-id="' + l.id + '" onclick="selectLine(\'' + l.id + '\')">';
+        html += '<h3>' + l.name + ' <span class="badge badge-' + l.status + '">' + l.status.replace('_', ' ') + '</span></h3>';
+        html += '<div class="meta"><span>P' + l.currentPassage + '</span>';
+        if (l.latestViability !== null) html += '<span>Viability: ' + l.latestViability + '%</span>';
+        html += '<span>' + l.totalPassages + ' records</span>';
+        html += '<span>' + l.species + '</span></div></div>';
+    });
+    document.getElementById('cell-line-list').innerHTML = html;
+}
+
+function renderFleet() {
+    var fleet = tracker.getFleetReport();
+    if (!fleet.cellLines) {
+        document.getElementById('fleet-content').innerHTML = '<div class="empty">Add cell lines to see the fleet overview.</div>';
+        return;
+    }
+    var rd = fleet.riskDistribution;
+    var html = '<div class="stat-grid">';
+    html += '<div class="stat"><div class="val">' + fleet.cellLines + '</div><div class="lbl">Cell Lines</div></div>';
+    html += '<div class="stat"><div class="val" style="color:var(--success)">' + rd.low + '</div><div class="lbl">Low Risk</div></div>';
+    html += '<div class="stat"><div class="val" style="color:var(--warn)">' + (rd.moderate + rd.high) + '</div><div class="lbl">Mod/High</div></div>';
+    html += '<div class="stat"><div class="val" style="color:var(--error)">' + rd.critical + '</div><div class="lbl">Critical</div></div>';
+    html += '</div>';
+
+    if (fleet.needsAttention.length) {
+        html += '<div style="margin-top:.5rem"><strong style="font-size:.85rem;color:var(--warn)">⚠️ Needs Attention:</strong>';
+        fleet.needsAttention.forEach(function(l) {
+            html += '<div style="font-size:.85rem;padding:.3rem 0;color:var(--muted)">• ' + l.name + ' — P' + l.currentPassage + '/' + l.maxPassage + ' (' + l.risk + ')</div>';
+        });
+        html += '</div>';
+    }
+
+    document.getElementById('fleet-content').innerHTML = html;
+}
+
+// Persistence via localStorage
+function saveState() {
+    try {
+        var lines = tracker.listCellLines();
+        var state = { lines: [], passages: {} };
+        lines.forEach(function(l) {
+            try {
+                state.lines.push(tracker.getCellLine(l.id));
+                state.passages[l.id] = tracker.getPassageHistory(l.id);
+            } catch(e) {}
+        });
+        localStorage.setItem('biobots_passages', JSON.stringify(state));
+    } catch(e) {}
+}
+
+function loadState() {
+    try {
+        var raw = localStorage.getItem('biobots_passages');
+        if (!raw) return;
+        var state = JSON.parse(raw);
+        (state.lines || []).forEach(function(cl) {
+            try { tracker.addCellLine(cl); } catch(e) {}
+        });
+        Object.keys(state.passages || {}).forEach(function(cid) {
+            (state.passages[cid] || []).forEach(function(p) {
+                try { tracker.recordPassage(cid, p); } catch(e) {}
+            });
+        });
+    } catch(e) {}
+}
+
+// Init
+loadState();
+refreshAll();
+</script>
+
+</body>
+</html>
