@@ -477,71 +477,73 @@ function createPrintQualityScorer(options) {
         return result;
     }
 
+    // ── Recommendation Rules (data-driven) ────────────────────
+    // Each rule specifies a condition and the recommendation to emit.
+    // This replaces a long chain of if-blocks with a declarative table
+    // that's easier to maintain, extend, and audit.
+
+    var _SCORE_RULES = [
+        { dim: 'viability',    test: function(d) { return d.score < 50; }, priority: 'high',
+          msg: function(d) { return 'Cell viability is critically low (' + d.livePercent + '%). Review print parameters, especially pressure and print speed.'; } },
+        { dim: 'viability',    test: function(d) { return d.score >= 50 && d.score < 70; }, priority: 'medium',
+          msg: function()  { return 'Cell viability could be improved. Consider reducing pressure or optimizing crosslinking timing.'; } },
+        { dim: 'structural',   test: function(d) { return d.score < 50; }, priority: 'high',
+          msg: function(d) { return 'Structural integrity is poor (elasticity: ' + d.elasticity + ' kPa). Adjust material concentration or crosslinking.'; } },
+    ];
+
+    var _FLAG_RULES = [
+        { dim: 'crosslinking', flag: 'under_crosslinked', priority: 'medium',
+          msg: function(d) { return 'Crosslinking duration (' + d.duration + ' ms) is below minimum. Increase exposure time.'; } },
+        { dim: 'crosslinking', flag: 'over_crosslinked',  priority: 'medium',
+          msg: function(d) { return 'Crosslinking duration (' + d.duration + ' ms) is excessive. Reduce to avoid cytotoxicity.'; } },
+        { dim: 'resolution',   flag: 'coarse_layers',     priority: 'low',
+          msg: function(d) { return 'Layer height (' + d.layerHeight + ' mm) is coarse. Use finer layers for better fidelity.'; } },
+        { dim: 'pressure',     flag: 'pressure_imbalance', priority: 'medium',
+          msg: function(d) { return 'Extruder pressure imbalance (' + d.imbalance + ' kPa). Calibrate both extruders for consistent output.'; } },
+        { dim: 'pressure',     flag: 'extruder1_out_of_range', priority: 'high', group: 'extruder_oor',
+          msg: function()  { return 'One or more extruders operating outside safe range. Check for blockages or calibration issues.'; } },
+        { dim: 'pressure',     flag: 'extruder2_out_of_range', priority: 'high', group: 'extruder_oor',
+          msg: function()  { return 'One or more extruders operating outside safe range. Check for blockages or calibration issues.'; } },
+    ];
+
     /**
      * Generate actionable recommendations based on dimension scores.
+     *
+     * Uses declarative rule tables (_SCORE_RULES, _FLAG_RULES) instead
+     * of a long if/else chain. Rules with the same `group` key are
+     * deduplicated so only one recommendation is emitted per group.
      */
     function _generateRecommendations(viability, structural, crosslinking, resolution, pressure) {
+        var dimMap = {
+            viability: viability,
+            structural: structural,
+            crosslinking: crosslinking,
+            resolution: resolution,
+            pressure: pressure
+        };
         var recs = [];
+        var emittedGroups = Object.create(null);
 
-        if (viability.score < 50) {
-            recs.push({
-                priority: 'high',
-                dimension: 'viability',
-                message: 'Cell viability is critically low (' + viability.livePercent + '%). Review print parameters, especially pressure and print speed.'
-            });
-        } else if (viability.score < 70) {
-            recs.push({
-                priority: 'medium',
-                dimension: 'viability',
-                message: 'Cell viability could be improved. Consider reducing pressure or optimizing crosslinking timing.'
-            });
+        // Score-threshold rules
+        for (var si = 0; si < _SCORE_RULES.length; si++) {
+            var sr = _SCORE_RULES[si];
+            var sd = dimMap[sr.dim];
+            if (sr.test(sd)) {
+                recs.push({ priority: sr.priority, dimension: sr.dim, message: sr.msg(sd) });
+            }
         }
 
-        if (structural.score < 50) {
-            recs.push({
-                priority: 'high',
-                dimension: 'structural',
-                message: 'Structural integrity is poor (elasticity: ' + structural.elasticity + ' kPa). Adjust material concentration or crosslinking.'
-            });
-        }
-
-        if (crosslinking.flags.indexOf('under_crosslinked') >= 0) {
-            recs.push({
-                priority: 'medium',
-                dimension: 'crosslinking',
-                message: 'Crosslinking duration (' + crosslinking.duration + ' ms) is below minimum. Increase exposure time.'
-            });
-        }
-        if (crosslinking.flags.indexOf('over_crosslinked') >= 0) {
-            recs.push({
-                priority: 'medium',
-                dimension: 'crosslinking',
-                message: 'Crosslinking duration (' + crosslinking.duration + ' ms) is excessive. Reduce to avoid cytotoxicity.'
-            });
-        }
-
-        if (resolution.flags.indexOf('coarse_layers') >= 0) {
-            recs.push({
-                priority: 'low',
-                dimension: 'resolution',
-                message: 'Layer height (' + resolution.layerHeight + ' mm) is coarse. Use finer layers for better fidelity.'
-            });
-        }
-
-        if (pressure.flags.indexOf('pressure_imbalance') >= 0) {
-            recs.push({
-                priority: 'medium',
-                dimension: 'pressure',
-                message: 'Extruder pressure imbalance (' + pressure.imbalance + ' kPa). Calibrate both extruders for consistent output.'
-            });
-        }
-
-        if (pressure.flags.indexOf('extruder1_out_of_range') >= 0 || pressure.flags.indexOf('extruder2_out_of_range') >= 0) {
-            recs.push({
-                priority: 'high',
-                dimension: 'pressure',
-                message: 'One or more extruders operating outside safe range. Check for blockages or calibration issues.'
-            });
+        // Flag-based rules (deduplicated by group)
+        for (var fi = 0; fi < _FLAG_RULES.length; fi++) {
+            var fr = _FLAG_RULES[fi];
+            var fd = dimMap[fr.dim];
+            if (fd.flags.indexOf(fr.flag) >= 0) {
+                if (fr.group) {
+                    if (emittedGroups[fr.group]) continue;
+                    emittedGroups[fr.group] = true;
+                }
+                recs.push({ priority: fr.priority, dimension: fr.dim, message: fr.msg(fd) });
+            }
         }
 
         recs.sort(function (a, b) {
