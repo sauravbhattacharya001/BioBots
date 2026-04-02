@@ -1,0 +1,749 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Workflow Builder — BioBots 1</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧬</text></svg>">
+    <style>
+        :root {
+            --bg: #0f172a;
+            --surface: #1e293b;
+            --border: #334155;
+            --text: #e2e8f0;
+            --muted: #94a3b8;
+            --accent: #38bdf8;
+            --accent-hover: #7dd3fc;
+            --success: #4ade80;
+            --warning: #fbbf24;
+            --error: #f87171;
+            --purple: #a78bfa;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+        }
+        header {
+            text-align: center;
+            padding: 1.5rem 1rem 1rem;
+            border-bottom: 1px solid var(--border);
+        }
+        header h1 {
+            font-size: 1.6rem;
+            background: linear-gradient(135deg, var(--accent), var(--success));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        header p { color: var(--muted); margin-top: .3rem; font-size: .9rem; }
+        .app { display: flex; height: calc(100vh - 90px); }
+
+        /* Sidebar */
+        .sidebar {
+            width: 260px;
+            background: var(--surface);
+            border-right: 1px solid var(--border);
+            padding: 1rem;
+            overflow-y: auto;
+            flex-shrink: 0;
+        }
+        .sidebar h3 { color: var(--accent); font-size: .85rem; text-transform: uppercase; letter-spacing: .05em; margin-bottom: .75rem; }
+        .step-template {
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: .6rem .8rem;
+            margin-bottom: .5rem;
+            cursor: grab;
+            transition: border-color .2s, transform .1s;
+            font-size: .85rem;
+        }
+        .step-template:hover { border-color: var(--accent); transform: translateX(3px); }
+        .step-template .icon { margin-right: .4rem; }
+        .step-template .desc { color: var(--muted); font-size: .75rem; display: block; margin-top: .2rem; }
+
+        /* Canvas area */
+        .canvas-area {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        .toolbar {
+            display: flex;
+            gap: .5rem;
+            padding: .6rem 1rem;
+            background: var(--surface);
+            border-bottom: 1px solid var(--border);
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        .toolbar button, .toolbar select {
+            background: var(--bg);
+            color: var(--text);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: .4rem .8rem;
+            cursor: pointer;
+            font-size: .8rem;
+        }
+        .toolbar button:hover { border-color: var(--accent); color: var(--accent); }
+        .toolbar .spacer { flex: 1; }
+        .toolbar .badge {
+            background: var(--accent);
+            color: var(--bg);
+            padding: .2rem .6rem;
+            border-radius: 12px;
+            font-size: .75rem;
+            font-weight: 600;
+        }
+
+        /* Workflow canvas */
+        .workflow-canvas {
+            flex: 1;
+            overflow: auto;
+            padding: 1.5rem;
+            position: relative;
+        }
+        .workflow-canvas.drag-over { background: rgba(56,189,248,.05); }
+        .empty-state {
+            position: absolute;
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            color: var(--muted);
+        }
+        .empty-state .big { font-size: 3rem; margin-bottom: .5rem; }
+        .empty-state p { font-size: .95rem; }
+
+        /* Step cards */
+        .step-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: .8rem 1rem;
+            margin-bottom: .75rem;
+            position: relative;
+            transition: border-color .2s;
+            cursor: pointer;
+        }
+        .step-card:hover { border-color: var(--accent); }
+        .step-card.selected { border-color: var(--accent); box-shadow: 0 0 0 2px rgba(56,189,248,.25); }
+        .step-card .step-header {
+            display: flex;
+            align-items: center;
+            gap: .5rem;
+            margin-bottom: .4rem;
+        }
+        .step-card .step-num {
+            background: var(--accent);
+            color: var(--bg);
+            width: 24px; height: 24px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: .75rem;
+            font-weight: 700;
+            flex-shrink: 0;
+        }
+        .step-card .step-title { font-weight: 600; font-size: .9rem; }
+        .step-card .step-type { color: var(--muted); font-size: .75rem; }
+        .step-card .step-meta {
+            display: flex;
+            gap: .8rem;
+            font-size: .75rem;
+            color: var(--muted);
+            margin-top: .3rem;
+        }
+        .step-card .step-actions {
+            position: absolute;
+            top: .5rem;
+            right: .5rem;
+            display: flex;
+            gap: .3rem;
+            opacity: 0;
+            transition: opacity .2s;
+        }
+        .step-card:hover .step-actions { opacity: 1; }
+        .step-card .step-actions button {
+            background: var(--bg);
+            border: 1px solid var(--border);
+            color: var(--muted);
+            border-radius: 4px;
+            width: 24px; height: 24px;
+            cursor: pointer;
+            font-size: .7rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .step-card .step-actions button:hover { color: var(--error); border-color: var(--error); }
+        .connector {
+            width: 2px;
+            height: 20px;
+            background: var(--border);
+            margin: 0 auto;
+        }
+        .connector-arrow {
+            text-align: center;
+            color: var(--border);
+            font-size: .7rem;
+            margin-top: -4px;
+        }
+
+        /* Detail panel */
+        .detail-panel {
+            width: 320px;
+            background: var(--surface);
+            border-left: 1px solid var(--border);
+            padding: 1rem;
+            overflow-y: auto;
+            display: none;
+            flex-shrink: 0;
+        }
+        .detail-panel.open { display: block; }
+        .detail-panel h3 {
+            color: var(--accent);
+            font-size: .9rem;
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .detail-panel h3 button {
+            background: none;
+            border: none;
+            color: var(--muted);
+            cursor: pointer;
+            font-size: 1.1rem;
+        }
+        .field { margin-bottom: .8rem; }
+        .field label {
+            display: block;
+            font-size: .75rem;
+            color: var(--muted);
+            text-transform: uppercase;
+            letter-spacing: .03em;
+            margin-bottom: .3rem;
+        }
+        .field input, .field select, .field textarea {
+            width: 100%;
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            color: var(--text);
+            padding: .45rem .6rem;
+            font-size: .85rem;
+            font-family: inherit;
+        }
+        .field textarea { min-height: 60px; resize: vertical; }
+        .field input:focus, .field select:focus, .field textarea:focus {
+            outline: none;
+            border-color: var(--accent);
+        }
+        .dep-list { list-style: none; }
+        .dep-list li {
+            display: flex;
+            align-items: center;
+            gap: .4rem;
+            padding: .3rem 0;
+            font-size: .8rem;
+        }
+        .dep-list li .remove-dep {
+            color: var(--error);
+            cursor: pointer;
+            font-size: .7rem;
+        }
+
+        /* Modal */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,.6);
+            z-index: 100;
+            align-items: center;
+            justify-content: center;
+        }
+        .modal-overlay.open { display: flex; }
+        .modal {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 1.5rem;
+            max-width: 500px;
+            width: 90%;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+        .modal h3 { margin-bottom: 1rem; color: var(--accent); }
+        .modal pre {
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 1rem;
+            font-size: .8rem;
+            overflow: auto;
+            max-height: 50vh;
+            white-space: pre-wrap;
+        }
+        .modal .btn-row { display: flex; gap: .5rem; margin-top: 1rem; justify-content: flex-end; }
+        .modal .btn-row button {
+            background: var(--accent);
+            color: var(--bg);
+            border: none;
+            border-radius: 6px;
+            padding: .5rem 1rem;
+            cursor: pointer;
+            font-weight: 600;
+        }
+        .modal .btn-row button.secondary { background: var(--bg); color: var(--text); border: 1px solid var(--border); }
+        @media (max-width: 768px) {
+            .app { flex-direction: column; height: auto; }
+            .sidebar { width: 100%; max-height: 200px; border-right: none; border-bottom: 1px solid var(--border); }
+            .detail-panel { width: 100%; border-left: none; border-top: 1px solid var(--border); }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>🔧 Workflow Builder</h1>
+        <p>Design multi-step bioprinting protocols with timing, materials &amp; dependencies</p>
+    </header>
+    <div class="app">
+        <div class="sidebar">
+            <h3>Step Templates</h3>
+            <div id="templates"></div>
+            <h3 style="margin-top:1rem">Presets</h3>
+            <div id="presets"></div>
+        </div>
+        <div class="canvas-area">
+            <div class="toolbar">
+                <button onclick="undoAction()" title="Undo">↩ Undo</button>
+                <button onclick="redoAction()" title="Redo">↪ Redo</button>
+                <span class="spacer"></span>
+                <span class="badge" id="stepCount">0 steps</span>
+                <span class="badge" id="totalTime">0 min</span>
+                <button onclick="validateWorkflow()">✓ Validate</button>
+                <button onclick="exportWorkflow()">📋 Export JSON</button>
+                <button onclick="exportMarkdown()">📝 Export Protocol</button>
+                <button onclick="clearWorkflow()">🗑 Clear</button>
+            </div>
+            <div class="workflow-canvas" id="canvas"
+                 ondrop="handleDrop(event)" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)">
+                <div class="empty-state" id="emptyState">
+                    <div class="big">🧪</div>
+                    <p>Drag step templates here to build your workflow</p>
+                </div>
+            </div>
+        </div>
+        <div class="detail-panel" id="detailPanel">
+            <h3>
+                <span id="detailTitle">Step Details</span>
+                <button onclick="closeDetail()">✕</button>
+            </h3>
+            <div id="detailContent"></div>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="modalOverlay">
+        <div class="modal">
+            <h3 id="modalTitle"></h3>
+            <pre id="modalContent"></pre>
+            <div class="btn-row">
+                <button class="secondary" onclick="closeModal()">Close</button>
+                <button onclick="copyModalContent()">📋 Copy</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+    const STEP_TYPES = [
+        { id: 'prepare', icon: '🧫', name: 'Cell Preparation', desc: 'Thaw, passage, or harvest cells', defaultDuration: 30, category: 'prep' },
+        { id: 'bioink_mix', icon: '🧪', name: 'Bioink Mixing', desc: 'Mix bioink with cells and additives', defaultDuration: 20, category: 'prep' },
+        { id: 'calibrate', icon: '🎯', name: 'Printer Calibration', desc: 'Calibrate nozzle, bed, and extrusion', defaultDuration: 15, category: 'setup' },
+        { id: 'sterilize', icon: '🧹', name: 'Sterilization', desc: 'UV, autoclave, or ethanol sterilize', defaultDuration: 45, category: 'setup' },
+        { id: 'print', icon: '🖨️', name: 'Bioprint', desc: 'Execute print job with parameters', defaultDuration: 60, category: 'print' },
+        { id: 'crosslink', icon: '🔗', name: 'Crosslinking', desc: 'UV, ionic, or thermal crosslinking', defaultDuration: 10, category: 'post' },
+        { id: 'wash', icon: '💧', name: 'Wash', desc: 'PBS or media wash cycles', defaultDuration: 15, category: 'post' },
+        { id: 'incubate', icon: '🌡️', name: 'Incubation', desc: 'Culture at set temp/CO₂/humidity', defaultDuration: 1440, category: 'culture' },
+        { id: 'image', icon: '📷', name: 'Imaging', desc: 'Microscopy or photo documentation', defaultDuration: 15, category: 'qc' },
+        { id: 'viability', icon: '✅', name: 'Viability Assay', desc: 'Live/dead or MTT viability test', defaultDuration: 30, category: 'qc' },
+        { id: 'measure', icon: '📏', name: 'Measurement', desc: 'Dimensions, weight, or mechanical test', defaultDuration: 20, category: 'qc' },
+        { id: 'media_change', icon: '🔄', name: 'Media Change', desc: 'Replace culture media', defaultDuration: 10, category: 'culture' },
+        { id: 'fixation', icon: '🧊', name: 'Fixation', desc: 'Fix samples for analysis', defaultDuration: 30, category: 'post' },
+        { id: 'custom', icon: '⚙️', name: 'Custom Step', desc: 'Define your own step', defaultDuration: 15, category: 'other' }
+    ];
+
+    const PRESETS = [
+        {
+            name: '🫀 Basic Skin Construct',
+            steps: [
+                { typeId: 'sterilize', name: 'Sterilize workspace', duration: 30 },
+                { typeId: 'prepare', name: 'Harvest fibroblasts', duration: 45, notes: 'Passage 3-5, >90% viability' },
+                { typeId: 'bioink_mix', name: 'Mix GelMA + cells', duration: 20, material: 'GelMA 5% w/v', temp: '25°C' },
+                { typeId: 'calibrate', name: 'Calibrate 22G nozzle', duration: 10, temp: '25°C' },
+                { typeId: 'print', name: 'Print skin layer', duration: 40, pressure: '25 kPa', speed: '8 mm/s' },
+                { typeId: 'crosslink', name: 'UV crosslink 365nm', duration: 5, notes: '60s at 10mW/cm²' },
+                { typeId: 'wash', name: 'PBS wash ×3', duration: 10 },
+                { typeId: 'incubate', name: 'Culture 37°C 5% CO₂', duration: 4320, temp: '37°C' },
+                { typeId: 'viability', name: 'Live/Dead assay', duration: 30 }
+            ]
+        },
+        {
+            name: '🦴 Bone Scaffold',
+            steps: [
+                { typeId: 'sterilize', name: 'Autoclave components', duration: 45 },
+                { typeId: 'prepare', name: 'Expand MSCs', duration: 60, notes: 'Osteogenic media pre-treatment' },
+                { typeId: 'bioink_mix', name: 'Mix alginate + HAp + MSCs', duration: 25, material: 'Alginate 3% + HAp 10%' },
+                { typeId: 'calibrate', name: 'Calibrate 20G nozzle', duration: 15 },
+                { typeId: 'print', name: 'Print scaffold 10×10×5mm', duration: 90, pressure: '40 kPa', speed: '5 mm/s' },
+                { typeId: 'crosslink', name: 'CaCl₂ ionic crosslink', duration: 10, notes: '100mM CaCl₂, 10 min' },
+                { typeId: 'wash', name: 'Media wash', duration: 10 },
+                { typeId: 'incubate', name: 'Osteogenic culture', duration: 20160, temp: '37°C', notes: '14 days in osteogenic media' },
+                { typeId: 'measure', name: 'Mechanical testing', duration: 30 },
+                { typeId: 'image', name: 'SEM imaging', duration: 45 }
+            ]
+        },
+        {
+            name: '🧬 Quick Print Test',
+            steps: [
+                { typeId: 'bioink_mix', name: 'Prepare test bioink', duration: 10 },
+                { typeId: 'calibrate', name: 'Quick calibration', duration: 5 },
+                { typeId: 'print', name: 'Test pattern', duration: 15 },
+                { typeId: 'image', name: 'Document results', duration: 5 }
+            ]
+        }
+    ];
+
+    let workflow = [];
+    let selectedIdx = -1;
+    let history = [];
+    let historyIdx = -1;
+
+    function init() {
+        const tplBox = document.getElementById('templates');
+        STEP_TYPES.forEach(t => {
+            const d = document.createElement('div');
+            d.className = 'step-template';
+            d.draggable = true;
+            d.dataset.typeId = t.id;
+            d.innerHTML = `<span class="icon">${t.icon}</span>${t.name}<span class="desc">${t.desc}</span>`;
+            d.addEventListener('dragstart', e => {
+                e.dataTransfer.setData('text/plain', t.id);
+                e.dataTransfer.effectAllowed = 'copy';
+            });
+            d.addEventListener('click', () => addStep(t.id));
+            tplBox.appendChild(d);
+        });
+
+        const preBox = document.getElementById('presets');
+        PRESETS.forEach((p, i) => {
+            const d = document.createElement('div');
+            d.className = 'step-template';
+            d.innerHTML = `${p.name}<span class="desc">${p.steps.length} steps</span>`;
+            d.style.cursor = 'pointer';
+            d.addEventListener('click', () => loadPreset(i));
+            preBox.appendChild(d);
+        });
+
+        render();
+    }
+
+    function saveState() {
+        history = history.slice(0, historyIdx + 1);
+        history.push(JSON.stringify(workflow));
+        historyIdx = history.length - 1;
+        if (history.length > 50) { history.shift(); historyIdx--; }
+    }
+
+    function undoAction() {
+        if (historyIdx > 0) { historyIdx--; workflow = JSON.parse(history[historyIdx]); selectedIdx = -1; render(); }
+    }
+    function redoAction() {
+        if (historyIdx < history.length - 1) { historyIdx++; workflow = JSON.parse(history[historyIdx]); selectedIdx = -1; render(); }
+    }
+
+    function addStep(typeId, props = {}) {
+        const t = STEP_TYPES.find(s => s.id === typeId);
+        if (!t) return;
+        saveState();
+        workflow.push({
+            id: Date.now() + Math.random(),
+            typeId: t.id,
+            name: props.name || t.name,
+            duration: props.duration || t.defaultDuration,
+            notes: props.notes || '',
+            material: props.material || '',
+            temp: props.temp || '',
+            pressure: props.pressure || '',
+            speed: props.speed || '',
+            dependencies: []
+        });
+        saveState();
+        render();
+    }
+
+    function removeStep(idx) {
+        saveState();
+        const id = workflow[idx].id;
+        workflow.splice(idx, 1);
+        workflow.forEach(s => { s.dependencies = s.dependencies.filter(d => d !== id); });
+        if (selectedIdx === idx) { selectedIdx = -1; closeDetail(); }
+        else if (selectedIdx > idx) selectedIdx--;
+        saveState();
+        render();
+    }
+
+    function moveStep(idx, dir) {
+        const ni = idx + dir;
+        if (ni < 0 || ni >= workflow.length) return;
+        saveState();
+        [workflow[idx], workflow[ni]] = [workflow[ni], workflow[idx]];
+        if (selectedIdx === idx) selectedIdx = ni;
+        else if (selectedIdx === ni) selectedIdx = idx;
+        saveState();
+        render();
+    }
+
+    function handleDragOver(e) { e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; document.getElementById('canvas').classList.add('drag-over'); }
+    function handleDragLeave(e) { document.getElementById('canvas').classList.remove('drag-over'); }
+    function handleDrop(e) {
+        e.preventDefault();
+        document.getElementById('canvas').classList.remove('drag-over');
+        const typeId = e.dataTransfer.getData('text/plain');
+        if (typeId) addStep(typeId);
+    }
+
+    function formatDuration(mins) {
+        if (mins < 60) return `${mins} min`;
+        if (mins < 1440) return `${(mins / 60).toFixed(1)} hr`;
+        return `${(mins / 1440).toFixed(1)} days`;
+    }
+
+    function selectStep(idx) {
+        selectedIdx = idx;
+        render();
+        showDetail(idx);
+    }
+
+    function showDetail(idx) {
+        const s = workflow[idx];
+        const t = STEP_TYPES.find(x => x.id === s.typeId);
+        const panel = document.getElementById('detailPanel');
+        const title = document.getElementById('detailTitle');
+        const content = document.getElementById('detailContent');
+        title.textContent = `${t.icon} Step ${idx + 1}`;
+        panel.classList.add('open');
+
+        const otherSteps = workflow.filter((_, i) => i !== idx);
+        const depOptions = otherSteps.map(o => {
+            const oi = workflow.indexOf(o);
+            const checked = s.dependencies.includes(o.id) ? 'checked' : '';
+            return `<label style="display:flex;gap:.4rem;align-items:center;font-size:.8rem;margin:.2rem 0">
+                <input type="checkbox" ${checked} onchange="toggleDep(${idx}, ${JSON.stringify(o.id)}, this.checked)">
+                Step ${oi + 1}: ${o.name}
+            </label>`;
+        }).join('');
+
+        content.innerHTML = `
+            <div class="field"><label>Name</label><input value="${esc(s.name)}" onchange="updateField(${idx},'name',this.value)"></div>
+            <div class="field"><label>Type</label><select onchange="updateField(${idx},'typeId',this.value)">
+                ${STEP_TYPES.map(x => `<option value="${x.id}" ${x.id===s.typeId?'selected':''}>${x.icon} ${x.name}</option>`).join('')}
+            </select></div>
+            <div class="field"><label>Duration (minutes)</label><input type="number" min="1" value="${s.duration}" onchange="updateField(${idx},'duration',parseInt(this.value)||1)"></div>
+            <div class="field"><label>Material</label><input value="${esc(s.material)}" onchange="updateField(${idx},'material',this.value)" placeholder="e.g. GelMA 5% w/v"></div>
+            <div class="field"><label>Temperature</label><input value="${esc(s.temp)}" onchange="updateField(${idx},'temp',this.value)" placeholder="e.g. 37°C"></div>
+            <div class="field"><label>Pressure</label><input value="${esc(s.pressure)}" onchange="updateField(${idx},'pressure',this.value)" placeholder="e.g. 25 kPa"></div>
+            <div class="field"><label>Print Speed</label><input value="${esc(s.speed)}" onchange="updateField(${idx},'speed',this.value)" placeholder="e.g. 8 mm/s"></div>
+            <div class="field"><label>Notes</label><textarea onchange="updateField(${idx},'notes',this.value)">${esc(s.notes)}</textarea></div>
+            <div class="field"><label>Dependencies (must complete first)</label>${depOptions || '<span style="color:var(--muted);font-size:.8rem">No other steps</span>'}</div>
+        `;
+    }
+
+    function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+    function updateField(idx, field, value) {
+        saveState();
+        workflow[idx][field] = value;
+        saveState();
+        render();
+        showDetail(idx);
+    }
+
+    function toggleDep(idx, depId, checked) {
+        saveState();
+        if (checked) { if (!workflow[idx].dependencies.includes(depId)) workflow[idx].dependencies.push(depId); }
+        else { workflow[idx].dependencies = workflow[idx].dependencies.filter(d => d !== depId); }
+        saveState();
+        render();
+        showDetail(idx);
+    }
+
+    function closeDetail() {
+        selectedIdx = -1;
+        document.getElementById('detailPanel').classList.remove('open');
+        render();
+    }
+
+    function loadPreset(pi) {
+        if (workflow.length && !confirm('Replace current workflow with preset?')) return;
+        saveState();
+        workflow = [];
+        PRESETS[pi].steps.forEach(s => addStep(s.typeId, s));
+        selectedIdx = -1;
+        closeDetail();
+        render();
+    }
+
+    function clearWorkflow() {
+        if (!workflow.length || confirm('Clear all steps?')) {
+            saveState();
+            workflow = [];
+            selectedIdx = -1;
+            closeDetail();
+            saveState();
+            render();
+        }
+    }
+
+    function validateWorkflow() {
+        const errors = [];
+        if (!workflow.length) { errors.push('Workflow is empty'); }
+        workflow.forEach((s, i) => {
+            if (!s.name.trim()) errors.push(`Step ${i+1}: missing name`);
+            if (s.duration < 1) errors.push(`Step ${i+1}: invalid duration`);
+            s.dependencies.forEach(depId => {
+                const di = workflow.findIndex(x => x.id === depId);
+                if (di >= i) errors.push(`Step ${i+1}: dependency on step ${di+1} which comes after or at same position`);
+            });
+        });
+        const hasPrint = workflow.some(s => s.typeId === 'print');
+        if (workflow.length > 2 && !hasPrint) errors.push('Warning: no bioprint step in workflow');
+
+        if (errors.length) {
+            openModal('⚠️ Validation Results', errors.map((e,i) => `${i+1}. ${e}`).join('\n'));
+        } else {
+            openModal('✅ Validation Passed', `Workflow is valid!\n\n${workflow.length} steps\nTotal time: ${formatDuration(workflow.reduce((a,s) => a + s.duration, 0))}`);
+        }
+    }
+
+    function exportWorkflow() {
+        const data = {
+            name: 'BioBots Workflow',
+            created: new Date().toISOString(),
+            totalSteps: workflow.length,
+            totalDurationMin: workflow.reduce((a,s) => a + s.duration, 0),
+            steps: workflow.map((s, i) => ({
+                step: i + 1,
+                type: s.typeId,
+                name: s.name,
+                durationMin: s.duration,
+                material: s.material || undefined,
+                temperature: s.temp || undefined,
+                pressure: s.pressure || undefined,
+                speed: s.speed || undefined,
+                notes: s.notes || undefined,
+                dependsOn: s.dependencies.map(d => { const di = workflow.findIndex(x => x.id === d); return di + 1; }).filter(x => x > 0)
+            }))
+        };
+        openModal('📋 Workflow JSON', JSON.stringify(data, null, 2));
+    }
+
+    function exportMarkdown() {
+        let md = `# Bioprinting Protocol\n\n`;
+        md += `**Generated:** ${new Date().toLocaleString()}\n`;
+        md += `**Steps:** ${workflow.length}\n`;
+        md += `**Total Time:** ${formatDuration(workflow.reduce((a,s) => a + s.duration, 0))}\n\n---\n\n`;
+        workflow.forEach((s, i) => {
+            const t = STEP_TYPES.find(x => x.id === s.typeId);
+            md += `## Step ${i+1}: ${s.name}\n\n`;
+            md += `- **Type:** ${t.icon} ${t.name}\n`;
+            md += `- **Duration:** ${formatDuration(s.duration)}\n`;
+            if (s.material) md += `- **Material:** ${s.material}\n`;
+            if (s.temp) md += `- **Temperature:** ${s.temp}\n`;
+            if (s.pressure) md += `- **Pressure:** ${s.pressure}\n`;
+            if (s.speed) md += `- **Speed:** ${s.speed}\n`;
+            if (s.notes) md += `- **Notes:** ${s.notes}\n`;
+            if (s.dependencies.length) {
+                const deps = s.dependencies.map(d => { const di = workflow.findIndex(x => x.id === d); return `Step ${di+1}`; });
+                md += `- **Depends on:** ${deps.join(', ')}\n`;
+            }
+            md += '\n';
+        });
+        openModal('📝 Protocol (Markdown)', md);
+    }
+
+    function openModal(title, content) {
+        document.getElementById('modalTitle').textContent = title;
+        document.getElementById('modalContent').textContent = content;
+        document.getElementById('modalOverlay').classList.add('open');
+    }
+    function closeModal() { document.getElementById('modalOverlay').classList.remove('open'); }
+    function copyModalContent() {
+        navigator.clipboard.writeText(document.getElementById('modalContent').textContent);
+        const btn = event.target;
+        btn.textContent = '✓ Copied';
+        setTimeout(() => btn.textContent = '📋 Copy', 1500);
+    }
+
+    function render() {
+        const canvas = document.getElementById('canvas');
+        const empty = document.getElementById('emptyState');
+        empty.style.display = workflow.length ? 'none' : 'block';
+
+        // Remove existing step cards and connectors
+        canvas.querySelectorAll('.step-card, .connector, .connector-arrow').forEach(e => e.remove());
+
+        workflow.forEach((s, i) => {
+            if (i > 0) {
+                const conn = document.createElement('div');
+                conn.className = 'connector';
+                canvas.appendChild(conn);
+                const arrow = document.createElement('div');
+                arrow.className = 'connector-arrow';
+                arrow.textContent = '▼';
+                canvas.appendChild(arrow);
+            }
+            const t = STEP_TYPES.find(x => x.id === s.typeId);
+            const card = document.createElement('div');
+            card.className = 'step-card' + (i === selectedIdx ? ' selected' : '');
+            const meta = [];
+            meta.push(`⏱ ${formatDuration(s.duration)}`);
+            if (s.material) meta.push(`🧪 ${s.material}`);
+            if (s.temp) meta.push(`🌡 ${s.temp}`);
+            if (s.dependencies.length) meta.push(`🔗 ${s.dependencies.length} dep`);
+
+            card.innerHTML = `
+                <div class="step-header">
+                    <span class="step-num">${i+1}</span>
+                    <span class="step-title">${t.icon} ${esc(s.name)}</span>
+                </div>
+                <div class="step-type">${t.name}</div>
+                <div class="step-meta">${meta.map(m => `<span>${m}</span>`).join('')}</div>
+                <div class="step-actions">
+                    <button onclick="event.stopPropagation();moveStep(${i},-1)" title="Move up">↑</button>
+                    <button onclick="event.stopPropagation();moveStep(${i},1)" title="Move down">↓</button>
+                    <button onclick="event.stopPropagation();removeStep(${i})" title="Remove">✕</button>
+                </div>
+            `;
+            card.addEventListener('click', () => selectStep(i));
+            canvas.appendChild(card);
+        });
+
+        document.getElementById('stepCount').textContent = `${workflow.length} step${workflow.length !== 1 ? 's' : ''}`;
+        document.getElementById('totalTime').textContent = formatDuration(workflow.reduce((a,s) => a + s.duration, 0));
+    }
+
+    document.getElementById('modalOverlay').addEventListener('click', e => { if (e.target === e.currentTarget) closeModal(); });
+    document.addEventListener('keydown', e => { if (e.key === 'Escape') { closeModal(); closeDetail(); } });
+
+    init();
+    saveState();
+    </script>
+</body>
+</html>
