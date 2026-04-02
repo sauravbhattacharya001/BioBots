@@ -1,0 +1,747 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Plate Layout Designer — BioBots</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧬</text></svg>">
+    <style>
+        :root {
+            --bg: #0f172a;
+            --surface: #1e293b;
+            --border: #334155;
+            --text: #e2e8f0;
+            --muted: #94a3b8;
+            --accent: #38bdf8;
+            --accent-hover: #7dd3fc;
+            --success: #4ade80;
+            --error: #f87171;
+            --warning: #fbbf24;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            padding: 1.5rem;
+        }
+        header {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+            flex-wrap: wrap;
+        }
+        header h1 {
+            font-size: 1.5rem;
+            background: linear-gradient(135deg, var(--accent), var(--success));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        .back-link {
+            color: var(--accent);
+            text-decoration: none;
+            font-size: 0.85rem;
+        }
+        .back-link:hover { text-decoration: underline; }
+
+        .toolbar {
+            display: flex;
+            gap: 0.75rem;
+            align-items: center;
+            flex-wrap: wrap;
+            margin-bottom: 1rem;
+            padding: 0.75rem 1rem;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+        }
+        .toolbar label { font-size: 0.8rem; color: var(--muted); }
+        .toolbar select, .toolbar button, .toolbar input {
+            background: var(--bg);
+            color: var(--text);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 0.4rem 0.6rem;
+            font-size: 0.85rem;
+            cursor: pointer;
+        }
+        .toolbar select:hover, .toolbar button:hover { border-color: var(--accent); }
+        .toolbar button.primary {
+            background: var(--accent);
+            color: #0f172a;
+            border-color: var(--accent);
+            font-weight: 600;
+        }
+        .toolbar button.primary:hover { background: var(--accent-hover); }
+        .toolbar .sep { width: 1px; height: 24px; background: var(--border); }
+
+        .main-layout {
+            display: flex;
+            gap: 1.5rem;
+            align-items: flex-start;
+            flex-wrap: wrap;
+        }
+
+        /* Plate grid */
+        .plate-container {
+            flex: 1;
+            min-width: 400px;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 1rem;
+            overflow-x: auto;
+        }
+        .plate-title {
+            font-size: 0.85rem;
+            color: var(--muted);
+            margin-bottom: 0.5rem;
+        }
+        .plate-grid {
+            display: inline-grid;
+            gap: 3px;
+            user-select: none;
+        }
+        .plate-grid .col-header {
+            font-size: 0.65rem;
+            color: var(--muted);
+            text-align: center;
+            font-weight: 600;
+        }
+        .plate-grid .row-header {
+            font-size: 0.65rem;
+            color: var(--muted);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+        }
+        .well {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            border: 2px solid var(--border);
+            cursor: pointer;
+            transition: border-color 0.15s, transform 0.1s;
+            position: relative;
+        }
+        .well:hover { border-color: var(--accent); transform: scale(1.1); }
+        .well.selected { border-color: #fff; box-shadow: 0 0 6px rgba(255,255,255,0.4); }
+        .well .well-label {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.5rem;
+            font-weight: 700;
+            color: rgba(0,0,0,0.7);
+            pointer-events: none;
+        }
+
+        /* Conditions panel */
+        .panel {
+            width: 280px;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 1rem;
+        }
+        .panel h3 {
+            font-size: 0.9rem;
+            margin-bottom: 0.75rem;
+            color: var(--accent);
+        }
+        .condition-list { list-style: none; }
+        .condition-list li {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.4rem 0.5rem;
+            border-radius: 6px;
+            cursor: pointer;
+            margin-bottom: 2px;
+            font-size: 0.8rem;
+            transition: background 0.15s;
+        }
+        .condition-list li:hover { background: rgba(255,255,255,0.05); }
+        .condition-list li.active { background: rgba(56,189,248,0.15); border: 1px solid var(--accent); }
+        .condition-swatch {
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
+        .condition-name { flex: 1; }
+        .condition-count {
+            font-size: 0.7rem;
+            color: var(--muted);
+            min-width: 20px;
+            text-align: right;
+        }
+        .condition-remove {
+            color: var(--error);
+            cursor: pointer;
+            font-size: 0.9rem;
+            opacity: 0.6;
+            background: none;
+            border: none;
+            padding: 0 2px;
+        }
+        .condition-remove:hover { opacity: 1; }
+
+        .add-condition {
+            display: flex;
+            gap: 0.5rem;
+            margin-top: 0.75rem;
+        }
+        .add-condition input {
+            flex: 1;
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            color: var(--text);
+            padding: 0.4rem 0.5rem;
+            font-size: 0.8rem;
+        }
+        .add-condition button {
+            background: var(--accent);
+            color: #0f172a;
+            border: none;
+            border-radius: 6px;
+            padding: 0.4rem 0.7rem;
+            font-weight: 600;
+            cursor: pointer;
+            font-size: 0.8rem;
+        }
+
+        /* Stats */
+        .stats {
+            margin-top: 1rem;
+            padding-top: 0.75rem;
+            border-top: 1px solid var(--border);
+        }
+        .stats .stat-row {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.75rem;
+            color: var(--muted);
+            margin-bottom: 0.25rem;
+        }
+        .stats .stat-row .val { color: var(--text); font-weight: 600; }
+
+        /* Selection rectangle */
+        .selection-rect {
+            position: fixed;
+            border: 2px dashed var(--accent);
+            background: rgba(56,189,248,0.1);
+            pointer-events: none;
+            z-index: 1000;
+            display: none;
+        }
+
+        /* Export modal */
+        .modal-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.6);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 2000;
+        }
+        .modal-overlay.visible { display: flex; }
+        .modal {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 1.5rem;
+            width: 90%;
+            max-width: 600px;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+        .modal h3 { margin-bottom: 1rem; color: var(--accent); }
+        .modal textarea {
+            width: 100%;
+            height: 250px;
+            background: var(--bg);
+            color: var(--text);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 0.75rem;
+            font-family: 'Cascadia Code', 'Fira Code', monospace;
+            font-size: 0.8rem;
+            resize: vertical;
+        }
+        .modal .modal-actions {
+            display: flex;
+            gap: 0.5rem;
+            margin-top: 1rem;
+            justify-content: flex-end;
+        }
+        .modal button {
+            padding: 0.5rem 1rem;
+            border-radius: 6px;
+            border: 1px solid var(--border);
+            background: var(--bg);
+            color: var(--text);
+            cursor: pointer;
+            font-size: 0.85rem;
+        }
+        .modal button.primary {
+            background: var(--accent);
+            color: #0f172a;
+            border-color: var(--accent);
+            font-weight: 600;
+        }
+
+        .toast {
+            position: fixed;
+            bottom: 2rem;
+            left: 50%;
+            transform: translateX(-50%);
+            background: var(--success);
+            color: #0f172a;
+            padding: 0.5rem 1.5rem;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            opacity: 0;
+            transition: opacity 0.3s;
+            z-index: 3000;
+            pointer-events: none;
+        }
+        .toast.visible { opacity: 1; }
+
+        @media (max-width: 768px) {
+            .main-layout { flex-direction: column; }
+            .panel { width: 100%; }
+            .plate-container { min-width: unset; }
+            .well { width: 24px; height: 24px; }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <a href="index.html" class="back-link">← Dashboard</a>
+        <h1>🧫 Plate Layout Designer</h1>
+    </header>
+
+    <div class="toolbar">
+        <label>Plate:</label>
+        <select id="plateSize">
+            <option value="6">6-well</option>
+            <option value="12">12-well</option>
+            <option value="24">24-well</option>
+            <option value="48">48-well</option>
+            <option value="96" selected>96-well</option>
+            <option value="384">384-well</option>
+        </select>
+        <div class="sep"></div>
+        <label>Mode:</label>
+        <select id="paintMode">
+            <option value="paint">Paint</option>
+            <option value="erase">Erase</option>
+        </select>
+        <div class="sep"></div>
+        <button onclick="selectAll()">Select All</button>
+        <button onclick="selectNone()">Clear Selection</button>
+        <button onclick="fillEdgeBlanks()">Edge Blanks</button>
+        <div class="sep"></div>
+        <button onclick="doUndo()" title="Undo (Ctrl+Z)">↩ Undo</button>
+        <button onclick="doRedo()" title="Redo (Ctrl+Y)">↪ Redo</button>
+        <div class="sep"></div>
+        <button onclick="clearPlate()">🗑 Clear</button>
+        <button class="primary" onclick="showExport()">📤 Export</button>
+    </div>
+
+    <div class="main-layout">
+        <div class="plate-container">
+            <div class="plate-title" id="plateTitle">96-well plate (8 × 12)</div>
+            <div class="plate-grid" id="plateGrid"></div>
+        </div>
+
+        <div class="panel">
+            <h3>Conditions</h3>
+            <ul class="condition-list" id="conditionList"></ul>
+            <div class="add-condition">
+                <input type="text" id="newCondName" placeholder="Condition name..." />
+                <button onclick="addCondition()">+ Add</button>
+            </div>
+
+            <div class="stats" id="statsPanel"></div>
+        </div>
+    </div>
+
+    <div class="selection-rect" id="selRect"></div>
+
+    <div class="modal-overlay" id="exportModal">
+        <div class="modal">
+            <h3>Export Plate Layout</h3>
+            <div style="display:flex;gap:0.5rem;margin-bottom:0.75rem;">
+                <button onclick="exportAs('csv')" class="primary">CSV</button>
+                <button onclick="exportAs('json')">JSON</button>
+                <button onclick="exportAs('tsv')">TSV</button>
+            </div>
+            <textarea id="exportText" readonly></textarea>
+            <div class="modal-actions">
+                <button onclick="copyExport()">📋 Copy</button>
+                <button onclick="downloadExport()">💾 Download</button>
+                <button onclick="closeExport()">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="toast" id="toast"></div>
+
+<script>
+'use strict';
+
+var PLATE_FORMATS = {
+    6:   { rows: 2, cols: 3 },
+    12:  { rows: 3, cols: 4 },
+    24:  { rows: 4, cols: 6 },
+    48:  { rows: 6, cols: 8 },
+    96:  { rows: 8, cols: 12 },
+    384: { rows: 16, cols: 24 }
+};
+
+var PALETTE = [
+    '#38bdf8','#4ade80','#fbbf24','#f87171','#a78bfa','#fb923c',
+    '#2dd4bf','#f472b6','#818cf8','#facc15','#34d399','#e879f9',
+    '#22d3ee','#a3e635','#fb7185','#c084fc','#fdba74','#86efac'
+];
+
+var conditions = [
+    { name: 'Sample', color: PALETTE[0] },
+    { name: 'Positive Ctrl', color: PALETTE[1] },
+    { name: 'Negative Ctrl', color: PALETTE[3] },
+    { name: 'Blank', color: '#475569' }
+];
+var activeCondition = 0;
+
+var plateData = {}; // "A1" -> conditionIndex
+var rows = 8, cols = 12;
+var undoStack = [], redoStack = [];
+var colorIdx = 4;
+
+var isDragging = false, dragStart = null;
+
+function rowLabel(r) { return String.fromCharCode(65 + r); }
+
+function wellId(r, c) { return rowLabel(r) + (c + 1); }
+
+function saveState() {
+    undoStack.push(JSON.parse(JSON.stringify(plateData)));
+    if (undoStack.length > 50) undoStack.shift();
+    redoStack = [];
+}
+
+function doUndo() {
+    if (!undoStack.length) return;
+    redoStack.push(JSON.parse(JSON.stringify(plateData)));
+    plateData = undoStack.pop();
+    renderWells();
+    updateStats();
+}
+
+function doRedo() {
+    if (!redoStack.length) return;
+    undoStack.push(JSON.parse(JSON.stringify(plateData)));
+    plateData = redoStack.pop();
+    renderWells();
+    updateStats();
+}
+
+function buildGrid() {
+    var size = parseInt(document.getElementById('plateSize').value);
+    var fmt = PLATE_FORMATS[size];
+    rows = fmt.rows; cols = fmt.cols;
+    plateData = {};
+    undoStack = []; redoStack = [];
+
+    var grid = document.getElementById('plateGrid');
+    grid.style.gridTemplateColumns = '24px ' + ('32px '.repeat(cols)).trim();
+
+    if (size === 384) {
+        document.querySelectorAll('.well').forEach(function(w) { w.style.width = '20px'; w.style.height = '20px'; });
+        grid.style.gridTemplateColumns = '20px ' + ('20px '.repeat(cols)).trim();
+        grid.style.gap = '2px';
+    } else {
+        grid.style.gap = '3px';
+    }
+
+    var html = '<div></div>';
+    for (var c = 0; c < cols; c++) html += '<div class="col-header">' + (c+1) + '</div>';
+
+    for (var r = 0; r < rows; r++) {
+        html += '<div class="row-header">' + rowLabel(r) + '</div>';
+        for (var c2 = 0; c2 < cols; c2++) {
+            var id = wellId(r, c2);
+            html += '<div class="well" data-well="' + id + '" data-row="' + r + '" data-col="' + c2 + '"><span class="well-label"></span></div>';
+        }
+    }
+    grid.innerHTML = html;
+
+    var wellSize = size === 384 ? 20 : 32;
+    grid.querySelectorAll('.well').forEach(function(w) {
+        if (size === 384) { w.style.width = '20px'; w.style.height = '20px'; }
+        else { w.style.width = '32px'; w.style.height = '32px'; }
+    });
+
+    document.getElementById('plateTitle').textContent = size + '-well plate (' + rows + ' × ' + cols + ')';
+    setupWellEvents();
+    updateStats();
+}
+
+function setupWellEvents() {
+    document.querySelectorAll('.well').forEach(function(w) {
+        w.addEventListener('mousedown', function(e) {
+            e.preventDefault();
+            isDragging = true;
+            dragStart = { x: e.clientX, y: e.clientY };
+            saveState();
+            paintWell(w);
+        });
+        w.addEventListener('mouseenter', function() {
+            if (isDragging) paintWell(w);
+        });
+    });
+}
+
+function paintWell(el) {
+    var id = el.dataset.well;
+    var mode = document.getElementById('paintMode').value;
+    if (mode === 'erase') {
+        delete plateData[id];
+    } else {
+        plateData[id] = activeCondition;
+    }
+    renderWell(el, id);
+    updateStats();
+}
+
+function renderWell(el, id) {
+    if (plateData[id] !== undefined) {
+        var cond = conditions[plateData[id]];
+        el.style.background = cond ? cond.color : '';
+        el.querySelector('.well-label').textContent = cond ? cond.name.substring(0, 3).toUpperCase() : '';
+    } else {
+        el.style.background = '';
+        el.querySelector('.well-label').textContent = '';
+    }
+}
+
+function renderWells() {
+    document.querySelectorAll('.well').forEach(function(w) {
+        renderWell(w, w.dataset.well);
+    });
+}
+
+function renderConditions() {
+    var list = document.getElementById('conditionList');
+    list.innerHTML = '';
+    conditions.forEach(function(cond, i) {
+        var li = document.createElement('li');
+        li.className = i === activeCondition ? 'active' : '';
+        li.innerHTML = '<span class="condition-swatch" style="background:' + cond.color + '"></span>' +
+            '<span class="condition-name">' + cond.name + '</span>' +
+            '<span class="condition-count" id="cnt-' + i + '">0</span>' +
+            '<button class="condition-remove" data-idx="' + i + '">×</button>';
+        li.addEventListener('click', function(e) {
+            if (e.target.classList.contains('condition-remove')) return;
+            activeCondition = i;
+            renderConditions();
+        });
+        li.querySelector('.condition-remove').addEventListener('click', function() {
+            removeCondition(i);
+        });
+        list.appendChild(li);
+    });
+    updateStats();
+}
+
+function addCondition() {
+    var input = document.getElementById('newCondName');
+    var name = input.value.trim();
+    if (!name) return;
+    conditions.push({ name: name, color: PALETTE[colorIdx % PALETTE.length] });
+    colorIdx++;
+    input.value = '';
+    activeCondition = conditions.length - 1;
+    renderConditions();
+}
+
+function removeCondition(idx) {
+    // Remove wells assigned to this condition, remap indices
+    saveState();
+    var newData = {};
+    Object.keys(plateData).forEach(function(k) {
+        if (plateData[k] === idx) return;
+        if (plateData[k] > idx) newData[k] = plateData[k] - 1;
+        else newData[k] = plateData[k];
+    });
+    plateData = newData;
+    conditions.splice(idx, 1);
+    if (activeCondition >= conditions.length) activeCondition = Math.max(0, conditions.length - 1);
+    renderConditions();
+    renderWells();
+}
+
+function updateStats() {
+    var total = rows * cols;
+    var assigned = Object.keys(plateData).length;
+    var counts = {};
+    conditions.forEach(function(_, i) { counts[i] = 0; });
+    Object.values(plateData).forEach(function(ci) { counts[ci] = (counts[ci] || 0) + 1; });
+
+    conditions.forEach(function(_, i) {
+        var el = document.getElementById('cnt-' + i);
+        if (el) el.textContent = counts[i] || 0;
+    });
+
+    document.getElementById('statsPanel').innerHTML =
+        '<div class="stat-row"><span>Total wells</span><span class="val">' + total + '</span></div>' +
+        '<div class="stat-row"><span>Assigned</span><span class="val">' + assigned + '</span></div>' +
+        '<div class="stat-row"><span>Empty</span><span class="val">' + (total - assigned) + '</span></div>' +
+        '<div class="stat-row"><span>Conditions</span><span class="val">' + conditions.length + '</span></div>';
+}
+
+function selectAll() {
+    saveState();
+    for (var r = 0; r < rows; r++)
+        for (var c = 0; c < cols; c++)
+            plateData[wellId(r, c)] = activeCondition;
+    renderWells();
+    updateStats();
+}
+
+function selectNone() {
+    saveState();
+    plateData = {};
+    renderWells();
+    updateStats();
+}
+
+function fillEdgeBlanks() {
+    // Find or create Blank condition
+    var blankIdx = conditions.findIndex(function(c) { return c.name.toLowerCase() === 'blank'; });
+    if (blankIdx === -1) {
+        conditions.push({ name: 'Blank', color: '#475569' });
+        blankIdx = conditions.length - 1;
+        renderConditions();
+    }
+    saveState();
+    for (var r = 0; r < rows; r++) {
+        for (var c = 0; c < cols; c++) {
+            if (r === 0 || r === rows - 1 || c === 0 || c === cols - 1) {
+                plateData[wellId(r, c)] = blankIdx;
+            }
+        }
+    }
+    renderWells();
+    updateStats();
+}
+
+function clearPlate() {
+    saveState();
+    plateData = {};
+    renderWells();
+    updateStats();
+}
+
+// Export
+var currentExportFormat = 'csv';
+
+function showExport() {
+    exportAs('csv');
+    document.getElementById('exportModal').classList.add('visible');
+}
+
+function closeExport() {
+    document.getElementById('exportModal').classList.remove('visible');
+}
+
+function exportAs(fmt) {
+    currentExportFormat = fmt;
+    var text = '';
+    if (fmt === 'json') {
+        var data = [];
+        for (var r = 0; r < rows; r++) {
+            for (var c = 0; c < cols; c++) {
+                var id = wellId(r, c);
+                data.push({
+                    well: id,
+                    row: rowLabel(r),
+                    column: c + 1,
+                    condition: plateData[id] !== undefined ? conditions[plateData[id]].name : '',
+                    color: plateData[id] !== undefined ? conditions[plateData[id]].color : ''
+                });
+            }
+        }
+        text = JSON.stringify(data, null, 2);
+    } else {
+        var sep = fmt === 'tsv' ? '\t' : ',';
+        var lines = ['Well' + sep + 'Row' + sep + 'Column' + sep + 'Condition'];
+        for (var r2 = 0; r2 < rows; r2++) {
+            for (var c2 = 0; c2 < cols; c2++) {
+                var id2 = wellId(r2, c2);
+                var cname = plateData[id2] !== undefined ? conditions[plateData[id2]].name : '';
+                lines.push(id2 + sep + rowLabel(r2) + sep + (c2+1) + sep + cname);
+            }
+        }
+        text = lines.join('\n');
+    }
+    document.getElementById('exportText').value = text;
+}
+
+function copyExport() {
+    var ta = document.getElementById('exportText');
+    ta.select();
+    document.execCommand('copy');
+    showToast('Copied to clipboard!');
+}
+
+function downloadExport() {
+    var ext = currentExportFormat;
+    var mime = ext === 'json' ? 'application/json' : 'text/plain';
+    var blob = new Blob([document.getElementById('exportText').value], { type: mime });
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'plate-layout.' + ext;
+    a.click();
+    URL.revokeObjectURL(a.href);
+    showToast('Downloaded plate-layout.' + ext);
+}
+
+function showToast(msg) {
+    var t = document.getElementById('toast');
+    t.textContent = msg;
+    t.classList.add('visible');
+    setTimeout(function() { t.classList.remove('visible'); }, 2000);
+}
+
+// Keyboard shortcuts
+document.addEventListener('keydown', function(e) {
+    if (e.ctrlKey && e.key === 'z') { e.preventDefault(); doUndo(); }
+    if (e.ctrlKey && e.key === 'y') { e.preventDefault(); doRedo(); }
+    if (e.key === 'Enter' && document.activeElement === document.getElementById('newCondName')) {
+        addCondition();
+    }
+});
+
+document.addEventListener('mouseup', function() { isDragging = false; });
+
+// Plate size change
+document.getElementById('plateSize').addEventListener('change', buildGrid);
+
+// Init
+buildGrid();
+renderConditions();
+</script>
+</body>
+</html>
