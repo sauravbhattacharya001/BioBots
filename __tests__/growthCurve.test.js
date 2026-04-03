@@ -1,135 +1,75 @@
 'use strict';
 
-var assert = require('assert');
-var gc = require('../docs/shared/growthCurve').createGrowthCurveAnalyzer();
+var mod = require('../docs/shared/growthCurve');
 
-describe('Growth Curve Analyzer', function () {
-
-    describe('exponentialGrowth', function () {
-        it('returns n0 at t=0', function () {
-            assert.strictEqual(gc.exponentialGrowth(1000, 0.05, 0), 1000);
-        });
-        it('grows correctly', function () {
-            var result = gc.exponentialGrowth(1000, 0.05, 10);
-            assert(Math.abs(result - 1000 * Math.exp(0.5)) < 0.01);
-        });
-        it('throws on negative n0', function () {
-            assert.throws(function () { gc.exponentialGrowth(-1, 0.05, 10); });
-        });
+describe('GrowthCurveAnalyzer', function () {
+    var analyzer;
+    beforeEach(function () {
+        analyzer = mod.createGrowthCurveAnalyzer();
     });
 
-    describe('logisticGrowth', function () {
-        it('returns n0 at t=0', function () {
-            var result = gc.logisticGrowth(100, 0.1, 10000, 0);
-            assert.strictEqual(result, 100);
-        });
-        it('approaches K at large t', function () {
-            var result = gc.logisticGrowth(100, 0.1, 10000, 1000);
-            assert(result > 9990);
-        });
+    var sampleData = {
+        timepoints: [0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24],
+        counts:     [1e4, 1.1e4, 1.2e4, 2e4, 5e4, 1.5e5, 4e5, 9e5, 1.5e6, 1.8e6, 1.9e6, 1.9e6, 1.85e6],
+        timeUnit: 'hours',
+        label: 'HeLa 37°C'
+    };
+
+    test('analyze returns expected structure', function () {
+        var result = analyzer.analyze(sampleData);
+        expect(result.label).toBe('HeLa 37°C');
+        expect(result.timeUnit).toBe('hours');
+        expect(result.dataPoints).toBe(13);
+        expect(result.summary.minCount).toBe(1e4);
+        expect(result.summary.maxCount).toBe(1.9e6);
+        expect(result.summary.foldChange).toBeGreaterThan(1);
+        expect(result.phases.length).toBeGreaterThan(0);
+        expect(result.growthRates.length).toBe(12);
+        expect(result.logisticFit.r2).toBeDefined();
+        expect(result.logisticFit.predicted.length).toBe(13);
     });
 
-    describe('doublingTime', function () {
-        it('calculates correctly', function () {
-            var td = gc.doublingTime(0.1);
-            assert(Math.abs(td - Math.LN2 / 0.1) < 0.001);
-        });
-        it('throws for non-positive rate', function () {
-            assert.throws(function () { gc.doublingTime(0); });
-            assert.throws(function () { gc.doublingTime(-0.1); });
-        });
+    test('detects log phase and doubling time', function () {
+        var result = analyzer.analyze(sampleData);
+        var logPhase = result.phases.find(function (p) { return p.name.indexOf('Log') === 0; });
+        expect(logPhase).toBeDefined();
+        if (result.summary.doublingTime !== null) {
+            expect(result.summary.doublingTime).toBeGreaterThan(0);
+        }
     });
 
-    describe('estimateGrowthRate', function () {
-        it('estimates rate from two points', function () {
-            var r = gc.estimateGrowthRate(1000, 2000, 0, 10);
-            assert(Math.abs(r - Math.LN2 / 10) < 0.001);
-        });
+    test('compare ranks datasets by doubling time', function () {
+        var fast = {
+            timepoints: [0, 2, 4, 6, 8],
+            counts: [100, 400, 1600, 6400, 25600],
+            label: 'Fast'
+        };
+        var slow = {
+            timepoints: [0, 2, 4, 6, 8],
+            counts: [100, 150, 225, 338, 506],
+            label: 'Slow'
+        };
+        var cmp = analyzer.compare([fast, slow]);
+        expect(cmp.count).toBe(2);
+        expect(cmp.fastest).toBe('Fast');
+        expect(cmp.slowest).toBe('Slow');
+        expect(cmp.ranking.length).toBe(2);
     });
 
-    describe('detectPhases', function () {
-        it('detects log phase in exponential data', function () {
-            var data = [];
-            for (var i = 0; i < 10; i++) {
-                data.push({ time: i * 10, count: 1000 * Math.exp(0.05 * i * 10) });
-            }
-            var phases = gc.detectPhases(data);
-            assert(phases.length >= 1);
-            var hasLog = phases.some(function (p) { return p.phase === 'log'; });
-            assert(hasLog);
-        });
-        it('throws on fewer than 3 points', function () {
-            assert.throws(function () { gc.detectPhases([{ time: 0, count: 100 }]); });
-        });
+    test('toCSV returns CSV string', function () {
+        var result = analyzer.analyze(sampleData);
+        var csv = analyzer.toCSV(result);
+        expect(csv).toContain('Time,Count,GrowthRate,Phase,LogisticFit');
+        expect(csv.split('\n').length).toBeGreaterThan(1);
     });
 
-    describe('fitExponential', function () {
-        it('fits exponential data well', function () {
-            var data = [];
-            for (var i = 0; i < 10; i++) {
-                data.push({ time: i * 10, count: 1000 * Math.exp(0.03 * i * 10) });
-            }
-            var fit = gc.fitExponential(data);
-            assert(fit.rSquared > 0.99);
-            assert(Math.abs(fit.r - 0.03) < 0.001);
-        });
+    test('validates input', function () {
+        expect(function () { analyzer.analyze({}); }).toThrow();
+        expect(function () { analyzer.analyze({ timepoints: [1], counts: [1, 2] }); }).toThrow();
+        expect(function () { analyzer.analyze({ timepoints: [1, 2], counts: [1, 2] }); }).toThrow('at least 3');
     });
 
-    describe('fitLogistic', function () {
-        it('fits logistic data', function () {
-            var data = [];
-            for (var i = 0; i < 15; i++) {
-                var t = i * 12;
-                data.push({ time: t, count: gc.logisticGrowth(1000, 0.05, 100000, t) });
-            }
-            var fit = gc.fitLogistic(data);
-            assert(fit.rSquared > -1); // logistic fit runs without error
-            assert(fit.k > 0);
-            assert(fit.r > 0);
-        });
-    });
-
-    describe('summarize', function () {
-        it('returns complete summary', function () {
-            var data = [];
-            for (var i = 0; i < 10; i++) {
-                data.push({ time: i * 24, count: 5000 * Math.exp(0.02 * i * 24) });
-            }
-            var s = gc.summarize(data);
-            assert.strictEqual(s.dataPoints, 10);
-            assert(s.counts.foldChange > 1);
-            assert(s.exponentialFit !== null);
-            assert(s.bestModel !== null);
-        });
-    });
-
-    describe('generateFromPreset', function () {
-        it('generates data for HeLa', function () {
-            var data = gc.generateFromPreset('HeLa', 10000, 168, 20);
-            assert.strictEqual(data.length, 20);
-            assert.strictEqual(data[0].time, 0);
-            assert(data[data.length - 1].count > data[0].count);
-        });
-        it('throws for unknown type', function () {
-            assert.throws(function () { gc.generateFromPreset('Unknown'); });
-        });
-    });
-
-    describe('exportCSV', function () {
-        it('produces valid CSV', function () {
-            var data = [{ time: 0, count: 100 }, { time: 24, count: 200 }];
-            var csv = gc.exportCSV(data);
-            assert(csv.includes('Time (h),Cell Count'));
-            assert(csv.includes('0,100'));
-        });
-    });
-
-    describe('exportJSON', function () {
-        it('produces valid JSON', function () {
-            var data = [{ time: 0, count: 100 }];
-            var json = gc.exportJSON(data);
-            var parsed = JSON.parse(json);
-            assert(Array.isArray(parsed.data));
-        });
+    test('compare rejects fewer than 2 datasets', function () {
+        expect(function () { analyzer.compare([sampleData]); }).toThrow('at least 2');
     });
 });
