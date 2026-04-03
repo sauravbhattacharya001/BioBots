@@ -257,7 +257,7 @@ function createCellCounter() {
     getChamberSpec: function (type) {
       var spec = CHAMBER_SPECS[type];
       if (!spec) throw new Error('Unknown chamber type: ' + type);
-      return JSON.parse(JSON.stringify(spec));
+      return Object.assign({}, spec);
     }
   };
 }

@@ -207,7 +207,12 @@ function createEnvironmentalMonitor(opts) {
 
     return {
       profiles: profileNames,
-      limits: JSON.parse(JSON.stringify(limits)),
+      limits: (function () {
+        var c = {};
+        var ks = Object.keys(limits);
+        for (var i = 0; i < ks.length; i++) c[ks[i]] = Object.assign({}, limits[ks[i]]);
+        return c;
+      })(),
       totalReadings: totalReadings,
       excursionReadings: excursionReadings,
       excursionRate: totalReadings ? round(excursionReadings / totalReadings * 100) : 0,

@@ -355,12 +355,22 @@ function createAutoclaveLogger() {
 
     /* ── Protocols reference ── */
     function getProtocols() {
-        return JSON.parse(JSON.stringify(PROTOCOLS));
+        var result = {};
+        var keys = Object.keys(PROTOCOLS);
+        for (var i = 0; i < keys.length; i++) {
+            result[keys[i]] = Object.assign({}, PROTOCOLS[keys[i]]);
+        }
+        return result;
     }
 
     /* ── Indicator types reference ── */
     function getIndicatorTypes() {
-        return JSON.parse(JSON.stringify(INDICATOR_TYPES));
+        var result = {};
+        var keys = Object.keys(INDICATOR_TYPES);
+        for (var i = 0; i < keys.length; i++) {
+            result[keys[i]] = Object.assign({}, INDICATOR_TYPES[keys[i]]);
+        }
+        return result;
     }
 
     return {

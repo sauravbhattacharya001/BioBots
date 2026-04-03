@@ -701,7 +701,12 @@ function createPrintQualityScorer(options) {
     function getConfig() {
         return {
             weights: Object.assign({}, weights),
-            targets: JSON.parse(JSON.stringify(targets))
+            targets: (function () {
+                var c = {};
+                var ks = Object.keys(targets);
+                for (var i = 0; i < ks.length; i++) c[ks[i]] = Object.assign({}, targets[ks[i]]);
+                return c;
+            })()
         };
     }
 
