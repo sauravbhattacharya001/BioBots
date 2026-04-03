@@ -74,6 +74,7 @@ var manifest = [
     ['createMycoplasmaTestLogger',     './docs/shared/mycoplasmaTest',       'createMycoplasmaTestLogger'],
     ['createStandardCurveCalculator',  './docs/shared/standardCurve',        'createStandardCurveCalculator'],
     ['createUnitConverter',            './docs/shared/unitConverter',         'createUnitConverter'],
+    ['createGrowthCurveAnalyzer',      './docs/shared/growthCurve',           'createGrowthCurveAnalyzer'],
 ];
 
 // ── Pre-computed lookup structures ─────────────────────────────────
