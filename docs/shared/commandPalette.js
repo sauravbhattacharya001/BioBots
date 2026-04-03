@@ -30,6 +30,7 @@
     { name: 'Statistics', href: 'stats.html', icon: '📊', desc: 'Descriptive statistics dashboard' },
     { name: 'Protocol Library', href: 'protocol.html', icon: '📋', desc: 'Standard operating procedures' },
     { name: 'Evolution Tracker', href: 'evolution.html', icon: '🧬', desc: 'Track parameter evolution over time' },
+    { name: 'Chain of Custody', href: 'chain-of-custody.html', icon: '🔗', desc: 'Sample transfer tracking & audit trail' },
     { name: 'Materials Database', href: 'materials.html', icon: '🧪', desc: 'Bioink materials reference' },
     { name: 'Shelf Life', href: 'shelf-life.html', icon: '⏳', desc: 'Material shelf life tracking' },
     { name: 'Rheology Modeler', href: 'rheology.html', icon: '🧪', desc: 'Viscosity and flow modeling' },
