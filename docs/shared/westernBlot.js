@@ -58,6 +58,33 @@ var LOADING_CONTROLS = {
     'total-protein':{ name: 'Total Protein (Ponceau/Stain-Free)', expectedKda: null, note: 'Whole-lane normalization' },
 };
 
+/**
+ * Normalize an array of target intensities against control intensities.
+ * Validates inputs and returns raw (unrounded) ratios.
+ * All public methods that need target/control normalization funnel
+ * through this single helper to avoid repeated loop logic.
+ *
+ * @param {number[]} target  - Target band intensities
+ * @param {number[]} control - Loading control intensities
+ * @param {string}   [label] - Context label for error messages
+ * @returns {number[]} Normalized ratios (target[i] / control[i])
+ */
+function normalizeRaw(target, control, label) {
+    if (!target || !control) throw new Error('Provide target and control intensity arrays.');
+    if (target.length !== control.length) throw new Error('target and control arrays must be the same length.');
+    var result = new Array(target.length);
+    for (var i = 0; i < target.length; i++) {
+        if (control[i] === 0) throw new Error('Loading control intensity is 0 at ' + (label || 'lane ' + i) + '; cannot normalize.');
+        result[i] = target[i] / control[i];
+    }
+    return result;
+}
+
+/** Build default lane labels when none are provided. */
+function defaultLanes(arr) {
+    return arr.map(function (_, i) { return 'Lane ' + (i + 1); });
+}
+
 function createWesternBlotAnalyzer() {
     return {
         /**
@@ -65,16 +92,8 @@ function createWesternBlotAnalyzer() {
          * Returns ratio = target[i] / control[i] for each lane.
          */
         normalize: function (opts) {
-            var target = opts.target;
-            var control = opts.control;
-            if (!target || !control) throw new Error('Provide target and control intensity arrays.');
-            if (target.length !== control.length) throw new Error('target and control arrays must be the same length.');
-            var lanes = opts.lanes || target.map(function (_, i) { return 'Lane ' + (i + 1); });
-            var normalized = [];
-            for (var i = 0; i < target.length; i++) {
-                if (control[i] === 0) throw new Error('Loading control intensity is 0 at lane ' + i + '; cannot normalize.');
-                normalized.push(round(target[i] / control[i]));
-            }
+            var normalized = normalizeRaw(opts.target, opts.control).map(function (v) { return round(v); });
+            var lanes = opts.lanes || defaultLanes(opts.target);
             return {
                 normalized: normalized,
                 lanes: lanes,
@@ -89,22 +108,13 @@ function createWesternBlotAnalyzer() {
          * First normalizes to loading control, then divides by reference.
          */
         foldChange: function (opts) {
-            var target = opts.target;
-            var control = opts.control;
             var refLane = opts.referenceLane || 0;
-            if (!target || !control) throw new Error('Provide target and control intensity arrays.');
-            if (target.length !== control.length) throw new Error('Arrays must match in length.');
-
-            var norm = [];
-            for (var i = 0; i < target.length; i++) {
-                if (control[i] === 0) throw new Error('Control is 0 at lane ' + i);
-                norm.push(target[i] / control[i]);
-            }
+            var norm = normalizeRaw(opts.target, opts.control);
             var ref = norm[refLane];
             if (ref === 0) throw new Error('Reference lane normalized value is 0.');
 
             var fc = norm.map(function (v) { return round(v / ref); });
-            var lanes = opts.lanes || target.map(function (_, i) { return 'Lane ' + (i + 1); });
+            var lanes = opts.lanes || defaultLanes(opts.target);
 
             return {
                 foldChanges: fc,
@@ -123,16 +133,8 @@ function createWesternBlotAnalyzer() {
             var groupA = opts.groupA; // { target: [...], control: [...], label: 'Control' }
             var groupB = opts.groupB; // { target: [...], control: [...], label: 'Treatment' }
 
-            function normArr(g) {
-                var n = [];
-                for (var i = 0; i < g.target.length; i++) {
-                    if (g.control[i] === 0) throw new Error('Control 0 in group ' + (g.label || '?'));
-                    n.push(g.target[i] / g.control[i]);
-                }
-                return n;
-            }
-            var nA = normArr(groupA);
-            var nB = normArr(groupB);
+            var nA = normalizeRaw(groupA.target, groupA.control, 'group ' + (groupA.label || 'A'));
+            var nB = normalizeRaw(groupB.target, groupB.control, 'group ' + (groupB.label || 'B'));
 
             var mA = mean(nA), mB = mean(nB);
             var sA = nA.length > 1 ? stddev(nA) : 0;
@@ -250,14 +252,11 @@ function createWesternBlotAnalyzer() {
             var controlName = opts.loadingControl || 'Loading Control';
             var target = opts.target;
             var control = opts.control;
-            var lanes = opts.lanes || target.map(function (_, i) { return 'Lane ' + (i + 1); });
+            var lanes = opts.lanes || defaultLanes(target);
             var refLane = opts.referenceLane || 0;
 
-            // Normalize
-            var norm = [];
-            for (var i = 0; i < target.length; i++) {
-                norm.push(control[i] !== 0 ? target[i] / control[i] : 0);
-            }
+            // Normalize via shared helper
+            var norm = normalizeRaw(target, control);
             var ref = norm[refLane];
             var fc = norm.map(function (v) { return ref !== 0 ? round(v / ref) : 0; });
 
