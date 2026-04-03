@@ -5,7 +5,7 @@
 #
 # BioBots is a hybrid project:
 # - .NET Framework 4.5.2 ASP.NET Web API (C# backend)
-# - JavaScript frontend with Jest test suite (970+ tests)
+# - JavaScript frontend with Jest test suite (4800+ tests across 125 files)
 # - Python evolution_tracker module with pytest tests
 
 name: "Copilot Setup"
@@ -46,6 +46,9 @@ jobs:
 
       - name: Run JavaScript tests
         run: npm test
+
+      - name: Verify coverage thresholds
+        run: npm run coverage:check
 
       # --- Python Module ---
       - name: Setup Python
