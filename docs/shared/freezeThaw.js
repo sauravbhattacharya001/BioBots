@@ -299,14 +299,24 @@ function createFreezeThawTracker() {
      * Get supported cell types and their degradation models.
      */
     function getCellTypes() {
-        return JSON.parse(JSON.stringify(DEGRADATION_MODELS));
+        var result = {};
+        var keys = Object.keys(DEGRADATION_MODELS);
+        for (var i = 0; i < keys.length; i++) {
+            result[keys[i]] = Object.assign({}, DEGRADATION_MODELS[keys[i]]);
+        }
+        return result;
     }
 
     /**
      * Get supported cryoprotectants.
      */
     function getCryoprotectants() {
-        return JSON.parse(JSON.stringify(CRYOPROTECTANTS));
+        var result = {};
+        var keys = Object.keys(CRYOPROTECTANTS);
+        for (var i = 0; i < keys.length; i++) {
+            result[keys[i]] = Object.assign({}, CRYOPROTECTANTS[keys[i]]);
+        }
+        return result;
     }
 
     function _getRecommendation(sample, avgDrop, cyclesLeft) {
