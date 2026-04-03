@@ -280,6 +280,8 @@ function createGrowthCurveAnalyzer() {
                 label: label,
                 timeUnit: timeUnit,
                 dataPoints: tp.length,
+                timepoints: tp,
+                counts: cts,
                 summary: {
                     minCount: minCount,
                     maxCount: maxCount,
@@ -338,10 +340,7 @@ function createGrowthCurveAnalyzer() {
          */
         toCSV: function (analysis) {
             var lines = ['Time,Count,GrowthRate,Phase,LogisticFit'];
-            var tp = [];
-            // Reconstruct timepoints from phases/rates length
-            // Use logistic predicted length as proxy
-            var n = analysis.logisticFit.predicted.length;
+            var n = analysis.dataPoints;
             for (var i = 0; i < n; i++) {
                 var phase = '';
                 for (var p = 0; p < analysis.phases.length; p++) {
@@ -351,8 +350,11 @@ function createGrowthCurveAnalyzer() {
                         break;
                     }
                 }
+                var time = analysis.timepoints ? analysis.timepoints[i] : i;
+                var count = analysis.counts ? analysis.counts[i] : '';
                 var rate = i > 0 && i - 1 < analysis.growthRates.length ? analysis.growthRates[i - 1] : '';
-                lines.push(i + ',' + (analysis.logisticFit.predicted[i] || '') + ',' + rate + ',' + phase + ',' + analysis.logisticFit.predicted[i]);
+                var predicted = analysis.logisticFit.predicted[i] != null ? analysis.logisticFit.predicted[i] : '';
+                lines.push(time + ',' + count + ',' + rate + ',' + phase + ',' + predicted);
             }
             return lines.join('\n');
         }
