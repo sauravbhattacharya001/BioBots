@@ -178,13 +178,21 @@ function createFlowCytometryAnalyzer() {
         // Previously each call to median() and percentile() re-sorted the
         // full array, turning this O(n log n) operation into O(5·n log n).
         var sorted = sortNumeric(ev);
+
+        // Compute mean, stddev, and CV once. Previously cv(ev) internally
+        // recomputed both mean(ev) and stddev(ev), tripling the work for
+        // those stats on large event arrays (100K–1M events typical).
+        var m = mean(ev);
+        var sd = stddev(ev);
+        var cvVal = m !== 0 ? (sd / Math.abs(m)) * 100 : 0;
+
         return {
             channel: opts.channel || 'unknown',
             totalEvents: ev.length,
-            mean: Math.round(mean(ev) * 100) / 100,
+            mean: Math.round(m * 100) / 100,
             median: Math.round(medianSorted(sorted) * 100) / 100,
-            stddev: Math.round(stddev(ev) * 100) / 100,
-            cv: Math.round(cv(ev) * 100) / 100,
+            stddev: Math.round(sd * 100) / 100,
+            cv: Math.round(cvVal * 100) / 100,
             min: sorted[0],
             max: sorted[sorted.length - 1],
             percentile5: Math.round(percentileSorted(sorted, 5) * 100) / 100,
