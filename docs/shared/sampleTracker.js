@@ -137,16 +137,21 @@ function createSampleTracker() {
     }
 
     function getStats() {
-        var board = getBoard();
+        // Single-pass aggregation — no longer calls getBoard() which
+        // would copy + sort every stage just to count entries.
         var stats = { total: samples.length, byStage: {}, byPriority: {}, byMaterial: {} };
-        STAGES.forEach(function(st) { stats.byStage[st] = board[st].length; });
+        STAGES.forEach(function(st) { stats.byStage[st] = 0; });
         PRIORITIES.forEach(function(p) { stats.byPriority[p] = 0; });
-        samples.forEach(function(s) {
+        var completeCount = 0;
+        for (var i = 0; i < samples.length; i++) {
+            var s = samples[i];
+            stats.byStage[s.stage] = (stats.byStage[s.stage] || 0) + 1;
             stats.byPriority[s.priority] = (stats.byPriority[s.priority] || 0) + 1;
             stats.byMaterial[s.material] = (stats.byMaterial[s.material] || 0) + 1;
-        });
+            if (s.stage === 'Complete') completeCount++;
+        }
         stats.completionRate = samples.length > 0
-            ? Math.round((board['Complete'].length / samples.length) * 100) : 0;
+            ? Math.round((completeCount / samples.length) * 100) : 0;
         return stats;
     }
 
@@ -162,11 +167,21 @@ function createSampleTracker() {
     }
 
     function filter(opts) {
-        var result = samples.slice();
-        if (opts.stage) result = result.filter(function(s) { return s.stage === opts.stage; });
-        if (opts.priority) result = result.filter(function(s) { return s.priority === opts.priority; });
-        if (opts.material) result = result.filter(function(s) { return s.material === opts.material; });
-        if (opts.assignee) result = result.filter(function(s) { return s.assignee === opts.assignee; });
+        // Single-pass filter instead of chaining up to 4 separate
+        // .filter() calls (each creating a new intermediate array).
+        var wantStage = opts.stage || null;
+        var wantPriority = opts.priority || null;
+        var wantMaterial = opts.material || null;
+        var wantAssignee = opts.assignee || null;
+        var result = [];
+        for (var i = 0; i < samples.length; i++) {
+            var s = samples[i];
+            if (wantStage && s.stage !== wantStage) continue;
+            if (wantPriority && s.priority !== wantPriority) continue;
+            if (wantMaterial && s.material !== wantMaterial) continue;
+            if (wantAssignee && s.assignee !== wantAssignee) continue;
+            result.push(s);
+        }
         return result;
     }
 
