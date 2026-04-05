@@ -356,6 +356,54 @@ The [Data Table](https://sauravbhattacharya001.github.io/BioBots/table.html) let
 
 </details>
 
+## 🧪 Development & Testing
+
+### Running Tests
+
+```bash
+# Install dependencies
+npm install
+
+# Run full test suite with coverage
+npm test
+
+# Watch mode for development
+npx jest --watch
+
+# Run a specific test file
+npx jest __tests__/calculator.test.js
+
+# Check coverage thresholds (branches: 60%, functions/lines/statements: 70%)
+npm run coverage:check
+```
+
+### Using Your Own Data
+
+The analysis tools load data from `bioprint-data.json`. To use your own bioprinting data:
+
+1. Format your data as a JSON array matching the schema in `Try/Models/Print.cs`
+2. Each record needs: `serial`, `livePercent`, `deadPercent`, `elasticity`, `cl_duration`, `cl_intensity`, `extruder1`, `extruder2`, `layerHeight`, `layerNum`, `wellplate`
+3. Replace `bioprint-data.json` or update the `DataFilePath` in `Web.config`
+4. The API will auto-reload when the file changes (no restart needed)
+
+### Previewing Analysis Tools Locally
+
+```bash
+# Serve the docs/ folder locally
+npx http-server docs -p 8000
+# Open http://localhost:8000
+```
+
+## ❓ Troubleshooting
+
+| Problem | Solution |
+|---------|----------|
+| API returns empty results | Verify `bioprint-data.json` exists and is valid JSON. Check trace output for parse errors. |
+| Analysis tools show "No data" | The tools load `bioprint-data.json` from the repo root via relative path. Ensure the file is present when serving locally. |
+| Tests fail with `ReferenceError: document is not defined` | Ensure `jest-environment-jsdom` is installed (`npm install`). The test environment requires jsdom for DOM-dependent modules. |
+| Docker container won't start | The image expects .NET Framework 4.x — it only runs on Windows containers. Use `docker run --isolation=process` on Windows Server or `--isolation=hyperv` on Windows 10/11. |
+| NuGet package auth fails | GitHub Packages requires a PAT with `read:packages` scope. See [GitHub docs](https://docs.github.com/en/packages/working-with-a-github-packages-registry/working-with-the-nuget-registry). |
+
 ## 🔧 Technical Details
 
 - **Thread-safe caching** — Double-checked locking pattern for concurrent request safety
@@ -395,6 +443,10 @@ Packages are published automatically on each [GitHub Release](https://github.com
 docker pull ghcr.io/sauravbhattacharya001/biobots-tool:latest
 docker run -p 8080:80 ghcr.io/sauravbhattacharya001/biobots-tool:latest
 ```
+
+## 🤝 Contributing
+
+Contributions are welcome! See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines, or check the [Developer Guide](https://sauravbhattacharya001.github.io/BioBots/guide.html) for setup instructions.
 
 ## 📄 License
 
