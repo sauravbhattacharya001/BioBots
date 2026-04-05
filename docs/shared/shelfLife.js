@@ -456,8 +456,13 @@ function createShelfLifeManager() {
 
     // --- Helpers ---
 
+    /**
+     * Shallow-clone a bioink entry object.
+     * Entries are flat (only primitive values and null), so
+     * Object.assign is safe and avoids JSON serialization overhead.
+     */
     function clone(obj) {
-        return JSON.parse(JSON.stringify(obj));
+        return Object.assign({}, obj);
     }
 
     return {
