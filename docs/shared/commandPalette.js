@@ -139,7 +139,7 @@
     });
 
     if (filtered.length === 0) {
-      list.innerHTML = '<div class="cp-empty">No tools found for "' + q.replace(/</g, '&lt;') + '"</div>';
+      list.innerHTML = '<div class="cp-empty">No tools found for "' + q.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;') + '"</div>';
       return;
     }
 
