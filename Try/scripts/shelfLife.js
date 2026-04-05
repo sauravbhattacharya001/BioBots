@@ -2,6 +2,10 @@
 
 const { clamp } = require('./scriptUtils');
 
+/** Keys that must never be used as property names from external input. */
+var _DANGEROUS_KEYS = { '__proto__': 1, 'constructor': 1, 'prototype': 1 };
+function _isDangerousKey(k) { return _DANGEROUS_KEYS[k] === 1; }
+
 /**
  * Bioink Shelf Life Tracker for BioBots
  *
@@ -210,11 +214,13 @@ function createShelfLifeTracker(userConfig) {
     if (userConfig) {
         if (userConfig.alertThresholds) {
             for (k in userConfig.alertThresholds) {
+                if (!userConfig.alertThresholds.hasOwnProperty(k) || _isDangerousKey(k)) continue;
                 config.alertThresholds[k] = userConfig.alertThresholds[k];
             }
         }
         if (userConfig.materials) {
             for (k in userConfig.materials) {
+                if (!userConfig.materials.hasOwnProperty(k) || _isDangerousKey(k)) continue;
                 config.materials[k] = userConfig.materials[k];
             }
         }
