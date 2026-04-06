@@ -75,6 +75,7 @@ var manifest = [
     ['createStandardCurveCalculator',  './docs/shared/standardCurve',        'createStandardCurveCalculator'],
     ['createUnitConverter',            './docs/shared/unitConverter',         'createUnitConverter'],
     ['createGrowthCurveAnalyzer',      './docs/shared/growthCurve',           'createGrowthCurveAnalyzer'],
+    ['createPrintResolutionCalculator', './docs/shared/printResolution',       'createPrintResolutionCalculator'],
 ];
 
 // ── Pre-computed lookup structures ─────────────────────────────────
