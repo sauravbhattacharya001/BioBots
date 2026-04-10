@@ -51,6 +51,16 @@ function round(v, d) {
 
 function validateInput(data) {
     if (!data || typeof data !== 'object') throw new Error('Input must be an object');
+    // Strip prototype-pollution keys from untrusted input
+    var _sanitize = require('./sanitize');
+    if (_sanitize.isDangerousKey('__proto__')) {
+        var keys = Object.keys(data);
+        for (var _k = 0; _k < keys.length; _k++) {
+            if (_sanitize.isDangerousKey(keys[_k])) {
+                throw new Error('Dangerous key rejected: ' + keys[_k]);
+            }
+        }
+    }
     if (!Array.isArray(data.timepoints) || !Array.isArray(data.counts))
         throw new Error('timepoints and counts must be arrays');
     if (data.timepoints.length !== data.counts.length)

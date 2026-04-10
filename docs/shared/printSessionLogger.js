@@ -19,14 +19,25 @@
 
 /* ── helpers ─────────────────────────────────────────────────────── */
 
+var _sanitize = require('./sanitize');
+var _stripDangerousKeys = _sanitize.stripDangerousKeys;
+
 function generateId() {
     return 'ps-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 8);
 }
+
+/** Allowed sort keys — prevents prototype pollution via sortBy parameter. */
+var VALID_SORT_KEYS = {
+    timestamp: 1, material: 1, nozzle: 1, pressure: 1, temperature: 1,
+    speed: 1, duration: 1, outcome: 1, viability: 1, operator: 1, id: 1
+};
 
 function matchesFilter(session, filters) {
     var keys = Object.keys(filters);
     for (var i = 0; i < keys.length; i++) {
         var k = keys[i];
+        // Reject prototype-pollution keys in filter objects
+        if (_sanitize.isDangerousKey(k)) continue;
         var v = filters[k];
         if (k === 'fromDate') {
             if (new Date(session.timestamp) < new Date(v)) return false;
@@ -82,6 +93,8 @@ function createPrintSessionLogger() {
         if (!opts || typeof opts !== 'object') {
             throw new Error('logSession requires an options object');
         }
+        // Sanitize user input to prevent prototype pollution
+        opts = _stripDangerousKeys(opts);
         if (!opts.material) {
             throw new Error('material is required');
         }
@@ -124,8 +137,8 @@ function createPrintSessionLogger() {
      * @returns {Object[]} Matching sessions
      */
     function query(filters, options) {
-        filters = filters || {};
-        options = options || {};
+        filters = _stripDangerousKeys(filters || {});
+        options = _stripDangerousKeys(options || {});
 
         var results = sessions.filter(function(s) {
             return matchesFilter(s, filters);
@@ -133,6 +146,8 @@ function createPrintSessionLogger() {
 
         // sort
         var sortBy = options.sortBy || 'timestamp';
+        // Validate sortBy against whitelist to prevent prototype key access
+        if (!VALID_SORT_KEYS[sortBy]) sortBy = 'timestamp';
         var order = options.order === 'asc' ? 1 : -1;
         results.sort(function(a, b) {
             var va = a[sortBy], vb = b[sortBy];
