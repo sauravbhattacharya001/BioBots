@@ -1,0 +1,39 @@
+# BioBots Node.js Package - Multi-stage Linux build
+# Lightweight container for running the bioprinting computation toolkit
+
+# ---- Build Stage ----
+FROM node:20-alpine AS build
+WORKDIR /app
+
+# Copy package files first for layer caching
+COPY package.json package-lock.json ./
+
+# Install production dependencies only
+RUN npm ci --omit=dev
+
+# Copy source
+COPY index.js ./
+COPY docs/shared/ ./docs/shared/
+
+# ---- Runtime Stage ----
+FROM node:20-alpine AS runtime
+WORKDIR /app
+
+# Add non-root user for security
+RUN addgroup -g 1001 biobots && \
+    adduser -u 1001 -G biobots -s /bin/sh -D biobots
+
+# Copy built artifacts
+COPY --from=build /app/node_modules ./node_modules
+COPY --from=build /app/index.js ./
+COPY --from=build /app/docs/shared/ ./docs/shared/
+COPY --from=build /app/package.json ./
+
+# Copy data file
+COPY bioprint-data.json ./
+
+# Switch to non-root user
+USER biobots
+
+# Default: run Node REPL with the module pre-loaded
+CMD ["node", "-e", "const biobots = require('.'); console.log('BioBots toolkit loaded. Modules:', Object.keys(biobots).join(', '))"]
