@@ -4,7 +4,8 @@
 
 | Version | Supported          |
 | ------- | ------------------ |
-| 1.0.x   | ✅ Actively supported |
+| 1.x.x   | ✅ Actively supported |
+| < 1.0.0 | ❌ End of life |
 
 ## Reporting a Vulnerability
 
@@ -80,3 +81,10 @@ Security-relevant dependencies are monitored via Dependabot:
 - `Newtonsoft.Json` 13.0.3
 - `jest` ^30.2.0 (dev only)
 - `jest-environment-jsdom` ^30.2.0 (dev only)
+
+## Additional Security Measures (v1.1.0+)
+
+- **CSV formula injection prevention** — cell values prefixed with `=`, `+`, `-`, `@` are sanitized on export (CWE-1236)
+- **Prototype pollution guard** — object merging utilities reject `__proto__`, `constructor`, and `prototype` keys
+- **URL safety validation** — external URLs are validated against `javascript:` and `data:` scheme injection
+- **Content Security Policy** — docs site pages set restrictive CSP meta tags to block inline script injection

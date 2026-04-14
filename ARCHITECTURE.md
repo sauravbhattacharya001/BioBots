@@ -8,7 +8,7 @@ Technical overview of the BioBots Tool codebase — a browser-based bioprinting 
 BioBots/
 ├── docs/                    # GitHub Pages site (HTML + shared JS)
 │   ├── index.html           # Landing page / dashboard hub
-│   ├── shared/              # Core computation modules (66 modules)
+│   ├── shared/              # Core computation modules (67 modules)
 │   │   ├── calculator.js    # Bioink volume & cost calculator
 │   │   ├── capability.js    # Six Sigma process capability (Cp/Cpk/Pp/Ppk)
 │   │   ├── constants.js     # Shared constants & defaults
@@ -23,7 +23,7 @@ BioBots/
 │   │   ├── scaffold.js      # Scaffold geometry, porosity, mechanics
 │   │   ├── utils.js         # DOM helpers, formatting, rounding
 │   │   └── viability.js     # Cell viability estimator
-│   ├── *.html               # Dashboard pages (66 pages)
+│   ├── *.html               # Dashboard pages (69 pages)
 │   └── bioprint-data.json   # Sample print dataset
 ├── __tests__/               # Jest test suite (125 files)
 ├── tests/                   # Assert-based tests (viability)
@@ -36,7 +36,7 @@ BioBots/
 
 ### 1. Shared Computation Layer (`docs/shared/`)
 
-Pure-function JavaScript modules with no DOM dependencies. 66 modules use
+Pure-function JavaScript modules with no DOM dependencies. 67 modules use
 the revealing module pattern (`function createXxx() { ... return { ... }; }`)
 for encapsulation and testability.
 
@@ -57,7 +57,63 @@ for encapsulation and testability.
 | `rheology.js` | `createRheologyModeler()` | Viscosity models, printability scoring | 11 |
 | `scaffold.js` | `createScaffoldCalculator()` | Scaffold geometry, porosity, surface area, mechanical estimates | 4 |
 | `utils.js` | (exports) | DOM helpers, number formatting | 5 |
+| `validation.js` | (exports) | Shared input validation (`validatePositive`, `round`, `clamp`) | 3 |
 | `viability.js` | `createViabilityEstimator()` | Multi-stressor cell survival modeling | 9 |
+
+**Lab chemistry & biology modules** (51 additional modules):
+
+| Module | Purpose |
+|--------|---------|
+| `autoclave.js` | Sterilization cycle planning & validation |
+| `bufferPrep.js` | Buffer solution preparation calculations |
+| `cellCounter.js` | Automated cell counting & density estimation |
+| `cellSeeding.js` | Cell seeding density optimization |
+| `cellViability.js` | Alternative viability assessment methods |
+| `centrifuge.js` | Centrifugation parameter calculator |
+| `commandPalette.js` | Keyboard-driven command palette for dashboards |
+| `compatibilityMatrix.js` | Material compatibility cross-reference |
+| `contaminationRisk.js` | Contamination risk scoring & alerting |
+| `dilutionCalculator.js` | Serial & simple dilution calculations |
+| `electroporation.js` | Electroporation parameter optimization |
+| `environmentalMonitor.js` | Lab environment (temp/humidity/CO₂) monitoring |
+| `experimentRandomizer.js` | Experiment randomization & blinding |
+| `flowCytometry.js` | Flow cytometry data analysis |
+| `freezeThaw.js` | Freeze-thaw cycle tracking & viability impact |
+| `gelElectrophoresis.js` | Gel electrophoresis analysis |
+| `growthCurve.js` | Cell growth curve fitting & doubling time |
+| `labInventory.js` | Lab consumable inventory management |
+| `labNotebook.js` | Electronic lab notebook entries |
+| `labSafetyChecklist.js` | Lab safety compliance checklists |
+| `materials.js` | Material property database & lookup |
+| `mediaOptimizer.js` | Cell culture media optimization |
+| `mediaPrep.js` | Culture media preparation calculator |
+| `molarity.js` | Molarity & concentration calculations |
+| `mycoplasmaTest.js` | Mycoplasma testing result logging |
+| `nozzleAdvisor.js` | Nozzle selection recommendations |
+| `osmolality.js` | Osmolality calculation & adjustment |
+| `outcomePredictor.js` | ML-based print outcome prediction |
+| `pcrMasterMix.js` | PCR master mix preparation calculator |
+| `phAdjustment.js` | pH adjustment & titration calculator |
+| `pipetteCalibration.js` | Pipette calibration tracking |
+| `plateMap.js` | Well plate layout designer |
+| `printSessionLogger.js` | Print session logging & history |
+| `protocolGenerator.js` | Automated protocol generation |
+| `protocolTemplates.js` | Built-in protocol template library |
+| `recipeBuilder.js` | Custom bioink recipe formulation |
+| `sampleLabel.js` | Sample labeling & barcode generation |
+| `sampleTracker.js` | Sample chain-of-custody tracking |
+| `sanitize.js` | Input sanitization utilities |
+| `serialDilution.js` | Serial dilution series calculator |
+| `shelfLife.js` | Material shelf life prediction |
+| `spectrophotometer.js` | Spectrophotometry data analysis |
+| `standardCurve.js` | Standard curve fitting & quantification |
+| `stats.js` | Statistical helper functions |
+| `sterilityAssurance.js` | Sterility assurance level (SAL) calculator |
+| `unitConverter.js` | Unit conversion utilities |
+| `washProtocol.js` | Wash protocol step calculator |
+| `wasteTracker.js` | Lab waste tracking & disposal scheduling |
+| `westernBlot.js` | Western blot analysis |
+| `yieldAnalyzer.js` | Production yield analysis |
 
 **Key design decisions:**
 - All computation is client-side — no server required
@@ -67,7 +123,7 @@ for encapsulation and testability.
 
 ### 2. Dashboard Layer (`docs/*.html`)
 
-66 single-page HTML dashboards, each focused on one analysis domain. Pages
+69 single-page HTML dashboards, each focused on one analysis domain. Pages
 load shared modules via `<script>` and use vanilla JavaScript for interactivity.
 
 | Category | Pages | Description |
