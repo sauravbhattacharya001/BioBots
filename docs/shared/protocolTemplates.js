@@ -25,6 +25,7 @@
 /* ------------------------------------------------------------------ */
 
 var _sanitize = require('./sanitize');
+var _deepClone = _sanitize.deepClone;
 var _isDangerousKey = _sanitize.isDangerousKey;
 
 var TEMPLATES = {
@@ -228,7 +229,7 @@ var TEMPLATES = {
 /* ------------------------------------------------------------------ */
 
 function deepClone(obj) {
-    return JSON.parse(JSON.stringify(obj));
+    return _deepClone(obj);
 }
 
 function totalTime(steps) {

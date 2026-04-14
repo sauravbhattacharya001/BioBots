@@ -142,8 +142,10 @@ function isoNow() {
     return new Date().toISOString();
 }
 
+var deepClone = require('./sanitize').deepClone;
+
 function cloneDeep(obj) {
-    return JSON.parse(JSON.stringify(obj));
+    return deepClone(obj);
 }
 
 /* ------------------------------------------------------------------ */

@@ -101,9 +101,31 @@ function safeResolvePath(obj, path) {
     return current === undefined ? null : current;
 }
 
+/**
+ * Deep-clone a plain JSON-safe object.
+ *
+ * Uses `structuredClone` when available (Node >= 17, modern browsers),
+ * otherwise falls back to `JSON.parse(JSON.stringify())`.
+ *
+ * Prefer this over inline `JSON.parse(JSON.stringify(obj))` to:
+ *   1. Gain the perf benefit of `structuredClone` (avoids serialization)
+ *   2. Centralize the fallback so it can be swapped once if needed
+ *   3. Clearly communicate intent at call sites
+ *
+ * @param {*} obj - Value to clone (must be JSON-safe for the fallback).
+ * @returns {*} Deep copy.
+ */
+function deepClone(obj) {
+    if (typeof structuredClone === 'function') {
+        return structuredClone(obj);
+    }
+    return JSON.parse(JSON.stringify(obj));
+}
+
 module.exports = {
     DANGEROUS_KEYS: DANGEROUS_KEYS,
     stripDangerousKeys: stripDangerousKeys,
     isDangerousKey: isDangerousKey,
-    safeResolvePath: safeResolvePath
+    safeResolvePath: safeResolvePath,
+    deepClone: deepClone
 };
