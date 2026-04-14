@@ -168,69 +168,95 @@ function detectPhases(timepoints, counts) {
 function fitLogistic(timepoints, counts) {
     // 4PL: y = D + (A - D) / (1 + (t/C)^B)
     // A = min, D = max, C = inflection, B = steepness
+    var n = counts.length;
     var A = Math.min.apply(null, counts);
     var D = Math.max.apply(null, counts);
-    var C = timepoints[Math.floor(timepoints.length / 2)];
+    var C = timepoints[Math.floor(n / 2)];
     var B = 1;
 
-    function predict(t, a, b, c, d) {
-        var ratio = t / c;
-        return d + (a - d) / (1 + Math.pow(Math.max(ratio, 1e-10), b));
-    }
-
+    // Pre-compute predict + SSE in a single inlined function to avoid
+    // per-call overhead from the old predict() indirection.
     function sse(a, b, c, d) {
         var s = 0;
-        for (var i = 0; i < timepoints.length; i++) {
-            var diff = counts[i] - predict(timepoints[i], a, b, c, d);
+        for (var i = 0; i < n; i++) {
+            var ratio = timepoints[i] / c;
+            var pred = d + (a - d) / (1 + Math.pow(Math.max(ratio, 1e-10), b));
+            var diff = counts[i] - pred;
             s += diff * diff;
         }
         return s;
     }
 
-    // Simple coordinate descent
+    // Coordinate descent with cached baseline SSE.
+    // The old implementation recomputed sse(A,B,C,D) at the start of
+    // every iteration even when no parameter changed, wasting a full
+    // array scan (O(n)).  Now we cache it and only update on improvement.
+    // Adaptive step shrinking: halve the step when a full sweep of all 4
+    // parameters produces no improvement, instead of the fixed schedule
+    // (every 50 iters).  This converges faster on easy fits and avoids
+    // wasted iterations on already-converged parameters.
     var step = 0.1;
+    var params = [A, B, C, D];
+    var best = sse(A, B, C, D);
+    var noImproveStreak = 0;
+
     for (var iter = 0; iter < 200; iter++) {
-        var best = sse(A, B, C, D);
-        // Try adjusting each parameter
-        var params = [A, B, C, D];
-        var scales = [A || 1, 1, C || 1, D || 1];
+        var improved = false;
+        var scales = [Math.abs(params[0]) || 1, 1, Math.abs(params[2]) || 1, Math.abs(params[3]) || 1];
         for (var p = 0; p < 4; p++) {
             var delta = scales[p] * step;
-            var trial = params.slice();
-            trial[p] += delta;
-            var s1 = sse(trial[0], trial[1], trial[2], trial[3]);
+            var saved = params[p];
+
+            // Try +delta
+            params[p] = saved + delta;
+            var s1 = sse(params[0], params[1], params[2], params[3]);
             if (s1 < best) {
-                params = trial;
                 best = s1;
-                continue;
+                improved = true;
+                continue; // keep the new value
             }
-            trial = params.slice();
-            trial[p] -= delta;
-            if (trial[p] > 0 || p === 0) {
-                var s2 = sse(trial[0], trial[1], trial[2], trial[3]);
+
+            // Try -delta
+            params[p] = saved - delta;
+            if (params[p] > 0 || p === 0) {
+                var s2 = sse(params[0], params[1], params[2], params[3]);
                 if (s2 < best) {
-                    params = trial;
                     best = s2;
+                    improved = true;
+                    continue;
                 }
             }
+
+            // No improvement — restore
+            params[p] = saved;
         }
-        A = params[0]; B = params[1]; C = params[2]; D = params[3];
-        if (iter % 50 === 49) step *= 0.5;
+        if (!improved) {
+            noImproveStreak++;
+            // Shrink step aggressively when stuck; bail early if step is tiny
+            step *= 0.5;
+            if (noImproveStreak >= 5) break;
+        } else {
+            noImproveStreak = 0;
+        }
     }
+    A = params[0]; B = params[1]; C = params[2]; D = params[3];
 
     // R²
     var ssTot = 0, ssRes = 0;
     var my = mean(counts);
-    for (var i = 0; i < counts.length; i++) {
-        var pred = predict(timepoints[i], A, B, C, D);
-        ssTot += (counts[i] - my) * (counts[i] - my);
-        ssRes += (counts[i] - pred) * (counts[i] - pred);
+    var predicted = new Array(n);
+    for (var ri = 0; ri < n; ri++) {
+        var ratio = timepoints[ri] / C;
+        var pred = D + (A - D) / (1 + Math.pow(Math.max(ratio, 1e-10), B));
+        predicted[ri] = round(pred);
+        ssTot += (counts[ri] - my) * (counts[ri] - my);
+        ssRes += (counts[ri] - pred) * (counts[ri] - pred);
     }
 
     return {
         parameters: { A: round(A), B: round(B), C: round(C), D: round(D) },
         r2: round(ssTot === 0 ? 1 : 1 - ssRes / ssTot),
-        predicted: timepoints.map(function (t) { return round(predict(t, A, B, C, D)); })
+        predicted: predicted
     };
 }
 
