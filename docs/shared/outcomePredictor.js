@@ -111,15 +111,19 @@ function round2(v) { return Math.round(v * 100) / 100; }
 function createOutcomePredictor() {
     var outcomes = [];          // Array of recorded experiments
     var materialStats = {};     // per-material success rates
+    // Index outcomes by material for O(1) lookup in predict()
+    var outcomesByMaterial = {}; // material -> array of outcome records
 
-    function updateMaterialStats(material) {
-        var records = outcomes.filter(function (o) { return o.material === material; });
-        var successes = records.filter(function (o) { return o.success; }).length;
-        materialStats[material] = {
-            total: records.length,
-            successes: successes,
-            rate: records.length ? successes / records.length : null
-        };
+    // Incrementally update stats instead of re-scanning all outcomes
+    // on every recordOutcome call.  Previous implementation was O(n)
+    // per insert, making bulk loads O(n²).
+    function updateMaterialStats(material, success) {
+        if (!materialStats[material]) {
+            materialStats[material] = { total: 0, successes: 0, rate: null };
+        }
+        materialStats[material].total++;
+        if (success) materialStats[material].successes++;
+        materialStats[material].rate = materialStats[material].successes / materialStats[material].total;
     }
 
     /**
@@ -154,7 +158,9 @@ function createOutcomePredictor() {
             timestamp: Date.now()
         };
         outcomes.push(record);
-        updateMaterialStats(mat);
+        if (!outcomesByMaterial[mat]) outcomesByMaterial[mat] = [];
+        outcomesByMaterial[mat].push(record);
+        updateMaterialStats(mat, record.success);
         return { recorded: true, materialStats: materialStats[mat] };
     }
 
@@ -226,9 +232,13 @@ function createOutcomePredictor() {
             historicalScore = stats.rate;
             matchingOutcomes = stats.total;
 
-            // Refine with similar-parameter experiments (within 20% of each param)
-            var similar = outcomes.filter(function (o) {
-                if (o.material !== mat) return false;
+            // Refine with similar-parameter experiments (within 20% of each param).
+            // Uses the per-material index instead of scanning all outcomes,
+            // reducing search space from O(total) to O(material-count).
+            var materialOutcomes = outcomesByMaterial[mat] || [];
+            var similar = [];
+            for (var si = 0; si < materialOutcomes.length; si++) {
+                var o = materialOutcomes[si];
                 var close = true;
                 var checkKeys = ['temperature', 'cellDensity', 'speed', 'pressure'];
                 for (var j = 0; j < checkKeys.length; j++) {
@@ -241,8 +251,8 @@ function createOutcomePredictor() {
                         }
                     }
                 }
-                return close;
-            });
+                if (close) similar.push(o);
+            }
 
             if (similar.length >= 3) {
                 var simSuccess = similar.filter(function (o) { return o.success; }).length;
@@ -323,24 +333,35 @@ function createOutcomePredictor() {
     function analyzeFailurePatterns(recentN) {
         var n = recentN || 20;
         var recent = outcomes.slice(-n);
-        var failures = recent.filter(function (o) { return !o.success; });
+        // Single-pass split into failures and successes (previously 2 filter passes)
+        var failures = [];
+        var successes = [];
+        for (var r = 0; r < recent.length; r++) {
+            if (recent[r].success) successes.push(recent[r]);
+            else failures.push(recent[r]);
+        }
         if (failures.length === 0) {
             return { patterns: [], message: 'No failures in recent ' + recent.length + ' experiments' };
         }
-
-        // Aggregate parameter averages for failures vs successes
-        var successes = recent.filter(function (o) { return o.success; });
         var paramKeys = ['temperature', 'cellDensity', 'speed', 'pressure', 'layerHeight', 'nozzleDiameter'];
         var patterns = [];
 
+        // Compute per-parameter averages in a single pass per group
+        // instead of creating intermediate arrays with .map().filter()
         for (var i = 0; i < paramKeys.length; i++) {
             var key = paramKeys[i];
-            var failVals = failures.map(function (o) { return o[key]; }).filter(function (v) { return v != null; });
-            var succVals = successes.map(function (o) { return o[key]; }).filter(function (v) { return v != null; });
-            if (failVals.length < 2 || succVals.length < 2) continue;
+            var failSum = 0, failCount = 0;
+            for (var fi = 0; fi < failures.length; fi++) {
+                if (failures[fi][key] != null) { failSum += failures[fi][key]; failCount++; }
+            }
+            var succSum = 0, succCount = 0;
+            for (var si2 = 0; si2 < successes.length; si2++) {
+                if (successes[si2][key] != null) { succSum += successes[si2][key]; succCount++; }
+            }
+            if (failCount < 2 || succCount < 2) continue;
 
-            var failAvg = failVals.reduce(function (a, b) { return a + b; }, 0) / failVals.length;
-            var succAvg = succVals.reduce(function (a, b) { return a + b; }, 0) / succVals.length;
+            var failAvg = failSum / failCount;
+            var succAvg = succSum / succCount;
             var ref = Math.abs(succAvg) || 1;
             var drift = Math.abs(failAvg - succAvg) / ref;
 
