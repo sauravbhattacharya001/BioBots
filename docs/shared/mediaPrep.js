@@ -22,6 +22,7 @@
 'use strict';
 
 var _stripDangerous = require('./sanitize').stripDangerousKeys;
+var _deepClone = require('./sanitize').deepClone;
 
 var COMMON_MEDIA = {
     DMEM: {
@@ -280,7 +281,7 @@ function createMediaPrepCalculator() {
                 throw new Error('Valid recipe and positive newVolume required');
             }
             var factor = newVolume / recipe.targetVolume;
-            var scaled = JSON.parse(JSON.stringify(recipe));
+            var scaled = _deepClone(recipe);
             scaled.targetVolume = newVolume;
             scaled.baseMediaVolume = Math.round(recipe.baseMediaVolume * factor * 1000) / 1000;
             scaled.totalSupplementVolume = Math.round(recipe.totalSupplementVolume * factor * 1000) / 1000;
@@ -296,7 +297,7 @@ function createMediaPrepCalculator() {
             }
 
             scaled.supplements = recipe.supplements.map(function (s) {
-                var ns = JSON.parse(JSON.stringify(s));
+                var ns = _deepClone(s);
                 if (ns.volumeToAdd) ns.volumeToAdd = Math.round(s.volumeToAdd * factor * 1000) / 1000;
                 if (ns.massToAdd) ns.massToAdd = Math.round(s.massToAdd * factor * 10000) / 10000;
                 return ns;
