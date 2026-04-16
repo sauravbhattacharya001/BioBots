@@ -19,6 +19,7 @@ var CATEGORIES = ['bioink', 'crosslinker', 'reagent', 'consumable', 'scaffold', 
 function createLabInventoryManager() {
     var items = {};      // name -> item record
     var usageLog = [];   // chronological usage entries
+    var usageByItem = {}; // name -> array of usage log entries (index for O(1) lookup)
 
     /**
      * Add or update an inventory item.
@@ -105,13 +106,16 @@ function createLabInventoryManager() {
         items[name].quantity -= amount;
         items[name].updatedAt = new Date().toISOString();
 
-        usageLog.push({
+        var entry = {
             name: name,
             amount: amount,
             note: note || '',
             timestamp: new Date().toISOString(),
             remainingAfter: items[name].quantity
-        });
+        };
+        usageLog.push(entry);
+        if (!usageByItem[name]) usageByItem[name] = [];
+        usageByItem[name].push(entry);
 
         return items[name];
     }
@@ -131,13 +135,16 @@ function createLabInventoryManager() {
         if (lotNumber) { items[name].lotNumber = lotNumber; }
         items[name].updatedAt = new Date().toISOString();
 
-        usageLog.push({
+        var entry = {
             name: name,
             amount: -amount,  // negative = restock
             note: 'Restock' + (lotNumber ? ' (lot: ' + lotNumber + ')' : ''),
             timestamp: new Date().toISOString(),
             remainingAfter: items[name].quantity
-        });
+        };
+        usageLog.push(entry);
+        if (!usageByItem[name]) usageByItem[name] = [];
+        usageByItem[name].push(entry);
 
         return items[name];
     }
@@ -217,11 +224,17 @@ function createLabInventoryManager() {
     /**
      * Get usage history for an item.
      */
+    /**
+     * Get usage history for an item.
+     * Uses per-item index to avoid scanning the entire log — O(item-usages)
+     * instead of O(total-log-size).
+     */
     function getUsageHistory(name, limit) {
+        var itemLog = usageByItem[name] || [];
         var history = [];
-        for (var i = 0; i < usageLog.length; i++) {
-            if (usageLog[i].name === name && usageLog[i].amount > 0) {
-                history.push(usageLog[i]);
+        for (var i = 0; i < itemLog.length; i++) {
+            if (itemLog[i].amount > 0) {
+                history.push(itemLog[i]);
             }
         }
         if (limit) { history = history.slice(-limit); }
@@ -241,10 +254,12 @@ function createLabInventoryManager() {
         }
         days = days || 7;
 
+        // Use per-item index instead of scanning the full usage log.
+        var itemLog = usageByItem[name] || [];
         var usages = [];
-        for (var i = 0; i < usageLog.length; i++) {
-            if (usageLog[i].name === name && usageLog[i].amount > 0) {
-                usages.push(usageLog[i]);
+        for (var i = 0; i < itemLog.length; i++) {
+            if (itemLog[i].amount > 0) {
+                usages.push(itemLog[i]);
             }
         }
 
@@ -314,25 +329,48 @@ function createLabInventoryManager() {
     /**
      * Generate a summary report of current inventory state.
      */
+    /**
+     * Generate a summary report of current inventory state.
+     * Single-pass over all items instead of 4 separate iterations
+     * (listItems + getLowStockAlerts + getExpiryAlerts + getInventoryValue).
+     */
     function getSummary() {
-        var all = listItems();
-        var lowStock = getLowStockAlerts();
-        var expiring = getExpiryAlerts(30);
-        var value = getInventoryValue();
-
+        var keys = Object.keys(items);
+        var totalItems = keys.length;
         var byCategory = {};
-        for (var i = 0; i < all.length; i++) {
-            if (!byCategory[all[i].category]) { byCategory[all[i].category] = 0; }
-            byCategory[all[i].category]++;
+        var lowStockCount = 0;
+        var expiringCount = 0;
+        var totalValue = 0;
+        var valueBreakdown = {};
+        var now = new Date();
+        var cutoff = new Date(now.getTime() + 30 * 86400000);
+
+        for (var i = 0; i < keys.length; i++) {
+            var item = items[keys[i]];
+            // Category count
+            if (!byCategory[item.category]) byCategory[item.category] = 0;
+            byCategory[item.category]++;
+            // Low stock
+            if (item.quantity <= item.reorderThreshold) lowStockCount++;
+            // Expiry
+            if (item.expiryDate) {
+                var exp = new Date(item.expiryDate);
+                if (exp <= cutoff) expiringCount++;
+            }
+            // Value
+            var val = item.quantity * item.unitCost;
+            totalValue += val;
+            if (!valueBreakdown[item.category]) valueBreakdown[item.category] = 0;
+            valueBreakdown[item.category] += val;
         }
 
         return {
-            totalItems: all.length,
+            totalItems: totalItems,
             byCategory: byCategory,
-            lowStockCount: lowStock.length,
-            expiringCount: expiring.length,
-            totalValue: value.totalValue,
-            valueBreakdown: value.breakdown,
+            lowStockCount: lowStockCount,
+            expiringCount: expiringCount,
+            totalValue: Math.round(totalValue * 100) / 100,
+            valueBreakdown: valueBreakdown,
             generatedAt: new Date().toISOString()
         };
     }
