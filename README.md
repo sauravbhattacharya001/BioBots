@@ -42,7 +42,7 @@ Analyze 3D bioprinting run data — cell viability, print resolution, crosslinki
 - [API Reference](#-api-reference)
 - [Analysis Tools Deep Dive](#-analysis-tools-deep-dive)
 - [Technical Details](#-technical-details)
-- [Packages](#-packages)
+- [SDK & Packages](#-sdk--packages)
 - [License](#-license)
 
 ### ⚡ Quick Start — No Setup Required
@@ -420,7 +420,54 @@ npx http-server docs -p 8000
 | jQuery 3.7.1 | Frontend API client |
 | JSON | Data storage format |
 
-## 📦 Packages
+## 📦 SDK & Packages
+
+### npm Package — Bioprinting Computation Toolkit
+
+The npm package (`@sauravbhattacharya001/biobots`) ships **57 factory functions** covering material calculations, rheology modeling, cell viability estimation, GCode analysis, and more — all usable from Node.js with zero native dependencies.
+
+```bash
+npm install @sauravbhattacharya001/biobots
+```
+
+#### Quick Examples
+
+```js
+const biobots = require('@sauravbhattacharya001/biobots');
+
+// Material usage estimation
+const calc = biobots.createMaterialCalculator();
+const usage = calc.calculateUsage({
+  wellplate: 24,
+  layerHeight: 0.2,
+  layerNum: 10,
+  materialKey: 'alginate',
+  infillPercent: 80,
+  wastePercent: 15
+});
+console.log(usage.totalVolumeMl, usage.estimatedCost);
+
+// Rheology modeling (Power Law)
+const rheo = biobots.createRheologyModeler();
+const viscosity = rheo.powerLaw(100, { K: 50, n: 0.4 }); // η at γ̇ = 100 s⁻¹
+const window = rheo.printabilityWindow({ K: 50, n: 0.4 });
+console.log(window); // { minShearRate, maxShearRate, optimalRange }
+
+// Cell viability estimation
+const viability = biobots.createViabilityEstimator();
+const result = viability.estimate({
+  shearStress: 5.0,   // kPa
+  duration: 120,       // seconds
+  cellType: 'HeLa'
+});
+console.log(result.estimatedViability); // percentage
+
+// Discover all available factories
+console.log(biobots.listFactories()); // sorted array of 57 names
+console.log(biobots.factoryCount);     // 57
+```
+
+All modules are **lazy-loaded** — only the factories you call are loaded from disk, keeping `require()` startup fast.
 
 ### NuGet (GitHub Packages)
 
