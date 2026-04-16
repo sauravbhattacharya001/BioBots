@@ -42,6 +42,15 @@ const biobots = require('@sauravbhattacharya001/biobots');
 - [Cell Viability Calculator](#cell-viability-calculator)
 - [PCR Master Mix Calculator](#pcr-master-mix-calculator)
 - [Flow Cytometry Analyzer](#flow-cytometry-analyzer)
+- [Autoclave Logger](#autoclave-logger)
+- [Centrifuge Calculator](#centrifuge-calculator)
+- [Electroporation Calculator](#electroporation-calculator)
+- [Growth Curve Analyzer](#growth-curve-analyzer)
+- [Osmolality Calculator](#osmolality-calculator)
+- [pH Adjustment Calculator](#ph-adjustment-calculator)
+- [Buffer Prep Calculator](#buffer-prep-calculator)
+- [Media Optimizer](#media-optimizer)
+- [Western Blot Analyzer](#western-blot-analyzer)
 
 ---
 
@@ -718,6 +727,208 @@ Analyzes flow cytometry event data with gating, channel statistics, compensation
 | `fc.analyzeChannel(events, channel)` | Compute statistics for a single channel |
 | `fc.gate(events, gates)` | Apply gating criteria to filter events |
 | `fc.listPanels()` | List available fluorochrome panels |
+
+---
+
+## Autoclave Logger
+
+Track autoclave sterilization cycles, validate against standard protocols, and generate compliance reports.
+
+```js
+const logger = biobots.createAutoclaveLogger();
+```
+
+### Methods
+
+| Method | Description |
+|--------|-------------|
+| `registerAutoclave(opts)` | Register an autoclave unit (id, model, chamber volume) |
+| `logCycle(opts)` | Log a sterilization cycle with parameters and items |
+| `recordIndicator(opts)` | Record biological/chemical indicator results for a cycle |
+| `checkOverdue(maxDays)` | Find items overdue for re-sterilization |
+| `checkMaintenance(opts)` | Check autoclave maintenance schedule and flag overdue units |
+| `complianceReport(opts)` | Generate full compliance report with pass/fail summary |
+| `getCycles(opts)` | Retrieve logged cycles with optional filtering |
+| `getProtocols()` | List supported sterilization protocols (gravity, prevacuum, liquid, flash) |
+| `getIndicatorTypes()` | List supported indicator types (biological, chemical, integrating) |
+
+### Supported Protocols
+
+| Protocol | Temp (°C) | Pressure (psi) | Duration (min) | Use Case |
+|----------|-----------|----------------|----------------|----------|
+| `gravity` | ≥121 | ≥15 | 30–60 | Liquids, media, wrapped instruments |
+| `prevacuum` | ≥132 | ≥27 | 4–18 | Porous loads, wrapped packs, lumens |
+| `liquid` | ≥121 | ≥15 | 20–60 | Liquid media (slow exhaust) |
+| `flash` | ≥132 | — | 3–10 | Immediate-use, unwrapped instruments |
+
+---
+
+## Centrifuge Calculator
+
+Convert between RPM and RCF (g-force), get cell-type-specific recommendations, and estimate pelleting time.
+
+```js
+const centrifuge = biobots.createCentrifugeCalculator();
+```
+
+### Methods
+
+| Method | Description |
+|--------|-------------|
+| `rpmToRcf(rpm, radiusCm)` | Convert RPM to relative centrifugal force (× g) |
+| `rcfToRpm(rcf, radiusCm)` | Convert RCF back to RPM |
+| `recommend(cellType)` | Get recommended speed, time, and temperature for a cell type |
+| `listCellTypes()` | List all cell types with preset centrifugation parameters |
+| `pelletTime(opts)` | Estimate time to pellet given cell size, density, and viscosity |
+| `compare(configs)` | Compare multiple centrifugation configurations side by side |
+
+---
+
+## Electroporation Calculator
+
+Calculate electroporation parameters for cell transfection — voltage, pulse energy, survival and transfection efficiency estimates.
+
+```js
+const ep = biobots.createElectroporationCalculator();
+```
+
+### Methods
+
+| Method | Description |
+|--------|-------------|
+| `fieldStrengthToVoltage(fieldVcm, gapCm)` | Convert field strength (V/cm) to applied voltage |
+| `voltageToFieldStrength(voltage, gapCm)` | Convert voltage to field strength |
+| `pulseEnergy(voltage, capacitanceUf)` | Calculate energy per pulse (Joules) |
+| `timeConstant(resistanceOhm, capacitanceUf)` | Calculate RC time constant |
+| `estimateSurvival(opts)` | Estimate cell survival percentage after pulsing |
+| `estimateTransfection(opts)` | Estimate transfection efficiency |
+| `generateProtocol(opts)` | Generate a complete electroporation protocol with all derived parameters |
+| `compareProtocols(protocols)` | Compare multiple protocol configurations |
+| `listCellPresets()` | List built-in cell type presets with optimal parameters |
+| `listCuvettes()` | List supported cuvette types (gap width, volume) |
+
+---
+
+## Growth Curve Analyzer
+
+Fit cell growth curves, calculate doubling time, and identify growth phases.
+
+```js
+const gc = biobots.createGrowthCurveAnalyzer();
+```
+
+### Methods
+
+| Method | Description |
+|--------|-------------|
+| `analyze(data)` | Fit growth curve to time-series data; returns slope, intercept, R², doubling time, and phase classifications |
+| `compare(datasets)` | Compare multiple growth curves (e.g., different conditions or cell lines) |
+| `toCSV(analysisResult)` | Export analysis results as CSV string |
+
+---
+
+## Osmolality Calculator
+
+Calculate and adjust osmolality for cell culture media and bioink formulations.
+
+```js
+const osmo = biobots.createOsmolalityCalculator();
+```
+
+### Methods
+
+| Method | Description |
+|--------|-------------|
+| `calculate(opts)` | Calculate total osmolality from base media and added solutes |
+| `adjustTo(opts)` | Determine how much solute to add/remove to reach target osmolality |
+| `getMediaOsmolality(mediaKey)` | Get baseline osmolality for a standard medium |
+| `getTargetRange(cellType)` | Get recommended osmolality range for a cell type |
+| `listSolutes()` | List supported solutes with osmotic coefficients |
+| `mix(media)` | Calculate osmolality of mixed media formulations |
+
+---
+
+## pH Adjustment Calculator
+
+Calculate reagent volumes needed to adjust pH, with buffer system awareness.
+
+```js
+const ph = biobots.createPhAdjustmentCalculator();
+```
+
+### Methods
+
+| Method | Description |
+|--------|-------------|
+| `calculate(opts)` | Calculate volume of acid/base reagent to reach target pH |
+| `suggestReagent(opts)` | Suggest the best reagent for a given pH shift |
+| `listReagents()` | List supported acid and base reagents with concentrations |
+| `listBufferSystems()` | List supported buffer systems and their effective pH ranges |
+
+---
+
+## Buffer Prep Calculator
+
+Prepare buffer solutions using the Henderson-Hasselbalch equation.
+
+```js
+const buf = biobots.createBufferPrepCalculator();
+```
+
+### Methods
+
+| Method | Description |
+|--------|-------------|
+| `listBuffers()` | List all supported buffer systems with pKa, name, and effective pH range |
+| `prepare(opts)` | Calculate acid/conjugate-base ratio and volumes for a target pH |
+| `dilute(opts)` | Calculate dilution volumes from stock to working concentration |
+| `hendersonHasselbalch(opts)` | Raw Henderson-Hasselbalch calculation: pH from pKa and ratio |
+
+---
+
+## Media Optimizer
+
+Optimize cell culture media formulations — compare media, identify nutrient gaps, and calculate supplement volumes.
+
+```js
+const media = biobots.createMediaOptimizer();
+```
+
+### Methods
+
+| Method | Description |
+|--------|-------------|
+| `listMedia()` | List all supported base media (DMEM, RPMI, MEM, etc.) |
+| `getFormulation(mediaKey)` | Get full component list for a medium |
+| `supplementVolumes(opts)` | Calculate volumes of supplements to add for a target formulation |
+| `estimateOsmolarity(opts)` | Estimate osmolarity after adding supplements |
+| `nutrientGap(opts)` | Identify nutrient deficiencies for a cell type given current media |
+| `compareMedia(media1, media2)` | Side-by-side comparison of two media formulations |
+| `listSupplements()` | List available supplements with concentrations |
+| `listCellTypes()` | List cell types with media recommendations |
+
+---
+
+## Western Blot Analyzer
+
+Quantitative western blot analysis — band normalization, fold-change, molecular weight estimation, and saturation detection.
+
+```js
+const wb = biobots.createWesternBlotAnalyzer();
+```
+
+### Methods
+
+| Method | Description |
+|--------|-------------|
+| `normalize(opts)` | Normalize target band intensities against a loading control |
+| `foldChange(opts)` | Calculate fold-change relative to a control condition |
+| `compare(opts)` | Statistical comparison of band intensities across conditions |
+| `estimateMW(opts)` | Estimate molecular weight from band migration distance using a standard ladder |
+| `saturationCheck(intensities)` | Check for signal saturation in band intensity data |
+| `report(opts)` | Generate a comprehensive analysis report |
+| `listLadders()` | List supported molecular weight ladders |
+| `listLoadingControls()` | List common loading control proteins |
 
 ---
 
