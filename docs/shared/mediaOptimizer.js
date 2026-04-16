@@ -250,16 +250,16 @@ var SUPPLEMENT_DB = {
 
 // ── Cell type nutrient requirements ────────────────────────────────
 var CELL_REQUIREMENTS = {
-    'hela':       { preferredMedia: ['dmem'], glucoseNeed: 'high', glutamineNeed: 'high', serumPercent: 10, notes: 'Adherent, fast-growing cervical carcinoma' },
-    'hek293':     { preferredMedia: ['dmem'], glucoseNeed: 'high', glutamineNeed: 'high', serumPercent: 10, notes: 'Adherent, easy to transfect' },
-    'cho':        { preferredMedia: ['f12', 'dmem'], glucoseNeed: 'medium', glutamineNeed: 'high', serumPercent: 10, notes: 'Can adapt to serum-free; common for recombinant proteins' },
-    'jurkat':     { preferredMedia: ['rpmi1640'], glucoseNeed: 'medium', glutamineNeed: 'high', serumPercent: 10, notes: 'Suspension T-cell lymphoma' },
-    'hybridoma':  { preferredMedia: ['rpmi1640'], glucoseNeed: 'medium', glutamineNeed: 'high', serumPercent: 10, notes: 'Suspension, antibody-producing' },
-    'nih3t3':     { preferredMedia: ['dmem'], glucoseNeed: 'high', glutamineNeed: 'medium', serumPercent: 10, notes: 'Adherent mouse fibroblast' },
-    'mcf7':       { preferredMedia: ['dmem', 'mem'], glucoseNeed: 'high', glutamineNeed: 'medium', serumPercent: 10, notes: 'Adherent breast cancer; may need insulin' },
-    'vero':       { preferredMedia: ['dmem', 'mem'], glucoseNeed: 'medium', glutamineNeed: 'medium', serumPercent: 5, notes: 'Adherent kidney epithelial; virus production' },
-    'primary':    { preferredMedia: ['dmem', 'f12'], glucoseNeed: 'medium', glutamineNeed: 'medium', serumPercent: 15, notes: 'Primary cells often need higher serum + growth factors' },
-    'stem':       { preferredMedia: ['dmem'], glucoseNeed: 'high', glutamineNeed: 'high', serumPercent: 15, notes: 'May need LIF, bFGF, or other stemness factors' }
+    'hela':       { preferredMedia: ['dmem'], glucoseNeed: 'high', glutamineNeed: 'high', serumPercent: 10, notes: 'Adherent, fast-growing cervical carcinoma', extras: [] },
+    'hek293':     { preferredMedia: ['dmem'], glucoseNeed: 'high', glutamineNeed: 'high', serumPercent: 10, notes: 'Adherent, easy to transfect', extras: [] },
+    'cho':        { preferredMedia: ['f12', 'dmem'], glucoseNeed: 'medium', glutamineNeed: 'high', serumPercent: 10, notes: 'Can adapt to serum-free; common for recombinant proteins', extras: ['CHO cells can be adapted to serum-free media for protein production'] },
+    'jurkat':     { preferredMedia: ['rpmi1640'], glucoseNeed: 'medium', glutamineNeed: 'high', serumPercent: 10, notes: 'Suspension T-cell lymphoma', extras: [] },
+    'hybridoma':  { preferredMedia: ['rpmi1640'], glucoseNeed: 'medium', glutamineNeed: 'high', serumPercent: 10, notes: 'Suspension, antibody-producing', extras: [] },
+    'nih3t3':     { preferredMedia: ['dmem'], glucoseNeed: 'high', glutamineNeed: 'medium', serumPercent: 10, notes: 'Adherent mouse fibroblast', extras: [] },
+    'mcf7':       { preferredMedia: ['dmem', 'mem'], glucoseNeed: 'high', glutamineNeed: 'medium', serumPercent: 10, notes: 'Adherent breast cancer; may need insulin', extras: ['Consider adding 10 \u00b5g/mL insulin for optimal growth'] },
+    'vero':       { preferredMedia: ['dmem', 'mem'], glucoseNeed: 'medium', glutamineNeed: 'medium', serumPercent: 5, notes: 'Adherent kidney epithelial; virus production', extras: [] },
+    'primary':    { preferredMedia: ['dmem', 'f12'], glucoseNeed: 'medium', glutamineNeed: 'medium', serumPercent: 15, notes: 'Primary cells often need higher serum + growth factors', extras: [] },
+    'stem':       { preferredMedia: ['dmem'], glucoseNeed: 'high', glutamineNeed: 'high', serumPercent: 15, notes: 'May need LIF, bFGF, or other stemness factors', extras: ['Add LIF (mouse ESCs) or bFGF (human ESCs) to maintain stemness', 'Consider feeder cells or Matrigel coating'] }
 };
 
 function resolveMedia(key) {
@@ -435,17 +435,10 @@ function createMediaOptimizer() {
             // Standard supplement suggestions
             recommendations.push('Add 1% Pen/Strep for contamination prevention');
 
-            if (cellKey === 'stem') {
-                recommendations.push('Add LIF (mouse ESCs) or bFGF (human ESCs) to maintain stemness');
-                recommendations.push('Consider feeder cells or Matrigel coating');
-            }
-
-            if (cellKey === 'mcf7') {
-                recommendations.push('Consider adding 10 µg/mL insulin for optimal growth');
-            }
-
-            if (cellKey === 'cho') {
-                recommendations.push('CHO cells can be adapted to serum-free media for protein production');
+            // Cell-type-specific extras from the requirements database
+            var extras = cellReq.extras || [];
+            for (var j = 0; j < extras.length; j++) {
+                recommendations.push(extras[j]);
             }
 
             return {
