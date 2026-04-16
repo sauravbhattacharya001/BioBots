@@ -28,8 +28,6 @@ const { clamp } = require('./scriptUtils');
  *   const clusters = ml.clusterDiagnoses();
  */
 
-'use strict';
-
 // ── Vector helpers ────────────────────────────────────────────────
 
 /**
