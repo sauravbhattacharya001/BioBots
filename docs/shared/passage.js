@@ -250,7 +250,16 @@ function createPassageTracker() {
         };
     }
 
-    function getSenescenceRisk(cellLineId) {
+    /**
+     * Assess senescence risk for a cell line.
+     *
+     * @param {string} cellLineId - Cell line identifier
+     * @param {Object} [precomputedTrend] - Optional pre-computed viability
+     *   trend (from getViabilityTrend) to avoid redundant recomputation
+     *   when the caller already has it.
+     * @returns {Object} Risk assessment with action recommendation
+     */
+    function getSenescenceRisk(cellLineId, precomputedTrend) {
         if (!cellLines[cellLineId]) throw new Error('Cell line not found: ' + cellLineId);
         var cl = cellLines[cellLineId];
         var ps = passages[cellLineId];
@@ -263,7 +272,7 @@ function createPassageTracker() {
         else if (ratio > 0.75) risk = 'high';
         else if (ratio > 0.5) risk = 'moderate';
 
-        var viabilityTrend = getViabilityTrend(cellLineId);
+        var viabilityTrend = precomputedTrend || getViabilityTrend(cellLineId);
 
         return {
             risk: risk,
@@ -280,13 +289,16 @@ function createPassageTracker() {
 
     function getCellLineReport(cellLineId) {
         if (!cellLines[cellLineId]) throw new Error('Cell line not found: ' + cellLineId);
+        // Compute viability trend once and share with getSenescenceRisk
+        // to avoid the redundant linear regression (was computed twice).
+        var viabilityTrend = getViabilityTrend(cellLineId);
         return {
             cellLine: getCellLine(cellLineId),
             passageCount: passages[cellLineId].length,
-            viabilityTrend: getViabilityTrend(cellLineId),
+            viabilityTrend: viabilityTrend,
             confluenceProfile: getConfluenceProfile(cellLineId),
             optimalWindow: getOptimalPassageWindow(cellLineId),
-            senescenceRisk: getSenescenceRisk(cellLineId),
+            senescenceRisk: getSenescenceRisk(cellLineId, viabilityTrend),
             recentPassages: getPassageHistory(cellLineId, { limit: 5 }),
             alerts: alerts.filter(function (a) { return a.cellLineId === cellLineId; })
         };
