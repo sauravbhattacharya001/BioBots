@@ -559,10 +559,13 @@ function createCrosslinkAnalyzer() {
             }
         }
 
-        // Check duration spread
+        // Check duration spread — single _computeStats call for both
+        // mean and std instead of two separate calls (each copying the
+        // array and running Welford's algorithm independently).
         var durations = crosslinked.map(function (p) { return p.print_info.crosslinking.cl_duration; });
-        var dStd = _std(durations);
-        var dMean = _mean(durations);
+        var dStats = _computeStats(durations);
+        var dMean = dStats.mean;
+        var dStd = dStats.std;
         if (dMean > 0 && dStd / dMean > 0.5) {
             recs.push('High variation in cross-linking duration (CV=' + ((dStd / dMean) * 100).toFixed(0) + '%) — standardize protocol for reproducibility');
         }
