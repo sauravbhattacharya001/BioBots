@@ -1,6 +1,7 @@
 'use strict';
 
 var round = require('./validation').round;
+var _isDangerousKey = require('./sanitize').isDangerousKey;
 
 /**
  * Cell Passage Tracker — tracks cell line passages for bioprinting workflows.
@@ -25,6 +26,7 @@ function createPassageTracker() {
 
     function addCellLine(opts) {
         if (!opts || !opts.id) throw new Error('Cell line id is required');
+        if (_isDangerousKey(opts.id)) throw new Error('Invalid cell line id');
         if (cellLines[opts.id]) throw new Error('Cell line already exists: ' + opts.id);
         cellLines[opts.id] = {
             id: opts.id,

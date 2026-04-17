@@ -26,6 +26,8 @@
 
 'use strict';
 
+var _isDangerousKey = require('./sanitize').isDangerousKey;
+
 /* ------------------------------------------------------------------ */
 /*  PPE Requirements by Hazard Level                                   */
 /* ------------------------------------------------------------------ */
@@ -160,6 +162,9 @@ function createLabSafetyChecklist() {
     function registerArea(opts) {
         if (!opts || !opts.name) {
             return { success: false, error: 'Area name is required' };
+        }
+        if (_isDangerousKey(opts.name)) {
+            return { success: false, error: 'Invalid area name' };
         }
         var area = {
             name: opts.name,
