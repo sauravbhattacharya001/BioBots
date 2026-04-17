@@ -29,6 +29,10 @@
  *   console.log(entry.markdown);
  */
 
+// ── imports ────────────────────────────────────────────────────────
+
+var escapeHtml = require('./validation').escapeHtml;
+
 // ── helpers ────────────────────────────────────────────────────────
 
 function pad(n) { return n < 10 ? '0' + n : '' + n; }
@@ -43,14 +47,6 @@ function generateEntryId() {
     var ts = Date.now().toString(36).toUpperCase();
     var rand = Math.random().toString(36).substring(2, 6).toUpperCase();
     return 'LNB-' + ts + '-' + rand;
-}
-
-function escapeHtml(s) {
-    return String(s)
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;');
 }
 
 // ── formatters ─────────────────────────────────────────────────────
