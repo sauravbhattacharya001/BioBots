@@ -49,9 +49,9 @@ Try/                         # Main web project ("BioBots 1 tool.csproj")
     ... 12 more modules      # See docs/architecture.html
   index.html                 # Original landing page
 
-docs/                        # GitHub Pages documentation site (42 pages)
+docs/                        # GitHub Pages documentation site (42+ pages)
   index.html                 # Landing page / dashboard hub
-  shared/                    # 11 core computation modules
+  shared/                    # 65+ computation modules (key ones listed below)
     calculator.js            # Bioink volume & cost calculator
     constants.js             # Physical constants & defaults
     crosslink.js             # Cross-linking kinetics analyzer
@@ -61,9 +61,38 @@ docs/                        # GitHub Pages documentation site (42 pages)
     mixer.js                 # Bioink mixing ratio optimizer
     passage.js               # Cell passage tracker
     rheology.js              # Bioink rheology modeler
-    utils.js                 # DOM helpers, formatting, rounding
-    viability.js             # Cell viability estimator
-  *.html                     # 42 dashboard pages (see Architecture)
+    viability.js             # Cell viability estimator (50KB — largest module)
+    autoclave.js             # Autoclave cycle calculator
+    bufferPrep.js            # Buffer preparation calculator
+    cellCounter.js           # Cell counting utilities
+    cellViability.js         # Cell viability analysis
+    commandPalette.js        # UI command palette
+    compatibilityMatrix.js   # Material compatibility matrix
+    contaminationRisk.js     # Contamination risk assessment
+    dilutionCalculator.js    # Serial dilution calculator
+    environmentalMonitor.js  # Environmental monitoring
+    flowCytometry.js         # Flow cytometry analysis
+    growthCurve.js           # Cell growth curve fitting
+    jobEstimator.js          # Print job time/cost estimation
+    labInventory.js          # Lab inventory management
+    labNotebook.js           # Electronic lab notebook
+    labSafetyChecklist.js    # Safety checklist system
+    mediaOptimizer.js        # Culture media optimizer
+    nozzleAdvisor.js         # Nozzle selection advisor
+    outcomePredictor.js      # Print outcome prediction
+    printQualityScorer.js    # Print quality scoring (29KB)
+    printResolution.js       # Print resolution analysis
+    printSessionLogger.js    # Print session logging
+    protocolGenerator.js     # Protocol generation
+    protocolTemplates.js     # Protocol template library
+    scaffold.js              # Scaffold design & analysis
+    shelfLife.js             # Reagent shelf life tracking
+    spectrophotometer.js     # Spectrophotometer readings
+    sterilityAssurance.js    # Sterility assurance
+    westernBlot.js           # Western blot analysis
+    yieldAnalyzer.js         # Print yield analysis
+    ... and 25+ more         # See full listing via `ls docs/shared/`
+  *.html                     # 42+ dashboard pages (see Architecture)
   bioprint-data.json         # Sample print dataset
   style.css                  # Shared styles
 
@@ -196,8 +225,8 @@ npx jest --watch
 - `Microsoft.AspNet.WebApi` 5.2.3 — Web API framework
 - `Newtonsoft.Json` 6.0.4 — JSON streaming deserialization
 - `Microsoft.ApplicationInsights` 2.1.0 — Telemetry/monitoring
-- `jest` ^30.2.0 — Frontend test runner (devDependency)
-- `jest-environment-jsdom` ^30.2.0 — Browser-like test environment (devDependency)
+- `jest` ^30.3.0 — Frontend test runner (devDependency)
+- `jest-environment-jsdom` ^30.3.0 — Browser-like test environment (devDependency)
 
 ## What to Watch Out For
 
