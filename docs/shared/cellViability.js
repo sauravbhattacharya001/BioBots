@@ -215,8 +215,14 @@ function createCellViabilityCalculator() {
             var curr = curve[j];
             if ((prev.viabilityPct >= 50 && curr.viabilityPct <= 50) ||
                 (prev.viabilityPct <= 50 && curr.viabilityPct >= 50)) {
-                var frac = (50 - prev.viabilityPct) / (curr.viabilityPct - prev.viabilityPct);
-                ic50 = round(prev.concentration + frac * (curr.concentration - prev.concentration), 4);
+                var span = curr.viabilityPct - prev.viabilityPct;
+                if (span === 0) {
+                    // Both points are exactly at 50% — use midpoint concentration
+                    ic50 = round((prev.concentration + curr.concentration) / 2, 4);
+                } else {
+                    var frac = (50 - prev.viabilityPct) / span;
+                    ic50 = round(prev.concentration + frac * (curr.concentration - prev.concentration), 4);
+                }
                 break;
             }
         }
