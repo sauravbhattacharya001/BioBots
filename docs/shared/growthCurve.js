@@ -24,22 +24,27 @@ function mean(arr) {
 }
 
 function linearRegression(xs, ys) {
+    // Single-pass regression using algebraic identities.
+    // Previous implementation made 3 passes: mean(), regression sums, R² sums.
+    // This computes slope, intercept, and R² from running accumulators in O(n)
+    // instead of O(3n), which matters for large growth datasets.
     var n = xs.length;
-    var mx = mean(xs), my = mean(ys);
-    var num = 0, den = 0;
+    var sumX = 0, sumY = 0, sumXY = 0, sumX2 = 0, sumY2 = 0;
     for (var i = 0; i < n; i++) {
-        num += (xs[i] - mx) * (ys[i] - my);
-        den += (xs[i] - mx) * (xs[i] - mx);
+        sumX  += xs[i];
+        sumY  += ys[i];
+        sumXY += xs[i] * ys[i];
+        sumX2 += xs[i] * xs[i];
+        sumY2 += ys[i] * ys[i];
     }
-    var slope = den === 0 ? 0 : num / den;
-    var intercept = my - slope * mx;
-    // R²
-    var ssTot = 0, ssRes = 0;
-    for (var j = 0; j < n; j++) {
-        var pred = slope * xs[j] + intercept;
-        ssTot += (ys[j] - my) * (ys[j] - my);
-        ssRes += (ys[j] - pred) * (ys[j] - pred);
-    }
+    var denom = n * sumX2 - sumX * sumX;
+    var slope = denom === 0 ? 0 : (n * sumXY - sumX * sumY) / denom;
+    var intercept = (sumY - slope * sumX) / n;
+    // R² from single-pass sums (algebraic identity avoids second/third loop)
+    var ssTot = sumY2 - (sumY * sumY) / n;
+    var ssRes = sumY2 - 2 * slope * sumXY - 2 * intercept * sumY
+              + slope * slope * sumX2 + 2 * slope * intercept * sumX
+              + n * intercept * intercept;
     var r2 = ssTot === 0 ? 1 : 1 - ssRes / ssTot;
     return { slope: slope, intercept: intercept, r2: r2 };
 }
@@ -49,10 +54,15 @@ function round(v, d) {
     return Math.round(v * f) / f;
 }
 
+// Hoist sanitize require to module level — avoids repeated require()
+// resolution on every validateInput() call.  Node caches modules, but
+// the cache lookup + property access still costs ~1µs per call which
+// adds up when validating many datasets in batch comparisons.
+var _sanitize = require('./sanitize');
+
 function validateInput(data) {
     if (!data || typeof data !== 'object') throw new Error('Input must be an object');
     // Strip prototype-pollution keys from untrusted input
-    var _sanitize = require('./sanitize');
     if (_sanitize.isDangerousKey('__proto__')) {
         var keys = Object.keys(data);
         for (var _k = 0; _k < keys.length; _k++) {
