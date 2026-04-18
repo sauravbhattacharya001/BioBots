@@ -196,6 +196,33 @@ function createExperimentTracker(options) {
      */
     function createExperimentHandle(data) {
 
+        // Cache variable-name lookup sets once per handle — avoids
+        // rebuilding O(vars) maps on every addTrial() call.  With
+        // maxTrials=10000 and ~5 variables this eliminates ~100k
+        // redundant object allocations and property assignments.
+        var _ivNameCache = null;
+        var _dvNameCache = null;
+
+        function _getIvNames() {
+            if (!_ivNameCache) {
+                _ivNameCache = {};
+                for (var i = 0; i < data.variables.independent.length; i++) {
+                    _ivNameCache[data.variables.independent[i].name] = true;
+                }
+            }
+            return _ivNameCache;
+        }
+
+        function _getDvNames() {
+            if (!_dvNameCache) {
+                _dvNameCache = {};
+                for (var i = 0; i < data.variables.dependent.length; i++) {
+                    _dvNameCache[data.variables.dependent[i].name] = true;
+                }
+            }
+            return _dvNameCache;
+        }
+
         function assertMutable() {
             if (data.state === STATES.COMPLETED || data.state === STATES.FAILED ||
                 data.state === STATES.CANCELLED) {
@@ -287,11 +314,8 @@ function createExperimentTracker(options) {
                     throw new Error('Trial outputs must be an object');
                 }
 
-                // Validate input keys match independent variables
-                var ivNames = {};
-                for (var iv = 0; iv < data.variables.independent.length; iv++) {
-                    ivNames[data.variables.independent[iv].name] = true;
-                }
+                // Validate input keys match independent variables (cached lookup)
+                var ivNames = _getIvNames();
                 var inputKeys = Object.keys(inputs);
                 for (var ik = 0; ik < inputKeys.length; ik++) {
                     if (!ivNames[inputKeys[ik]]) {
@@ -299,11 +323,8 @@ function createExperimentTracker(options) {
                     }
                 }
 
-                // Validate output keys match dependent variables
-                var dvNames = {};
-                for (var dv = 0; dv < data.variables.dependent.length; dv++) {
-                    dvNames[data.variables.dependent[dv].name] = true;
-                }
+                // Validate output keys match dependent variables (cached lookup)
+                var dvNames = _getDvNames();
                 var outputKeys = Object.keys(outputs);
                 for (var ok = 0; ok < outputKeys.length; ok++) {
                     if (!dvNames[outputKeys[ok]]) {
