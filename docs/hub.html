@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>BioBots Docs — Search &amp; Navigation</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧬</text></svg>">
+    <style>
+        :root {
+            --bg: #0f172a;
+            --surface: #1e293b;
+            --border: #334155;
+            --text: #e2e8f0;
+            --muted: #94a3b8;
+            --accent: #38bdf8;
+            --accent-hover: #7dd3fc;
+            --success: #4ade80;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg); color: var(--text);
+            min-height: 100vh; padding: 2rem 1rem;
+        }
+        .container { max-width: 1000px; margin: 0 auto; }
+        header { text-align: center; margin-bottom: 2rem; }
+        header h1 {
+            font-size: 2rem; font-weight: 700;
+            background: linear-gradient(135deg, var(--accent), var(--success));
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+        }
+        header p { color: var(--muted); margin-top: 0.5rem; }
+        .back-link { display: inline-block; color: var(--accent); text-decoration: none; margin-bottom: 1.5rem; font-size: 0.9rem; }
+        .back-link:hover { text-decoration: underline; }
+
+        .search-box {
+            width: 100%; padding: 0.8rem 1.2rem; font-size: 1rem;
+            background: var(--surface); border: 2px solid var(--border);
+            color: var(--text); border-radius: 12px; outline: none;
+            transition: border-color 0.2s; margin-bottom: 2rem;
+        }
+        .search-box:focus { border-color: var(--accent); }
+        .search-box::placeholder { color: var(--muted); }
+
+        .results-count { color: var(--muted); font-size: 0.85rem; margin-bottom: 1rem; }
+
+        .category { margin-bottom: 2rem; }
+        .category h2 {
+            font-size: 1rem; color: var(--muted); text-transform: uppercase;
+            letter-spacing: 0.08em; margin-bottom: 0.75rem; padding-bottom: 0.5rem;
+            border-bottom: 1px solid var(--border);
+        }
+        .category-grid {
+            display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 0.5rem;
+        }
+        .tool-link {
+            display: flex; align-items: center; gap: 0.6rem;
+            padding: 0.6rem 0.8rem; border-radius: 8px;
+            color: var(--text); text-decoration: none; font-size: 0.9rem;
+            transition: all 0.15s; border: 1px solid transparent;
+        }
+        .tool-link:hover { background: var(--surface); border-color: var(--border); }
+        .tool-link .icon { font-size: 1.1rem; flex-shrink: 0; width: 1.5rem; text-align: center; }
+        .tool-link .name { font-weight: 500; }
+        .tool-link.hidden { display: none; }
+        .category.hidden { display: none; }
+
+        .no-results {
+            text-align: center; color: var(--muted); padding: 3rem;
+            font-size: 1.1rem; display: none;
+        }
+
+        footer {
+            margin-top: 3rem; text-align: center; color: var(--muted); font-size: 0.8rem;
+        }
+        footer a { color: var(--accent); text-decoration: none; }
+        footer a:hover { text-decoration: underline; }
+
+        @media (max-width: 600px) {
+            .category-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <a class="back-link" href="index.html">← Back to Query Tool</a>
+        <header>
+            <h1>🧬 BioBots Documentation</h1>
+            <p>All tools, calculators, and reference pages in one place</p>
+        </header>
+
+        <input type="search" class="search-box" id="search" placeholder="Search tools... (e.g. rheology, calculator, protocol)" autofocus />
+        <div class="results-count" id="resultsCount"></div>
+        <div id="noResults" class="no-results">No tools matching your search.</div>
+
+        <div id="categories">
+            <div class="category" data-cat="analytics">
+                <h2>📊 Analytics &amp; Visualization</h2>
+                <div class="category-grid">
+                    <a class="tool-link" href="index.html" data-keywords="query count aggregate metric"><span class="icon">📊</span><span class="name">Query Tool</span></a>
+                    <a class="tool-link" href="explorer.html" data-keywords="data explore browse"><span class="icon">🔍</span><span class="name">Data Explorer</span></a>
+                    <a class="tool-link" href="table.html" data-keywords="data table grid view"><span class="icon">📋</span><span class="name">Data Table</span></a>
+                    <a class="tool-link" href="compare.html" data-keywords="compare runs side by side"><span class="icon">⚖️</span><span class="name">Compare Runs</span></a>
+                    <a class="tool-link" href="trends.html" data-keywords="trends time series chart"><span class="icon">📈</span><span class="name">Trends</span></a>
+                    <a class="tool-link" href="stats.html" data-keywords="statistics descriptive mean median"><span class="icon">📊</span><span class="name">Statistics</span></a>
+                    <a class="tool-link" href="correlation.html" data-keywords="correlation scatter plot relationship"><span class="icon">🔗</span><span class="name">Correlation</span></a>
+                    <a class="tool-link" href="cluster.html" data-keywords="cluster k-means grouping"><span class="icon">🔗</span><span class="name">Cluster Analysis</span></a>
+                    <a class="tool-link" href="spc.html" data-keywords="statistical process control chart"><span class="icon">📊</span><span class="name">SPC Charts</span></a>
+                    <a class="tool-link" href="sensitivity.html" data-keywords="sensitivity analysis parameter"><span class="icon">🎛️</span><span class="name">Sensitivity</span></a>
+                    <a class="tool-link" href="pareto.html" data-keywords="pareto chart analysis"><span class="icon">📊</span><span class="name">Pareto Analysis</span></a>
+                </div>
+            </div>
+
+            <div class="category" data-cat="quality">
+                <h2>🎯 Quality &amp; Monitoring</h2>
+                <div class="category-grid">
+                    <a class="tool-link" href="quality.html" data-keywords="quality score assessment"><span class="icon">🎯</span><span class="name">Quality Score</span></a>
+                    <a class="tool-link" href="anomaly.html" data-keywords="anomaly detection outlier"><span class="icon">🔍</span><span class="name">Anomaly Detection</span></a>
+                    <a class="tool-link" href="early-warning.html" data-keywords="early warning contamination alert"><span class="icon">🚨</span><span class="name">Early Warning</span></a>
+                    <a class="tool-link" href="predictor.html" data-keywords="predict outcome forecast"><span class="icon">🔮</span><span class="name">Outcome Predictor</span></a>
+                    <a class="tool-link" href="reproducibility.html" data-keywords="reproducibility consistency repeat"><span class="icon">🔄</span><span class="name">Reproducibility</span></a>
+                    <a class="tool-link" href="troubleshooter.html" data-keywords="troubleshoot debug diagnose problem"><span class="icon">🔧</span><span class="name">Troubleshooter</span></a>
+                    <a class="tool-link" href="failure.html" data-keywords="failure analysis root cause"><span class="icon">❌</span><span class="name">Failure Analysis</span></a>
+                    <a class="tool-link" href="integrity.html" data-keywords="data integrity validation check"><span class="icon">🛡️</span><span class="name">Data Integrity</span></a>
+                </div>
+            </div>
+
+            <div class="category" data-cat="bioink">
+                <h2>🧪 Bioink &amp; Materials</h2>
+                <div class="category-grid">
+                    <a class="tool-link" href="recipe.html" data-keywords="recipe builder formulation bioink"><span class="icon">🧪</span><span class="name">Recipe Builder</span></a>
+                    <a class="tool-link" href="mixer.html" data-keywords="bioink mixer blend combine"><span class="icon">🧪</span><span class="name">Bioink Mixer</span></a>
+                    <a class="tool-link" href="compatibility.html" data-keywords="compatibility matrix cell bioink"><span class="icon">🔬</span><span class="name">Compatibility Matrix</span></a>
+                    <a class="tool-link" href="materials.html" data-keywords="materials database properties"><span class="icon">🧪</span><span class="name">Materials Database</span></a>
+                    <a class="tool-link" href="bioink-database.html" data-keywords="bioink database formulation catalog"><span class="icon">🧪</span><span class="name">Bioink Database</span></a>
+                    <a class="tool-link" href="rheology.html" data-keywords="rheology viscosity shear"><span class="icon">🧪</span><span class="name">Rheology Analyzer</span></a>
+                    <a class="tool-link" href="shelf-life.html" data-keywords="shelf life expiry stability"><span class="icon">⏳</span><span class="name">Shelf Life</span></a>
+                </div>
+            </div>
+
+            <div class="category" data-cat="cell">
+                <h2>🔬 Cell Biology</h2>
+                <div class="category-grid">
+                    <a class="tool-link" href="seeding.html" data-keywords="cell seeding density plating"><span class="icon">🔬</span><span class="name">Cell Seeding</span></a>
+                    <a class="tool-link" href="passage.html" data-keywords="passage tracker subculture split"><span class="icon">🧫</span><span class="name">Passage Tracker</span></a>
+                    <a class="tool-link" href="growth.html" data-keywords="growth curve doubling time proliferation"><span class="icon">📈</span><span class="name">Growth Curve</span></a>
+                    <a class="tool-link" href="evolution.html" data-keywords="evolution genetic phenotype drift"><span class="icon">🧬</span><span class="name">Cell Evolution</span></a>
+                    <a class="tool-link" href="coverage.html" data-keywords="coverage confluence cell area"><span class="icon">📐</span><span class="name">Coverage Calc</span></a>
+                </div>
+            </div>
+
+            <div class="category" data-cat="printing">
+                <h2>🖨️ Print Management</h2>
+                <div class="category-grid">
+                    <a class="tool-link" href="optimizer.html" data-keywords="optimize parameters print settings"><span class="icon">⚙️</span><span class="name">Parameter Optimizer</span></a>
+                    <a class="tool-link" href="simulator.html" data-keywords="simulate print preview run"><span class="icon">⏱️</span><span class="name">Print Simulator</span></a>
+                    <a class="tool-link" href="nozzle.html" data-keywords="nozzle advisor gauge size"><span class="icon">🔧</span><span class="name">Nozzle Advisor</span></a>
+                    <a class="tool-link" href="calibration.html" data-keywords="calibrate printer settings"><span class="icon">🎯</span><span class="name">Calibration</span></a>
+                    <a class="tool-link" href="toolpath.html" data-keywords="toolpath gcode slicing"><span class="icon">📐</span><span class="name">Toolpath Viewer</span></a>
+                    <a class="tool-link" href="scaffold.html" data-keywords="scaffold design 3d structure"><span class="icon">🏗️</span><span class="name">Scaffold Designer</span></a>
+                    <a class="tool-link" href="maintenance.html" data-keywords="maintenance schedule service"><span class="icon">🔧</span><span class="name">Maintenance Log</span></a>
+                    <a class="tool-link" href="queue.html" data-keywords="print queue job schedule"><span class="icon">📋</span><span class="name">Print Queue</span></a>
+                    <a class="tool-link" href="cost.html" data-keywords="cost estimate budget pricing"><span class="icon">💰</span><span class="name">Cost Estimator</span></a>
+                </div>
+            </div>
+
+            <div class="category" data-cat="lab">
+                <h2>🧫 Lab Tools</h2>
+                <div class="category-grid">
+                    <a class="tool-link" href="calculator.html" data-keywords="calculator dilution concentration"><span class="icon">🧮</span><span class="name">Lab Calculator</span></a>
+                    <a class="tool-link" href="unit-converter.html" data-keywords="unit convert metric imperial"><span class="icon">🔄</span><span class="name">Unit Converter</span></a>
+                    <a class="tool-link" href="timer.html" data-keywords="timer countdown lab protocol"><span class="icon">⏱️</span><span class="name">Lab Timer</span></a>
+                    <a class="tool-link" href="standard-curve.html" data-keywords="standard curve calibration regression"><span class="icon">🧪</span><span class="name">Standard Curve</span></a>
+                    <a class="tool-link" href="sterilization.html" data-keywords="sterilize autoclave aseptic"><span class="icon">🧹</span><span class="name">Sterilization</span></a>
+                    <a class="tool-link" href="safety-checklist.html" data-keywords="safety checklist lab ppe"><span class="icon">⚠️</span><span class="name">Safety Checklist</span></a>
+                    <a class="tool-link" href="waste.html" data-keywords="waste tracking disposal biohazard"><span class="icon">♻️</span><span class="name">Waste Tracker</span></a>
+                    <a class="tool-link" href="environment.html" data-keywords="environment temperature humidity incubator"><span class="icon">🌡️</span><span class="name">Environment Monitor</span></a>
+                    <a class="tool-link" href="wellplate.html" data-keywords="wellplate layout map 96"><span class="icon">🧫</span><span class="name">Wellplate Mapper</span></a>
+                    <a class="tool-link" href="plate-designer.html" data-keywords="plate designer layout experiment"><span class="icon">🧫</span><span class="name">Plate Designer</span></a>
+                </div>
+            </div>
+
+            <div class="category" data-cat="experiment">
+                <h2>📋 Experiment Planning</h2>
+                <div class="category-grid">
+                    <a class="tool-link" href="protocol.html" data-keywords="protocol library template sop"><span class="icon">📋</span><span class="name">Protocol Library</span></a>
+                    <a class="tool-link" href="doe.html" data-keywords="design of experiments factorial"><span class="icon">🧪</span><span class="name">DOE Analyzer</span></a>
+                    <a class="tool-link" href="batch.html" data-keywords="batch planner schedule runs"><span class="icon">📋</span><span class="name">Batch Planner</span></a>
+                    <a class="tool-link" href="workflow-builder.html" data-keywords="workflow builder automation pipeline"><span class="icon">🔧</span><span class="name">Workflow Builder</span></a>
+                    <a class="tool-link" href="timeline.html" data-keywords="timeline project gantt"><span class="icon">📅</span><span class="name">Timeline</span></a>
+                    <a class="tool-link" href="logbook.html" data-keywords="logbook notebook record entry"><span class="icon">📓</span><span class="name">Lab Logbook</span></a>
+                    <a class="tool-link" href="samples.html" data-keywords="sample tracking inventory barcode"><span class="icon">🏷️</span><span class="name">Sample Tracker</span></a>
+                </div>
+            </div>
+
+            <div class="category" data-cat="compliance">
+                <h2>📜 Compliance &amp; Documentation</h2>
+                <div class="category-grid">
+                    <a class="tool-link" href="compliance.html" data-keywords="compliance regulation fda gmp"><span class="icon">📜</span><span class="name">Compliance Center</span></a>
+                    <a class="tool-link" href="chain-of-custody.html" data-keywords="chain of custody audit trail"><span class="icon">🔗</span><span class="name">Chain of Custody</span></a>
+                    <a class="tool-link" href="report.html" data-keywords="report generate pdf export"><span class="icon">📄</span><span class="name">Report Generator</span></a>
+                    <a class="tool-link" href="fingerprint.html" data-keywords="fingerprint signature hash"><span class="icon">🔏</span><span class="name">Data Fingerprint</span></a>
+                    <a class="tool-link" href="profile.html" data-keywords="profile printer config settings"><span class="icon">👤</span><span class="name">Printer Profile</span></a>
+                    <a class="tool-link" href="tracking.html" data-keywords="tracking lot batch trace"><span class="icon">📦</span><span class="name">Lot Tracking</span></a>
+                    <a class="tool-link" href="recommender.html" data-keywords="recommend suggestion optimize"><span class="icon">💡</span><span class="name">Recommender</span></a>
+                </div>
+            </div>
+
+            <div class="category" data-cat="reference">
+                <h2>📖 Reference</h2>
+                <div class="category-grid">
+                    <a class="tool-link" href="guide.html" data-keywords="guide tutorial getting started"><span class="icon">🛠️</span><span class="name">User Guide</span></a>
+                    <a class="tool-link" href="api.html" data-keywords="api rest endpoints documentation"><span class="icon">📡</span><span class="name">API Reference</span></a>
+                    <a class="tool-link" href="architecture.html" data-keywords="architecture system design overview"><span class="icon">🏗️</span><span class="name">Architecture</span></a>
+                    <a class="tool-link" href="glossary.html" data-keywords="glossary terms definitions"><span class="icon">📖</span><span class="name">Glossary</span></a>
+                </div>
+            </div>
+        </div>
+
+        <footer>
+            <p>Built with 🧬 by <a href="https://github.com/sauravbhattacharya001">Saurav Bhattacharya</a></p>
+            <p><a href="https://github.com/sauravbhattacharya001/BioBots">View Source</a></p>
+        </footer>
+    </div>
+
+    <script>
+    'use strict';
+    const search = document.getElementById('search');
+    const links = document.querySelectorAll('.tool-link');
+    const categories = document.querySelectorAll('.category');
+    const noResults = document.getElementById('noResults');
+    const resultsCount = document.getElementById('resultsCount');
+    const total = links.length;
+
+    resultsCount.textContent = total + ' tools available';
+
+    search.addEventListener('input', () => {
+        const q = search.value.toLowerCase().trim();
+        let visible = 0;
+
+        links.forEach(link => {
+            const name = link.querySelector('.name').textContent.toLowerCase();
+            const keywords = (link.dataset.keywords || '').toLowerCase();
+            const match = !q || name.includes(q) || keywords.includes(q);
+            link.classList.toggle('hidden', !match);
+            if (match) visible++;
+        });
+
+        categories.forEach(cat => {
+            const hasVisible = cat.querySelector('.tool-link:not(.hidden)');
+            cat.classList.toggle('hidden', !hasVisible);
+        });
+
+        noResults.style.display = visible === 0 ? 'block' : 'none';
+        resultsCount.textContent = q
+            ? visible + ' of ' + total + ' tools matching "' + q + '"'
+            : total + ' tools available';
+    });
+
+    // Keyboard shortcut: / to focus search
+    document.addEventListener('keydown', e => {
+        if (e.key === '/' && document.activeElement !== search) {
+            e.preventDefault();
+            search.focus();
+        }
+    });
+    </script>
+</body>
+</html>
