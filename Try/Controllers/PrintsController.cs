@@ -103,8 +103,19 @@ namespace BioBots.Controllers
         /// </summary>
         private static void EnsureCache()
         {
-            string path = ConfigurationManager.AppSettings["DataFilePath"]
+            string configPath = ConfigurationManager.AppSettings["DataFilePath"]
                 ?? @"bioprint-data.json";
+
+            // Security: resolve the configured path relative to the application
+            // base directory and verify it stays within it.  This prevents path
+            // traversal attacks if an attacker can influence the config value
+            // (e.g. via Azure App Configuration or environment variable overrides).
+            string appRoot = AppDomain.CurrentDomain.BaseDirectory;
+            string path = Path.GetFullPath(Path.Combine(appRoot, configPath));
+
+            if (!path.StartsWith(appRoot, StringComparison.OrdinalIgnoreCase))
+                throw new UnauthorizedAccessException(
+                    "DataFilePath must resolve within the application directory.");
 
             // Guard: skip the timestamp fast-path when the file is missing so
             // LoadAndFilterPrints can throw a descriptive FileNotFoundException
