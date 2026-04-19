@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Protocol Comparison Engine — BioBots</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧬</text></svg>">
+    <style>
+        :root { --bg:#0f172a;--surface:#1e293b;--border:#334155;--text:#e2e8f0;--muted:#94a3b8;--accent:#3b82f6;--accent-hover:#2563eb;--green:#22c55e;--red:#ef4444;--yellow:#eab308;--radius:8px; }
+        *{margin:0;padding:0;box-sizing:border-box}
+        body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
+        .header{background:var(--surface);border-bottom:1px solid var(--border);padding:20px 32px}
+        .header h1{font-size:24px;font-weight:700}.header h1 span{color:var(--accent)}
+        .header p{color:var(--muted);margin-top:4px;font-size:14px}
+        .back{color:var(--accent);text-decoration:none;font-size:13px;display:inline-block;margin-bottom:8px}
+        .back:hover{text-decoration:underline}
+        .container{max-width:1400px;margin:0 auto;padding:24px}
+        .panels{display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-bottom:24px}
+        @media(max-width:900px){.panels{grid-template-columns:1fr}}
+        .card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:24px}
+        .card h2{font-size:16px;font-weight:600;margin-bottom:16px;display:flex;align-items:center;gap:8px}
+        .field{margin-bottom:14px}
+        .field label{display:block;font-size:12px;color:var(--muted);margin-bottom:4px;font-weight:500}
+        .field select,.field input{width:100%;background:var(--bg);border:1px solid var(--border);border-radius:4px;color:var(--text);padding:8px;font-size:14px}
+        .field select:focus,.field input:focus{outline:none;border-color:var(--accent)}
+        .field .row{display:flex;gap:8px;align-items:center}
+        .field input[type=range]{flex:1;accent-color:var(--accent)}
+        .field .val{min-width:60px;text-align:right;font-size:13px;color:var(--muted)}
+        .preset-row{margin-bottom:16px}
+        .preset-row select{width:100%;background:var(--bg);border:1px solid var(--border);border-radius:4px;color:var(--text);padding:8px;font-size:13px}
+        .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:12px 28px;background:var(--accent);color:#fff;border:none;border-radius:var(--radius);font-size:15px;font-weight:600;cursor:pointer;transition:background .2s}
+        .btn:hover{background:var(--accent-hover)}
+        .btn-row{text-align:center;margin-bottom:24px}
+        .diff-table{width:100%;border-collapse:collapse;font-size:14px}
+        .diff-table th,.diff-table td{padding:10px 12px;border-bottom:1px solid var(--border);text-align:left}
+        .diff-table th{color:var(--muted);font-weight:500;font-size:12px;text-transform:uppercase}
+        .diff-table .same{color:var(--green)}.diff-table .moderate{color:var(--yellow)}.diff-table .large{color:var(--red)}
+        .rec-item{padding:12px;border:1px solid var(--border);border-radius:var(--radius);margin-bottom:10px;background:var(--bg)}
+        .rec-item h4{font-size:13px;margin-bottom:4px}.rec-item p{font-size:12px;color:var(--muted)}
+        .score-ring{width:80px;height:80px;margin:0 auto 12px}
+        .risk-flag{display:flex;align-items:center;gap:6px;padding:8px 12px;background:rgba(239,68,68,.1);border:1px solid var(--red);border-radius:4px;margin-bottom:8px;font-size:13px}
+        .history-list{list-style:none;font-size:13px}
+        .history-list li{padding:8px;border-bottom:1px solid var(--border);cursor:pointer;color:var(--muted)}
+        .history-list li:hover{color:var(--text)}
+        .export-btn{padding:8px 16px;background:var(--bg);border:1px solid var(--border);border-radius:4px;color:var(--accent);cursor:pointer;font-size:13px;margin-top:8px}
+        .export-btn:hover{border-color:var(--accent)}
+        .hidden{display:none}
+        .confidence-high{color:var(--green)}.confidence-med{color:var(--yellow)}.confidence-low{color:var(--red)}
+    </style>
+</head>
+<body>
+<div class="header">
+    <a href="hub.html" class="back">← Back to Hub</a>
+    <h1>🔀 Protocol <span>Comparison Engine</span></h1>
+    <p>Side-by-side protocol diff with smart merge recommendations</p>
+</div>
+<div class="container">
+    <div class="panels">
+        <div class="card" id="panelA">
+            <h2>📋 Protocol A</h2>
+            <div class="preset-row"><select onchange="loadPreset('A',this.value)"><option value="">— Load Preset —</option><option value="gelma">Standard GelMA Scaffold</option><option value="collagen">High-Resolution Collagen</option><option value="alginate">Fast Alginate Prototype</option></select></div>
+            <div id="fieldsA"></div>
+        </div>
+        <div class="card" id="panelB">
+            <h2>📋 Protocol B</h2>
+            <div class="preset-row"><select onchange="loadPreset('B',this.value)"><option value="">— Load Preset —</option><option value="gelma">Standard GelMA Scaffold</option><option value="collagen">High-Resolution Collagen</option><option value="alginate">Fast Alginate Prototype</option></select></div>
+            <div id="fieldsB"></div>
+        </div>
+    </div>
+    <div class="btn-row"><button class="btn" onclick="compare()">⚡ Compare Protocols</button></div>
+
+    <div id="results" class="hidden">
+        <div class="card" style="margin-bottom:24px">
+            <h2>📊 Parameter Diff</h2>
+            <div style="overflow-x:auto"><table class="diff-table"><thead><tr><th>Parameter</th><th>Protocol A</th><th>Protocol B</th><th>Delta</th><th id="mergeHeader" class="hidden">Merged</th></tr></thead><tbody id="diffBody"></tbody></table></div>
+        </div>
+        <div class="card" style="margin-bottom:24px">
+            <h2>🤖 Smart Recommendations</h2>
+            <div style="text-align:center;margin-bottom:16px"><svg class="score-ring" viewBox="0 0 36 36"><path d="M18 2.0845a15.9155 15.9155 0 010 31.831 15.9155 15.9155 0 010-31.831" fill="none" stroke="var(--border)" stroke-width="3"/><path id="scoreArc" d="M18 2.0845a15.9155 15.9155 0 010 31.831 15.9155 15.9155 0 010-31.831" fill="none" stroke="var(--accent)" stroke-width="3" stroke-dasharray="0,100"/><text x="18" y="20.5" id="scoreText" font-size="8" fill="var(--text)" text-anchor="middle">0</text></svg><div style="font-size:12px;color:var(--muted)">Merge Compatibility</div></div>
+            <div id="riskFlags"></div>
+            <div id="recommendations"></div>
+            <div class="btn-row" style="margin-top:16px"><button class="btn" onclick="generateMerge()">🧬 Generate Merged Protocol</button></div>
+        </div>
+        <div id="mergeOutput" class="hidden card" style="margin-bottom:24px">
+            <h2>✅ Merged Protocol</h2>
+            <div id="mergeDetails"></div>
+            <button class="export-btn" onclick="exportJSON()">📥 Export as JSON</button>
+        </div>
+    </div>
+
+    <div class="card">
+        <h2>🕐 Comparison History</h2>
+        <ul class="history-list" id="historyList"><li style="color:var(--muted)">No comparisons yet</li></ul>
+    </div>
+</div>
+
+<script>
+const PARAMS=[
+    {key:'material',label:'Material',type:'select',options:['GelMA','Alginate','Collagen','PEGDA','Fibrin','Silk Fibroin','Matrigel','Chitosan']},
+    {key:'nozzle',label:'Nozzle Diameter (µm)',type:'range',min:100,max:800,step:10,def:400},
+    {key:'speed',label:'Print Speed (mm/s)',type:'range',min:1,max:50,step:1,def:10},
+    {key:'temp',label:'Temperature (°C)',type:'range',min:15,max:45,step:1,def:25},
+    {key:'layerHeight',label:'Layer Height (µm)',type:'range',min:50,max:500,step:10,def:200},
+    {key:'infill',label:'Infill Density (%)',type:'range',min:10,max:100,step:5,def:60},
+    {key:'crosslink',label:'Crosslink Time (s)',type:'range',min:5,max:300,step:5,def:30},
+    {key:'cellDensity',label:'Cell Density (M cells/mL)',type:'range',min:0.1,max:50,step:0.1,def:5},
+    {key:'pressure',label:'Pressure (kPa)',type:'range',min:5,max:200,step:5,def:50},
+    {key:'uv',label:'UV Exposure (s)',type:'range',min:0,max:120,step:1,def:15}
+];
+const PRESETS={
+    gelma:{material:'GelMA',nozzle:400,speed:10,temp:25,layerHeight:200,infill:60,crosslink:30,cellDensity:5,pressure:50,uv:15},
+    collagen:{material:'Collagen',nozzle:150,speed:3,temp:37,layerHeight:100,infill:80,crosslink:0,cellDensity:10,pressure:30,uv:0},
+    alginate:{material:'Alginate',nozzle:600,speed:25,temp:22,layerHeight:350,infill:40,crosslink:60,cellDensity:2,pressure:80,uv:0}
+};
+let mergedProtocol=null;
+
+function buildFields(panel){
+    const container=document.getElementById('fields'+panel);
+    container.innerHTML='';
+    PARAMS.forEach(p=>{
+        const div=document.createElement('div');div.className='field';
+        if(p.type==='select'){
+            div.innerHTML=`<label>${p.label}</label><select id="${p.key}_${panel}">${p.options.map(o=>`<option>${o}</option>`).join('')}</select>`;
+        }else{
+            div.innerHTML=`<label>${p.label}</label><div class="row"><input type="range" id="${p.key}_${panel}" min="${p.min}" max="${p.max}" step="${p.step}" value="${p.def}" oninput="document.getElementById('${p.key}_${panel}_v').textContent=this.value"><span class="val" id="${p.key}_${panel}_v">${p.def}</span></div>`;
+        }
+        container.appendChild(div);
+    });
+}
+buildFields('A');buildFields('B');
+
+function loadPreset(panel,preset){
+    if(!preset)return;
+    const p=PRESETS[preset];
+    PARAMS.forEach(param=>{
+        const el=document.getElementById(param.key+'_'+panel);
+        if(param.type==='select'){el.value=p[param.key];}
+        else{el.value=p[param.key];const v=document.getElementById(param.key+'_'+panel+'_v');if(v)v.textContent=p[param.key];}
+    });
+}
+
+function getValues(panel){
+    const v={};
+    PARAMS.forEach(p=>{
+        const el=document.getElementById(p.key+'_'+panel);
+        v[p.key]=p.type==='select'?el.value:parseFloat(el.value);
+    });
+    return v;
+}
+
+function compare(){
+    const a=getValues('A'),b=getValues('B');
+    document.getElementById('results').classList.remove('hidden');
+    document.getElementById('mergeOutput').classList.add('hidden');
+    document.getElementById('mergeHeader').classList.add('hidden');
+    mergedProtocol=null;
+    renderDiff(a,b);
+    renderRecommendations(a,b);
+    saveHistory(a,b);
+}
+
+function renderDiff(a,b){
+    const tbody=document.getElementById('diffBody');
+    tbody.innerHTML='';
+    PARAMS.forEach(p=>{
+        const va=a[p.key],vb=b[p.key];
+        let delta,cls;
+        if(p.type==='select'){delta=va===vb?'Same':'Different';cls=va===vb?'same':'large';}
+        else{const d=Math.abs(va-vb);const pct=Math.round(d/Math.max(va,vb,1)*100);delta=`${d}${p.key==='cellDensity'?'M':''} (${pct}%)`;cls=pct<10?'same':pct<30?'moderate':'large';}
+        const tr=document.createElement('tr');
+        tr.innerHTML=`<td>${p.label}</td><td>${va}${p.type==='select'?'':''}</td><td>${vb}</td><td class="${cls}">${delta}</td><td class="merge-col hidden"></td>`;
+        tbody.appendChild(tr);
+    });
+}
+
+function renderRecommendations(a,b){
+    const recs=[];const risks=[];
+    let score=100;
+    // Material mismatch
+    if(a.material!==b.material){score-=20;recs.push({title:`Material Conflict: ${a.material} vs ${b.material}`,text:`These materials have different crosslinking mechanisms. Recommend using ${a.material} if UV crosslinking is available, otherwise ${b.material} for ionic crosslinking.`});}
+    // Pressure + cell density risk
+    if((a.pressure>100||b.pressure>100)&&(a.cellDensity>10||b.cellDensity>10)){risks.push('⚠️ High shear stress risk: pressure >100 kPa with cells >10M/mL may reduce viability by 20-40%');score-=15;}
+    // Speed vs resolution tradeoff
+    if(Math.abs(a.speed-b.speed)>10){score-=10;const slower=a.speed<b.speed?'A':'B';recs.push({title:'Speed vs Resolution Tradeoff',text:`Protocol ${slower} has better resolution potential due to lower speed. For structural fidelity, prefer ${Math.min(a.speed,b.speed)} mm/s.`});}
+    // Nozzle mismatch
+    if(Math.abs(a.nozzle-b.nozzle)>200){score-=10;recs.push({title:'Nozzle Diameter Gap',text:`Large nozzle difference (${Math.abs(a.nozzle-b.nozzle)}µm). Smaller nozzle (${Math.min(a.nozzle,b.nozzle)}µm) yields finer features but requires lower viscosity material.`});}
+    // Temperature check
+    if(a.material==='Collagen'&&a.temp<30){risks.push('⚠️ Protocol A: Collagen typically requires 37°C for proper gelation');}
+    if(b.material==='Collagen'&&b.temp<30){risks.push('⚠️ Protocol B: Collagen typically requires 37°C for proper gelation');}
+    // UV without need
+    if((a.material==='Alginate'&&a.uv>0)||(b.material==='Alginate'&&b.uv>0)){risks.push('⚠️ UV exposure set for Alginate protocol — Alginate uses ionic (CaCl₂) crosslinking, not UV');score-=5;}
+    if(a.material==='GelMA'&&a.uv===0){risks.push('⚠️ Protocol A: GelMA requires UV crosslinking but UV is set to 0s');}
+    if(b.material==='GelMA'&&b.uv===0){risks.push('⚠️ Protocol B: GelMA requires UV crosslinking but UV is set to 0s');}
+    // Infill difference
+    if(Math.abs(a.infill-b.infill)>30){score-=5;recs.push({title:'Infill Strategy Difference',text:`${Math.abs(a.infill-b.infill)}% infill gap. Higher infill (${Math.max(a.infill,b.infill)}%) provides structural strength; lower (${Math.min(a.infill,b.infill)}%) allows better nutrient diffusion.`});}
+
+    score=Math.max(0,Math.min(100,score));
+
+    // Render score
+    document.getElementById('scoreArc').setAttribute('stroke-dasharray',`${score},100`);
+    document.getElementById('scoreArc').setAttribute('stroke',score>70?'var(--green)':score>40?'var(--yellow)':'var(--red)');
+    document.getElementById('scoreText').textContent=score;
+
+    // Render risks
+    const rf=document.getElementById('riskFlags');
+    rf.innerHTML=risks.length?risks.map(r=>`<div class="risk-flag">${r}</div>`).join(''):'<div style="color:var(--green);font-size:13px;margin-bottom:12px">✅ No critical risks detected</div>';
+
+    // Render recs
+    const rc=document.getElementById('recommendations');
+    rc.innerHTML=recs.length?recs.map(r=>`<div class="rec-item"><h4>${r.title}</h4><p>${r.text}</p></div>`).join(''):'<div class="rec-item"><h4>Protocols are highly compatible</h4><p>Parameters are similar enough for a straightforward merge.</p></div>';
+}
+
+function generateMerge(){
+    const a=getValues('A'),b=getValues('B');
+    mergedProtocol={};const details=[];
+    PARAMS.forEach(p=>{
+        let val,conf;
+        if(p.type==='select'){
+            // Prefer material that matches crosslink settings
+            if(a.material===b.material){val=a.material;conf='High';}
+            else{val=(a.uv>0&&a.material==='GelMA')?a.material:(b.uv>0&&b.material==='GelMA')?b.material:a.material;conf='Low';}
+        }else{
+            const diff=Math.abs(a[p.key]-b[p.key])/Math.max(a[p.key],b[p.key],1);
+            if(diff<0.1){val=Math.round(((a[p.key]+b[p.key])/2)*10)/10;conf='High';}
+            else if(diff<0.3){
+                // Pick the safer value based on heuristics
+                if(p.key==='pressure')val=Math.min(a[p.key],b[p.key]);
+                else if(p.key==='speed')val=Math.min(a[p.key],b[p.key]);
+                else if(p.key==='cellDensity')val=Math.max(a[p.key],b[p.key]);
+                else val=Math.round(((a[p.key]+b[p.key])/2)*10)/10;
+                conf='Medium';
+            }else{
+                if(p.key==='pressure')val=Math.min(a[p.key],b[p.key]);
+                else if(p.key==='speed')val=Math.round((Math.min(a[p.key],b[p.key])+((a[p.key]+b[p.key])/2))/2*10)/10;
+                else val=Math.round(((a[p.key]+b[p.key])/2)*10)/10;
+                conf='Low';
+            }
+        }
+        mergedProtocol[p.key]=val;
+        details.push({label:p.label,val,conf});
+    });
+
+    // Show merge column
+    document.getElementById('mergeHeader').classList.remove('hidden');
+    document.querySelectorAll('.merge-col').forEach((td,i)=>{td.classList.remove('hidden');td.innerHTML=`<span class="confidence-${details[i].conf.toLowerCase().slice(0,3)}">${details[i].val}</span> <small style="color:var(--muted)">[${details[i].conf}]</small>`;});
+
+    // Show merge output
+    const mo=document.getElementById('mergeOutput');mo.classList.remove('hidden');
+    document.getElementById('mergeDetails').innerHTML=`<p style="font-size:13px;color:var(--muted);margin-bottom:12px">Merged protocol generated from ${a.material} + ${b.material} parameters with confidence-weighted optimization.</p>`+details.map(d=>`<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border);font-size:13px"><span>${d.label}</span><span class="confidence-${d.conf.toLowerCase().slice(0,3)}">${d.val} <small>[${d.conf}]</small></span></div>`).join('');
+}
+
+function exportJSON(){
+    if(!mergedProtocol)return;
+    const blob=new Blob([JSON.stringify(mergedProtocol,null,2)],{type:'application/json'});
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement('a');a.href=url;a.download='merged-protocol.json';a.click();URL.revokeObjectURL(url);
+}
+
+function saveHistory(a,b){
+    let hist=JSON.parse(localStorage.getItem('bb_compare_history')||'[]');
+    hist.unshift({time:new Date().toLocaleString(),a,b});
+    if(hist.length>5)hist=hist.slice(0,5);
+    localStorage.setItem('bb_compare_history',JSON.stringify(hist));
+    renderHistory();
+}
+
+function renderHistory(){
+    const hist=JSON.parse(localStorage.getItem('bb_compare_history')||'[]');
+    const ul=document.getElementById('historyList');
+    if(!hist.length){ul.innerHTML='<li style="color:var(--muted)">No comparisons yet</li>';return;}
+    ul.innerHTML=hist.map((h,i)=>`<li onclick="restoreHistory(${i})">${h.time} — ${h.a.material} vs ${h.b.material}</li>`).join('');
+}
+
+function restoreHistory(i){
+    const hist=JSON.parse(localStorage.getItem('bb_compare_history')||'[]');
+    if(!hist[i])return;
+    const{a,b}=hist[i];
+    PARAMS.forEach(p=>{
+        ['A','B'].forEach(panel=>{
+            const src=panel==='A'?a:b;
+            const el=document.getElementById(p.key+'_'+panel);
+            if(p.type==='select')el.value=src[p.key];
+            else{el.value=src[p.key];const v=document.getElementById(p.key+'_'+panel+'_v');if(v)v.textContent=src[p.key];}
+        });
+    });
+    compare();
+}
+
+renderHistory();
+</script>
+</body>
+</html>
