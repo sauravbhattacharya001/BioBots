@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Contamination Early Warning — BioBots</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{--bg:#0f172a;--card:#1e293b;--border:#334155;--text:#e2e8f0;--dim:#94a3b8;--green:#22c55e;--yellow:#eab308;--orange:#f97316;--red:#ef4444;--darkred:#dc2626}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;padding:1rem}
+h1{font-size:1.5rem;margin-bottom:.25rem}
+.subtitle{color:var(--dim);font-size:.85rem;margin-bottom:1.5rem}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:1rem;margin-bottom:1.5rem}
+.card{background:var(--card);border:1px solid var(--border);border-radius:.75rem;padding:1rem}
+.card h3{font-size:.9rem;color:var(--dim);margin-bottom:.5rem;text-transform:uppercase;letter-spacing:.05em}
+.status-banner{padding:1.25rem;border-radius:.75rem;margin-bottom:1.5rem;display:flex;align-items:center;gap:1rem;font-size:1.2rem;font-weight:700}
+.status-banner .icon{font-size:2rem}
+.status-banner .detail{font-size:.85rem;font-weight:400;color:rgba(255,255,255,.8)}
+.param-row{display:flex;justify-content:space-between;align-items:center;padding:.5rem 0;border-bottom:1px solid var(--border)}
+.param-row:last-child{border-bottom:none}
+.param-name{font-weight:600;font-size:.9rem}
+.param-value{font-size:.85rem;font-variant-numeric:tabular-nums}
+.badge{display:inline-block;padding:.15rem .5rem;border-radius:9999px;font-size:.75rem;font-weight:600}
+.badge-safe{background:rgba(34,197,94,.15);color:var(--green)}
+.badge-warn{background:rgba(234,179,8,.15);color:var(--yellow)}
+.badge-critical{background:rgba(239,68,68,.15);color:var(--red)}
+.bar{height:6px;background:var(--border);border-radius:3px;margin-top:.25rem;overflow:hidden}
+.bar-fill{height:100%;border-radius:3px;transition:width .3s}
+canvas{width:100%;height:200px;border-radius:.5rem;background:rgba(0,0,0,.2)}
+.controls{display:flex;gap:.75rem;margin-bottom:1.5rem;flex-wrap:wrap}
+button{background:var(--card);border:1px solid var(--border);color:var(--text);padding:.5rem 1rem;border-radius:.5rem;cursor:pointer;font-size:.85rem}
+button:hover{border-color:var(--dim)}
+button.active{border-color:var(--green);background:rgba(34,197,94,.1)}
+.mitigation{display:flex;gap:.75rem;padding:.75rem;background:rgba(239,68,68,.05);border-left:3px solid var(--red);border-radius:0 .5rem .5rem 0;margin-bottom:.5rem}
+.mitigation.low{border-color:var(--yellow);background:rgba(234,179,8,.05)}
+.mit-urgency{font-weight:700;font-size:1.1rem;min-width:2.5rem;text-align:center}
+.mit-body{flex:1}
+.mit-param{font-weight:600;font-size:.85rem}
+.mit-action{color:var(--dim);font-size:.85rem;margin-top:.15rem}
+.signal-log{max-height:250px;overflow-y:auto;font-family:'Cascadia Code',monospace;font-size:.8rem;line-height:1.6;padding:.75rem;background:rgba(0,0,0,.3);border-radius:.5rem}
+.signal-log .sig{padding:.15rem 0;border-bottom:1px solid rgba(255,255,255,.05)}
+.trend-arrow{font-size:.85rem;margin-left:.25rem}
+.section-title{font-size:1.1rem;font-weight:700;margin:1.5rem 0 .75rem}
+.flex-row{display:flex;gap:1rem;flex-wrap:wrap}
+.flex-row>*{flex:1;min-width:300px}
+</style>
+</head>
+<body>
+<h1>🔬 Contamination Early Warning System</h1>
+<p class="subtitle">Proactive environmental monitoring — detects deteriorating conditions before contamination occurs</p>
+
+<div id="banner" class="status-banner" style="background:rgba(34,197,94,.15);border:1px solid var(--green)">
+    <span class="icon">✅</span>
+    <div><div>ALL CLEAR</div><div class="detail">No active warnings. All parameters within safe ranges.</div></div>
+</div>
+
+<div class="controls">
+    <button id="btnSim" onclick="toggleSimulation()">▶ Start Simulation</button>
+    <button onclick="injectAnomaly('particles')">💨 Inject Particle Spike</button>
+    <button onclick="injectAnomaly('hvac')">❄️ HVAC Failure</button>
+    <button onclick="injectAnomaly('gowning')">🥼 Gowning Lapse</button>
+    <button onclick="injectAnomaly('combo')">⚡ Multi-Factor Event</button>
+    <button onclick="resetAll()">🔄 Reset</button>
+</div>
+
+<div class="grid" id="paramCards"></div>
+
+<div class="flex-row">
+    <div>
+        <div class="section-title">📈 Trend Chart</div>
+        <div class="card"><canvas id="trendCanvas" height="200"></canvas></div>
+        <div class="controls" style="margin-top:.5rem" id="chartToggles"></div>
+    </div>
+    <div>
+        <div class="section-title">🛡️ Active Mitigations</div>
+        <div class="card" id="mitigations"><p style="color:var(--dim)">No mitigations needed.</p></div>
+    </div>
+</div>
+
+<div class="section-title">📋 Signal Log</div>
+<div class="card"><div class="signal-log" id="signalLog"><span style="color:var(--dim)">Waiting for readings...</span></div></div>
+
+<script>
+// ── Engine (inline version of the SDK module) ──────────────────
+var PARAMS={temperature:{unit:'°C',safe:{min:20,max:25},warn:{min:18,max:28},critical:{min:15,max:32}},humidity:{unit:'%RH',safe:{min:30,max:60},warn:{min:20,max:70},critical:{min:10,max:85}},particleCount:{unit:'p/m³',safe:{min:0,max:3520},warn:{min:0,max:10000},critical:{min:0,max:35200}},airChangesPerHour:{unit:'ACH',safe:{min:20,max:600},warn:{min:12,max:600},critical:{min:6,max:600}},personnelCount:{unit:'ppl',safe:{min:0,max:2},warn:{min:0,max:4},critical:{min:0,max:8}},gowningCompliance:{unit:'%',safe:{min:90,max:100},warn:{min:70,max:100},critical:{min:50,max:100}},mediaAge:{unit:'days',safe:{min:0,max:14},warn:{min:0,max:21},critical:{min:0,max:30}}};
+var W_LEVELS=[{level:'CLEAR',p:0,color:'#22c55e'},{level:'WATCH',p:1,color:'#eab308'},{level:'ADVISORY',p:2,color:'#f97316'},{level:'WARNING',p:3,color:'#ef4444'},{level:'ALERT',p:4,color:'#dc2626'}];
+function classifyV(v,p){var d=PARAMS[p];if(!d)return'SAFE';if(v>=d.safe.min&&v<=d.safe.max)return'SAFE';if(v>=d.warn.min&&v<=d.warn.max)return'WARN';return'CRITICAL'}
+function linForecast(s,n){var l=s.length;if(l<2)return s[0]||0;var sx=0,sy=0,sxy=0,sx2=0;for(var i=0;i<l;i++){sx+=i;sy+=s[i];sxy+=i*s[i];sx2+=i*i}var d=l*sx2-sx*sx;if(!d)return s[l-1];var m=(l*sxy-sx*sy)/d,b=(sy-m*sx)/l;return b+m*(l-1+n)}
+
+// ── State ──────────────────────────────────────────────────────
+var state={},histories={},allSignals=[],simInterval=null,readingN=0;
+var paramKeys=Object.keys(PARAMS);
+var chartVisible={};
+var COLORS={temperature:'#ef4444',humidity:'#3b82f6',particleCount:'#a855f7',airChangesPerHour:'#22d3ee',personnelCount:'#f97316',gowningCompliance:'#22c55e',mediaAge:'#eab308'};
+
+paramKeys.forEach(function(k){state[k]={raw:[],ema:null,cls:'SAFE'};histories[k]=[];chartVisible[k]=(k==='temperature'||k==='humidity'||k==='particleCount')});
+
+// Nominal baseline values
+var nominal={temperature:22.5,humidity:45,particleCount:1500,airChangesPerHour:40,personnelCount:1,gowningCompliance:98,mediaAge:5};
+var current=JSON.parse(JSON.stringify(nominal));
+var anomalies={};
+
+// ── Build UI ───────────────────────────────────────────────────
+var cardsEl=document.getElementById('paramCards');
+paramKeys.forEach(function(k){
+    var d=document.createElement('div');d.className='card';d.id='card-'+k;
+    d.innerHTML='<h3>'+k.replace(/([A-Z])/g,' $1').trim()+'</h3><div class="param-row"><span class="param-name" id="val-'+k+'">—</span><span class="badge badge-safe" id="cls-'+k+'">SAFE</span></div><div class="bar"><div class="bar-fill" id="bar-'+k+'" style="width:0;background:var(--green)"></div></div><div style="margin-top:.35rem;font-size:.78rem;color:var(--dim)"><span id="trend-'+k+'">—</span> · forecast: <span id="fc-'+k+'">—</span></div>';
+    cardsEl.appendChild(d);
+});
+
+// Chart toggles
+var togglesEl=document.getElementById('chartToggles');
+paramKeys.forEach(function(k){
+    var b=document.createElement('button');b.textContent=k.replace(/([A-Z])/g,' $1').trim();
+    b.style.borderColor=COLORS[k];if(chartVisible[k])b.classList.add('active');
+    b.onclick=function(){chartVisible[k]=!chartVisible[k];b.classList.toggle('active');drawChart()};
+    togglesEl.appendChild(b);
+});
+
+// ── Ingestion ──────────────────────────────────────────────────
+function ingestReading(){
+    readingN++;var signals=[];
+    paramKeys.forEach(function(k){
+        var v=current[k]+((Math.random()-.5)*jitter(k));
+        if(k==='personnelCount')v=Math.max(0,Math.round(v));
+        if(k==='gowningCompliance')v=Math.min(100,v);
+        if(k==='mediaAge')v=Math.max(0,v);
+        var s=state[k];s.raw.push(v);if(s.raw.length>100)s.raw.shift();
+        s.ema=s.ema===null?v:.3*v+.7*s.ema;
+        s.cls=classifyV(v,k);
+        histories[k].push(v);if(histories[k].length>100)histories[k].shift();
+
+        var fc=linForecast(s.raw,3);var fcC=classifyV(fc,k);
+        // Update UI
+        document.getElementById('val-'+k).textContent=fmtVal(v,k)+' '+PARAMS[k].unit;
+        var badge=document.getElementById('cls-'+k);
+        badge.textContent=s.cls;badge.className='badge badge-'+s.cls.toLowerCase();
+        var pct=paramPct(v,k);
+        var bar=document.getElementById('bar-'+k);bar.style.width=pct+'%';
+        bar.style.background=s.cls==='SAFE'?'var(--green)':s.cls==='WARN'?'var(--yellow)':'var(--red)';
+        var roc=s.raw.length>=2?(s.raw[s.raw.length-1]-s.raw[Math.max(0,s.raw.length-5)]):'—';
+        var arrow=typeof roc==='number'?(roc>0.5?'↑':roc<-0.5?'↓':'→'):'';
+        document.getElementById('trend-'+k).textContent='roc: '+(typeof roc==='number'?roc.toFixed(2):roc)+' '+arrow;
+        document.getElementById('fc-'+k).textContent=fmtVal(fc,k)+' ('+fcC+')';
+
+        if(s.cls!=='SAFE')signals.push({param:k,type:s.cls==='CRITICAL'?'CRITICAL_VALUE':'WARN_VALUE',msg:k+' = '+fmtVal(v,k)+' '+PARAMS[k].unit+' ['+s.cls+']'});
+        if(s.cls==='SAFE'&&fcC!=='SAFE')signals.push({param:k,type:'TREND',msg:k+' trending → '+fcC+' (forecast: '+fmtVal(fc,k)+')'});
+    });
+
+    if(signals.length)allSignals.push({n:readingN,signals:signals});
+    updateBanner();updateMitigations();updateLog();drawChart();
+    // Decay anomalies
+    for(var a in anomalies){anomalies[a]--;if(anomalies[a]<=0){delete anomalies[a];current[a]=nominal[a]}}
+}
+
+function jitter(k){return{temperature:.3,humidity:1,particleCount:200,airChangesPerHour:1,personnelCount:.3,gowningCompliance:.5,mediaAge:.1}[k]||.5}
+function fmtVal(v,k){return k==='personnelCount'?Math.round(v):v.toFixed(1)}
+function paramPct(v,k){var p=PARAMS[k];var range=p.critical.max-p.critical.min||1;
+    // For params where lower=better (personnelCount, mediaAge, particleCount), high value = high %
+    // For params where higher=better (gowningCompliance, airChangesPerHour), invert
+    if(k==='gowningCompliance'||k==='airChangesPerHour')return Math.max(0,Math.min(100,100-(v-p.safe.min)/(p.critical.max-p.safe.min||1)*100));
+    return Math.max(0,Math.min(100,(v-p.safe.min)/(p.critical.max-p.safe.min||1)*100));
+}
+
+// ── Banner ─────────────────────────────────────────────────────
+function updateBanner(){
+    var crit=0,warn=0,trend=0;
+    paramKeys.forEach(function(k){var c=state[k].cls;if(c==='CRITICAL')crit++;if(c==='WARN')warn++;
+        if(c==='SAFE'&&state[k].raw.length>=2){var fc=linForecast(state[k].raw,3);if(classifyV(fc,k)!=='SAFE')trend++}});
+    var pri=0;
+    if(crit>=2)pri=4;else if(crit>=1||warn>=3)pri=3;else if(warn>=1)pri=2;else if(trend>=1)pri=1;
+    var lv=W_LEVELS[pri];
+    var icons=['✅','👁️','⚠️','🚨','🔴'];
+    var labels=['ALL CLEAR — All parameters within safe ranges.','WATCH — Trends suggest conditions may deteriorate.','ADVISORY — Some parameters outside safe ranges.','WARNING — Multiple parameters need attention.','ALERT — Critical conditions detected. Immediate action required.'];
+    var el=document.getElementById('banner');
+    el.style.background='rgba('+(pri===0?'34,197,94':pri===1?'234,179,8':pri===2?'249,115,22':pri===3?'239,68,68':'220,38,38')+',.15)';
+    el.style.borderColor=lv.color;
+    el.innerHTML='<span class="icon">'+icons[pri]+'</span><div><div>'+lv.level+'</div><div class="detail">'+labels[pri]+'</div></div>';
+}
+
+// ── Mitigations ────────────────────────────────────────────────
+var MITS={temperature:{a:'Check HVAC setpoints and room seals',m:1},humidity:{a:'Inspect humidifier/dehumidifier',m:1},particleCount:{a:'Verify HEPA filter integrity',m:1.5},airChangesPerHour:{a:'Inspect blower performance',m:1.2},personnelCount:{a:'Reduce non-essential personnel',m:.8},gowningCompliance:{a:'Conduct gowning refresher',m:1.3},mediaAge:{a:'Prepare fresh media batch',m:.9}};
+function updateMitigations(){
+    var el=document.getElementById('mitigations');var html='';
+    var mits=[];
+    paramKeys.forEach(function(k){var c=state[k].cls;if(c!=='SAFE'){var u=(c==='CRITICAL'?10:5)*(MITS[k].m||1);mits.push({k:k,u:u,c:c,a:MITS[k].a})}});
+    mits.sort(function(a,b){return b.u-a.u});
+    if(!mits.length){el.innerHTML='<p style="color:var(--dim)">No mitigations needed.</p>';return}
+    mits.forEach(function(m){html+='<div class="mitigation'+(m.c==='WARN'?' low':'')+'"><div class="mit-urgency" style="color:'+(m.c==='CRITICAL'?'var(--red)':'var(--yellow)')+'">'+m.u.toFixed(1)+'</div><div class="mit-body"><div class="mit-param">'+m.k+' <span class="badge badge-'+m.c.toLowerCase()+'">'+m.c+'</span></div><div class="mit-action">'+m.a+'</div></div></div>'});
+    el.innerHTML=html;
+}
+
+// ── Signal Log ─────────────────────────────────────────────────
+function updateLog(){
+    var el=document.getElementById('signalLog');
+    var recent=allSignals.slice(-30).reverse();
+    if(!recent.length){el.innerHTML='<span style="color:var(--dim)">Waiting for readings...</span>';return}
+    var html='';
+    recent.forEach(function(r){r.signals.forEach(function(s){
+        var color=s.type.indexOf('CRITICAL')>=0?'var(--red)':s.type.indexOf('WARN')>=0?'var(--yellow)':s.type==='TREND'?'var(--orange)':'var(--dim)';
+        html+='<div class="sig" style="color:'+color+'">#'+r.n+' ['+s.type+'] '+s.msg+'</div>';
+    })});
+    el.innerHTML=html;
+}
+
+// ── Chart ──────────────────────────────────────────────────────
+function drawChart(){
+    var canvas=document.getElementById('trendCanvas');var ctx=canvas.getContext('2d');
+    canvas.width=canvas.offsetWidth*2;canvas.height=400;ctx.scale(2,2);
+    var w=canvas.offsetWidth,h=200;
+    ctx.clearRect(0,0,w,h);
+    var visibleKeys=paramKeys.filter(function(k){return chartVisible[k]&&histories[k].length>=2});
+    if(!visibleKeys.length)return;
+    visibleKeys.forEach(function(k){
+        var data=histories[k];var len=data.length;if(len<2)return;
+        var p=PARAMS[k];var mn=p.critical.min,mx=p.critical.max;if(mx===mn)mx=mn+1;
+        ctx.beginPath();ctx.strokeStyle=COLORS[k];ctx.lineWidth=1.5;
+        for(var i=0;i<len;i++){var x=(i/(Math.max(len-1,1)))*w;var y=h-((data[i]-mn)/(mx-mn))*h;
+            if(i===0)ctx.moveTo(x,y);else ctx.lineTo(x,y)}
+        ctx.stroke();
+        // Safe zone band
+        ctx.fillStyle=COLORS[k]+'15';ctx.beginPath();
+        var sy1=h-((p.safe.max-mn)/(mx-mn))*h,sy2=h-((p.safe.min-mn)/(mx-mn))*h;
+        ctx.rect(0,sy1,w,sy2-sy1);ctx.fill();
+    });
+}
+
+// ── Simulation ─────────────────────────────────────────────────
+function toggleSimulation(){
+    var btn=document.getElementById('btnSim');
+    if(simInterval){clearInterval(simInterval);simInterval=null;btn.textContent='▶ Start Simulation';btn.classList.remove('active')}
+    else{simInterval=setInterval(ingestReading,800);btn.textContent='⏸ Pause';btn.classList.add('active')}
+}
+
+function injectAnomaly(type){
+    if(type==='particles'){current.particleCount=12000;anomalies.particleCount=15}
+    if(type==='hvac'){current.temperature=29;current.airChangesPerHour=10;anomalies.temperature=12;anomalies.airChangesPerHour=12}
+    if(type==='gowning'){current.gowningCompliance=55;current.personnelCount=5;anomalies.gowningCompliance=10;anomalies.personnelCount=10}
+    if(type==='combo'){current.particleCount=15000;current.temperature=30;current.humidity=78;current.gowningCompliance=60;anomalies.particleCount=15;anomalies.temperature=15;anomalies.humidity=15;anomalies.gowningCompliance=15}
+    if(!simInterval)ingestReading();
+}
+
+function resetAll(){
+    if(simInterval){clearInterval(simInterval);simInterval=null;document.getElementById('btnSim').textContent='▶ Start Simulation';document.getElementById('btnSim').classList.remove('active')}
+    current=JSON.parse(JSON.stringify(nominal));anomalies={};allSignals=[];readingN=0;
+    paramKeys.forEach(function(k){state[k]={raw:[],ema:null,cls:'SAFE'};histories[k]=[]});
+    updateBanner();updateMitigations();updateLog();drawChart();
+    paramKeys.forEach(function(k){document.getElementById('val-'+k).textContent='—';document.getElementById('cls-'+k).textContent='SAFE';document.getElementById('cls-'+k).className='badge badge-safe';document.getElementById('bar-'+k).style.width='0';document.getElementById('trend-'+k).textContent='—';document.getElementById('fc-'+k).textContent='—'});
+}
+
+window.addEventListener('resize',drawChart);
+</script>
+</body>
+</html>
