@@ -33,6 +33,15 @@ function filterAndScore(data, targets) {
     var wpFilter = tgt.wellplate || 'any';
     var tol = tgt.tolerance !== undefined ? tgt.tolerance : 0.10;
 
+    // Pre-compute threshold values outside the hot loop.
+    // For large datasets (bioprint-data.json can have thousands of records),
+    // avoiding repeated multiplication per-iteration saves measurable time.
+    var minVThreshold = minV * (1 - tol);
+    var maxDThreshold = maxD * (1 + tol);
+    var minEThreshold = minE * (1 - tol);
+    var maxLHThreshold = maxLH * (1 + tol);
+    var wpFilterNum = wpFilter !== 'any' ? parseInt(wpFilter, 10) : -1;
+
     var matches = [];
 
     for (var i = 0; i < data.length; i++) {
@@ -42,15 +51,15 @@ function filterAndScore(data, targets) {
         var pi = r.print_info;
         if (!pi.crosslinking || !pi.pressure || !pi.resolution) continue;
 
-        if (pd.livePercent < minV * (1 - tol)) continue;
-        if (pd.deadPercent > maxD * (1 + tol)) continue;
-        if (pd.elasticity < minE * (1 - tol)) continue;
-        if (pi.resolution.layerHeight > maxLH * (1 + tol)) continue;
+        if (pd.livePercent < minVThreshold) continue;
+        if (pd.deadPercent > maxDThreshold) continue;
+        if (pd.elasticity < minEThreshold) continue;
+        if (pi.resolution.layerHeight > maxLHThreshold) continue;
 
         if (clFilter === 'yes' && !pi.crosslinking.cl_enabled) continue;
         if (clFilter === 'no' && pi.crosslinking.cl_enabled) continue;
 
-        if (wpFilter !== 'any' && pi.wellplate !== parseInt(wpFilter, 10)) continue;
+        if (wpFilterNum !== -1 && pi.wellplate !== wpFilterNum) continue;
 
         var vScore = pd.livePercent / 100;
         var eScore = pd.elasticity / 100;
@@ -77,17 +86,36 @@ function computeRecipe(matches) {
         layerHeight: [], layerNum: [], viability: [], elasticity: [], deadPercent: []
     };
 
+    // Accumulate sums inline during extraction to compute mean without
+    // a separate .reduce() pass over each field array.  For a typical
+    // top-N match set (50-200 records × 9 fields), this eliminates 9
+    // extra O(n) iterations.
+    var sums = {
+        pressure1: 0, pressure2: 0, clDuration: 0, clIntensity: 0,
+        layerHeight: 0, layerNum: 0, viability: 0, elasticity: 0, deadPercent: 0
+    };
+
     for (var i = 0; i < matches.length; i++) {
         var r = matches[i].record;
-        fields.pressure1.push(r.print_info.pressure.extruder1);
-        fields.pressure2.push(r.print_info.pressure.extruder2);
-        fields.clDuration.push(r.print_info.crosslinking.cl_duration);
-        fields.clIntensity.push(r.print_info.crosslinking.cl_intensity);
-        fields.layerHeight.push(r.print_info.resolution.layerHeight);
-        fields.layerNum.push(r.print_info.resolution.layerNum);
-        fields.viability.push(r.print_data.livePercent);
-        fields.elasticity.push(r.print_data.elasticity);
-        fields.deadPercent.push(r.print_data.deadPercent);
+        var p1 = r.print_info.pressure.extruder1;
+        var p2 = r.print_info.pressure.extruder2;
+        var cd = r.print_info.crosslinking.cl_duration;
+        var ci = r.print_info.crosslinking.cl_intensity;
+        var lh = r.print_info.resolution.layerHeight;
+        var ln = r.print_info.resolution.layerNum;
+        var vi = r.print_data.livePercent;
+        var el = r.print_data.elasticity;
+        var dp = r.print_data.deadPercent;
+
+        fields.pressure1.push(p1);   sums.pressure1 += p1;
+        fields.pressure2.push(p2);   sums.pressure2 += p2;
+        fields.clDuration.push(cd);  sums.clDuration += cd;
+        fields.clIntensity.push(ci); sums.clIntensity += ci;
+        fields.layerHeight.push(lh); sums.layerHeight += lh;
+        fields.layerNum.push(ln);    sums.layerNum += ln;
+        fields.viability.push(vi);   sums.viability += vi;
+        fields.elasticity.push(el);  sums.elasticity += el;
+        fields.deadPercent.push(dp); sums.deadPercent += dp;
     }
 
     var recipe = {};
@@ -102,7 +130,7 @@ function computeRecipe(matches) {
             q3: sorted[Math.floor(n * 0.75)],
             min: sorted[0],
             max: sorted[n - 1],
-            mean: sorted.reduce(function(s, v) { return s + v; }, 0) / n,
+            mean: n > 0 ? sums[key] / n : 0,
             values: fields[key]
         };
     }
@@ -148,9 +176,17 @@ function formatRecipeText(recipe, matchCount) {
  */
 function buildHistogram(values, numBins) {
     if (values.length === 0) return [];
-    var sorted = values.slice().sort(function(a, b) { return a - b; });
-    var lo = sorted[0];
-    var hi = sorted[sorted.length - 1];
+
+    // Single-pass min/max instead of sorting the entire array.
+    // Previous implementation cloned + sorted (O(n log n)) just to read
+    // the first and last elements. For large value arrays this is a
+    // significant waste — O(n) linear scan suffices.
+    var lo = values[0];
+    var hi = values[0];
+    for (var m = 1; m < values.length; m++) {
+        if (values[m] < lo) lo = values[m];
+        else if (values[m] > hi) hi = values[m];
+    }
     var width = (hi - lo) / numBins || 1;
 
     var bins = [];
