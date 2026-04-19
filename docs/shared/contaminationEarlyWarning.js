@@ -292,6 +292,13 @@ function createContaminationEarlyWarning(options) {
             if (s.raw.length === 0) continue;
             var last = s.raw[s.raw.length - 1];
             var fc = linearForecast(s.raw, forecastSteps);
+            // Iterative min/max to avoid call-stack overflow on large
+            // history arrays (Math.min/max.apply fails above ~65K elements).
+            var pMin = s.raw[0], pMax = s.raw[0];
+            for (var mi = 1; mi < s.raw.length; mi++) {
+                if (s.raw[mi] < pMin) pMin = s.raw[mi];
+                else if (s.raw[mi] > pMax) pMax = s.raw[mi];
+            }
             report[p] = {
                 current: last,
                 ema: s.ema !== null ? Math.round(s.ema * 100) / 100 : null,
@@ -300,8 +307,8 @@ function createContaminationEarlyWarning(options) {
                 forecast: Math.round(fc * 100) / 100,
                 forecastClassification: classifyValue(fc, p),
                 readings: s.raw.length,
-                min: Math.min.apply(null, s.raw),
-                max: Math.max.apply(null, s.raw),
+                min: pMin,
+                max: pMax,
                 unit: PARAMS[p].unit
             };
         }

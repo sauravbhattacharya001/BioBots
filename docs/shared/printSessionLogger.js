@@ -58,6 +58,9 @@ function matchesFilter(session, filters) {
 
 var median = require('./stats').median;
 
+// Pre-compiled regex for CSV quoting — avoids re-compilation per cell.
+var _csvQuoteRe = /[,"\n\r]/;
+
 /* ── valid values ────────────────────────────────────────────────── */
 
 var OUTCOMES = ['success', 'partial', 'failure', 'aborted'];
@@ -167,12 +170,28 @@ function createPrintSessionLogger() {
     }
 
     /**
+     * Filter sessions without sorting — O(n) instead of O(n log n).
+     * Used by getStats and other aggregation methods that don't need
+     * ordered results.
+     */
+    function _filter(filters) {
+        filters = _stripDangerousKeys(filters || {});
+        var results = [];
+        for (var i = 0; i < sessions.length; i++) {
+            if (matchesFilter(sessions[i], filters)) results.push(sessions[i]);
+        }
+        return results;
+    }
+
+    /**
      * Get aggregate statistics, optionally filtered.
+     * Uses _filter() instead of query() to skip the O(n log n) sort
+     * that getStats doesn't need.
      * @param {Object} [filters] - Same as query filters
      * @returns {Object} Stats: total, successRate, avgViability, avgDuration, materialBreakdown, outcomeBreakdown
      */
     function getStats(filters) {
-        var data = query(filters);
+        var data = _filter(filters);
         var total = data.length;
         if (total === 0) {
             return {
@@ -218,11 +237,14 @@ function createPrintSessionLogger() {
 
     /**
      * Get success rate trend over time (daily buckets).
+     * Uses _filter() + Object.keys().sort() instead of query() with
+     * full record sort — bucket keys are sorted in O(b log b) where
+     * b is the number of distinct days, much smaller than n records.
      * @param {Object} [filters]
      * @returns {Object[]} Array of {date, total, successes, rate}
      */
     function getSuccessTrend(filters) {
-        var data = query(filters, { sortBy: 'timestamp', order: 'asc' });
+        var data = _filter(filters);
         var buckets = {};
 
         for (var i = 0; i < data.length; i++) {
@@ -345,7 +367,7 @@ function createPrintSessionLogger() {
                     }
                 }
                 // CSV-safe: quote if contains comma, newline, or quote
-                if (/[,"\n\r]/.test(v)) {
+                if (_csvQuoteRe.test(v)) {
                     v = '"' + v.replace(/"/g, '""') + '"';
                 }
                 return v;
