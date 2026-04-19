@@ -1,8 +1,13 @@
 .git
 .github
-docs
 *.md
 !README.md
 .editorconfig
 .gitattributes
 .gitignore
+node_modules
+coverage
+__tests__
+tests
+*.test.js
+jest.setup.js
