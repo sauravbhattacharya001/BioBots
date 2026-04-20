@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Experiment Risk Assessor — BioBots</title>
+    <style>
+        :root {
+            --bg: #0f172a; --surface: #1e293b; --border: #334155;
+            --text: #e2e8f0; --muted: #94a3b8; --accent: #3b82f6;
+            --accent-hover: #2563eb; --green: #22c55e; --red: #ef4444;
+            --yellow: #eab308; --orange: #f97316; --purple: #a855f7;
+            --radius: 8px;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+        .header { background: var(--surface); border-bottom: 1px solid var(--border); padding: 20px 32px; }
+        .header h1 { font-size: 24px; font-weight: 700; }
+        .header h1 span { color: var(--accent); }
+        .header p { color: var(--muted); margin-top: 4px; font-size: 14px; }
+        .main { max-width: 1400px; margin: 0 auto; padding: 24px; }
+        .grid { display: grid; grid-template-columns: 380px 1fr; gap: 24px; }
+        @media (max-width: 900px) { .grid { grid-template-columns: 1fr; } }
+        .panel { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; }
+        .panel h2 { font-size: 16px; font-weight: 600; margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
+        .form-group { margin-bottom: 14px; }
+        .form-group label { display: block; font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; margin-bottom: 4px; }
+        select, input[type=range] { width: 100%; }
+        select { background: var(--bg); border: 1px solid var(--border); color: var(--text); padding: 8px 10px; border-radius: var(--radius); font-size: 14px; }
+        input[type=range] { -webkit-appearance: none; height: 6px; background: var(--border); border-radius: 3px; outline: none; }
+        input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 16px; height: 16px; border-radius: 50%; background: var(--accent); cursor: pointer; }
+        .range-val { font-size: 13px; color: var(--accent); float: right; }
+        .btn { display: inline-flex; align-items: center; gap: 6px; padding: 10px 20px; background: var(--accent); color: #fff; border: none; border-radius: var(--radius); font-size: 14px; font-weight: 600; cursor: pointer; transition: background .2s; }
+        .btn:hover { background: var(--accent-hover); }
+        .btn-green { background: var(--green); }
+        .btn-orange { background: var(--orange); }
+        .btn-sm { padding: 6px 12px; font-size: 12px; }
+        .btn-row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 16px; }
+        .results { display: none; }
+        .results.active { display: block; }
+        .gauge-wrap { text-align: center; margin-bottom: 20px; }
+        .recommendation { text-align: center; padding: 16px; border-radius: var(--radius); margin-bottom: 20px; font-size: 18px; font-weight: 700; }
+        .recommendation.go { background: rgba(34,197,94,.15); color: var(--green); border: 1px solid var(--green); }
+        .recommendation.caution { background: rgba(234,179,8,.15); color: var(--yellow); border: 1px solid var(--yellow); }
+        .recommendation.nogo { background: rgba(248,113,113,.15); color: var(--red); border: 1px solid var(--red); }
+        .findings { margin-bottom: 20px; }
+        .finding { padding: 12px; border-radius: var(--radius); margin-bottom: 8px; border-left: 4px solid; }
+        .finding.critical { border-color: var(--red); background: rgba(248,113,113,.08); }
+        .finding.high { border-color: var(--orange); background: rgba(249,115,22,.08); }
+        .finding.medium { border-color: var(--yellow); background: rgba(234,179,8,.08); }
+        .finding.low { border-color: var(--green); background: rgba(34,197,94,.08); }
+        .finding .severity { font-size: 11px; text-transform: uppercase; font-weight: 700; margin-bottom: 4px; }
+        .finding .desc { font-size: 14px; margin-bottom: 4px; }
+        .finding .mitigation { font-size: 12px; color: var(--muted); }
+        .heatmap-wrap { margin-bottom: 20px; }
+        .mitigations li { padding: 8px 0; border-bottom: 1px solid var(--border); font-size: 14px; list-style: none; }
+        .mitigations li .effort { font-size: 11px; padding: 2px 8px; border-radius: 10px; margin-left: 8px; }
+        .effort-quick { background: rgba(34,197,94,.2); color: var(--green); }
+        .effort-moderate { background: rgba(234,179,8,.2); color: var(--yellow); }
+        .effort-significant { background: rgba(248,113,113,.2); color: var(--red); }
+        .compare-section { margin-top: 24px; }
+        .compare-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 12px; }
+        .compare-card { background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px; font-size: 13px; }
+        .compare-card h4 { color: var(--accent); margin-bottom: 8px; }
+        .tag { display: inline-block; font-size: 11px; padding: 2px 8px; border-radius: 10px; background: rgba(59,130,246,.2); color: var(--accent); margin: 2px; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🛡️ Experiment <span>Risk Assessor</span></h1>
+        <p>Autonomous pre-experiment risk analysis — identify failure points before they happen</p>
+    </div>
+    <div class="main">
+        <div class="grid">
+            <div>
+                <div class="panel">
+                    <h2>⚙️ Experiment Configuration</h2>
+                    <div class="form-group">
+                        <label>Cell Type</label>
+                        <select id="cellType">
+                            <option value="HeLa">HeLa</option>
+                            <option value="MSC">MSC (Mesenchymal Stem Cell)</option>
+                            <option value="iPSC">iPSC</option>
+                            <option value="Chondrocyte">Chondrocyte</option>
+                            <option value="Hepatocyte">Hepatocyte</option>
+                            <option value="Fibroblast">Fibroblast</option>
+                            <option value="Keratinocyte">Keratinocyte</option>
+                            <option value="Endothelial">Endothelial</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Bioink Material</label>
+                        <select id="material">
+                            <option value="Alginate">Alginate</option>
+                            <option value="GelMA">GelMA</option>
+                            <option value="Collagen">Collagen</option>
+                            <option value="PEGDA">PEGDA</option>
+                            <option value="Silk Fibroin">Silk Fibroin</option>
+                            <option value="Hyaluronic Acid">Hyaluronic Acid</option>
+                            <option value="Fibrin">Fibrin</option>
+                            <option value="Matrigel">Matrigel</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Print Temperature <span class="range-val" id="tempVal">37°C</span></label>
+                        <input type="range" id="temperature" min="15" max="45" value="37">
+                    </div>
+                    <div class="form-group">
+                        <label>Print Pressure <span class="range-val" id="pressVal">50 kPa</span></label>
+                        <input type="range" id="pressure" min="10" max="200" value="50">
+                    </div>
+                    <div class="form-group">
+                        <label>Nozzle Diameter</label>
+                        <select id="nozzle">
+                            <option value="100">100 µm</option>
+                            <option value="200">200 µm</option>
+                            <option value="300" selected>300 µm</option>
+                            <option value="400">400 µm</option>
+                            <option value="500">500 µm</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Layer Height <span class="range-val" id="layerVal">200 µm</span></label>
+                        <input type="range" id="layerHeight" min="50" max="500" value="200" step="10">
+                    </div>
+                    <div class="form-group">
+                        <label>Crosslinking Method</label>
+                        <select id="crosslink">
+                            <option value="UV">UV</option>
+                            <option value="Ionic" selected>Ionic (CaCl₂)</option>
+                            <option value="Thermal">Thermal</option>
+                            <option value="Enzymatic">Enzymatic</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Target Viability <span class="range-val" id="viabVal">85%</span></label>
+                        <input type="range" id="viability" min="50" max="100" value="85">
+                    </div>
+                    <div class="form-group">
+                        <label>Experiment Duration <span class="range-val" id="durVal">7 days</span></label>
+                        <input type="range" id="duration" min="1" max="30" value="7">
+                    </div>
+                    <div class="btn-row">
+                        <button class="btn" onclick="assessRisks()">🔍 Assess Risks</button>
+                        <button class="btn btn-green btn-sm" onclick="saveComparison()">💾 Save Config</button>
+                        <button class="btn btn-orange btn-sm" onclick="exportReport()">📤 Export JSON</button>
+                    </div>
+                </div>
+            </div>
+            <div>
+                <div class="results" id="results">
+                    <div class="panel gauge-wrap">
+                        <canvas id="gaugeCanvas" width="240" height="140"></canvas>
+                        <div id="scoreText" style="font-size:28px;font-weight:700;margin-top:-10px;">—</div>
+                        <div style="font-size:12px;color:var(--muted);">Overall Risk Score</div>
+                    </div>
+                    <div class="panel recommendation" id="recommendation">—</div>
+                    <div class="panel">
+                        <h2>📊 Risk Heatmap</h2>
+                        <div class="heatmap-wrap"><canvas id="heatmapCanvas" width="600" height="200"></canvas></div>
+                    </div>
+                    <div class="panel">
+                        <h2>⚠️ Findings</h2>
+                        <div class="findings" id="findings"></div>
+                    </div>
+                    <div class="panel">
+                        <h2>🛠️ Mitigation Planner</h2>
+                        <ul class="mitigations" id="mitigations"></ul>
+                    </div>
+                </div>
+                <div class="panel compare-section" id="compareSection" style="display:none;">
+                    <h2>📋 Comparison (up to 3)</h2>
+                    <div class="compare-grid" id="compareGrid"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+<script>
+// Slider live values
+document.getElementById('temperature').oninput = e => document.getElementById('tempVal').textContent = e.target.value + '°C';
+document.getElementById('pressure').oninput = e => document.getElementById('pressVal').textContent = e.target.value + ' kPa';
+document.getElementById('layerHeight').oninput = e => document.getElementById('layerVal').textContent = e.target.value + ' µm';
+document.getElementById('viability').oninput = e => document.getElementById('viabVal').textContent = e.target.value + '%';
+document.getElementById('duration').oninput = e => document.getElementById('durVal').textContent = e.target.value + ' days';
+
+// Knowledge base
+const CELL_TEMP_RANGES = {
+    HeLa:[35,39], MSC:[36,38], iPSC:[36,38], Chondrocyte:[35,38],
+    Hepatocyte:[35,38], Fibroblast:[35,39], Keratinocyte:[35,38], Endothelial:[36,38]
+};
+const CELL_PRESSURE_MAX = {
+    HeLa:150, MSC:100, iPSC:80, Chondrocyte:120,
+    Hepatocyte:90, Fibroblast:140, Keratinocyte:110, Endothelial:80
+};
+const MATERIAL_VISCOSITY = {
+    Alginate:3, GelMA:4, Collagen:5, PEGDA:2, 'Silk Fibroin':6, 'Hyaluronic Acid':4, Fibrin:3, Matrigel:7
+};
+const MATERIAL_CROSSLINK_COMPAT = {
+    Alginate:['Ionic'], GelMA:['UV'], Collagen:['Thermal','Enzymatic'], PEGDA:['UV'],
+    'Silk Fibroin':['Enzymatic','Ionic'], 'Hyaluronic Acid':['UV','Enzymatic'], Fibrin:['Enzymatic'], Matrigel:['Thermal']
+};
+const SENSITIVE_CELLS = ['iPSC','MSC','Endothelial','Hepatocyte'];
+
+let lastReport = null;
+let savedConfigs = [];
+
+function getConfig() {
+    return {
+        cellType: document.getElementById('cellType').value,
+        material: document.getElementById('material').value,
+        temperature: +document.getElementById('temperature').value,
+        pressure: +document.getElementById('pressure').value,
+        nozzle: +document.getElementById('nozzle').value,
+        layerHeight: +document.getElementById('layerHeight').value,
+        crosslink: document.getElementById('crosslink').value,
+        viability: +document.getElementById('viability').value,
+        duration: +document.getElementById('duration').value
+    };
+}
+
+function assessRisks() {
+    const c = getConfig();
+    const findings = [];
+
+    // 1. Temperature compatibility
+    const [tMin, tMax] = CELL_TEMP_RANGES[c.cellType];
+    if (c.temperature < tMin - 3 || c.temperature > tMax + 3) {
+        findings.push({severity:'critical', category:'Temperature', desc:`${c.cellType} cells require ${tMin}-${tMax}°C. Printing at ${c.temperature}°C risks severe cell death.`, mitigation:'Adjust print temperature to cell-optimal range or use a heated/cooled printhead.'});
+    } else if (c.temperature < tMin || c.temperature > tMax) {
+        findings.push({severity:'high', category:'Temperature', desc:`${c.temperature}°C is outside optimal range (${tMin}-${tMax}°C) for ${c.cellType}.`, mitigation:'Fine-tune temperature closer to physiological optimum.'});
+    }
+
+    // 2. Pressure vs cell viability
+    const pMax = CELL_PRESSURE_MAX[c.cellType];
+    if (c.pressure > pMax * 1.3) {
+        findings.push({severity:'critical', category:'Pressure', desc:`${c.pressure} kPa far exceeds ${c.cellType} tolerance (~${pMax} kPa max). Expect significant cell damage.`, mitigation:'Reduce pressure or switch to a larger nozzle diameter.'});
+    } else if (c.pressure > pMax) {
+        findings.push({severity:'high', category:'Pressure', desc:`${c.pressure} kPa exceeds recommended max (${pMax} kPa) for ${c.cellType}.`, mitigation:'Consider reducing pressure by 20-30% or using pneumatic pulsing.'});
+    }
+
+    // 3. Crosslinking compatibility
+    const compat = MATERIAL_CROSSLINK_COMPAT[c.material] || [];
+    if (!compat.includes(c.crosslink)) {
+        findings.push({severity:'critical', category:'Crosslinking', desc:`${c.crosslink} crosslinking is incompatible with ${c.material}. Construct will not solidify properly.`, mitigation:`Use ${compat.join(' or ')} crosslinking for ${c.material}.`});
+    }
+
+    // 4. Nozzle clogging risk
+    const visc = MATERIAL_VISCOSITY[c.material];
+    const clogRisk = visc / (c.nozzle / 100);
+    if (clogRisk > 4) {
+        findings.push({severity:'high', category:'Nozzle Clogging', desc:`High viscosity ${c.material} with ${c.nozzle}µm nozzle has high clog probability.`, mitigation:'Use a wider nozzle (≥300µm) or reduce bioink concentration.'});
+    } else if (clogRisk > 2.5) {
+        findings.push({severity:'medium', category:'Nozzle Clogging', desc:`Moderate clogging risk with ${c.material} at ${c.nozzle}µm.`, mitigation:'Pre-warm bioink or use anti-clog coating on nozzle tip.'});
+    }
+
+    // 5. Shear stress (pressure + small nozzle)
+    const shear = (c.pressure / 50) * (300 / c.nozzle);
+    if (shear > 4 && SENSITIVE_CELLS.includes(c.cellType)) {
+        findings.push({severity:'high', category:'Shear Stress', desc:`High shear stress on sensitive ${c.cellType} cells (pressure ${c.pressure} kPa, nozzle ${c.nozzle}µm).`, mitigation:'Increase nozzle diameter or reduce pressure to lower shear forces.'});
+    } else if (shear > 3) {
+        findings.push({severity:'medium', category:'Shear Stress', desc:`Elevated shear stress may reduce viability by 10-20%.`, mitigation:'Consider coaxial sheath flow or tapered nozzle geometry.'});
+    }
+
+    // 6. UV exposure risk
+    if (c.crosslink === 'UV') {
+        if (SENSITIVE_CELLS.includes(c.cellType)) {
+            findings.push({severity:'high', category:'UV Damage', desc:`UV crosslinking poses DNA damage risk to sensitive ${c.cellType} cells.`, mitigation:'Minimize exposure time (<30s), use visible-light photoinitiators (LAP), or switch to enzymatic crosslinking.'});
+        } else {
+            findings.push({severity:'medium', category:'UV Damage', desc:'UV exposure may cause minor DNA damage. Monitor viability post-crosslink.', mitigation:'Use lowest effective UV intensity and shortest exposure duration.'});
+        }
+    }
+
+    // 7. Layer height vs structural integrity
+    if (c.layerHeight > 350 && visc < 4) {
+        findings.push({severity:'medium', category:'Structural', desc:`Layer height ${c.layerHeight}µm may cause layer slumping with low-viscosity ${c.material}.`, mitigation:'Reduce layer height to ≤300µm or increase bioink concentration.'});
+    }
+    if (c.layerHeight < 100 && c.nozzle > 300) {
+        findings.push({severity:'low', category:'Structural', desc:'Layer height much smaller than nozzle — over-compression may occur.', mitigation:'Match layer height to ~60-80% of nozzle diameter for best results.'});
+    }
+
+    // 8. Duration vs nutrient diffusion
+    if (c.duration > 14) {
+        findings.push({severity:'high', category:'Nutrient Diffusion', desc:`${c.duration}-day culture risks necrotic core in thick constructs (>200µm diffusion limit).`, mitigation:'Incorporate microchannels, use perfusion bioreactor, or limit construct thickness.'});
+    } else if (c.duration > 7) {
+        findings.push({severity:'medium', category:'Nutrient Diffusion', desc:'Extended culture may face diffusion limitations in dense regions.', mitigation:'Plan media changes every 48h and monitor construct thickness.'});
+    }
+
+    // 9. Contamination risk
+    if (c.duration > 20) {
+        findings.push({severity:'high', category:'Contamination', desc:`${c.duration}-day experiment has elevated contamination probability.`, mitigation:'Use antibiotics in first 48h, laminar flow handling, and regular sterility checks.'});
+    } else if (c.duration > 10) {
+        findings.push({severity:'medium', category:'Contamination', desc:'Moderate contamination risk over extended culture period.', mitigation:'Implement aseptic technique checkpoints every 3 days.'});
+    }
+
+    // 10. Thermal shock
+    if (Math.abs(c.temperature - 37) > 5) {
+        findings.push({severity:'medium', category:'Thermal Shock', desc:`Printing at ${c.temperature}°C then transferring to 37°C incubator creates thermal gradient.`, mitigation:'Gradually acclimate construct post-print using staged temperature ramp.'});
+    }
+
+    // 11. High viability target reality check
+    if (c.viability > 90 && c.pressure > 100) {
+        findings.push({severity:'high', category:'Viability Target', desc:`Target >${c.viability}% viability is unrealistic at ${c.pressure} kPa pressure.`, mitigation:'Lower target to 80-85% or significantly reduce printing pressure.'});
+    } else if (c.viability > 95) {
+        findings.push({severity:'medium', category:'Viability Target', desc:'>95% viability is challenging for any extrusion bioprinting setup.', mitigation:'Consider drop-on-demand or laser-assisted bioprinting for highest viability.'});
+    }
+
+    // 12. Material-cell compatibility
+    if (c.material === 'PEGDA' && SENSITIVE_CELLS.includes(c.cellType)) {
+        findings.push({severity:'medium', category:'Biocompatibility', desc:`PEGDA can be cytotoxic to sensitive ${c.cellType} — unreacted monomers are harmful.`, mitigation:'Ensure thorough washing post-crosslink and use cell-adhesion peptide modifications (RGD).'});
+    }
+    if (c.material === 'Matrigel' && c.temperature > 25) {
+        findings.push({severity:'high', category:'Material Handling', desc:`Matrigel gels above 10°C — printing at ${c.temperature}°C will cause premature gelation.`, mitigation:'Keep Matrigel on ice, use cooled printhead (4-10°C), print quickly.'});
+    }
+
+    // 13. Nozzle/layer mismatch
+    if (c.layerHeight > c.nozzle * 0.9) {
+        findings.push({severity:'medium', category:'Print Quality', desc:'Layer height approaching nozzle diameter — poor layer adhesion expected.', mitigation:'Set layer height to 50-80% of nozzle diameter.'});
+    }
+
+    // If no findings, add a low one
+    if (findings.length === 0) {
+        findings.push({severity:'low', category:'General', desc:'No significant risks detected. Configuration appears well-optimized.', mitigation:'Proceed with standard pre-print checklist and sterility verification.'});
+    }
+
+    // Score calculation
+    const severityScores = {critical:25, high:15, medium:8, low:2};
+    let rawScore = findings.reduce((s,f) => s + severityScores[f.severity], 0);
+    const score = Math.min(100, rawScore);
+    const confidence = Math.max(60, 95 - findings.filter(f=>f.severity==='medium').length * 3);
+
+    let recClass, recText;
+    if (score >= 60) { recClass='nogo'; recText=`🚫 NO-GO — Risk Score ${score}/100 (${confidence}% confidence)`; }
+    else if (score >= 30) { recClass='caution'; recText=`⚠️ CAUTION — Risk Score ${score}/100 (${confidence}% confidence)`; }
+    else { recClass='go'; recText=`✅ GO — Risk Score ${score}/100 (${confidence}% confidence)`; }
+
+    // Render
+    document.getElementById('results').classList.add('active');
+    document.getElementById('recommendation').className = 'panel recommendation ' + recClass;
+    document.getElementById('recommendation').textContent = recText;
+    document.getElementById('scoreText').textContent = score + '/100';
+    document.getElementById('scoreText').style.color = score >= 60 ? 'var(--red)' : score >= 30 ? 'var(--yellow)' : 'var(--green)';
+
+    drawGauge(score);
+    drawHeatmap(findings);
+
+    // Findings list
+    const fDiv = document.getElementById('findings');
+    fDiv.innerHTML = findings.sort((a,b) => severityScores[b.severity]-severityScores[a.severity])
+        .map(f => `<div class="finding ${f.severity}"><div class="severity">${f.severity} — ${f.category}</div><div class="desc">${f.desc}</div><div class="mitigation">💡 ${f.mitigation}</div></div>`).join('');
+
+    // Mitigations planner
+    const mUl = document.getElementById('mitigations');
+    const effortMap = {critical:'significant',high:'moderate',medium:'quick',low:'quick'};
+    mUl.innerHTML = findings.filter(f=>f.severity!=='low').sort((a,b)=>severityScores[b.severity]-severityScores[a.severity])
+        .map((f,i) => {const eff=effortMap[f.severity]; return `<li>${i+1}. ${f.mitigation} <span class="effort effort-${eff}">${eff}</span></li>`;}).join('');
+
+    lastReport = {timestamp:new Date().toISOString(), config:c, score, confidence, recommendation:recText, findings};
+}
+
+function drawGauge(score) {
+    const canvas = document.getElementById('gaugeCanvas');
+    const ctx = canvas.getContext('2d');
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    const cx=120, cy=120, r=90;
+    // Background arc
+    ctx.beginPath(); ctx.arc(cx,cy,r,Math.PI,0); ctx.lineWidth=18; ctx.strokeStyle='#334155'; ctx.stroke();
+    // Score arc
+    const angle = Math.PI + (score/100)*Math.PI;
+    const grad = ctx.createLinearGradient(30,0,210,0);
+    grad.addColorStop(0,'#22c55e'); grad.addColorStop(0.5,'#eab308'); grad.addColorStop(1,'#ef4444');
+    ctx.beginPath(); ctx.arc(cx,cy,r,Math.PI,angle); ctx.lineWidth=18; ctx.strokeStyle=grad; ctx.lineCap='round'; ctx.stroke();
+}
+
+function drawHeatmap(findings) {
+    const canvas = document.getElementById('heatmapCanvas');
+    const ctx = canvas.getContext('2d');
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    const categories = [...new Set(findings.map(f=>f.category))];
+    const sevLevels = ['low','medium','high','critical'];
+    const colors = {low:'#22c55e',medium:'#eab308',high:'#f97316',critical:'#ef4444'};
+    const cw=80, ch=35, ox=120, oy=30;
+    // Labels
+    ctx.font='11px sans-serif'; ctx.fillStyle='#94a3b8'; ctx.textAlign='right';
+    categories.forEach((cat,i) => ctx.fillText(cat, ox-8, oy+i*ch+22));
+    ctx.textAlign='center';
+    sevLevels.forEach((s,j) => ctx.fillText(s, ox+j*cw+cw/2, oy-8));
+    // Cells
+    categories.forEach((cat,i) => {
+        sevLevels.forEach((sev,j) => {
+            const has = findings.some(f=>f.category===cat && f.severity===sev);
+            ctx.fillStyle = has ? colors[sev] : '#1e293b';
+            ctx.globalAlpha = has ? 0.85 : 0.3;
+            ctx.fillRect(ox+j*cw+2, oy+i*ch+2, cw-4, ch-4);
+        });
+    });
+    ctx.globalAlpha=1;
+}
+
+function saveComparison() {
+    if (savedConfigs.length >= 3) { savedConfigs.shift(); }
+    const c = getConfig();
+    if (!lastReport) assessRisks();
+    savedConfigs.push({config:c, score:lastReport.score, recommendation:lastReport.recommendation, findingCount:lastReport.findings.length});
+    renderComparisons();
+}
+
+function renderComparisons() {
+    const sec = document.getElementById('compareSection');
+    const grid = document.getElementById('compareGrid');
+    if (savedConfigs.length === 0) { sec.style.display='none'; return; }
+    sec.style.display='block';
+    grid.innerHTML = savedConfigs.map((s,i) => `<div class="compare-card"><h4>Config #${i+1}</h4><div><span class="tag">${s.config.cellType}</span><span class="tag">${s.config.material}</span><span class="tag">${s.config.temperature}°C</span><span class="tag">${s.config.pressure}kPa</span><span class="tag">${s.config.nozzle}µm</span></div><div style="margin-top:8px;font-weight:600;">Score: ${s.score}/100 • ${s.findingCount} findings</div></div>`).join('');
+}
+
+function exportReport() {
+    if (!lastReport) { assessRisks(); }
+    const blob = new Blob([JSON.stringify(lastReport, null, 2)], {type:'application/json'});
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `risk-assessment-${Date.now()}.json`;
+    a.click();
+}
+</script>
+</body>
+</html>
