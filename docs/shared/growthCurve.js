@@ -16,38 +16,9 @@
 
 // ── helpers ────────────────────────────────────────────────────────
 
-function mean(arr) {
-    if (!arr.length) return 0;
-    var s = 0;
-    for (var i = 0; i < arr.length; i++) s += arr[i];
-    return s / arr.length;
-}
-
-function linearRegression(xs, ys) {
-    // Single-pass regression using algebraic identities.
-    // Previous implementation made 3 passes: mean(), regression sums, R² sums.
-    // This computes slope, intercept, and R² from running accumulators in O(n)
-    // instead of O(3n), which matters for large growth datasets.
-    var n = xs.length;
-    var sumX = 0, sumY = 0, sumXY = 0, sumX2 = 0, sumY2 = 0;
-    for (var i = 0; i < n; i++) {
-        sumX  += xs[i];
-        sumY  += ys[i];
-        sumXY += xs[i] * ys[i];
-        sumX2 += xs[i] * xs[i];
-        sumY2 += ys[i] * ys[i];
-    }
-    var denom = n * sumX2 - sumX * sumX;
-    var slope = denom === 0 ? 0 : (n * sumXY - sumX * sumY) / denom;
-    var intercept = (sumY - slope * sumX) / n;
-    // R² from single-pass sums (algebraic identity avoids second/third loop)
-    var ssTot = sumY2 - (sumY * sumY) / n;
-    var ssRes = sumY2 - 2 * slope * sumXY - 2 * intercept * sumY
-              + slope * slope * sumX2 + 2 * slope * intercept * sumX
-              + n * intercept * intercept;
-    var r2 = ssTot === 0 ? 1 : 1 - ssRes / ssTot;
-    return { slope: slope, intercept: intercept, r2: r2 };
-}
+var _stats = require('./stats');
+var mean = _stats.mean;
+var linearRegression = _stats.linearRegression;
 
 function round(v, d) {
     var f = Math.pow(10, d || 4);

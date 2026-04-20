@@ -106,9 +106,42 @@ function percentile(arr, p) {
     return sorted[lo] + (sorted[hi] - sorted[lo]) * (idx - lo);
 }
 
+/**
+ * Ordinary least-squares linear regression (single-pass).
+ *
+ * Computes slope, intercept, and R² from running accumulators in one
+ * O(n) pass instead of the traditional multi-pass approach.  Uses the
+ * algebraic identity for R² to avoid recomputing predicted values.
+ *
+ * @param {number[]} xs - Independent variable values.
+ * @param {number[]} ys - Dependent variable values (same length as xs).
+ * @returns {{ slope: number, intercept: number, r2: number }}
+ */
+function linearRegression(xs, ys) {
+    var n = xs.length;
+    var sumX = 0, sumY = 0, sumXY = 0, sumX2 = 0, sumY2 = 0;
+    for (var i = 0; i < n; i++) {
+        sumX  += xs[i];
+        sumY  += ys[i];
+        sumXY += xs[i] * ys[i];
+        sumX2 += xs[i] * xs[i];
+        sumY2 += ys[i] * ys[i];
+    }
+    var denom = n * sumX2 - sumX * sumX;
+    var slope = denom === 0 ? 0 : (n * sumXY - sumX * sumY) / denom;
+    var intercept = (sumY - slope * sumX) / n;
+    var ssTot = sumY2 - (sumY * sumY) / n;
+    var ssRes = sumY2 - 2 * slope * sumXY - 2 * intercept * sumY
+              + slope * slope * sumX2 + 2 * slope * intercept * sumX
+              + n * intercept * intercept;
+    var r2 = ssTot === 0 ? 1 : 1 - ssRes / ssTot;
+    return { slope: slope, intercept: intercept, r2: r2 };
+}
+
 exports.mean = mean;
 exports.median = median;
 exports.cv = cv;
 exports.stddev = stddev;
 exports.pstddev = pstddev;
 exports.percentile = percentile;
+exports.linearRegression = linearRegression;

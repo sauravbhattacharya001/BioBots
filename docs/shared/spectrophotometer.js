@@ -46,30 +46,12 @@ var _stats = require('./stats');
 var mean = _stats.mean;
 var stdDev = _stats.pstddev;
 
-/* Simple linear regression: y = slope * x + intercept */
+/* Linear regression — delegates to shared stats module.
+ * Aliases r2 → rSquared for backward compatibility. */
+var _linReg = _stats.linearRegression;
 function linearRegression(xVals, yVals) {
-  var n = xVals.length;
-  var sumX = 0, sumY = 0, sumXY = 0, sumX2 = 0;
-  for (var i = 0; i < n; i++) {
-    sumX += xVals[i];
-    sumY += yVals[i];
-    sumXY += xVals[i] * yVals[i];
-    sumX2 += xVals[i] * xVals[i];
-  }
-  var slope = (n * sumXY - sumX * sumY) / (n * sumX2 - sumX * sumX);
-  var intercept = (sumY - slope * sumX) / n;
-
-  /* R² */
-  var yMean = sumY / n;
-  var ssRes = 0, ssTot = 0;
-  for (var j = 0; j < n; j++) {
-    var predicted = slope * xVals[j] + intercept;
-    ssRes += (yVals[j] - predicted) * (yVals[j] - predicted);
-    ssTot += (yVals[j] - yMean) * (yVals[j] - yMean);
-  }
-  var rSquared = ssTot === 0 ? 1 : 1 - ssRes / ssTot;
-
-  return { slope: slope, intercept: intercept, rSquared: rSquared };
+  var result = _linReg(xVals, yVals);
+  return { slope: result.slope, intercept: result.intercept, rSquared: result.r2 };
 }
 
 /* ---------- OD600 Cell Density ---------- */

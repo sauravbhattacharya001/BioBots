@@ -65,29 +65,13 @@ function validateArray(arr, name, minLen) {
 /**
  * Simple linear regression: y = slope * x + intercept
  * Returns { slope, intercept, rSquared }
+ * Delegates to shared stats.linearRegression and aliases r2 → rSquared
+ * for backward compatibility with existing consumers.
  */
+var _linReg = require('./stats').linearRegression;
 function linearRegression(xs, ys) {
-  var n = xs.length;
-  var sumX = 0, sumY = 0, sumXY = 0, sumX2 = 0, sumY2 = 0;
-  for (var i = 0; i < n; i++) {
-    sumX  += xs[i];
-    sumY  += ys[i];
-    sumXY += xs[i] * ys[i];
-    sumX2 += xs[i] * xs[i];
-    sumY2 += ys[i] * ys[i];
-  }
-  var denom = n * sumX2 - sumX * sumX;
-  var slope = denom === 0 ? 0 : (n * sumXY - sumX * sumY) / denom;
-  var intercept = (sumY - slope * sumX) / n;
-  // R² from single-pass sums via algebraic identity — eliminates the
-  // second O(n) loop that recomputed predicted values and residuals.
-  // ssRes = Σ(y - ŷ)² expanded algebraically using slope/intercept:
-  var ssTot = sumY2 - (sumY * sumY) / n;
-  var ssRes = sumY2 - 2 * slope * sumXY - 2 * intercept * sumY
-            + slope * slope * sumX2 + 2 * slope * intercept * sumX
-            + n * intercept * intercept;
-  var rSquared = ssTot === 0 ? 1 : 1 - ssRes / ssTot;
-  return { slope: slope, intercept: intercept, rSquared: rSquared };
+  var result = _linReg(xs, ys);
+  return { slope: result.slope, intercept: result.intercept, rSquared: result.r2 };
 }
 
 /* ---------- Core functions ---------- */
