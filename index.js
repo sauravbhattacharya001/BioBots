@@ -78,6 +78,7 @@ var manifest = [
     ['createPrintResolutionCalculator', './docs/shared/printResolution',       'createPrintResolutionCalculator'],
     ['createOutcomePredictor',          './docs/shared/outcomePredictor',      'createOutcomePredictor'],
     ['createContaminationEarlyWarning', './docs/shared/contaminationEarlyWarning', 'createContaminationEarlyWarning'],
+    ['createAnomalyCorrelator',          './docs/shared/anomalyCorrelator',          'createAnomalyCorrelator'],
 ];
 
 // ── Pre-computed lookup structures ─────────────────────────────────
