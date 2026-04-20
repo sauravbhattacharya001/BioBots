@@ -69,18 +69,21 @@ function createAnomalyCorrelator(options) {
   var minCorrelation = typeof opts.minCorrelation === 'number' ? opts.minCorrelation : 0.3;
 
   var events = [];
+  var eventIndex = {}; // id → event object (O(1) lookup for getCorrelation)
   var pairCounts = {}; // "modA->modB" => count of co-occurrences
 
   function addEvent(evt) {
     validateEvent(evt);
-    events.push({
+    var stored = {
       id: evt.id,
       module: evt.module,
       type: evt.type,
       severity: evt.severity,
       timestamp: evt.timestamp,
       metadata: evt.metadata || {}
-    });
+    };
+    events.push(stored);
+    eventIndex[stored.id] = stored;
   }
 
   function getEvents(module) {
@@ -93,6 +96,7 @@ function createAnomalyCorrelator(options) {
 
   function clear() {
     events = [];
+    eventIndex = {};
     pairCounts = {};
   }
 
@@ -157,8 +161,7 @@ function createAnomalyCorrelator(options) {
     });
 
     // Root causes: high outgoing, low incoming
-    var evtMap = {};
-    for (var _e = 0; _e < events.length; _e++) evtMap[events[_e].id] = events[_e];
+    var evtMap = eventIndex;
 
     var rootCauses = [];
     Object.keys(outgoing).forEach(function (id) {
@@ -296,11 +299,8 @@ function createAnomalyCorrelator(options) {
   }
 
   function getCorrelation(idA, idB) {
-    var evtA = null, evtB = null;
-    for (var i = 0; i < events.length; i++) {
-      if (events[i].id === idA) evtA = events[i];
-      if (events[i].id === idB) evtB = events[i];
-    }
+    var evtA = eventIndex[idA] || null;
+    var evtB = eventIndex[idB] || null;
     if (!evtA || !evtB) return null;
     var gap = Math.abs(evtA.timestamp - evtB.timestamp);
     if (gap > timeWindowMs) return { strength: 0, pattern: 'none' };
