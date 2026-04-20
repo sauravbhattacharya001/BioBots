@@ -73,6 +73,9 @@ var PARAM_WEIGHTS = {
     nozzleDiameter: 0.15
 };
 
+// Hoisted outside predict() to avoid re-creating on every call.
+var SIMILAR_CHECK_KEYS = ['temperature', 'cellDensity', 'speed', 'pressure'];
+
 var CONFIDENCE_LEVELS = [
     { min: 0, label: 'very low', description: 'Insufficient data — treat as rough estimate' },
     { min: 5, label: 'low', description: 'Limited data — moderate uncertainty' },
@@ -235,14 +238,16 @@ function createOutcomePredictor() {
             // Refine with similar-parameter experiments (within 20% of each param).
             // Uses the per-material index instead of scanning all outcomes,
             // reducing search space from O(total) to O(material-count).
+            // Counts similar experiments and successes in a single pass
+            // instead of collecting into an array then filtering again.
             var materialOutcomes = outcomesByMaterial[mat] || [];
-            var similar = [];
+            var similarCount = 0;
+            var similarSuccesses = 0;
             for (var si = 0; si < materialOutcomes.length; si++) {
                 var o = materialOutcomes[si];
                 var close = true;
-                var checkKeys = ['temperature', 'cellDensity', 'speed', 'pressure'];
-                for (var j = 0; j < checkKeys.length; j++) {
-                    var k = checkKeys[j];
+                for (var j = 0; j < SIMILAR_CHECK_KEYS.length; j++) {
+                    var k = SIMILAR_CHECK_KEYS[j];
                     if (params[k] != null && o[k] != null) {
                         var ref = Math.abs(params[k]) || 1;
                         if (Math.abs(o[k] - params[k]) / ref > 0.2) {
@@ -251,13 +256,15 @@ function createOutcomePredictor() {
                         }
                     }
                 }
-                if (close) similar.push(o);
+                if (close) {
+                    similarCount++;
+                    if (o.success) similarSuccesses++;
+                }
             }
 
-            if (similar.length >= 3) {
-                var simSuccess = similar.filter(function (o) { return o.success; }).length;
-                historicalScore = simSuccess / similar.length;
-                matchingOutcomes = similar.length;
+            if (similarCount >= 3) {
+                historicalScore = similarSuccesses / similarCount;
+                matchingOutcomes = similarCount;
             }
         }
 
