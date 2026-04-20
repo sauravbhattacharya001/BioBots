@@ -23,6 +23,14 @@ var CAUSAL_RULES = [
   { source: 'contamination', target: 'printQuality', weight: 0.4, explanation: 'Contaminated bioink degrades print fidelity' }
 ];
 
+// Pre-built causal rule lookup: "source->target" → weight
+// Eliminates repeated O(CAUSAL_RULES.length) linear scans inside the
+// O(n²) event-pair loop in analyze() and computeCorrelationStrength().
+var CAUSAL_WEIGHT_MAP = {};
+for (var _r = 0; _r < CAUSAL_RULES.length; _r++) {
+  CAUSAL_WEIGHT_MAP[CAUSAL_RULES[_r].source + '->' + CAUSAL_RULES[_r].target] = CAUSAL_RULES[_r].weight;
+}
+
 var RECOMMENDATIONS = {
   'environment->contamination': 'Check HVAC filters and room pressurization in affected area',
   'equipment->printQuality': 'Schedule equipment maintenance and recalibration',
@@ -92,16 +100,9 @@ function createAnomalyCorrelator(options) {
     // Base: temporal closeness (1 at 0 gap, decays to 0 at timeWindowMs)
     var temporal = 1 - (timeGap / timeWindowMs);
 
-    // Causal bonus
-    var causalWeight = 0;
+    // Causal bonus — O(1) lookup instead of linear scan over CAUSAL_RULES
     var pairKey = evtA.module + '->' + evtB.module;
-    for (var i = 0; i < CAUSAL_RULES.length; i++) {
-      var rule = CAUSAL_RULES[i];
-      if (rule.source === evtA.module && rule.target === evtB.module) {
-        causalWeight = rule.weight;
-        break;
-      }
-    }
+    var causalWeight = CAUSAL_WEIGHT_MAP[pairKey] || 0;
 
     // Recurrence bonus from historical co-occurrences
     var recurrence = Math.min((pairCounts[pairKey] || 0) * 0.1, 0.3);
@@ -127,15 +128,9 @@ function createAnomalyCorrelator(options) {
 
         var strength = computeCorrelationStrength(sorted[i], sorted[j], gap);
         if (strength >= minCorrelation) {
-          // Determine pattern
-          var pattern = 'temporal';
+          // Determine pattern — O(1) lookup instead of linear scan
           var pairKey = sorted[i].module + '->' + sorted[j].module;
-          for (var k = 0; k < CAUSAL_RULES.length; k++) {
-            if (CAUSAL_RULES[k].source === sorted[i].module && CAUSAL_RULES[k].target === sorted[j].module) {
-              pattern = 'causal';
-              break;
-            }
-          }
+          var pattern = CAUSAL_WEIGHT_MAP[pairKey] ? 'causal' : 'temporal';
 
           correlations.push({
             eventA: sorted[i].id,
@@ -163,7 +158,7 @@ function createAnomalyCorrelator(options) {
 
     // Root causes: high outgoing, low incoming
     var evtMap = {};
-    events.forEach(function (e) { evtMap[e.id] = e; });
+    for (var _e = 0; _e < events.length; _e++) evtMap[events[_e].id] = events[_e];
 
     var rootCauses = [];
     Object.keys(outgoing).forEach(function (id) {
