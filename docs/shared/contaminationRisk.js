@@ -1,5 +1,7 @@
 'use strict';
 
+var round = require('./validation').round;
+
 /**
  * Contamination Risk Scorer
  *
@@ -89,8 +91,8 @@ function createContaminationRiskScorer() {
                     value: conditions[key],
                     unit: factor.unit,
                     idealRange: factor.ideal.min + '-' + factor.ideal.max,
-                    rawScore: Math.round(raw * 10) / 10,
-                    contribution: Math.round(weighted * 10) / 10
+                    rawScore: round(raw, 1),
+                    contribution: round(weighted, 1)
                 };
                 factors.push(entry);
 
@@ -104,7 +106,7 @@ function createContaminationRiskScorer() {
             }
 
             // Normalize to 0-100
-            var finalScore = Math.min(Math.round((totalScore / totalWeight) * 10) / 10, 100);
+            var finalScore = Math.min(round(totalScore / totalWeight, 1), 100);
 
             var riskLevel = RISK_LEVELS[RISK_LEVELS.length - 1];
             for (var j = 0; j < RISK_LEVELS.length; j++) {
@@ -145,7 +147,7 @@ function createContaminationRiskScorer() {
             return {
                 before: resultBefore,
                 after: resultAfter,
-                improvement: Math.round((resultBefore.score - resultAfter.score) * 10) / 10,
+                improvement: round(resultBefore.score - resultAfter.score, 1),
                 improved: resultAfter.score < resultBefore.score
             };
         },

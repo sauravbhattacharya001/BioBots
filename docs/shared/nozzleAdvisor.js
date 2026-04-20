@@ -1,6 +1,7 @@
 'use strict';
 
 var validatePositive = require('./validation').validatePositive;
+var round = require('./validation').round;
 
 /**
  * Nozzle Selection Advisor for BioBots bioprinter.
@@ -60,7 +61,7 @@ function createNozzleAdvisor() {
         if (nozzleType === 'tapered') {
             tau *= 0.6;
         }
-        return Math.round(tau * 100) / 100;
+        return round(tau, 2);
     }
 
     /**
@@ -162,8 +163,8 @@ function createNozzleAdvisor() {
             score: score,
             grade: score >= 80 ? 'A' : score >= 60 ? 'B' : score >= 40 ? 'C' : 'D',
             metrics: {
-                expectedLineWidthMm: Math.round(expectedLineWidth * 1000) / 1000,
-                flowRateMm3s: Math.round(flowRate * 1000) / 1000,
+                expectedLineWidthMm: round(expectedLineWidth, 3),
+                flowRateMm3s: round(flowRate, 3),
                 estimatedShearStressPa: shear
             },
             issues: issues,
@@ -291,7 +292,7 @@ function createNozzleAdvisor() {
             innerDiameterMm: best.innerDiameterMm,
             color: best.color,
             type: best.type,
-            differenceFromTargetMm: Math.round(bestDiff * 1000) / 1000
+            differenceFromTargetMm: round(bestDiff, 3)
         } : null;
     }
 

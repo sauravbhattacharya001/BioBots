@@ -1,6 +1,7 @@
 'use strict';
 
 var validatePositive = require('./validation').validatePositive;
+var round = require('./validation').round;
 
 /**
  * Centrifuge Protocol Calculator
@@ -53,7 +54,7 @@ function createCentrifugeCalculator() {
         validatePositive(rpm, 'rpm');
         validatePositive(radiusCm, 'radiusCm');
         var rcf = 1.118e-5 * radiusCm * Math.pow(rpm, 2);
-        return { rpm: rpm, radiusCm: radiusCm, rcf: Math.round(rcf * 10) / 10 };
+        return { rpm: rpm, radiusCm: radiusCm, rcf: round(rcf, 1) };
     }
 
     /**
@@ -66,7 +67,7 @@ function createCentrifugeCalculator() {
         validatePositive(rcf, 'rcf');
         validatePositive(radiusCm, 'radiusCm');
         var rpm = Math.sqrt(rcf / (1.118e-5 * radiusCm));
-        return { rcf: rcf, radiusCm: radiusCm, rpm: Math.round(rpm) };
+        return { rcf: rcf, radiusCm: radiusCm, rpm: round(rpm, 0) };
     }
 
     /**
@@ -136,7 +137,7 @@ function createCentrifugeCalculator() {
             viscosity: eta,
             pathLengthCm: pathCm,
             velocity_cm_s: parseFloat(v.toFixed(6)),
-            timeSeconds: Math.round(timeSec),
+            timeSeconds: round(timeSec, 0),
             timeMinutes: parseFloat((timeSec / 60).toFixed(1)),
             note: timeSec > 3600 ? 'Very slow — consider higher g-force or longer spin' : 'Achievable with standard centrifuge'
         };

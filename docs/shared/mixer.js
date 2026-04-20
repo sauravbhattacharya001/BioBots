@@ -1,6 +1,7 @@
 'use strict';
 
 var _sharedMaterials = require('./materials');
+var round = require('./validation').round;
 
 /**
  * Bioink Mixing Calculator for BioBots.
@@ -126,7 +127,7 @@ function createBioinkMixer() {
             }
         }
         return {
-            score: totalWeight > 0 ? Math.round((weightedSum / totalWeight) * 100) / 100 : 1.0,
+            score: totalWeight > 0 ? round(weightedSum / totalWeight, 2) : 1.0,
             pairs: pairs
         };
     }
@@ -172,7 +173,7 @@ function createBioinkMixer() {
             rating = 'challenging';
             recommendation = 'Very viscous — use large bore nozzle (16-18G) or raise temperature.';
         }
-        return { rating: rating, viscosity: Math.round(viscosity), recommendation: recommendation };
+        return { rating: rating, viscosity: round(viscosity, 0), recommendation: recommendation };
     }
 
     /**
@@ -242,20 +243,20 @@ function createBioinkMixer() {
                 material: c.material,
                 name: mat.name,
                 fraction: c.fraction,
-                volumeMl: Math.round(c.fraction * totalVolumeMl * 1000) / 1000,
-                costContribution: Math.round(c.fraction * mat.costPerMl * totalVolumeMl * 100) / 100,
+                volumeMl: round(c.fraction * totalVolumeMl, 3),
+                costContribution: round(c.fraction * mat.costPerMl * totalVolumeMl, 2),
                 color: mat.color
             };
         });
 
         return {
             composite: {
-                density: Math.round(density * 1000) / 1000,
-                costPerMl: Math.round(costPerMl * 100) / 100,
-                totalCost: Math.round(costPerMl * totalVolumeMl * 100) / 100,
-                viscosity: Math.round(viscosity),
-                cellAdhesion: Math.round(cellAdhesion * 100) / 100,
-                degradability: Math.round(degradability * 100) / 100
+                density: round(density, 3),
+                costPerMl: round(costPerMl, 2),
+                totalCost: round(costPerMl * totalVolumeMl, 2),
+                viscosity: round(viscosity, 0),
+                cellAdhesion: round(cellAdhesion, 2),
+                degradability: round(degradability, 2)
             },
             printability: printability,
             compatibility: compatibility,
