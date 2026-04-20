@@ -6,6 +6,10 @@ var round = _utils.round;
 var mean = _utils.mean;
 var stddev = _utils.stddev;
 
+/** Block prototype-pollution keys in imported data. */
+var _DANGEROUS_KEYS = { '__proto__': 1, 'constructor': 1, 'prototype': 1 };
+function _isDangerousKey(k) { return _DANGEROUS_KEYS.hasOwnProperty(k); }
+
 /**
  * Material Lot Tracker for BioBots
  *
@@ -754,6 +758,7 @@ function createMaterialLotTracker(opts) {
 
     if (data.lots && typeof data.lots === 'object') {
       Object.keys(data.lots).forEach(function (id) {
+        if (_isDangerousKey(id)) return;
         if (mode === 'merge' && lots[id]) return;
         lots[id] = data.lots[id];
       });
@@ -782,6 +787,7 @@ function createMaterialLotTracker(opts) {
     }
     if (data.customSpecs && typeof data.customSpecs === 'object') {
       Object.keys(data.customSpecs).forEach(function (cat) {
+        if (_isDangerousKey(cat)) return;
         customSpecs[cat] = data.customSpecs[cat];
       });
     }
