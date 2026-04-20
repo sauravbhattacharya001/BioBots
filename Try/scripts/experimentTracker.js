@@ -41,6 +41,9 @@
  *   const verdict = exp.evaluate('supported', 'All viability thresholds met');
  */
 
+var _stats = require('./scriptUtils');
+var _descriptiveStats = require('../../docs/shared/stats').descriptiveStats;
+
 function createExperimentTracker(options) {
     options = options || {};
 
@@ -132,38 +135,9 @@ function createExperimentTracker(options) {
      * @param {number[]} values
      * @returns {{ count: number, mean: number, stdDev: number, min: number, max: number, cv: number }}
      */
-    function computeStats(values) {
-        if (!values || values.length === 0) {
-            return { count: 0, mean: 0, stdDev: 0, min: 0, max: 0, cv: 0 };
-        }
-        var n = values.length;
-        var sum = 0;
-        var min = Infinity;
-        var max = -Infinity;
-        for (var i = 0; i < n; i++) {
-            sum += values[i];
-            if (values[i] < min) min = values[i];
-            if (values[i] > max) max = values[i];
-        }
-        var mean = sum / n;
-
-        var sumSqDiff = 0;
-        for (var j = 0; j < n; j++) {
-            var diff = values[j] - mean;
-            sumSqDiff += diff * diff;
-        }
-        var stdDev = n > 1 ? Math.sqrt(sumSqDiff / (n - 1)) : 0;
-        var cv = mean !== 0 ? (stdDev / Math.abs(mean)) * 100 : 0;
-
-        return {
-            count: n,
-            mean: Math.round(mean * 10000) / 10000,
-            stdDev: Math.round(stdDev * 10000) / 10000,
-            min: min,
-            max: max,
-            cv: Math.round(cv * 100) / 100
-        };
-    }
+    // Delegate to shared stats module — eliminates ~35 lines of
+    // hand-rolled mean/stddev/min/max/cv that duplicated docs/shared/stats.
+    var computeStats = _descriptiveStats;
 
     /**
      * Escape a value for CSV output.

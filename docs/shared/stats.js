@@ -138,6 +138,48 @@ function linearRegression(xs, ys) {
     return { slope: slope, intercept: intercept, r2: r2 };
 }
 
+/**
+ * Descriptive statistics in a single pass: count, mean, stddev, min, max, CV.
+ *
+ * Combines min/max/mean/stddev/cv into one O(n) pass so callers don't need
+ * to re-iterate or hand-roll the same loop.
+ *
+ * Uses sample standard deviation (n-1) consistent with stddev().
+ *
+ * @param {number[]} values - Array of numbers.
+ * @returns {{ count: number, mean: number, stdDev: number, min: number, max: number, cv: number }}
+ */
+function descriptiveStats(values) {
+    if (!values || values.length === 0) {
+        return { count: 0, mean: 0, stdDev: 0, min: 0, max: 0, cv: 0 };
+    }
+    var n = values.length;
+    var sum = 0;
+    var lo = Infinity;
+    var hi = -Infinity;
+    for (var i = 0; i < n; i++) {
+        sum += values[i];
+        if (values[i] < lo) lo = values[i];
+        if (values[i] > hi) hi = values[i];
+    }
+    var avg = sum / n;
+    var sumSqDiff = 0;
+    for (var j = 0; j < n; j++) {
+        var d = values[j] - avg;
+        sumSqDiff += d * d;
+    }
+    var sd = n > 1 ? Math.sqrt(sumSqDiff / (n - 1)) : 0;
+    var coefficient = avg !== 0 ? (sd / Math.abs(avg)) * 100 : 0;
+    return {
+        count: n,
+        mean: Math.round(avg * 10000) / 10000,
+        stdDev: Math.round(sd * 10000) / 10000,
+        min: lo,
+        max: hi,
+        cv: Math.round(coefficient * 100) / 100
+    };
+}
+
 exports.mean = mean;
 exports.median = median;
 exports.cv = cv;
@@ -145,3 +187,4 @@ exports.stddev = stddev;
 exports.pstddev = pstddev;
 exports.percentile = percentile;
 exports.linearRegression = linearRegression;
+exports.descriptiveStats = descriptiveStats;
