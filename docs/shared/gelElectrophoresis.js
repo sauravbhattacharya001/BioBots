@@ -76,15 +76,16 @@ function linearRegression(xs, ys) {
     sumX2 += xs[i] * xs[i];
     sumY2 += ys[i] * ys[i];
   }
-  var slope = (n * sumXY - sumX * sumY) / (n * sumX2 - sumX * sumX);
+  var denom = n * sumX2 - sumX * sumX;
+  var slope = denom === 0 ? 0 : (n * sumXY - sumX * sumY) / denom;
   var intercept = (sumY - slope * sumX) / n;
-  var ssRes = 0, ssTot = 0;
-  var meanY = sumY / n;
-  for (var j = 0; j < n; j++) {
-    var predicted = slope * xs[j] + intercept;
-    ssRes += (ys[j] - predicted) * (ys[j] - predicted);
-    ssTot += (ys[j] - meanY) * (ys[j] - meanY);
-  }
+  // R² from single-pass sums via algebraic identity — eliminates the
+  // second O(n) loop that recomputed predicted values and residuals.
+  // ssRes = Σ(y - ŷ)² expanded algebraically using slope/intercept:
+  var ssTot = sumY2 - (sumY * sumY) / n;
+  var ssRes = sumY2 - 2 * slope * sumXY - 2 * intercept * sumY
+            + slope * slope * sumX2 + 2 * slope * intercept * sumX
+            + n * intercept * intercept;
   var rSquared = ssTot === 0 ? 1 : 1 - ssRes / ssTot;
   return { slope: slope, intercept: intercept, rSquared: rSquared };
 }
