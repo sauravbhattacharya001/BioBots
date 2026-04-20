@@ -177,26 +177,15 @@ function createWesternBlotAnalyzer() {
             if (!rfs || !kdas || rfs.length !== kdas.length) throw new Error('Provide matching markerRfs and markerKdas arrays.');
             if (!samples || samples.length === 0) throw new Error('Provide sampleRfs array.');
 
-            // Linear regression on log10(kDa) vs Rf
+            // Linear regression on log10(kDa) vs Rf — delegate to shared
+            // stats.linearRegression which computes slope, intercept, and R²
+            // in a single O(n) pass instead of the previous two-pass approach.
             var logKdas = kdas.map(function (k) { return Math.log10(k); });
-            var n = rfs.length;
-            var sumX = 0, sumY = 0, sumXY = 0, sumX2 = 0;
-            for (var i = 0; i < n; i++) {
-                sumX += rfs[i]; sumY += logKdas[i];
-                sumXY += rfs[i] * logKdas[i]; sumX2 += rfs[i] * rfs[i];
-            }
-            var slope = (n * sumXY - sumX * sumY) / (n * sumX2 - sumX * sumX);
-            var intercept = (sumY - slope * sumX) / n;
-
-            // R²
-            var meanY = sumY / n;
-            var ssTot = 0, ssRes = 0;
-            for (var j = 0; j < n; j++) {
-                var predicted = slope * rfs[j] + intercept;
-                ssTot += (logKdas[j] - meanY) * (logKdas[j] - meanY);
-                ssRes += (logKdas[j] - predicted) * (logKdas[j] - predicted);
-            }
-            var r2 = ssTot > 0 ? 1 - ssRes / ssTot : 0;
+            var _linReg = require('./stats').linearRegression;
+            var reg = _linReg(rfs, logKdas);
+            var slope = reg.slope;
+            var intercept = reg.intercept;
+            var r2 = reg.r2;
 
             var estimates = samples.map(function (rf) {
                 var logMw = slope * rf + intercept;

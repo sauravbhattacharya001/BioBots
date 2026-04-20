@@ -110,7 +110,7 @@ function createContaminationEarlyWarning(options) {
     var state = {};
     var keys = Object.keys(PARAMS);
     for (var k = 0; k < keys.length; k++) {
-        state[keys[k]] = { raw: [], ema: null, lastClassification: 'SAFE' };
+        state[keys[k]] = { raw: [], ema: null, lastClassification: 'SAFE', cachedForecast: null, cachedRoc: 0 };
     }
 
     var readingCount = 0;
@@ -140,6 +140,10 @@ function createContaminationEarlyWarning(options) {
 
             var roc = rateOfChange(s.raw, rocWindow);
             var forecast = linearForecast(s.raw, forecastSteps);
+            // Cache forecast and roc so assess() and trendReport() skip
+            // redundant O(n) recomputation over the same history arrays.
+            s.cachedForecast = forecast;
+            s.cachedRoc = roc;
             var forecastClass = classifyValue(forecast, p);
 
             // Detect deterioration: currently safe but trending toward warn/critical
@@ -234,7 +238,9 @@ function createContaminationEarlyWarning(options) {
             if (s.lastClassification === 'WARN') { warnCount++; }
 
             if (s.raw.length >= 2) {
-                var fc = linearForecast(s.raw, forecastSteps);
+                // Reuse forecast cached during the last ingest() call
+                // instead of recomputing O(n) linear regression per param.
+                var fc = s.cachedForecast !== null ? s.cachedForecast : linearForecast(s.raw, forecastSteps);
                 var fcClass = classifyValue(fc, p);
                 if (s.lastClassification === 'SAFE' && fcClass !== 'SAFE') {
                     trendCount++;
@@ -291,7 +297,9 @@ function createContaminationEarlyWarning(options) {
             var s = state[p];
             if (s.raw.length === 0) continue;
             var last = s.raw[s.raw.length - 1];
-            var fc = linearForecast(s.raw, forecastSteps);
+            // Reuse cached forecast from last ingest() — avoids redundant
+            // O(n) linear regression for each parameter.
+            var fc = s.cachedForecast !== null ? s.cachedForecast : linearForecast(s.raw, forecastSteps);
             // Iterative min/max to avoid call-stack overflow on large
             // history arrays (Math.min/max.apply fails above ~65K elements).
             var pMin = s.raw[0], pMax = s.raw[0];
@@ -303,7 +311,7 @@ function createContaminationEarlyWarning(options) {
                 current: last,
                 ema: s.ema !== null ? Math.round(s.ema * 100) / 100 : null,
                 classification: s.lastClassification,
-                rateOfChange: Math.round(rateOfChange(s.raw, rocWindow) * 1000) / 1000,
+                rateOfChange: Math.round((s.cachedRoc !== undefined ? s.cachedRoc : rateOfChange(s.raw, rocWindow)) * 1000) / 1000,
                 forecast: Math.round(fc * 100) / 100,
                 forecastClassification: classifyValue(fc, p),
                 readings: s.raw.length,
@@ -343,7 +351,7 @@ function createContaminationEarlyWarning(options) {
 
     function reset() {
         for (var p in state) {
-            state[p] = { raw: [], ema: null, lastClassification: 'SAFE' };
+            state[p] = { raw: [], ema: null, lastClassification: 'SAFE', cachedForecast: null, cachedRoc: 0 };
         }
         readingCount = 0;
         warnings = [];
