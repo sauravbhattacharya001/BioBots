@@ -79,6 +79,7 @@ var manifest = [
     ['createOutcomePredictor',          './docs/shared/outcomePredictor',      'createOutcomePredictor'],
     ['createContaminationEarlyWarning', './docs/shared/contaminationEarlyWarning', 'createContaminationEarlyWarning'],
     ['createAnomalyCorrelator',          './docs/shared/anomalyCorrelator',          'createAnomalyCorrelator'],
+    ['createLabEquipmentScheduler',      './docs/shared/equipmentScheduler',         'createLabEquipmentScheduler'],
 ];
 
 // ── Pre-computed lookup structures ─────────────────────────────────
