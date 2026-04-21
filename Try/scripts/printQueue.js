@@ -5,6 +5,8 @@
  * and status tracking for bioprint runs.
  */
 
+const _stripDangerousKeys = require('../../docs/shared/sanitize').stripDangerousKeys;
+
 // ── Priority Levels ──
 const PRIORITIES = { URGENT: 0, HIGH: 1, NORMAL: 2, LOW: 3 };
 const PRIORITY_LABELS = ['Urgent', 'High', 'Normal', 'Low'];
@@ -286,9 +288,11 @@ class PrintQueue {
     /** Import queue state from JSON. */
     static fromJSON(data) {
         const q = new PrintQueue();
-        q.jobs = data.jobs || [];
-        q.history = data.history || [];
-        q.maxConcurrent = data.maxConcurrent || 1;
+        // Sanitize imported data to prevent prototype pollution
+        const safe = _stripDangerousKeys(data || {});
+        q.jobs = Array.isArray(safe.jobs) ? safe.jobs : [];
+        q.history = Array.isArray(safe.history) ? safe.history : [];
+        q.maxConcurrent = typeof safe.maxConcurrent === 'number' ? safe.maxConcurrent : 1;
         return q;
     }
 }

@@ -43,6 +43,8 @@
 
 var _stats = require('./scriptUtils');
 var _descriptiveStats = require('../../docs/shared/stats').descriptiveStats;
+var _stripDangerousKeys = require('../../docs/shared/sanitize').stripDangerousKeys;
+var _isDangerousKey = require('../../docs/shared/sanitize').isDangerousKey;
 
 function createExperimentTracker(options) {
     options = options || {};
@@ -824,6 +826,11 @@ function createExperimentTracker(options) {
 
             for (var i = 0; i < ids.length; i++) {
                 var id = ids[i];
+                // Reject prototype-pollution keys (__proto__, constructor, prototype)
+                if (_isDangerousKey(id)) {
+                    skipped++;
+                    continue;
+                }
                 if (experiments[id]) {
                     skipped++;
                     continue;
@@ -834,7 +841,8 @@ function createExperimentTracker(options) {
                     skipped++;
                     continue;
                 }
-                experiments[id] = deepClone(d);
+                // Sanitize imported data to strip any nested pollution vectors
+                experiments[id] = _stripDangerousKeys(deepClone(d));
                 imported++;
                 // Update counter to avoid ID collision
                 var num = parseInt(id.replace('EXP-', ''), 10);
