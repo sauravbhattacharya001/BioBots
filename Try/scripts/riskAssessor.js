@@ -1,5 +1,16 @@
 'use strict';
 
+/** Strip prototype-polluting keys from a shallow object (CWE-1321). */
+const _DANGEROUS_KEYS = new Set(['__proto__', 'constructor', 'prototype']);
+function _cleanObj(obj) {
+  if (!obj || typeof obj !== 'object') return {};
+  const out = Object.create(null);
+  for (const k of Object.keys(obj)) {
+    if (!_DANGEROUS_KEYS.has(k)) out[k] = obj[k];
+  }
+  return out;
+}
+
 /**
  * Print Risk Assessor for BioBots
  *
@@ -88,7 +99,7 @@ function createRiskAssessor(customThresholds) {
         for (const category of Object.keys(defaults)) {
             if (custom[category]) {
                 merged[category] = Object.freeze(
-                    Object.assign({}, defaults[category], custom[category])
+                    Object.assign({}, defaults[category], _cleanObj(custom[category]))
                 );
             } else {
                 merged[category] = defaults[category];
@@ -450,7 +461,7 @@ function createRiskAssessor(customThresholds) {
             mitigations: allMitigations,
             criticalCount: criticalDims.length,
             highCount: highDims.length,
-            params: Object.assign({}, params),
+            params: Object.assign({}, _cleanObj(params)),
         };
     }
 

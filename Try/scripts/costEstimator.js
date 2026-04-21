@@ -2,6 +2,17 @@
 
 const { round } = require('./scriptUtils');
 
+/** Strip prototype-polluting keys from a shallow object (CWE-1321). */
+const _DANGEROUS_KEYS = new Set(['__proto__', 'constructor', 'prototype']);
+function _cleanObj(obj) {
+  if (!obj || typeof obj !== 'object') return obj;
+  const out = Object.create(null);
+  for (const k of Object.keys(obj)) {
+    if (!_DANGEROUS_KEYS.has(k)) out[k] = obj[k];
+  }
+  return out;
+}
+
 /**
  * Bioprint Cost Estimator
  *
@@ -143,10 +154,10 @@ const DEFAULT_ENERGY_RATE = 0.12; // USD per kWh
 function createCostEstimator(options) {
   const opts = options || {};
   const materialPrices = Object.assign(
-    {}, DEFAULT_MATERIAL_PRICES, opts.customMaterials || {}
+    {}, DEFAULT_MATERIAL_PRICES, _cleanObj(opts.customMaterials)
   );
   const consumablePrices = Object.assign(
-    {}, DEFAULT_CONSUMABLE_PRICES, opts.customConsumables || {}
+    {}, DEFAULT_CONSUMABLE_PRICES, _cleanObj(opts.customConsumables)
   );
   const energyRate = opts.energyRate || DEFAULT_ENERGY_RATE;
   const currency = opts.currency || 'USD';
