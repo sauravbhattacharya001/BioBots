@@ -180,11 +180,63 @@ function descriptiveStats(values) {
     };
 }
 
+/**
+ * Median from a pre-sorted array (avoids redundant sorting).
+ *
+ * @param {number[]} sorted - Already sorted numeric array.
+ * @returns {number} Median value, or 0 for empty arrays.
+ */
+function medianSorted(sorted) {
+    if (!sorted.length) return 0;
+    var mid = Math.floor(sorted.length / 2);
+    return sorted.length % 2 !== 0
+        ? sorted[mid]
+        : (sorted[mid - 1] + sorted[mid]) / 2;
+}
+
+/**
+ * Linear-interpolation percentile from a pre-sorted array.
+ *
+ * @param {number[]} sorted - Already sorted numeric array.
+ * @param {number} p - Percentile (0–100).
+ * @returns {number} Interpolated value, or 0 for empty arrays.
+ */
+function percentileSorted(sorted, p) {
+    if (!sorted.length) return 0;
+    var idx = (p / 100) * (sorted.length - 1);
+    var lo = Math.floor(idx);
+    var hi = Math.ceil(idx);
+    if (lo === hi) return sorted[lo];
+    return sorted[lo] + (sorted[hi] - sorted[lo]) * (idx - lo);
+}
+
+/**
+ * Find min and max of an array in a single O(n) pass.
+ * Unlike Math.min/max.apply(), this does not risk a stack overflow
+ * on large arrays (e.g. flow cytometry datasets with 100K–1M events).
+ *
+ * @param {number[]} arr - Array of numbers.
+ * @returns {{ min: number, max: number }}
+ */
+function minMax(arr) {
+    if (!arr.length) return { min: 0, max: 0 };
+    var lo = arr[0];
+    var hi = arr[0];
+    for (var i = 1; i < arr.length; i++) {
+        if (arr[i] < lo) lo = arr[i];
+        if (arr[i] > hi) hi = arr[i];
+    }
+    return { min: lo, max: hi };
+}
+
 exports.mean = mean;
 exports.median = median;
+exports.medianSorted = medianSorted;
 exports.cv = cv;
 exports.stddev = stddev;
 exports.pstddev = pstddev;
 exports.percentile = percentile;
+exports.percentileSorted = percentileSorted;
 exports.linearRegression = linearRegression;
 exports.descriptiveStats = descriptiveStats;
+exports.minMax = minMax;
