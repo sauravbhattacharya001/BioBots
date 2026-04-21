@@ -182,20 +182,46 @@ function createLabEquipmentScheduler() {
         if (!eq) return [];
         var eqConfig = EQUIPMENT_TYPES[eq.type];
         var bufferMs = eqConfig.cleaningMinutes * 60000;
+        var maxSlots = count || 5;
         var slots = [];
 
         // Scan the next 7 days in 30-min increments
         var scanStart = nearTime || Date.now();
         var scanEnd = scanStart + 7 * 86400000;
         var step = 1800000; // 30 min
+        var durationHours = durationMs / 3600000;
 
-        for (var t = scanStart; t < scanEnd && slots.length < (count || 5); t += step) {
+        // Pre-filter active bookings once (avoids re-checking .cancelled
+        // on every slot × booking iteration — up to 336 × N checks).
+        var activeBookings = [];
+        for (var ab = 0; ab < eq.bookings.length; ab++) {
+            if (!eq.bookings[ab].cancelled) activeBookings.push(eq.bookings[ab]);
+        }
+
+        // Cache daily usage per day-key to avoid redundant O(bookings)
+        // scans.  Many of the 336 candidate slots fall on the same day;
+        // without caching, daily-limit checks cost O(slots × bookings)
+        // instead of O(days × bookings + slots).
+        var dailyUsageCache = {};
+        function getDailyUsage(dayStartMs, dayEndMs) {
+            if (dailyUsageCache[dayStartMs] !== undefined) return dailyUsageCache[dayStartMs];
+            var used = 0;
+            for (var du = 0; du < activeBookings.length; du++) {
+                var bk = activeBookings[du];
+                var os = bk.start > dayStartMs ? bk.start : dayStartMs;
+                var oe = bk.end < dayEndMs ? bk.end : dayEndMs;
+                if (oe > os) used += (oe - os) / 3600000;
+            }
+            dailyUsageCache[dayStartMs] = used;
+            return used;
+        }
+
+        for (var t = scanStart; t < scanEnd && slots.length < maxSlots; t += step) {
             var slotEnd = t + durationMs;
             var conflict = false;
 
-            for (var i = 0; i < eq.bookings.length; i++) {
-                var b = eq.bookings[i];
-                if (b.cancelled) continue;
+            for (var i = 0; i < activeBookings.length; i++) {
+                var b = activeBookings[i];
                 if (t < (b.end + bufferMs) && slotEnd > (b.start - bufferMs)) {
                     conflict = true;
                     break;
@@ -213,20 +239,15 @@ function createLabEquipmentScheduler() {
                 }
             }
 
-            // Check daily limit
+            // Check daily limit (cached per day)
             if (!conflict) {
                 var dayStart = new Date(t);
                 dayStart.setHours(0, 0, 0, 0);
-                var dayEnd2 = dayStart.getTime() + 86400000;
-                var used = 0;
-                for (var j = 0; j < eq.bookings.length; j++) {
-                    var bk = eq.bookings[j];
-                    if (bk.cancelled) continue;
-                    var os = Math.max(bk.start, dayStart.getTime());
-                    var oe = Math.min(bk.end, dayEnd2);
-                    if (oe > os) used += (oe - os) / 3600000;
+                var dayStartMs = dayStart.getTime();
+                var dayEndMs = dayStartMs + 86400000;
+                if (getDailyUsage(dayStartMs, dayEndMs) + durationHours > eqConfig.maxDailyHours) {
+                    conflict = true;
                 }
-                if (used + durationMs / 3600000 > eqConfig.maxDailyHours) conflict = true;
             }
 
             if (!conflict) {
@@ -239,7 +260,7 @@ function createLabEquipmentScheduler() {
         }
 
         slots.sort(function (a, b) { return b.score - a.score; });
-        return slots.slice(0, count || 5);
+        return slots.slice(0, maxSlots);
     }
 
     function scoreSlot(slotTime, preferredTime) {
@@ -261,16 +282,22 @@ function createLabEquipmentScheduler() {
         var usedMs = 0;
         var userMap = {};
         var projectMap = {};
+        // Count overlapping bookings inline instead of a separate
+        // .filter() pass that re-scans all bookings.
+        var bookingCount = 0;
 
         for (var i = 0; i < eq.bookings.length; i++) {
             var b = eq.bookings[i];
             if (b.cancelled) continue;
-            var os = Math.max(b.start, periodStart);
-            var oe = Math.min(b.end, periodEnd);
+            if (b.start >= periodEnd || b.end <= periodStart) continue;
+            bookingCount++;
+            var os = b.start > periodStart ? b.start : periodStart;
+            var oe = b.end < periodEnd ? b.end : periodEnd;
             if (oe > os) {
-                usedMs += oe - os;
-                userMap[b.user] = (userMap[b.user] || 0) + (oe - os);
-                if (b.project) projectMap[b.project] = (projectMap[b.project] || 0) + (oe - os);
+                var overlap = oe - os;
+                usedMs += overlap;
+                userMap[b.user] = (userMap[b.user] || 0) + overlap;
+                if (b.project) projectMap[b.project] = (projectMap[b.project] || 0) + overlap;
             }
         }
 
@@ -299,9 +326,7 @@ function createLabEquipmentScheduler() {
             totalHours: +(totalMs / 3600000).toFixed(1),
             usedHours: +(usedMs / 3600000).toFixed(1),
             utilizationPercent: +utilizationPct.toFixed(1),
-            bookingCount: eq.bookings.filter(function (b) {
-                return !b.cancelled && b.start < periodEnd && b.end > periodStart;
-            }).length,
+            bookingCount: bookingCount,
             topUsers: topUsers,
             topProjects: topProjects,
             recommendations: recommendations
