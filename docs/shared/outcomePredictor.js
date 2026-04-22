@@ -86,7 +86,7 @@ var CONFIDENCE_LEVELS = [
 
 // ── Helpers ─────────────────────────────────────────────────────────
 
-function clamp(val, lo, hi) { return Math.max(lo, Math.min(hi, val)); }
+var clamp = require('./utils').clamp;
 
 /**
  * Score how well a value fits within an optimal range.

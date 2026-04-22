@@ -20,10 +20,8 @@ var _stats = require('./stats');
 var mean = _stats.mean;
 var linearRegression = _stats.linearRegression;
 
-function round(v, d) {
-    var f = Math.pow(10, d || 4);
-    return Math.round(v * f) / f;
-}
+var _utilsRound = require('./utils').round;
+function round(v, d) { return _utilsRound(v, d != null ? d : 4); }
 
 // Hoist sanitize require to module level — avoids repeated require()
 // resolution on every validateInput() call.  Node caches modules, but

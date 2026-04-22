@@ -114,6 +114,33 @@ function computeStats(values) {
     return { mean, std, q1, q3, iqr: q3 - q1, median };
 }
 
+// ── Numeric Helpers ─────────────────────────────────────────────────────────
+
+/**
+ * Clamp a value between a minimum and maximum bound.
+ * @param {number} val - Value to clamp.
+ * @param {number} lo - Lower bound.
+ * @param {number} hi - Upper bound.
+ * @returns {number} Clamped value.
+ */
+function clamp(val, lo, hi) {
+    return val < lo ? lo : val > hi ? hi : val;
+}
+
+var _powTable = [1, 10, 100, 1000, 1e4, 1e5, 1e6, 1e7, 1e8, 1e9, 1e10];
+
+/**
+ * Round a number to a given number of decimal places.
+ * @param {number} val - Value to round.
+ * @param {number} [decimals=2] - Number of decimal places.
+ * @returns {number} Rounded value.
+ */
+function round(val, decimals) {
+    var d = decimals != null ? decimals : 2;
+    var factor = d >= 0 && d <= 10 ? _powTable[d] : Math.pow(10, d);
+    return Math.round(val * factor) / factor;
+}
+
 // ── Validation Helpers ──────────────────────────────────────────
 
 /**
@@ -205,6 +232,8 @@ if (typeof module !== 'undefined' && module.exports) {
     }
 
     module.exports = {
+        clamp: clamp,
+        round: round,
         escapeHtml: _escapeHtml,
         getMetricValue: getMetricValue,
         stripDangerousKeys: _stripDangerousKeys,
