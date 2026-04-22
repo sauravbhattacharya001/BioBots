@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Experiment Replicator — BioBots</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🔄</text></svg>">
+    <style>
+        :root { --bg:#0f172a; --surface:#1e293b; --border:#334155; --text:#e2e8f0; --muted:#94a3b8; --accent:#38bdf8; --accent-hover:#7dd3fc; --success:#4ade80; --error:#f87171; --warning:#fbbf24; }
+        *{margin:0;padding:0;box-sizing:border-box}
+        body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;padding:1.5rem}
+        h1{font-size:1.8rem;text-align:center;margin-bottom:.5rem}
+        .subtitle{text-align:center;color:var(--muted);margin-bottom:1.5rem;font-size:.95rem}
+        .tabs{display:flex;gap:.5rem;flex-wrap:wrap;margin-bottom:1.5rem;justify-content:center}
+        .tab{padding:.5rem 1rem;background:var(--surface);border:1px solid var(--border);border-radius:6px;color:var(--muted);cursor:pointer;font-size:.85rem;transition:all .2s}
+        .tab:hover{color:var(--text);border-color:var(--accent)}
+        .tab.active{background:var(--accent);color:var(--bg);border-color:var(--accent);font-weight:600}
+        .panel{display:none;max-width:1000px;margin:0 auto}
+        .panel.active{display:block}
+        .card{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:1.2rem;margin-bottom:1rem}
+        .card h3{font-size:1rem;margin-bottom:.8rem;color:var(--accent)}
+        label{display:block;font-size:.8rem;color:var(--muted);margin-bottom:.3rem;margin-top:.6rem}
+        input,select{width:100%;padding:.5rem;background:var(--bg);border:1px solid var(--border);border-radius:4px;color:var(--text);font-size:.85rem}
+        input:focus,select:focus{outline:none;border-color:var(--accent)}
+        .row{display:grid;grid-template-columns:1fr 1fr 1fr;gap:.8rem}
+        .row2{display:grid;grid-template-columns:1fr 1fr;gap:.8rem}
+        button{padding:.5rem 1rem;background:var(--accent);color:var(--bg);border:none;border-radius:6px;cursor:pointer;font-weight:600;font-size:.85rem;transition:background .2s}
+        button:hover{background:var(--accent-hover)}
+        button.secondary{background:var(--surface);color:var(--text);border:1px solid var(--border)}
+        button.secondary:hover{border-color:var(--accent)}
+        .btn-row{display:flex;gap:.5rem;margin-top:1rem;flex-wrap:wrap}
+        table{width:100%;border-collapse:collapse;font-size:.82rem;margin-top:.5rem}
+        th,td{padding:.5rem;text-align:left;border-bottom:1px solid var(--border)}
+        th{color:var(--accent);font-weight:600;font-size:.75rem;text-transform:uppercase}
+        .badge{display:inline-block;padding:.15rem .5rem;border-radius:10px;font-size:.72rem;font-weight:600}
+        .badge.high{background:#dc262622;color:var(--error)}
+        .badge.medium{background:#f59e0b22;color:var(--warning)}
+        .badge.low{background:#22c55e22;color:var(--success)}
+        .badge.success{background:#22c55e22;color:var(--success)}
+        .badge.fail{background:#dc262622;color:var(--error)}
+        .insight{padding:.6rem .8rem;border-left:3px solid var(--accent);margin-bottom:.5rem;font-size:.85rem;background:var(--bg);border-radius:0 4px 4px 0}
+        .insight.high{border-color:var(--error)}
+        .insight.medium{border-color:var(--warning)}
+        .insight.low{border-color:var(--success)}
+        .stat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:.8rem;margin-bottom:1rem}
+        .stat{background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:.8rem;text-align:center}
+        .stat .val{font-size:1.5rem;font-weight:700;color:var(--accent)}
+        .stat .lbl{font-size:.72rem;color:var(--muted);margin-top:.2rem}
+        canvas{width:100%;height:250px;margin-top:.5rem}
+        .empty{text-align:center;padding:2rem;color:var(--muted);font-style:italic}
+        .presets{display:flex;gap:.5rem;margin-bottom:1rem;flex-wrap:wrap}
+        .chk{display:flex;align-items:center;gap:.4rem;margin-top:.6rem}
+        .chk input{width:auto}
+        pre{background:var(--bg);border:1px solid var(--border);border-radius:4px;padding:.8rem;font-size:.78rem;overflow-x:auto;max-height:400px;overflow-y:auto;margin-top:.5rem}
+        @media(max-width:600px){.row{grid-template-columns:1fr}.row2{grid-template-columns:1fr}}
+    </style>
+</head>
+<body>
+    <h1>🔄 Experiment Replicator</h1>
+    <p class="subtitle">Autonomous replication planner with power analysis, priority scoring & scheduling</p>
+
+    <div class="tabs">
+        <div class="tab active" data-tab="record">Record</div>
+        <div class="tab" data-tab="experiments">Experiments</div>
+        <div class="tab" data-tab="plan">Replication Plan</div>
+        <div class="tab" data-tab="power">Power Calculator</div>
+        <div class="tab" data-tab="priority">Priority</div>
+        <div class="tab" data-tab="schedule">Schedule</div>
+        <div class="tab" data-tab="insights">Insights</div>
+    </div>
+
+    <!-- Record Panel -->
+    <div class="panel active" id="panel-record">
+        <div class="card">
+            <h3>📝 Record Experiment</h3>
+            <div class="presets">
+                <button class="secondary" onclick="loadPreset(1)">🧪 Preset 1: Alginate Success</button>
+                <button class="secondary" onclick="loadPreset(2)">🧪 Preset 2: Gelatin Mixed</button>
+                <button class="secondary" onclick="loadPreset(3)">🧪 Preset 3: Multi-Material</button>
+            </div>
+            <label>Material</label>
+            <select id="f-material"><option>alginate</option><option>gelatin</option><option>collagen</option><option>fibrin</option><option>hyaluronic_acid</option></select>
+            <div class="row">
+                <div><label>Temperature (°C)</label><input id="f-temperature" type="number" step="0.1" value="37"></div>
+                <div><label>Cell Density (cells/mL)</label><input id="f-cellDensity" type="number" step="1000" value="1000000"></div>
+                <div><label>Speed (mm/s)</label><input id="f-speed" type="number" step="0.1" value="10"></div>
+            </div>
+            <div class="row">
+                <div><label>Pressure (kPa)</label><input id="f-pressure" type="number" step="0.1" value="25"></div>
+                <div><label>Layer Height (mm)</label><input id="f-layerHeight" type="number" step="0.01" value="0.2"></div>
+                <div><label>Nozzle Diameter (mm)</label><input id="f-nozzleDiameter" type="number" step="0.01" value="0.4"></div>
+            </div>
+            <div class="row2">
+                <div class="chk"><input id="f-success" type="checkbox" checked><label style="margin:0">Success</label></div>
+                <div><label>Viability (0–1)</label><input id="f-viability" type="number" step="0.01" min="0" max="1" value="0.9"></div>
+            </div>
+            <label>Notes</label>
+            <input id="f-notes" placeholder="Optional notes...">
+            <div class="btn-row">
+                <button onclick="recordExp()">➕ Record Experiment</button>
+            </div>
+        </div>
+        <div id="record-msg"></div>
+    </div>
+
+    <!-- Experiments Panel -->
+    <div class="panel" id="panel-experiments">
+        <div class="card">
+            <h3>📋 Recorded Experiments</h3>
+            <div id="exp-stats" class="stat-grid"></div>
+            <div id="exp-table"></div>
+        </div>
+    </div>
+
+    <!-- Plan Panel -->
+    <div class="panel" id="panel-plan">
+        <div class="card">
+            <h3>📐 Generate Replication Plan</h3>
+            <div class="row">
+                <div><label>Experiment ID</label><input id="p-id" type="number" value="1"></div>
+                <div><label>Variations per param</label><input id="p-var" type="number" value="3" min="1" max="10"></div>
+                <div><label>Effect Size</label><select id="p-eff"><option value="small">Small (0.2)</option><option value="medium" selected>Medium (0.5)</option><option value="large">Large (0.8)</option></select></div>
+            </div>
+            <div class="btn-row">
+                <button onclick="genPlan()">Generate Plan</button>
+                <button class="secondary" onclick="exportPlan('json')">Export JSON</button>
+                <button class="secondary" onclick="exportPlan('markdown')">Export Markdown</button>
+                <button class="secondary" onclick="exportPlan('csv')">Export CSV</button>
+            </div>
+        </div>
+        <div id="plan-output"></div>
+    </div>
+
+    <!-- Power Panel -->
+    <div class="panel" id="panel-power">
+        <div class="card">
+            <h3>📊 Power Calculator</h3>
+            <div class="row">
+                <div><label>Sample Size</label><input id="pw-n" type="number" value="30"></div>
+                <div><label>Effect Size</label><select id="pw-eff"><option value="small">Small (0.2)</option><option value="medium" selected>Medium (0.5)</option><option value="large">Large (0.8)</option></select></div>
+                <div><label>Significance (α)</label><input id="pw-sig" type="number" value="0.05" step="0.01" min="0.001" max="0.5"></div>
+            </div>
+            <div class="btn-row"><button onclick="calcPower()">Calculate</button></div>
+        </div>
+        <div id="power-output"></div>
+        <div class="card" style="margin-top:1rem"><h3>Power Curve</h3><canvas id="power-canvas"></canvas></div>
+    </div>
+
+    <!-- Priority Panel -->
+    <div class="panel" id="panel-priority">
+        <div class="card"><h3>🎯 Replication Priority</h3><div id="priority-output"></div></div>
+    </div>
+
+    <!-- Schedule Panel -->
+    <div class="panel" id="panel-schedule">
+        <div class="card">
+            <h3>📅 Replication Schedule</h3>
+            <div class="row2"><div><label>Max Experiments</label><input id="sch-max" type="number" value="10"></div><div class="btn-row"><button onclick="genSchedule()">Generate</button></div></div>
+        </div>
+        <div id="schedule-output"></div>
+    </div>
+
+    <!-- Insights Panel -->
+    <div class="panel" id="panel-insights">
+        <div class="card"><h3>💡 Proactive Insights</h3><div id="insights-output"></div></div>
+    </div>
+
+    <script src="shared/experimentReplicator.js"></script>
+    <script src="shared/commandPalette.js"></script>
+    <script>
+    var rep = createExperimentReplicator();
+
+    // Tabs
+    document.querySelectorAll('.tab').forEach(function(t) {
+        t.addEventListener('click', function() {
+            document.querySelectorAll('.tab').forEach(function(x){x.classList.remove('active')});
+            document.querySelectorAll('.panel').forEach(function(x){x.classList.remove('active')});
+            t.classList.add('active');
+            document.getElementById('panel-' + t.dataset.tab).classList.add('active');
+            if (t.dataset.tab === 'experiments') refreshExps();
+            if (t.dataset.tab === 'priority') refreshPriority();
+            if (t.dataset.tab === 'insights') refreshInsights();
+        });
+    });
+
+    function val(id) { return document.getElementById(id).value; }
+    function numVal(id) { var v = document.getElementById(id).value; return v === '' ? null : +v; }
+
+    function recordExp() {
+        try {
+            var exp = rep.recordExperiment({
+                material: val('f-material'), temperature: numVal('f-temperature'), cellDensity: numVal('f-cellDensity'),
+                speed: numVal('f-speed'), pressure: numVal('f-pressure'), layerHeight: numVal('f-layerHeight'),
+                nozzleDiameter: numVal('f-nozzleDiameter'), success: document.getElementById('f-success').checked,
+                viability: numVal('f-viability'), notes: val('f-notes')
+            });
+            document.getElementById('record-msg').innerHTML = '<div class="card" style="border-color:var(--success)">✅ Recorded experiment #' + exp.id + ' (' + exp.material + ')</div>';
+        } catch (e) { document.getElementById('record-msg').innerHTML = '<div class="card" style="border-color:var(--error)">❌ ' + e.message + '</div>'; }
+    }
+
+    function refreshExps() {
+        var exps = rep.getExperiments();
+        var stats = rep.getStats();
+        var sg = document.getElementById('exp-stats');
+        sg.innerHTML = '<div class="stat"><div class="val">' + stats.total + '</div><div class="lbl">Total</div></div>' +
+            '<div class="stat"><div class="val">' + stats.materials + '</div><div class="lbl">Materials</div></div>' +
+            '<div class="stat"><div class="val">' + (stats.successRate * 100).toFixed(0) + '%</div><div class="lbl">Success Rate</div></div>' +
+            '<div class="stat"><div class="val">' + ((stats.avgViability || 0) * 100).toFixed(0) + '%</div><div class="lbl">Avg Viability</div></div>';
+        if (!exps.length) { document.getElementById('exp-table').innerHTML = '<div class="empty">No experiments recorded. Use Record tab or load a preset.</div>'; return; }
+        var h = '<table><tr><th>ID</th><th>Material</th><th>Temp</th><th>Density</th><th>Speed</th><th>Pressure</th><th>Result</th><th>Viability</th></tr>';
+        exps.forEach(function(e) {
+            h += '<tr><td>' + e.id + '</td><td>' + e.material + '</td><td>' + (e.temperature||'-') + '</td><td>' + (e.cellDensity?e.cellDensity.toExponential(1):'-') +
+                '</td><td>' + (e.speed||'-') + '</td><td>' + (e.pressure||'-') + '</td><td><span class="badge ' + (e.success?'success':'fail') + '">' +
+                (e.success?'✓ Pass':'✗ Fail') + '</span></td><td>' + (e.viability!=null?(e.viability*100).toFixed(0)+'%':'-') + '</td></tr>';
+        });
+        document.getElementById('exp-table').innerHTML = h + '</table>';
+    }
+
+    function genPlan() {
+        try {
+            var plan = rep.planReplication(+val('p-id'), { variations: +val('p-var'), effectSize: val('p-eff') });
+            var h = '<div class="card"><h3>Plan for Experiment #' + plan.experimentId + '</h3>';
+            h += '<div class="stat-grid"><div class="stat"><div class="val">' + plan.totalExperimentsNeeded + '</div><div class="lbl">Total Needed</div></div>' +
+                '<div class="stat"><div class="val">' + plan.exactReplications + '</div><div class="lbl">Exact Replications</div></div>' +
+                '<div class="stat"><div class="val">' + (plan.estimatedSuccessRate*100).toFixed(0) + '%</div><div class="lbl">Est. Success</div></div>' +
+                '<div class="stat"><div class="val">' + plan.oatVariations.length + '</div><div class="lbl">OAT Groups</div></div></div>';
+            // OAT table
+            h += '<h3 style="margin-top:1rem">One-at-a-Time Variations</h3><table><tr><th>Parameter</th><th>Baseline</th><th>Variations</th></tr>';
+            plan.oatVariations.forEach(function(o) {
+                h += '<tr><td>' + o.parameter + ' (' + o.unit + ')</td><td>' + o.baseline + '</td><td>' +
+                    o.variations.map(function(v){return v.variedTo}).join(', ') + '</td></tr>';
+            });
+            h += '</table>';
+            // Recommendations
+            h += '<h3 style="margin-top:1rem">Recommendations</h3>';
+            plan.recommendations.forEach(function(r) { h += '<div class="insight ' + (r.level==='warning'?'high':r.level==='info'?'medium':'low') + '">' + r.text + '</div>'; });
+            h += '</div>';
+            document.getElementById('plan-output').innerHTML = h;
+        } catch (e) { document.getElementById('plan-output').innerHTML = '<div class="card" style="border-color:var(--error)">❌ ' + e.message + '</div>'; }
+    }
+
+    function exportPlan(fmt) {
+        try {
+            var text = rep.exportPlan(+val('p-id'), fmt);
+            document.getElementById('plan-output').innerHTML = '<div class="card"><pre>' + text.replace(/</g,'&lt;') + '</pre></div>';
+        } catch(e) { document.getElementById('plan-output').innerHTML = '<div class="card" style="border-color:var(--error)">❌ ' + e.message + '</div>'; }
+    }
+
+    function calcPower() {
+        var result = rep.calculatePower({ sampleSize: +val('pw-n'), effectSize: val('pw-eff'), significance: +val('pw-sig') });
+        var h = '<div class="card"><div class="stat-grid">' +
+            '<div class="stat"><div class="val">' + (result.power*100).toFixed(1) + '%</div><div class="lbl">Power</div></div>' +
+            '<div class="stat"><div class="val">' + result.requiredSampleSize + '</div><div class="lbl">Required n (80%)</div></div>' +
+            '<div class="stat"><div class="val">' + result.effectSize + '</div><div class="lbl">Effect Size (d)</div></div>' +
+            '<div class="stat"><div class="val">' + result.significance + '</div><div class="lbl">α</div></div></div></div>';
+        document.getElementById('power-output').innerHTML = h;
+        drawPowerCurve(result.curve, +val('pw-n'), result.power);
+    }
+
+    function drawPowerCurve(curve, currentN, currentPow) {
+        var canvas = document.getElementById('power-canvas');
+        var ctx = canvas.getContext('2d');
+        canvas.width = canvas.offsetWidth * 2; canvas.height = 500;
+        var W = canvas.width, H = canvas.height, pad = 60;
+        ctx.clearRect(0,0,W,H);
+        ctx.fillStyle = '#0f172a'; ctx.fillRect(0,0,W,H);
+        if (!curve.length) return;
+        var maxN = curve[curve.length-1].n;
+        function sx(n){return pad+(n/maxN)*(W-2*pad)} function sy(p){return H-pad-(p)*(H-2*pad)}
+        // Grid
+        ctx.strokeStyle='#334155';ctx.lineWidth=1;
+        for(var g=0;g<=1;g+=0.2){ctx.beginPath();ctx.moveTo(pad,sy(g));ctx.lineTo(W-pad,sy(g));ctx.stroke();ctx.fillStyle='#94a3b8';ctx.font='20px sans-serif';ctx.fillText((g*100).toFixed(0)+'%',5,sy(g)+6)}
+        // 80% line
+        ctx.strokeStyle='#fbbf2466';ctx.setLineDash([8,4]);ctx.beginPath();ctx.moveTo(pad,sy(0.8));ctx.lineTo(W-pad,sy(0.8));ctx.stroke();ctx.setLineDash([]);
+        // Curve
+        ctx.strokeStyle='#38bdf8';ctx.lineWidth=3;ctx.beginPath();
+        for(var i=0;i<curve.length;i++){var x=sx(curve[i].n),y=sy(curve[i].power);i===0?ctx.moveTo(x,y):ctx.lineTo(x,y)}
+        ctx.stroke();
+        // Current point
+        if(currentN&&currentPow!=null){ctx.fillStyle='#f87171';ctx.beginPath();ctx.arc(sx(currentN),sy(currentPow),8,0,Math.PI*2);ctx.fill();ctx.fillStyle='#e2e8f0';ctx.font='22px sans-serif';ctx.fillText('n='+currentN+' → '+((currentPow)*100).toFixed(1)+'%',sx(currentN)+12,sy(currentPow)-10)}
+        // Axes labels
+        ctx.fillStyle='#94a3b8';ctx.font='22px sans-serif';ctx.fillText('Sample Size (n)',W/2-60,H-10);ctx.save();ctx.translate(15,H/2);ctx.rotate(-Math.PI/2);ctx.fillText('Power',0,0);ctx.restore();
+    }
+
+    function refreshPriority() {
+        var ranked = rep.prioritize();
+        if (!ranked.length) { document.getElementById('priority-output').innerHTML = '<div class="empty">Record experiments first.</div>'; return; }
+        var h = '<table><tr><th>#</th><th>ID</th><th>Material</th><th>Urgency</th><th>Reasons</th></tr>';
+        ranked.forEach(function(r, i) {
+            var sev = r.urgencyScore >= 60 ? 'high' : r.urgencyScore >= 30 ? 'medium' : 'low';
+            h += '<tr><td>' + (i+1) + '</td><td>' + r.experiment.id + '</td><td>' + r.experiment.material + '</td><td><span class="badge ' + sev + '">' + r.urgencyScore + '</span></td><td>' + r.reasons.join('; ') + '</td></tr>';
+        });
+        document.getElementById('priority-output').innerHTML = h + '</table>';
+    }
+
+    function genSchedule() {
+        var sched = rep.generateSchedule({ maxExperiments: +val('sch-max') });
+        if (!sched.length) { document.getElementById('schedule-output').innerHTML = '<div class="card empty">No experiments to schedule.</div>'; return; }
+        var h = '<div class="card"><table><tr><th>Order</th><th>Exp ID</th><th>Material</th><th>Info Gain</th><th>Urgency</th><th>Suggested Reps</th><th>Reasons</th></tr>';
+        sched.forEach(function(s) {
+            h += '<tr><td>' + s.order + '</td><td>' + s.experimentId + '</td><td>' + s.material + '</td><td>' + s.informationGain + '</td><td><span class="badge ' + (s.urgencyScore>=60?'high':s.urgencyScore>=30?'medium':'low') + '">' + s.urgencyScore + '</span></td><td>' + s.suggestedReplications + '</td><td>' + s.reasons.join('; ') + '</td></tr>';
+        });
+        document.getElementById('schedule-output').innerHTML = h + '</table></div>';
+    }
+
+    function refreshInsights() {
+        var data = rep.getInsights();
+        if (!data.insights.length) { document.getElementById('insights-output').innerHTML = '<div class="empty">' + data.summary + '</div>'; return; }
+        var h = '<div class="stat-grid"><div class="stat"><div class="val">' + data.totalExperiments + '</div><div class="lbl">Experiments</div></div>' +
+            '<div class="stat"><div class="val">' + data.materialsUsed + '</div><div class="lbl">Materials</div></div>' +
+            '<div class="stat"><div class="val">' + (data.overallSuccessRate*100).toFixed(0) + '%</div><div class="lbl">Success Rate</div></div>' +
+            '<div class="stat"><div class="val">' + data.insights.length + '</div><div class="lbl">Insights</div></div></div>';
+        data.insights.forEach(function(ins) { h += '<div class="insight ' + ins.severity + '"><strong>' + ins.type + ':</strong> ' + ins.text + '</div>'; });
+        document.getElementById('insights-output').innerHTML = h;
+    }
+
+    // Presets
+    function loadPreset(n) {
+        if (n === 1) {
+            [{ m:'alginate',t:37,d:1e6,s:10,p:25,l:0.2,z:0.4,ok:true,v:0.92 },
+             { m:'alginate',t:37,d:1e6,s:10,p:25,ok:true,v:0.89,l:0.2,z:0.4 },
+             { m:'alginate',t:37,d:1.5e6,s:12,p:28,ok:true,v:0.95,l:0.25,z:0.4 },
+             { m:'alginate',t:42,d:1e6,s:10,p:25,ok:false,v:0.45,l:0.2,z:0.4 },
+             { m:'alginate',t:35,d:2e6,s:8,p:20,ok:true,v:0.88,l:0.15,z:0.3 }
+            ].forEach(function(e){rep.recordExperiment({material:e.m,temperature:e.t,cellDensity:e.d,speed:e.s,pressure:e.p,layerHeight:e.l,nozzleDiameter:e.z,success:e.ok,viability:e.v})});
+        } else if (n === 2) {
+            [{ m:'gelatin',t:30,d:2e6,s:8,p:30,l:0.3,z:0.5,ok:true,v:0.85 },
+             { m:'gelatin',t:30,d:2e6,s:8,p:30,ok:false,v:0.52,l:0.3,z:0.5 },
+             { m:'gelatin',t:35,d:3e6,s:6,p:35,ok:true,v:0.91,l:0.25,z:0.4 },
+             { m:'gelatin',t:25,d:1e6,s:12,p:45,ok:false,v:0.38,l:0.4,z:0.6 }
+            ].forEach(function(e){rep.recordExperiment({material:e.m,temperature:e.t,cellDensity:e.d,speed:e.s,pressure:e.p,layerHeight:e.l,nozzleDiameter:e.z,success:e.ok,viability:e.v})});
+        } else if (n === 3) {
+            [{ m:'collagen',t:10,d:2e6,s:5,p:15,l:0.15,z:0.3,ok:true,v:0.87 },
+             { m:'fibrin',t:30,d:3e6,s:8,p:20,l:0.2,z:0.35,ok:true,v:0.93 },
+             { m:'hyaluronic_acid',t:25,d:1e6,s:5,p:20,l:0.15,z:0.3,ok:false,v:0.55 },
+             { m:'collagen',t:20,d:5e6,s:10,p:25,ok:false,v:0.41,l:0.2,z:0.4 },
+             { m:'fibrin',t:35,d:2e6,s:10,p:25,ok:true,v:0.90,l:0.15,z:0.3 }
+            ].forEach(function(e){rep.recordExperiment({material:e.m,temperature:e.t,cellDensity:e.d,speed:e.s,pressure:e.p,layerHeight:e.l,nozzleDiameter:e.z,success:e.ok,viability:e.v})});
+        }
+        document.getElementById('record-msg').innerHTML = '<div class="card" style="border-color:var(--success)">✅ Preset ' + n + ' loaded!</div>';
+    }
+    </script>
+</body>
+</html>

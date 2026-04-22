@@ -81,6 +81,7 @@ var manifest = [
     ['createAnomalyCorrelator',          './docs/shared/anomalyCorrelator',          'createAnomalyCorrelator'],
     ['createLabEquipmentScheduler',      './docs/shared/equipmentScheduler',         'createLabEquipmentScheduler'],
     ['createProtocolDeviationTracker',   './docs/shared/protocolDeviation',          'createProtocolDeviationTracker'],
+    ['createExperimentReplicator',       './docs/shared/experimentReplicator',       'createExperimentReplicator'],
 ];
 
 // ── Pre-computed lookup structures ─────────────────────────────────
