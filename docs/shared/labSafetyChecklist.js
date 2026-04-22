@@ -365,8 +365,19 @@ function createLabSafetyChecklist() {
 
     function getAreaSafetyScore(areaName) {
         var areaChecklists = checklists.filter(function (c) { return c.area === areaName; });
-        var areaFindings = findings.filter(function (f) { return f.area === areaName; });
-        var openFindings = areaFindings.filter(function (f) { return f.status === 'open'; });
+
+        // Single pass over findings instead of 3 chained filters
+        // (area → open → critical). Reduces O(3·F) to O(F).
+        var openCount = 0;
+        var criticalOpenCount = 0;
+        for (var fi = 0; fi < findings.length; fi++) {
+            var f = findings[fi];
+            if (f.area !== areaName) continue;
+            if (f.status === 'open') {
+                openCount++;
+                if (f.risk.score >= 3) criticalOpenCount++;
+            }
+        }
 
         if (areaChecklists.length === 0) {
             return {
@@ -383,8 +394,7 @@ function createLabSafetyChecklist() {
         avgScore = Math.round(avgScore / areaChecklists.length);
 
         // Penalty for open critical findings
-        var criticalOpen = openFindings.filter(function (f) { return f.risk.score >= 3; });
-        var penalty = criticalOpen.length * 10;
+        var penalty = criticalOpenCount * 10;
         var finalScore = Math.max(0, avgScore - penalty);
 
         var grade;
@@ -399,8 +409,8 @@ function createLabSafetyChecklist() {
             area: areaName,
             checklistCount: areaChecklists.length,
             averageChecklistScore: avgScore,
-            openFindings: openFindings.length,
-            criticalOpenFindings: criticalOpen.length,
+            openFindings: openCount,
+            criticalOpenFindings: criticalOpenCount,
             penalty: penalty,
             finalScore: finalScore,
             grade: grade
@@ -415,9 +425,18 @@ function createLabSafetyChecklist() {
             return getAreaSafetyScore(name);
         });
 
-        var openFindings = findings.filter(function (f) { return f.status === 'open'; });
-        var criticalOpen = openFindings.filter(function (f) { return f.risk.score >= 4; });
-        var highOpen = openFindings.filter(function (f) { return f.risk.score === 3; });
+        // Single pass over findings for open/critical/high counts
+        // instead of 3 separate .filter() passes — O(F) vs O(3·F).
+        var openFindings = [];
+        var criticalOpen = [];
+        var highOpen = [];
+        for (var fi = 0; fi < findings.length; fi++) {
+            var f = findings[fi];
+            if (f.status !== 'open') continue;
+            openFindings.push(f);
+            if (f.risk.score >= 4) criticalOpen.push(f);
+            else if (f.risk.score === 3) highOpen.push(f);
+        }
 
         var overallScore = 0;
         var scoredAreas = allAreaScores.filter(function (a) { return a.score !== null; });
