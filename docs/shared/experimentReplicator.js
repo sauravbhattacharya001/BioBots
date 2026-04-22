@@ -78,6 +78,41 @@ function uid() { return ++uid._c; } uid._c = 0;
 function createExperimentReplicator() {
     var experiments = [];
 
+    // ── Shared Helpers ────────────────────────────────────────────
+
+    /** Group experiments by material — O(n) single pass. */
+    function _groupByMaterial() {
+        var groups = {};
+        for (var i = 0; i < experiments.length; i++) {
+            var m = experiments[i].material;
+            if (!groups[m]) groups[m] = [];
+            groups[m].push(experiments[i]);
+        }
+        return groups;
+    }
+
+    /** Pre-compute per-material statistics: viability variance, success rate. */
+    function _materialStats(byMaterial) {
+        var stats = {};
+        var materials = Object.keys(byMaterial);
+        for (var i = 0; i < materials.length; i++) {
+            var mat = materials[i];
+            var group = byMaterial[mat];
+            var viabs = [];
+            var succCount = 0;
+            for (var j = 0; j < group.length; j++) {
+                if (group[j].viability != null) viabs.push(group[j].viability);
+                if (group[j].success) succCount++;
+            }
+            stats[mat] = {
+                viabilityVariance: viabs.length >= 2 ? variance(viabs) : 0,
+                successRate: group.length ? succCount / group.length : 0.5,
+                count: group.length
+            };
+        }
+        return stats;
+    }
+
     // ── Record ───────────────────────────────────────────────────────
 
     /**
@@ -303,42 +338,39 @@ function createExperimentReplicator() {
     function prioritize() {
         if (!experiments.length) return [];
 
-        // Group by material
-        var byMaterial = {};
+        var byMaterial = _groupByMaterial();
+        var matStats = _materialStats(byMaterial);
+
+        // Pre-compute config counts: key = "material|temperature|speed"
+        // Eliminates O(n²) inner loop that previously re-scanned all
+        // experiments per experiment to count same-config replicates.
+        var configCounts = {};
         for (var i = 0; i < experiments.length; i++) {
-            var m = experiments[i].material;
-            if (!byMaterial[m]) byMaterial[m] = [];
-            byMaterial[m].push(experiments[i]);
+            var e = experiments[i];
+            var key = e.material + '|' + e.temperature + '|' + e.speed;
+            configCounts[key] = (configCounts[key] || 0) + 1;
         }
 
         var scored = [];
         for (var j = 0; j < experiments.length; j++) {
             var exp = experiments[j];
-            var group = byMaterial[exp.material];
+            var ms = matStats[exp.material];
             var score = 0;
             var reasons = [];
 
-            // Single-run: highest priority
-            var sameConfig = 0;
-            for (var k = 0; k < experiments.length; k++) {
-                if (experiments[k].material === exp.material && experiments[k].temperature === exp.temperature && experiments[k].speed === exp.speed) sameConfig++;
-            }
+            // Single-run: highest priority — O(1) lookup via pre-computed map
+            var cfgKey = exp.material + '|' + exp.temperature + '|' + exp.speed;
+            var sameConfig = configCounts[cfgKey] || 0;
             if (sameConfig <= 1) { score += 40; reasons.push('single run (no replicates)'); }
             else if (sameConfig <= 2) { score += 20; reasons.push('only ' + sameConfig + ' replicates'); }
 
-            // High variance in viability across material
-            var viabs = [];
-            for (var vi2 = 0; vi2 < group.length; vi2++) { if (group[vi2].viability != null) viabs.push(group[vi2].viability); }
-            if (viabs.length >= 2) {
-                var v = variance(viabs);
-                if (v > 0.02) { score += 25; reasons.push('high viability variance (' + round(v, 3) + ')'); }
-                else if (v > 0.005) { score += 10; reasons.push('moderate viability variance'); }
-            }
+            // High variance in viability — use pre-computed per-material stat
+            var v = ms.viabilityVariance;
+            if (v > 0.02) { score += 25; reasons.push('high viability variance (' + round(v, 3) + ')'); }
+            else if (v > 0.005) { score += 10; reasons.push('moderate viability variance'); }
 
-            // Low success rate for material
-            var succRate = 0;
-            for (var sr = 0; sr < group.length; sr++) { if (group[sr].success) succRate++; }
-            succRate = group.length ? succRate / group.length : 0.5;
+            // Low success rate — use pre-computed per-material stat
+            var succRate = ms.successRate;
             if (succRate < 0.5) { score += 20; reasons.push('low material success rate (' + round(succRate * 100, 0) + '%)'); }
 
             // Novel parameters (outside typical ranges)
@@ -358,7 +390,7 @@ function createExperimentReplicator() {
             }
 
             // Conflicting results (same material, mixed success)
-            if (group.length >= 2 && succRate > 0.2 && succRate < 0.8) {
+            if (ms.count >= 2 && succRate > 0.2 && succRate < 0.8) {
                 score += 15; reasons.push('conflicting success/failure results');
             }
 
@@ -421,12 +453,7 @@ function createExperimentReplicator() {
         if (!experiments.length) return { insights: [], summary: 'No experiments recorded yet.' };
 
         var insights = [];
-        var byMaterial = {};
-        for (var i = 0; i < experiments.length; i++) {
-            var m = experiments[i].material;
-            if (!byMaterial[m]) byMaterial[m] = [];
-            byMaterial[m].push(experiments[i]);
-        }
+        var byMaterial = _groupByMaterial();
 
         // Under-replicated materials
         var materials = Object.keys(byMaterial);
