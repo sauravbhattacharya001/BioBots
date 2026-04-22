@@ -180,6 +180,12 @@ function generateFleet() {
 let fleet = generateFleet();
 let pendingJobs = generatePendingJobs();
 
+// Security: escape HTML to prevent XSS from localStorage-injected data
+function escapeHtml(s) {
+    if (typeof s !== 'string') return String(s);
+    return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
 function generatePendingJobs() {
     const count = rand(3, 6);
     const jobs = [];
@@ -213,10 +219,10 @@ function renderFleet() {
     const grid = document.getElementById('fleetGrid');
     grid.innerHTML = fleet.map(p => `
         <div class="printer-card">
-            <div class="name">${p.name}</div>
-            <div class="model">${p.model} · ${p.material}</div>
-            <span class="status-badge status-${p.status}">${p.status}</span>
-            ${p.currentJob ? `<div style="margin-top:0.5rem;font-size:0.85rem;">📋 ${p.currentJob}</div>` : ''}
+            <div class="name">${escapeHtml(p.name)}</div>
+            <div class="model">${escapeHtml(p.model)} · ${escapeHtml(p.material)}</div>
+            <span class="status-badge status-${escapeHtml(p.status)}">${escapeHtml(p.status)}</span>
+            ${p.currentJob ? `<div style="margin-top:0.5rem;font-size:0.85rem;">📋 ${escapeHtml(p.currentJob)}</div>` : ''}
             ${p.status === 'printing' ? `<div class="progress-bar"><div class="fill" style="width:${p.jobProgress}%;background:var(--accent)"></div></div><div style="font-size:0.75rem;color:var(--muted)">${p.jobProgress}% complete</div>` : ''}
             <div class="printer-stats" style="margin-top:0.8rem;">
                 <span>Utilization <span class="val">${p.utilization}%</span></span>
@@ -268,8 +274,8 @@ function renderLoadBalancer() {
         else reasons.push('capable printer');
         if (best.health > 80) reasons.push('healthy');
         return `<tr>
-            <td><strong>${job.name}</strong><br><span style="color:var(--muted);font-size:0.8rem">${job.material} · ${job.priority} priority</span></td>
-            <td>${best.name}</td>
+            <td><strong>${escapeHtml(job.name)}</strong><br><span style="color:var(--muted);font-size:0.8rem">${escapeHtml(job.material)} · ${escapeHtml(job.priority)} priority</span></td>
+            <td>${escapeHtml(best.name)}</td>
             <td>${job.estMinutes} min</td>
             <td class="reason">${reasons.join(', ')}</td>
         </tr>`;
@@ -285,7 +291,7 @@ function renderMaintenance() {
         else if (daysUntilMaint <= 7) { urgency = `${daysUntilMaint}d — Soon`; urgencyClass = 'urgency-soon'; }
         else { urgency = `${daysUntilMaint}d — OK`; urgencyClass = 'urgency-ok'; }
         return `<tr>
-            <td>${p.name}</td>
+            <td>${escapeHtml(p.name)}</td>
             <td>${p.printHours}h</td>
             <td>${p.nozzleWear}%</td>
             <td>${p.calibDaysAgo} days ago</td>
@@ -299,11 +305,12 @@ function renderAlerts() {
     const feed = document.getElementById('alertFeed');
     const alerts = [];
     fleet.forEach(p => {
-        if (p.status === 'error') alerts.push({ severity: 'critical', icon: '🔴', title: `${p.name} — Error State`, desc: 'Printer reported an error. Check nozzle blockage or firmware.', action: 'Run diagnostics' });
-        if (p.nozzleWear > 80) alerts.push({ severity: 'warning', icon: '⚠️', title: `${p.name} — Nozzle Wear ${p.nozzleWear}%`, desc: 'Nozzle approaching end-of-life. Schedule replacement.', action: 'Schedule maintenance' });
-        if (p.calibDaysAgo > 30) alerts.push({ severity: 'warning', icon: '📐', title: `${p.name} — Calibration Overdue`, desc: `Last calibrated ${p.calibDaysAgo} days ago. Accuracy may be degraded.`, action: 'Start calibration' });
-        if (p.utilization < 10 && p.status !== 'offline' && p.status !== 'maintenance') alerts.push({ severity: 'info', icon: '💤', title: `${p.name} — Underutilized`, desc: 'Consider routing more jobs to this printer or powering down.', action: 'Auto-assign jobs' });
-        if (p.utilization > 85) alerts.push({ severity: 'warning', icon: '🔥', title: `${p.name} — High Load`, desc: 'Running near capacity. Risk of accelerated wear.', action: 'Redistribute load' });
+        const pn = escapeHtml(p.name);
+        if (p.status === 'error') alerts.push({ severity: 'critical', icon: '🔴', title: `${pn} — Error State`, desc: 'Printer reported an error. Check nozzle blockage or firmware.', action: 'Run diagnostics' });
+        if (p.nozzleWear > 80) alerts.push({ severity: 'warning', icon: '⚠️', title: `${pn} — Nozzle Wear ${p.nozzleWear}%`, desc: 'Nozzle approaching end-of-life. Schedule replacement.', action: 'Schedule maintenance' });
+        if (p.calibDaysAgo > 30) alerts.push({ severity: 'warning', icon: '📐', title: `${pn} — Calibration Overdue`, desc: `Last calibrated ${p.calibDaysAgo} days ago. Accuracy may be degraded.`, action: 'Start calibration' });
+        if (p.utilization < 10 && p.status !== 'offline' && p.status !== 'maintenance') alerts.push({ severity: 'info', icon: '💤', title: `${pn} — Underutilized`, desc: 'Consider routing more jobs to this printer or powering down.', action: 'Auto-assign jobs' });
+        if (p.utilization > 85) alerts.push({ severity: 'warning', icon: '🔥', title: `${pn} — High Load`, desc: 'Running near capacity. Risk of accelerated wear.', action: 'Redistribute load' });
     });
     if (alerts.length === 0) alerts.push({ severity: 'info', icon: '✅', title: 'Fleet Healthy', desc: 'No issues detected.', action: '' });
     feed.innerHTML = alerts.map(a => `
@@ -323,8 +330,8 @@ function renderComparison() {
     const top3 = fleet.slice(0, 3);
     section.innerHTML = top3.map(p => `
         <div class="compare-col">
-            <h3>${p.name}</h3>
-            <div class="metric"><span class="label">Model</span><span>${p.model}</span></div>
+            <h3>${escapeHtml(p.name)}</h3>
+            <div class="metric"><span class="label">Model</span><span>${escapeHtml(p.model)}</span></div>
             <div class="metric"><span class="label">Throughput</span><span>${p.throughput} jobs/day</span></div>
             <div class="metric"><span class="label">Reliability</span><span>${p.reliability}%</span></div>
             <div class="metric"><span class="label">Cost/Print</span><span>$${p.costPerPrint}</span></div>
@@ -383,7 +390,16 @@ function renderAll() {
 // --- Init ---
 const saved = localStorage.getItem('biobots-fleet-config');
 if (saved) {
-    try { const d = JSON.parse(saved); fleet = d.fleet || fleet; pendingJobs = d.pendingJobs || pendingJobs; } catch(e) {}
+    try {
+        const d = JSON.parse(saved);
+        // Validate loaded data types to prevent injected payloads
+        if (Array.isArray(d.fleet) && d.fleet.every(p => typeof p.name === 'string' && typeof p.model === 'string')) {
+            fleet = d.fleet;
+        }
+        if (Array.isArray(d.pendingJobs)) {
+            pendingJobs = d.pendingJobs;
+        }
+    } catch(e) {}
 }
 renderAll();
 </script>
