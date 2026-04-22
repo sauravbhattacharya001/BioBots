@@ -1,6 +1,7 @@
 'use strict';
 
 var _vRound = require('./validation').round;
+var _statsLinReg = require('./stats').linearRegression;
 
 /**
  * Standard Curve Calculator — fit a linear regression to known
@@ -39,35 +40,27 @@ function _validate(standards) {
     });
 }
 
+/**
+ * Thin adapter over stats.linearRegression — accepts {x, y} point objects
+ * and returns {slope, intercept, rSquared}.
+ */
 function _linearRegression(points) {
-    var n = points.length;
-    var sumX = 0, sumY = 0, sumXY = 0, sumX2 = 0, sumY2 = 0;
-
-    for (var i = 0; i < n; i++) {
-        var px = points[i].x, py = points[i].y;
-        sumX  += px;
-        sumY  += py;
-        sumXY += px * py;
-        sumX2 += px * px;
-        sumY2 += py * py;
+    var xs = new Array(points.length);
+    var ys = new Array(points.length);
+    for (var i = 0; i < points.length; i++) {
+        xs[i] = points[i].x;
+        ys[i] = points[i].y;
     }
-
-    var denom = n * sumX2 - sumX * sumX;
-    if (denom === 0) throw new Error('Cannot fit line — all X values are identical');
-
-    var slope     = (n * sumXY - sumX * sumY) / denom;
-    var intercept = (sumY - slope * sumX) / n;
-
-    // Single-pass R² using algebraic identity:
-    // ssRes = sumY2 - 2*slope*sumXY - 2*intercept*sumY
-    //       + slope²*sumX2 + 2*slope*intercept*sumX + n*intercept²
-    var ssTot = sumY2 - (sumY * sumY) / n;
-    var ssRes = sumY2 - 2 * slope * sumXY - 2 * intercept * sumY
-              + slope * slope * sumX2 + 2 * slope * intercept * sumX
-              + n * intercept * intercept;
-    var rSquared = ssTot === 0 ? 1 : 1 - ssRes / ssTot;
-
-    return { slope: slope, intercept: intercept, rSquared: rSquared };
+    var reg = _statsLinReg(xs, ys);
+    if (reg.slope === 0 && xs.length > 1) {
+        // Check if all X values are identical (stats returns slope=0 for denom=0)
+        var allSame = true;
+        for (var j = 1; j < xs.length; j++) {
+            if (xs[j] !== xs[0]) { allSame = false; break; }
+        }
+        if (allSame) throw new Error('Cannot fit line — all X values are identical');
+    }
+    return { slope: reg.slope, intercept: reg.intercept, rSquared: reg.r2 };
 }
 
 function _round(v, d) {
