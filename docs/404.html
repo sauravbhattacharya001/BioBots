@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>404 — BioBots</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧬</text></svg>">
+    <style>
+        :root {
+            --bg: #0f172a;
+            --surface: #1e293b;
+            --text: #e2e8f0;
+            --muted: #94a3b8;
+            --accent: #38bdf8;
+            --accent-hover: #7dd3fc;
+            --success: #4ade80;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 2rem;
+            text-align: center;
+        }
+        .code {
+            font-size: 6rem;
+            font-weight: 800;
+            background: linear-gradient(135deg, var(--accent), var(--success));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            line-height: 1;
+        }
+        h1 { margin: 1rem 0 0.5rem; font-size: 1.5rem; }
+        p { color: var(--muted); max-width: 28rem; line-height: 1.6; margin-bottom: 2rem; }
+        .links { display: flex; gap: 1rem; flex-wrap: wrap; justify-content: center; }
+        a {
+            display: inline-block;
+            padding: 0.75rem 1.5rem;
+            background: var(--surface);
+            color: var(--accent);
+            text-decoration: none;
+            border-radius: 0.5rem;
+            border: 1px solid var(--accent);
+            transition: all 0.2s;
+        }
+        a:hover { background: var(--accent); color: var(--bg); }
+    </style>
+</head>
+<body>
+    <div class="code">404</div>
+    <h1>Page Not Found</h1>
+    <p>The bioprint protocol you're looking for doesn't exist or has been moved. Try heading back to the dashboard.</p>
+    <div class="links">
+        <a href="./">🧬 Dashboard</a>
+        <a href="./api.html">📡 API Reference</a>
+        <a href="./guide.html">📖 User Guide</a>
+    </div>
+</body>
+</html>

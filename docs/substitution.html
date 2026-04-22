@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Smart Material Substitution Engine | BioBots</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{--bg:#0a0e17;--surface:#131a2b;--surface2:#1a2340;--border:#2a3555;--text:#e0e6f0;--dim:#8892a8;--accent:#00d4aa;--accent2:#00b4d8;--warn:#f0a030;--danger:#f04040;--success:#00d46a;--purple:#a78bfa}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;padding:20px}
+h1{font-size:1.6rem;font-weight:700;margin-bottom:4px}
+h2{font-size:1.1rem;font-weight:600;margin-bottom:12px;color:var(--accent)}
+h3{font-size:.95rem;font-weight:600;margin-bottom:8px}
+.subtitle{color:var(--dim);font-size:.85rem;margin-bottom:20px}
+.grid{display:grid;gap:16px}
+.grid-2{grid-template-columns:1fr 1fr}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px}
+label{display:block;font-size:.8rem;color:var(--dim);margin-bottom:4px}
+select,input[type=text],input[type=number],textarea{width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:8px 12px;font-size:.85rem;outline:none}
+select:focus,input:focus,textarea:focus{border-color:var(--accent)}
+textarea{resize:vertical;min-height:60px;font-family:inherit}
+button{background:var(--accent);color:#000;border:none;border-radius:8px;padding:8px 18px;font-weight:600;font-size:.85rem;cursor:pointer;transition:.2s}
+button:hover{opacity:.85}
+button.secondary{background:var(--surface2);color:var(--text);border:1px solid var(--border)}
+button.secondary:hover{border-color:var(--accent)}
+.tag{display:inline-block;padding:2px 8px;border-radius:6px;font-size:.7rem;font-weight:600}
+.tag-green{background:#00d46a22;color:var(--success)}
+.tag-yellow{background:#f0a03022;color:var(--warn)}
+.tag-red{background:#f0404022;color:var(--danger)}
+.tag-blue{background:#00b4d822;color:var(--accent2)}
+.score-bar{height:6px;background:var(--surface2);border-radius:3px;overflow:hidden;margin-top:4px}
+.score-fill{height:100%;border-radius:3px;transition:width .5s}
+.result-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:12px;transition:.2s;cursor:pointer}
+.result-card:hover{border-color:var(--accent);transform:translateY(-1px)}
+.result-card.expanded .detail{display:block}
+.detail{display:none;margin-top:12px;padding-top:12px;border-top:1px solid var(--border)}
+.match-score{font-size:1.8rem;font-weight:800;line-height:1}
+.match-label{font-size:.7rem;color:var(--dim)}
+.dim{color:var(--dim);font-size:.8rem}
+.flex{display:flex;gap:8px;align-items:center}
+.flex-between{display:flex;justify-content:space-between;align-items:center}
+.mt-8{margin-top:8px}.mt-12{margin-top:12px}.mb-8{margin-bottom:8px}
+.prop-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:.8rem}
+.prop-grid dt{color:var(--dim)}.prop-grid dd{text-align:right;font-weight:600}
+.alert-box{padding:10px 14px;border-radius:8px;font-size:.8rem;margin-top:10px}
+.alert-info{background:#00b4d815;border:1px solid #00b4d844;color:var(--accent2)}
+.alert-warn{background:#f0a03015;border:1px solid #f0a03044;color:var(--warn)}
+.alert-success{background:#00d46a15;border:1px solid #00d46a44;color:var(--success)}
+.protocol-adj{font-size:.8rem;padding:8px;background:var(--surface2);border-radius:8px;margin-top:6px}
+.protocol-adj li{margin:4px 0;list-style:none}
+.protocol-adj li::before{content:'⚡ ';font-size:.75rem}
+.empty-state{text-align:center;padding:40px;color:var(--dim)}
+.header-bar{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:20px;flex-wrap:wrap;gap:12px}
+.stats-row{display:flex;gap:16px;flex-wrap:wrap}
+.stat{text-align:center;min-width:80px}
+.stat-val{font-size:1.4rem;font-weight:800;color:var(--accent)}
+.stat-label{font-size:.65rem;color:var(--dim);text-transform:uppercase;letter-spacing:.5px}
+.tab-bar{display:flex;gap:4px;margin-bottom:16px}
+.tab{padding:6px 14px;border-radius:8px;font-size:.8rem;cursor:pointer;background:var(--surface2);color:var(--dim);border:1px solid transparent;font-weight:500}
+.tab.active{background:var(--accent);color:#000;font-weight:700}
+.hidden{display:none}
+@media(max-width:768px){.grid-2{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="header-bar">
+  <div>
+    <h1>🔄 Smart Material Substitution Engine</h1>
+    <div class="subtitle">Autonomous alternative material finder with compatibility scoring &amp; protocol adjustments</div>
+  </div>
+  <div class="stats-row" id="globalStats">
+    <div class="stat"><div class="stat-val" id="statMaterials">18</div><div class="stat-label">Materials</div></div>
+    <div class="stat"><div class="stat-val" id="statSearches">0</div><div class="stat-label">Searches</div></div>
+    <div class="stat"><div class="stat-val" id="statSaved">0</div><div class="stat-label">Saved</div></div>
+  </div>
+</div>
+
+<div class="tab-bar">
+  <div class="tab active" onclick="showTab('search',this)">🔍 Find Substitute</div>
+  <div class="tab" onclick="showTab('compare',this)">⚖️ Compare</div>
+  <div class="tab" onclick="showTab('history',this)">📜 History</div>
+  <div class="tab" onclick="showTab('auto',this)">🤖 Auto-Scan</div>
+</div>
+
+<div id="tab-search">
+  <div class="grid grid-2">
+    <div class="card">
+      <h2>🎯 Source Material</h2>
+      <label>Select unavailable material</label>
+      <select id="sourceMaterial" onchange="onSourceChange()">
+        <option value="">— Choose material —</option>
+      </select>
+      <div id="sourceInfo" class="mt-12"></div>
+      <div class="mt-12">
+        <label>Priority weights</label>
+        <div class="prop-grid mt-8">
+          <dt>Viscosity match</dt><dd><input type="range" min="0" max="10" value="8" id="wVisc" style="width:80px"></dd>
+          <dt>Cell compatibility</dt><dd><input type="range" min="0" max="10" value="9" id="wCell" style="width:80px"></dd>
+          <dt>Print temperature</dt><dd><input type="range" min="0" max="10" value="6" id="wTemp" style="width:80px"></dd>
+          <dt>Mechanical strength</dt><dd><input type="range" min="0" max="10" value="7" id="wMech" style="width:80px"></dd>
+          <dt>Degradation rate</dt><dd><input type="range" min="0" max="10" value="5" id="wDeg" style="width:80px"></dd>
+          <dt>Cost proximity</dt><dd><input type="range" min="0" max="10" value="4" id="wCost" style="width:80px"></dd>
+        </div>
+      </div>
+      <div class="mt-12">
+        <label>Constraints (optional)</label>
+        <textarea id="constraints" placeholder="e.g., Must be FDA-approved, no animal-derived, budget < $200/L"></textarea>
+      </div>
+      <button class="mt-12" onclick="findSubstitutes()" style="width:100%">🔍 Find Substitutes</button>
+    </div>
+    <div class="card">
+      <h2>📊 Results</h2>
+      <div id="results">
+        <div class="empty-state">Select a material and click Find Substitutes</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="tab-compare" class="hidden">
+  <div class="card">
+    <h2>⚖️ Side-by-Side Comparison</h2>
+    <div class="flex mb-8">
+      <select id="cmpA" style="flex:1"><option value="">— Material A —</option></select>
+      <span style="color:var(--dim)">vs</span>
+      <select id="cmpB" style="flex:1"><option value="">— Material B —</option></select>
+      <button onclick="runCompare()">Compare</button>
+    </div>
+    <div id="compareResult"></div>
+  </div>
+</div>
+
+<div id="tab-history" class="hidden">
+  <div class="card">
+    <h2>📜 Substitution History</h2>
+    <div id="historyList"><div class="empty-state">No searches yet</div></div>
+    <button class="secondary mt-12" onclick="exportHistory()">📥 Export JSON</button>
+  </div>
+</div>
+
+<div id="tab-auto" class="hidden">
+  <div class="card">
+    <h2>🤖 Auto-Scan: Proactive Substitution Recommendations</h2>
+    <p class="dim mb-8">Scans all materials and proactively identifies potential supply risk, suggesting pre-approved substitutes before you need them.</p>
+    <button onclick="runAutoScan()">▶ Run Auto-Scan</button>
+    <div id="autoResults" class="mt-12"></div>
+  </div>
+</div>
+
+<script>
+const MATERIALS=[
+  {id:'gelatin_ma',name:'GelMA (Gelatin Methacrylate)',cat:'Natural',visc:800,cellComp:92,printTemp:25,mechStr:15,degRate:40,cost:180,photo:true,fdaClass:'II',origin:'Animal',crosslink:'UV',notes:'Gold standard for cell-laden bioprinting'},
+  {id:'alginate',name:'Sodium Alginate',cat:'Natural',visc:500,cellComp:85,printTemp:22,mechStr:8,degRate:60,cost:45,photo:false,fdaClass:'II',origin:'Plant',crosslink:'Ionic (CaCl\u2082)',notes:'Easy to use, gentle crosslinking'},
+  {id:'collagen_i',name:'Collagen Type I',cat:'Natural',visc:300,cellComp:95,printTemp:4,mechStr:5,degRate:50,cost:350,photo:false,fdaClass:'III',origin:'Animal',crosslink:'Thermal',notes:'Native ECM component, low mechanical strength'},
+  {id:'hyaluronic',name:'Hyaluronic Acid (HA)',cat:'Natural',visc:600,cellComp:90,printTemp:22,mechStr:4,degRate:70,cost:280,photo:false,fdaClass:'III',origin:'Animal/Bacterial',crosslink:'Chemical',notes:'Excellent cell signaling, fast degradation'},
+  {id:'fibrin',name:'Fibrin',cat:'Natural',visc:200,cellComp:93,printTemp:22,mechStr:3,degRate:80,cost:220,photo:false,fdaClass:'III',origin:'Animal',crosslink:'Enzymatic',notes:'Rapid gelation, good for vascular'},
+  {id:'silk',name:'Silk Fibroin',cat:'Natural',visc:400,cellComp:82,printTemp:25,mechStr:20,degRate:20,cost:160,photo:false,fdaClass:'II',origin:'Animal',crosslink:'Enzymatic/Physical',notes:'High strength, slow degradation'},
+  {id:'chitosan',name:'Chitosan',cat:'Natural',visc:700,cellComp:78,printTemp:22,mechStr:12,degRate:45,cost:65,photo:false,fdaClass:'II',origin:'Animal',crosslink:'pH/Ionic',notes:'Antimicrobial properties'},
+  {id:'peg_da',name:'PEGDA',cat:'Synthetic',visc:100,cellComp:70,printTemp:25,mechStr:25,degRate:10,cost:120,photo:true,fdaClass:'II',origin:'Synthetic',crosslink:'UV',notes:'Highly tunable, bioinert'},
+  {id:'pcl',name:'Polycaprolactone (PCL)',cat:'Synthetic',visc:9000,cellComp:60,printTemp:60,mechStr:45,degRate:5,cost:80,photo:false,fdaClass:'II',origin:'Synthetic',crosslink:'Thermal',notes:'High strength scaffold material'},
+  {id:'pla',name:'Polylactic Acid (PLA)',cat:'Synthetic',visc:8000,cellComp:55,printTemp:190,mechStr:50,degRate:8,cost:50,photo:false,fdaClass:'II',origin:'Synthetic',crosslink:'Thermal',notes:'Rigid scaffold, slow degradation'},
+  {id:'pluronic',name:'Pluronic F-127',cat:'Synthetic',visc:350,cellComp:65,printTemp:4,mechStr:2,degRate:95,cost:90,photo:false,fdaClass:'I',origin:'Synthetic',crosslink:'Thermal (reverse)',notes:'Sacrificial/support material'},
+  {id:'gelatin',name:'Gelatin',cat:'Natural',visc:600,cellComp:88,printTemp:30,mechStr:6,degRate:65,cost:30,photo:false,fdaClass:'I',origin:'Animal',crosslink:'Thermal',notes:'Low cost, thermoreversible'},
+  {id:'agarose',name:'Agarose',cat:'Natural',visc:450,cellComp:75,printTemp:37,mechStr:10,degRate:15,cost:55,photo:false,fdaClass:'I',origin:'Plant',crosslink:'Thermal',notes:'Thermoreversible gel'},
+  {id:'matrigel',name:'Matrigel',cat:'Natural',visc:250,cellComp:98,printTemp:4,mechStr:2,degRate:85,cost:800,photo:false,fdaClass:'Research',origin:'Animal',crosslink:'Thermal',notes:'Best cell support, not clinically viable'},
+  {id:'cellulose_nc',name:'Nanocellulose',cat:'Natural',visc:1200,cellComp:72,printTemp:22,mechStr:18,degRate:12,cost:95,photo:false,fdaClass:'II',origin:'Plant',crosslink:'Physical/Ionic',notes:'High viscosity, shear-thinning'},
+  {id:'decm',name:'dECM (Decellularized ECM)',cat:'Natural',visc:350,cellComp:96,printTemp:4,mechStr:6,degRate:55,cost:500,photo:false,fdaClass:'III',origin:'Animal',crosslink:'Thermal/Chemical',notes:'Tissue-specific microenvironment'},
+  {id:'gellan',name:'Gellan Gum',cat:'Natural',visc:550,cellComp:74,printTemp:40,mechStr:14,degRate:25,cost:40,photo:false,fdaClass:'I',origin:'Bacterial',crosslink:'Ionic',notes:'Good printability, low cell attachment'},
+  {id:'xanthan_alg',name:'Xanthan-Alginate Blend',cat:'Blend',visc:650,cellComp:80,printTemp:22,mechStr:10,degRate:55,cost:55,photo:false,fdaClass:'I',origin:'Plant/Bacterial',crosslink:'Ionic',notes:'Improved printability over pure alginate'}
+];
+
+let searchCount=0,savedCount=0,history=[];
+
+function init(){
+  ['sourceMaterial','cmpA','cmpB'].forEach(id=>{
+    const el=document.getElementById(id);
+    MATERIALS.forEach(m=>{const o=document.createElement('option');o.value=m.id;o.textContent=m.name;el.appendChild(o)});
+  });
+  loadState();
+}
+
+function loadState(){try{const s=localStorage.getItem('biobots_subst');if(s){const d=JSON.parse(s);history=d.history||[];searchCount=d.searchCount||0;savedCount=d.savedCount||0;updateStats()}}catch(e){}}
+function saveState(){localStorage.setItem('biobots_subst',JSON.stringify({history,searchCount,savedCount}))}
+function updateStats(){document.getElementById('statSearches').textContent=searchCount;document.getElementById('statSaved').textContent=savedCount}
+
+function showTab(t,btn){
+  document.querySelectorAll('[id^="tab-"]').forEach(el=>el.classList.add('hidden'));
+  document.getElementById('tab-'+t).classList.remove('hidden');
+  document.querySelectorAll('.tab').forEach(el=>el.classList.remove('active'));
+  btn.classList.add('active');
+  if(t==='history')renderHistory();
+}
+
+function getMat(id){return MATERIALS.find(m=>m.id===id)}
+
+function onSourceChange(){
+  const m=getMat(document.getElementById('sourceMaterial').value);
+  const el=document.getElementById('sourceInfo');
+  if(!m){el.innerHTML='';return}
+  el.innerHTML=`<div class="prop-grid mt-8">
+    <dt>Category</dt><dd><span class="tag tag-blue">${m.cat}</span></dd>
+    <dt>Viscosity</dt><dd>${m.visc} Pa\u00b7s</dd>
+    <dt>Cell Compat.</dt><dd>${m.cellComp}%</dd>
+    <dt>Print Temp</dt><dd>${m.printTemp}\u00b0C</dd>
+    <dt>Mech. Strength</dt><dd>${m.mechStr} kPa</dd>
+    <dt>Degradation</dt><dd>${m.degRate}%/month</dd>
+    <dt>Cost</dt><dd>$${m.cost}/L</dd>
+    <dt>Crosslinking</dt><dd>${m.crosslink}</dd>
+    <dt>Origin</dt><dd>${m.origin}</dd>
+    <dt>FDA Class</dt><dd>${m.fdaClass}</dd>
+  </div><div class="alert-box alert-info mt-8">\ud83d\udca1 ${m.notes}</div>`;
+}
+
+function calcScore(src,cand){
+  const w={visc:+document.getElementById('wVisc').value,cell:+document.getElementById('wCell').value,temp:+document.getElementById('wTemp').value,mech:+document.getElementById('wMech').value,deg:+document.getElementById('wDeg').value,cost:+document.getElementById('wCost').value};
+  const tw=w.visc+w.cell+w.temp+w.mech+w.deg+w.cost||1;
+  const n=(a,b,mx)=>Math.max(0,1-Math.abs(a-b)/mx);
+  const d={visc:n(src.visc,cand.visc,2000),cell:n(src.cellComp,cand.cellComp,40),temp:n(src.printTemp,cand.printTemp,50),mech:n(src.mechStr,cand.mechStr,30),deg:n(src.degRate,cand.degRate,60),cost:n(src.cost,cand.cost,500)};
+  const overall=Math.round((d.visc*w.visc+d.cell*w.cell+d.temp*w.temp+d.mech*w.mech+d.deg*w.deg+d.cost*w.cost)/tw*100);
+  return{overall,dim:d};
+}
+
+function defaultScore(src,cand){
+  const n=(a,b,mx)=>Math.max(0,1-Math.abs(a-b)/mx);
+  const d={visc:n(src.visc,cand.visc,2000),cell:n(src.cellComp,cand.cellComp,40),temp:n(src.printTemp,cand.printTemp,50),mech:n(src.mechStr,cand.mechStr,30),deg:n(src.degRate,cand.degRate,60),cost:n(src.cost,cand.cost,500)};
+  return Math.round((d.visc*8+d.cell*9+d.temp*6+d.mech*7+d.deg*5+d.cost*4)/39*100);
+}
+
+function getAdj(src,cand){
+  const a=[];
+  const dT=cand.printTemp-src.printTemp;
+  if(Math.abs(dT)>5)a.push(`Adjust print temperature by ${dT>0?'+':''}${dT}\u00b0C`);
+  if(cand.crosslink!==src.crosslink)a.push(`Switch crosslinking: ${src.crosslink} \u2192 ${cand.crosslink}`);
+  const dV=cand.visc-src.visc;
+  if(Math.abs(dV)>200)a.push(dV>0?'Increase nozzle diameter or extrusion pressure':'Decrease flow rate or use smaller nozzle');
+  if(cand.degRate>src.degRate+15)a.push('\u26a0\ufe0f Faster degradation \u2014 consider increased scaffold density');
+  if(cand.cellComp<src.cellComp-10)a.push('\u26a0\ufe0f Lower cell compatibility \u2014 increase cell seeding density');
+  if(cand.mechStr<src.mechStr-10)a.push('\u26a0\ufe0f Weaker mechanically \u2014 add support structure or blend');
+  if(cand.photo&&!src.photo)a.push('Requires UV crosslinking setup');
+  if(!cand.photo&&src.photo)a.push('UV crosslinking no longer needed');
+  if(!a.length)a.push('\u2705 Minimal protocol changes required');
+  return a;
+}
+
+function riskLevel(o){
+  if(o>=80)return{label:'Low Risk',cls:'tag-green',icon:'\u2705'};
+  if(o>=60)return{label:'Moderate',cls:'tag-yellow',icon:'\u26a0\ufe0f'};
+  return{label:'High Risk',cls:'tag-red',icon:'\ud83d\udea8'};
+}
+
+function findSubstitutes(){
+  const srcId=document.getElementById('sourceMaterial').value;
+  if(!srcId){alert('Select a source material');return}
+  const src=getMat(srcId);
+  const con=document.getElementById('constraints').value.toLowerCase();
+  let cands=MATERIALS.filter(m=>m.id!==srcId);
+  if(con.includes('no animal')||con.includes('non-animal'))cands=cands.filter(m=>!m.origin.includes('Animal'));
+  if(con.includes('fda'))cands=cands.filter(m=>m.fdaClass!=='Research');
+  if(con.includes('plant'))cands=cands.filter(m=>m.origin.includes('Plant'));
+  const res=cands.map(c=>({mat:c,...calcScore(src,c),adj:getAdj(src,c)})).sort((a,b)=>b.overall-a.overall);
+  searchCount++;updateStats();
+  history.unshift({time:new Date().toISOString(),source:src.name,topMatch:res[0]?.mat.name,topScore:res[0]?.overall,count:res.length});
+  if(history.length>50)history.pop();
+  saveState();
+  renderResults(src,res);
+}
+
+function renderResults(src,res){
+  const el=document.getElementById('results');
+  if(!res.length){el.innerHTML='<div class="empty-state">No materials match your constraints</div>';return}
+  el.innerHTML=res.map((r,i)=>{
+    const risk=riskLevel(r.overall);
+    const sc=c=>Math.round(c*100);
+    const dims=['Viscosity','Cell Compat','Temperature','Strength','Degradation','Cost'];
+    const vals=[r.dim.visc,r.dim.cell,r.dim.temp,r.dim.mech,r.dim.deg,r.dim.cost];
+    return `<div class="result-card" onclick="this.classList.toggle('expanded')">
+      <div class="flex-between">
+        <div>
+          <div class="flex mb-8">
+            <span style="font-weight:700">${i===0?'\ud83c\udfc6 ':''}${r.mat.name}</span>
+            <span class="tag ${risk.cls}">${risk.icon} ${risk.label}</span>
+            <span class="tag tag-blue">${r.mat.cat}</span>
+          </div>
+          <div class="dim">${r.mat.origin} \u00b7 ${r.mat.crosslink} \u00b7 $${r.mat.cost}/L \u00b7 FDA ${r.mat.fdaClass}</div>
+        </div>
+        <div style="text-align:center;min-width:60px">
+          <div class="match-score" style="color:${r.overall>=80?'var(--success)':r.overall>=60?'var(--warn)':'var(--danger)'}">${r.overall}</div>
+          <div class="match-label">MATCH</div>
+        </div>
+      </div>
+      <div class="mt-8" style="display:grid;grid-template-columns:repeat(6,1fr);gap:4px;font-size:.7rem;text-align:center">
+        ${dims.map((l,j)=>{const v=sc(vals[j]);return `<div><div class="dim">${l}</div><div class="score-bar"><div class="score-fill" style="width:${v}%;background:${v>=80?'var(--success)':v>=60?'var(--warn)':'var(--danger)'}"></div></div><div>${v}%</div></div>`}).join('')}
+      </div>
+      <div class="detail">
+        <h3>\ud83d\udd27 Protocol Adjustments</h3>
+        <ul class="protocol-adj">${r.adj.map(a=>`<li>${a}</li>`).join('')}</ul>
+        <div class="prop-grid mt-12">
+          <dt>Viscosity</dt><dd>${src.visc} \u2192 ${r.mat.visc} Pa\u00b7s</dd>
+          <dt>Cell Compat</dt><dd>${src.cellComp} \u2192 ${r.mat.cellComp}%</dd>
+          <dt>Print Temp</dt><dd>${src.printTemp} \u2192 ${r.mat.printTemp}\u00b0C</dd>
+          <dt>Mech Strength</dt><dd>${src.mechStr} \u2192 ${r.mat.mechStr} kPa</dd>
+          <dt>Deg Rate</dt><dd>${src.degRate} \u2192 ${r.mat.degRate}%/mo</dd>
+          <dt>Cost</dt><dd>$${src.cost} \u2192 $${r.mat.cost}/L</dd>
+        </div>
+        <div class="alert-box alert-info mt-8">\ud83d\udca1 ${r.mat.notes}</div>
+        <button class="secondary mt-8" onclick="event.stopPropagation();saveSubst(this)">\ud83d\udcbe Save to Protocol</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function saveSubst(btn){savedCount++;updateStats();saveState();btn.textContent='\u2705 Saved!';btn.disabled=true;setTimeout(()=>{btn.textContent='\ud83d\udcbe Save to Protocol';btn.disabled=false},1500)}
+
+function runCompare(){
+  const a=getMat(document.getElementById('cmpA').value),b=getMat(document.getElementById('cmpB').value);
+  if(!a||!b){alert('Select both materials');return}
+  const el=document.getElementById('compareResult');
+  const props=[{l:'Viscosity',k:'visc',u:'Pa\u00b7s',b:'context'},{l:'Cell Compatibility',k:'cellComp',u:'%',b:'high'},{l:'Print Temperature',k:'printTemp',u:'\u00b0C',b:'low'},{l:'Mechanical Strength',k:'mechStr',u:'kPa',b:'high'},{l:'Degradation Rate',k:'degRate',u:'%/mo',b:'context'},{l:'Cost',k:'cost',u:'$/L',b:'low'}];
+  el.innerHTML=`<table style="width:100%;font-size:.8rem;border-collapse:collapse">
+    <tr style="border-bottom:1px solid var(--border)"><th style="text-align:left;padding:6px">Property</th><th style="text-align:right;padding:6px">${a.name}</th><th style="text-align:right;padding:6px">${b.name}</th><th style="padding:6px">Winner</th></tr>
+    ${props.map(p=>{const va=a[p.k],vb=b[p.k];let w='\u2248';if(p.b==='high')w=va>vb?'\u2b05\ufe0f':'\u27a1\ufe0f';else if(p.b==='low')w=va<vb?'\u2b05\ufe0f':'\u27a1\ufe0f';return `<tr style="border-bottom:1px solid var(--border)"><td style="padding:6px;color:var(--dim)">${p.l}</td><td style="text-align:right;padding:6px;font-weight:600">${va} ${p.u}</td><td style="text-align:right;padding:6px;font-weight:600">${vb} ${p.u}</td><td style="text-align:center;padding:6px">${w}</td></tr>`}).join('')}
+  </table>
+  <div class="grid grid-2 mt-12"><div class="alert-box alert-info"><strong>${a.name}:</strong> ${a.notes}</div><div class="alert-box alert-info"><strong>${b.name}:</strong> ${b.notes}</div></div>
+  <div class="mt-12"><strong>Protocol differences:</strong><ul class="protocol-adj">${getAdj(a,b).map(x=>`<li>${x}</li>`).join('')}</ul></div>`;
+}
+
+function renderHistory(){
+  const el=document.getElementById('historyList');
+  if(!history.length){el.innerHTML='<div class="empty-state">No searches yet</div>';return}
+  el.innerHTML=history.map(h=>`<div class="flex-between" style="padding:8px 0;border-bottom:1px solid var(--border);font-size:.8rem">
+    <div><strong>${h.source}</strong> \u2192 <span style="color:var(--accent)">${h.topMatch}</span> (${h.topScore}% match)</div>
+    <div class="dim">${new Date(h.time).toLocaleString()} \u00b7 ${h.count} candidates</div>
+  </div>`).join('');
+}
+
+function exportHistory(){const b=new Blob([JSON.stringify(history,null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='substitution-history.json';a.click()}
+
+function runAutoScan(){
+  const el=document.getElementById('autoResults');
+  const risks=MATERIALS.map(m=>{
+    const subs=MATERIALS.filter(c=>c.id!==m.id).map(c=>({mat:c,score:defaultScore(m,c)})).sort((a,b)=>b.score-a.score);
+    const top=subs[0]?.score||0;
+    const rf=[];
+    if(m.cost>300)rf.push('High cost \u2014 supply disruption impactful');
+    if(m.origin==='Animal')rf.push('Animal-derived \u2014 regulatory/ethical risk');
+    if(m.fdaClass==='Research')rf.push('Research-only \u2014 not clinically viable');
+    if(top<60)rf.push('No good substitute available (<60% match)');
+    const sr=rf.length===0?'Low':rf.length<=1?'Medium':'High';
+    return{mat:m,topSub:subs[0],topScore:top,rf,sr,subs:subs.slice(0,3)};
+  }).sort((a,b)=>{const o={High:0,Medium:1,Low:2};return o[a.sr]-o[b.sr]||a.topScore-b.topScore});
+
+  el.innerHTML=`<div class="alert-box alert-success mb-8">\ud83e\udd16 Scanned ${MATERIALS.length} materials \u00b7 Found ${risks.filter(r=>r.sr==='High').length} high-risk \u00b7 ${risks.filter(r=>r.sr==='Medium').length} medium-risk</div>`+
+    risks.map(r=>{
+      const cls=r.sr==='High'?'tag-red':r.sr==='Medium'?'tag-yellow':'tag-green';
+      return `<div class="result-card" onclick="this.classList.toggle('expanded')">
+        <div class="flex-between">
+          <div class="flex"><strong>${r.mat.name}</strong><span class="tag ${cls}">${r.sr} Risk</span></div>
+          <div class="dim">Best sub: ${r.topSub.mat.name} (${r.topScore}%)</div>
+        </div>
+        <div class="detail">
+          ${r.rf.length?`<div class="mb-8">${r.rf.map(f=>`<div class="dim">\u26a0\ufe0f ${f}</div>`).join('')}</div>`:''}
+          <h3>Top 3 Substitutes</h3>
+          ${r.subs.map((s,i)=>`<div class="dim">${i+1}. ${s.mat.name} \u2014 ${s.score}% match ($${s.mat.cost}/L, ${s.mat.crosslink})</div>`).join('')}
+          <div class="alert-box alert-info mt-8">\ud83d\udca1 <strong>Recommendation:</strong> ${r.sr==='High'?'Pre-validate top substitute immediately. Consider dual-source protocol.':r.sr==='Medium'?'Keep substitute parameters documented. Test quarterly.':'Current supply posture is stable.'}</div>
+        </div>
+      </div>`;
+    }).join('');
+}
+
+init();
+</script>
+</body>
+</html>

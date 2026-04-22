@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>BioBots — Fleet Commander</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧬</text></svg>">
+    <style>
+        :root {
+            --bg: #0f172a;
+            --surface: #1e293b;
+            --border: #334155;
+            --text: #e2e8f0;
+            --muted: #94a3b8;
+            --accent: #38bdf8;
+            --accent-hover: #7dd3fc;
+            --success: #4ade80;
+            --error: #f87171;
+            --warning: #fbbf24;
+            --purple: #a78bfa;
+            --orange: #fb923c;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            padding: 2rem 1rem;
+        }
+        .container { max-width: 1400px; margin: 0 auto; }
+        header { text-align: center; margin-bottom: 2rem; }
+        header h1 { font-size: 2rem; font-weight: 700; background: linear-gradient(135deg, var(--accent), var(--purple)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        header p { color: var(--muted); margin-top: 0.5rem; }
+        .stats-bar { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 1rem; margin-bottom: 2rem; }
+        .stat-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 1rem; text-align: center; }
+        .stat-card .value { font-size: 1.8rem; font-weight: 700; color: var(--accent); }
+        .stat-card .label { font-size: 0.8rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; }
+        .section { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 1.5rem; margin-bottom: 1.5rem; }
+        .section h2 { font-size: 1.2rem; margin-bottom: 1rem; display: flex; align-items: center; gap: 0.5rem; }
+        .fleet-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 1rem; }
+        .printer-card { background: var(--bg); border: 1px solid var(--border); border-radius: 10px; padding: 1.2rem; position: relative; transition: border-color 0.2s; }
+        .printer-card:hover { border-color: var(--accent); }
+        .printer-card .name { font-weight: 600; font-size: 1.1rem; margin-bottom: 0.3rem; }
+        .printer-card .model { color: var(--muted); font-size: 0.85rem; margin-bottom: 0.8rem; }
+        .status-badge { display: inline-block; padding: 0.2rem 0.6rem; border-radius: 20px; font-size: 0.75rem; font-weight: 600; text-transform: uppercase; }
+        .status-idle { background: rgba(74,222,128,0.15); color: var(--success); }
+        .status-printing { background: rgba(56,189,248,0.15); color: var(--accent); }
+        .status-maintenance { background: rgba(251,191,36,0.15); color: var(--warning); }
+        .status-error { background: rgba(248,113,113,0.15); color: var(--error); }
+        .status-offline { background: rgba(148,163,184,0.15); color: var(--muted); }
+        .progress-bar { height: 6px; background: var(--border); border-radius: 3px; margin: 0.8rem 0; overflow: hidden; }
+        .progress-bar .fill { height: 100%; border-radius: 3px; transition: width 0.3s; }
+        .printer-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; font-size: 0.8rem; color: var(--muted); }
+        .printer-stats span { display: flex; justify-content: space-between; }
+        .printer-stats .val { color: var(--text); font-weight: 500; }
+        .heatmap-container { overflow-x: auto; }
+        canvas#heatmap { width: 100%; max-width: 900px; display: block; margin: 0 auto; border-radius: 8px; }
+        .alert-feed { max-height: 300px; overflow-y: auto; }
+        .alert-item { display: flex; gap: 0.8rem; padding: 0.7rem; border-radius: 8px; margin-bottom: 0.5rem; background: var(--bg); border: 1px solid var(--border); align-items: flex-start; }
+        .alert-item.critical { border-left: 3px solid var(--error); }
+        .alert-item.warning { border-left: 3px solid var(--warning); }
+        .alert-item.info { border-left: 3px solid var(--accent); }
+        .alert-icon { font-size: 1.2rem; flex-shrink: 0; }
+        .alert-text { flex: 1; }
+        .alert-text .title { font-size: 0.9rem; font-weight: 500; }
+        .alert-text .desc { font-size: 0.8rem; color: var(--muted); margin-top: 0.2rem; }
+        .alert-text .action { font-size: 0.75rem; color: var(--accent); cursor: pointer; margin-top: 0.3rem; }
+        .alert-text .action:hover { text-decoration: underline; }
+        .lb-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+        .lb-table th, .lb-table td { padding: 0.6rem 0.8rem; text-align: left; border-bottom: 1px solid var(--border); }
+        .lb-table th { color: var(--muted); font-weight: 500; text-transform: uppercase; font-size: 0.75rem; }
+        .lb-table .reason { color: var(--muted); font-size: 0.8rem; }
+        .maint-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+        .maint-table th, .maint-table td { padding: 0.6rem 0.8rem; text-align: left; border-bottom: 1px solid var(--border); }
+        .maint-table th { color: var(--muted); font-weight: 500; text-transform: uppercase; font-size: 0.75rem; }
+        .urgency-ok { color: var(--success); }
+        .urgency-soon { color: var(--warning); }
+        .urgency-overdue { color: var(--error); }
+        .btn { background: var(--accent); color: var(--bg); border: none; padding: 0.5rem 1.2rem; border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 0.85rem; transition: background 0.2s; }
+        .btn:hover { background: var(--accent-hover); }
+        .btn-sm { padding: 0.3rem 0.8rem; font-size: 0.75rem; }
+        .toolbar { display: flex; gap: 0.8rem; margin-bottom: 1rem; flex-wrap: wrap; align-items: center; }
+        .compare-section { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1rem; }
+        .compare-col { background: var(--bg); border: 1px solid var(--border); border-radius: 10px; padding: 1rem; }
+        .compare-col h3 { font-size: 1rem; margin-bottom: 0.8rem; color: var(--accent); }
+        .compare-col .metric { display: flex; justify-content: space-between; padding: 0.4rem 0; border-bottom: 1px solid var(--border); font-size: 0.85rem; }
+        .compare-col .metric:last-child { border-bottom: none; }
+        .compare-col .metric .label { color: var(--muted); }
+    </style>
+</head>
+<body>
+<div class="container">
+    <header>
+        <h1>🖨️ Fleet Commander</h1>
+        <p>Autonomous multi-printer fleet management with proactive maintenance and load balancing</p>
+    </header>
+
+    <div class="stats-bar" id="statsBar"></div>
+
+    <div class="toolbar">
+        <button class="btn" onclick="refreshFleet()">🔄 Refresh Fleet</button>
+        <button class="btn" onclick="autoAssign()">⚡ Auto-Assign Jobs</button>
+        <button class="btn" onclick="exportFleet()">📥 Export JSON</button>
+    </div>
+
+    <div class="section">
+        <h2>🖨️ Fleet Overview</h2>
+        <div class="fleet-grid" id="fleetGrid"></div>
+    </div>
+
+    <div class="section">
+        <h2>📊 Utilization Heatmap (7-Day)</h2>
+        <div class="heatmap-container">
+            <canvas id="heatmap" width="900" height="220"></canvas>
+        </div>
+    </div>
+
+    <div class="section">
+        <h2>⚡ Load Balancer — Recommended Assignments</h2>
+        <table class="lb-table" id="lbTable">
+            <thead><tr><th>Job</th><th>Assigned Printer</th><th>Est. Time</th><th>Reasoning</th></tr></thead>
+            <tbody></tbody>
+        </table>
+    </div>
+
+    <div class="section">
+        <h2>🔧 Proactive Maintenance Planner</h2>
+        <table class="maint-table" id="maintTable">
+            <thead><tr><th>Printer</th><th>Print Hours</th><th>Nozzle Wear</th><th>Last Calibration</th><th>Next Maintenance</th><th>Urgency</th></tr></thead>
+            <tbody></tbody>
+        </table>
+    </div>
+
+    <div class="section">
+        <h2>🚨 Fleet Alerts & Recommendations</h2>
+        <div class="alert-feed" id="alertFeed"></div>
+    </div>
+
+    <div class="section">
+        <h2>📈 Printer Comparison</h2>
+        <div class="compare-section" id="compareSection"></div>
+    </div>
+</div>
+
+<script>
+// --- Fleet Data Generator ---
+const PRINTER_NAMES = ['BioBot Alpha', 'BioBot Beta', 'BioBot Gamma', 'BioBot Delta', 'BioBot Epsilon', 'BioBot Zeta'];
+const MODELS = ['BioBot Basic', 'BioBot Pro', 'BioBot Ultra', 'BioBot Basic', 'BioBot Pro', 'BioBot Ultra'];
+const STATUSES = ['idle', 'printing', 'maintenance', 'error', 'offline'];
+const MATERIALS = ['Collagen I', 'GelMA', 'Alginate', 'Fibrin', 'PEGDA', 'Hyaluronic Acid'];
+const JOB_NAMES = ['Skin Patch #42', 'Cartilage Scaffold A', 'Vascular Network 7', 'Bone Graft Mini', 'Liver Organoid', 'Cardiac Tissue Strip', 'Neural Bridge v3', 'Cornea Disc'];
+
+function rand(min, max) { return Math.floor(Math.random() * (max - min + 1)) + min; }
+function pick(arr) { return arr[rand(0, arr.length - 1)]; }
+
+function generateFleet() {
+    return PRINTER_NAMES.map((name, i) => {
+        const status = Math.random() < 0.4 ? 'printing' : Math.random() < 0.5 ? 'idle' : pick(['maintenance', 'error', 'offline']);
+        const printHours = rand(50, 2000);
+        const nozzleWear = Math.min(100, rand(5, 95));
+        const calibDaysAgo = rand(1, 45);
+        const utilization = status === 'printing' ? rand(60, 95) : status === 'idle' ? rand(5, 30) : rand(0, 10);
+        const health = Math.max(10, 100 - (nozzleWear * 0.4) - (calibDaysAgo > 30 ? 20 : 0) - (status === 'error' ? 30 : 0));
+        return {
+            id: i, name, model: MODELS[i], status, printHours, nozzleWear,
+            calibDaysAgo, utilization: Math.round(utilization),
+            health: Math.round(health),
+            currentJob: status === 'printing' ? pick(JOB_NAMES) : null,
+            jobProgress: status === 'printing' ? rand(5, 92) : 0,
+            material: pick(MATERIALS),
+            reliability: rand(70, 99),
+            costPerPrint: (rand(12, 85) / 10).toFixed(1),
+            uptime: rand(80, 99),
+            throughput: rand(2, 12)
+        };
+    });
+}
+
+let fleet = generateFleet();
+let pendingJobs = generatePendingJobs();
+
+// Security: escape HTML to prevent XSS from localStorage-injected data
+function escapeHtml(s) {
+    if (typeof s !== 'string') return String(s);
+    return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+function generatePendingJobs() {
+    const count = rand(3, 6);
+    const jobs = [];
+    for (let i = 0; i < count; i++) {
+        jobs.push({
+            name: pick(JOB_NAMES) + ' #' + rand(10, 99),
+            material: pick(MATERIALS),
+            estMinutes: rand(30, 480),
+            priority: pick(['high', 'medium', 'low'])
+        });
+    }
+    return jobs;
+}
+
+// --- Render Functions ---
+function renderStats() {
+    const bar = document.getElementById('statsBar');
+    const active = fleet.filter(p => p.status === 'printing').length;
+    const avgUtil = Math.round(fleet.reduce((s, p) => s + p.utilization, 0) / fleet.length);
+    const avgHealth = Math.round(fleet.reduce((s, p) => s + p.health, 0) / fleet.length);
+    bar.innerHTML = `
+        <div class="stat-card"><div class="value">${fleet.length}</div><div class="label">Total Printers</div></div>
+        <div class="stat-card"><div class="value">${active}</div><div class="label">Active Jobs</div></div>
+        <div class="stat-card"><div class="value">${avgUtil}%</div><div class="label">Avg Utilization</div></div>
+        <div class="stat-card"><div class="value">${avgHealth}%</div><div class="label">Fleet Health</div></div>
+        <div class="stat-card"><div class="value">${pendingJobs.length}</div><div class="label">Pending Jobs</div></div>
+    `;
+}
+
+function renderFleet() {
+    const grid = document.getElementById('fleetGrid');
+    grid.innerHTML = fleet.map(p => `
+        <div class="printer-card">
+            <div class="name">${escapeHtml(p.name)}</div>
+            <div class="model">${escapeHtml(p.model)} · ${escapeHtml(p.material)}</div>
+            <span class="status-badge status-${escapeHtml(p.status)}">${escapeHtml(p.status)}</span>
+            ${p.currentJob ? `<div style="margin-top:0.5rem;font-size:0.85rem;">📋 ${escapeHtml(p.currentJob)}</div>` : ''}
+            ${p.status === 'printing' ? `<div class="progress-bar"><div class="fill" style="width:${p.jobProgress}%;background:var(--accent)"></div></div><div style="font-size:0.75rem;color:var(--muted)">${p.jobProgress}% complete</div>` : ''}
+            <div class="printer-stats" style="margin-top:0.8rem;">
+                <span>Utilization <span class="val">${p.utilization}%</span></span>
+                <span>Health <span class="val">${p.health}%</span></span>
+                <span>Print Hours <span class="val">${p.printHours}h</span></span>
+                <span>Nozzle Wear <span class="val">${p.nozzleWear}%</span></span>
+            </div>
+        </div>
+    `).join('');
+}
+
+function renderHeatmap() {
+    const canvas = document.getElementById('heatmap');
+    const ctx = canvas.getContext('2d');
+    const W = canvas.width, H = canvas.height;
+    ctx.clearRect(0, 0, W, H);
+    const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+    const cellW = (W - 60) / 24;
+    const cellH = (H - 40) / 7;
+    ctx.fillStyle = '#94a3b8';
+    ctx.font = '11px sans-serif';
+    for (let h = 0; h < 24; h += 3) {
+        ctx.fillText(`${h}:00`, 60 + h * cellW + 2, 15);
+    }
+    for (let d = 0; d < 7; d++) {
+        ctx.fillText(days[d], 10, 40 + d * cellH + cellH / 2 + 4);
+        for (let h = 0; h < 24; h++) {
+            const util = Math.random() * 100;
+            const intensity = util / 100;
+            const r = Math.round(15 + intensity * 41);
+            const g = Math.round(23 + intensity * 166);
+            const b = Math.round(43 + intensity * 205);
+            ctx.fillStyle = `rgb(${r},${g},${b})`;
+            ctx.fillRect(60 + h * cellW + 1, 25 + d * cellH + 1, cellW - 2, cellH - 2);
+        }
+    }
+}
+
+function renderLoadBalancer() {
+    const tbody = document.querySelector('#lbTable tbody');
+    const available = fleet.filter(p => p.status === 'idle' || p.status === 'printing');
+    tbody.innerHTML = pendingJobs.map(job => {
+        const best = available.length > 0
+            ? available.reduce((a, b) => a.utilization < b.utilization ? a : b)
+            : fleet[0];
+        const reasons = [];
+        if (best.utilization < 30) reasons.push('lowest current load');
+        if (best.material === job.material) reasons.push('material match');
+        else reasons.push('capable printer');
+        if (best.health > 80) reasons.push('healthy');
+        return `<tr>
+            <td><strong>${escapeHtml(job.name)}</strong><br><span style="color:var(--muted);font-size:0.8rem">${escapeHtml(job.material)} · ${escapeHtml(job.priority)} priority</span></td>
+            <td>${escapeHtml(best.name)}</td>
+            <td>${job.estMinutes} min</td>
+            <td class="reason">${reasons.join(', ')}</td>
+        </tr>`;
+    }).join('');
+}
+
+function renderMaintenance() {
+    const tbody = document.querySelector('#maintTable tbody');
+    tbody.innerHTML = fleet.map(p => {
+        const daysUntilMaint = Math.max(0, 30 - p.calibDaysAgo + Math.round((100 - p.nozzleWear) / 5));
+        let urgency, urgencyClass;
+        if (daysUntilMaint <= 0) { urgency = 'OVERDUE'; urgencyClass = 'urgency-overdue'; }
+        else if (daysUntilMaint <= 7) { urgency = `${daysUntilMaint}d — Soon`; urgencyClass = 'urgency-soon'; }
+        else { urgency = `${daysUntilMaint}d — OK`; urgencyClass = 'urgency-ok'; }
+        return `<tr>
+            <td>${escapeHtml(p.name)}</td>
+            <td>${p.printHours}h</td>
+            <td>${p.nozzleWear}%</td>
+            <td>${p.calibDaysAgo} days ago</td>
+            <td>${daysUntilMaint <= 0 ? 'Now' : `In ${daysUntilMaint} days`}</td>
+            <td class="${urgencyClass}">${urgency}</td>
+        </tr>`;
+    }).join('');
+}
+
+function renderAlerts() {
+    const feed = document.getElementById('alertFeed');
+    const alerts = [];
+    fleet.forEach(p => {
+        const pn = escapeHtml(p.name);
+        if (p.status === 'error') alerts.push({ severity: 'critical', icon: '🔴', title: `${pn} — Error State`, desc: 'Printer reported an error. Check nozzle blockage or firmware.', action: 'Run diagnostics' });
+        if (p.nozzleWear > 80) alerts.push({ severity: 'warning', icon: '⚠️', title: `${pn} — Nozzle Wear ${p.nozzleWear}%`, desc: 'Nozzle approaching end-of-life. Schedule replacement.', action: 'Schedule maintenance' });
+        if (p.calibDaysAgo > 30) alerts.push({ severity: 'warning', icon: '📐', title: `${pn} — Calibration Overdue`, desc: `Last calibrated ${p.calibDaysAgo} days ago. Accuracy may be degraded.`, action: 'Start calibration' });
+        if (p.utilization < 10 && p.status !== 'offline' && p.status !== 'maintenance') alerts.push({ severity: 'info', icon: '💤', title: `${pn} — Underutilized`, desc: 'Consider routing more jobs to this printer or powering down.', action: 'Auto-assign jobs' });
+        if (p.utilization > 85) alerts.push({ severity: 'warning', icon: '🔥', title: `${pn} — High Load`, desc: 'Running near capacity. Risk of accelerated wear.', action: 'Redistribute load' });
+    });
+    if (alerts.length === 0) alerts.push({ severity: 'info', icon: '✅', title: 'Fleet Healthy', desc: 'No issues detected.', action: '' });
+    feed.innerHTML = alerts.map(a => `
+        <div class="alert-item ${a.severity}">
+            <span class="alert-icon">${a.icon}</span>
+            <div class="alert-text">
+                <div class="title">${a.title}</div>
+                <div class="desc">${a.desc}</div>
+                ${a.action ? `<div class="action">→ ${a.action}</div>` : ''}
+            </div>
+        </div>
+    `).join('');
+}
+
+function renderComparison() {
+    const section = document.getElementById('compareSection');
+    const top3 = fleet.slice(0, 3);
+    section.innerHTML = top3.map(p => `
+        <div class="compare-col">
+            <h3>${escapeHtml(p.name)}</h3>
+            <div class="metric"><span class="label">Model</span><span>${escapeHtml(p.model)}</span></div>
+            <div class="metric"><span class="label">Throughput</span><span>${p.throughput} jobs/day</span></div>
+            <div class="metric"><span class="label">Reliability</span><span>${p.reliability}%</span></div>
+            <div class="metric"><span class="label">Cost/Print</span><span>$${p.costPerPrint}</span></div>
+            <div class="metric"><span class="label">Uptime</span><span>${p.uptime}%</span></div>
+            <div class="metric"><span class="label">Health</span><span>${p.health}%</span></div>
+            <div class="metric"><span class="label">Utilization</span><span>${p.utilization}%</span></div>
+        </div>
+    `).join('');
+}
+
+// --- Actions ---
+function refreshFleet() {
+    fleet = generateFleet();
+    pendingJobs = generatePendingJobs();
+    renderAll();
+}
+
+function autoAssign() {
+    const available = fleet.filter(p => p.status === 'idle');
+    if (available.length === 0) { alert('No idle printers available for assignment.'); return; }
+    let assigned = 0;
+    pendingJobs.forEach(job => {
+        const target = available[assigned % available.length];
+        if (target) {
+            target.status = 'printing';
+            target.currentJob = job.name;
+            target.jobProgress = rand(1, 10);
+            target.utilization = rand(50, 80);
+            assigned++;
+        }
+    });
+    pendingJobs = [];
+    renderAll();
+}
+
+function exportFleet() {
+    const data = { timestamp: new Date().toISOString(), fleet, pendingJobs };
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'fleet-status.json';
+    a.click();
+}
+
+function renderAll() {
+    renderStats();
+    renderFleet();
+    renderHeatmap();
+    renderLoadBalancer();
+    renderMaintenance();
+    renderAlerts();
+    renderComparison();
+    localStorage.setItem('biobots-fleet-config', JSON.stringify({ fleet, pendingJobs }));
+}
+
+// --- Init ---
+const saved = localStorage.getItem('biobots-fleet-config');
+if (saved) {
+    try {
+        const d = JSON.parse(saved);
+        // Validate loaded data types to prevent injected payloads
+        if (Array.isArray(d.fleet) && d.fleet.every(p => typeof p.name === 'string' && typeof p.model === 'string')) {
+            fleet = d.fleet;
+        }
+        if (Array.isArray(d.pendingJobs)) {
+            pendingJobs = d.pendingJobs;
+        }
+    } catch(e) {}
+}
+renderAll();
+</script>
+</body>
+</html>

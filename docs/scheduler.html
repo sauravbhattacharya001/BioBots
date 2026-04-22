@@ -1,0 +1,774 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Smart Experiment Scheduler — BioBots</title>
+    <style>
+        :root {
+            --bg: #0f172a; --surface: #1e293b; --border: #334155;
+            --text: #e2e8f0; --muted: #94a3b8; --accent: #3b82f6;
+            --accent-hover: #2563eb; --green: #22c55e; --red: #ef4444;
+            --yellow: #eab308; --orange: #f97316; --purple: #a855f7;
+            --radius: 8px;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+
+        .header { background: var(--surface); border-bottom: 1px solid var(--border); padding: 20px 32px; }
+        .header h1 { font-size: 24px; font-weight: 700; }
+        .header h1 span { color: var(--accent); }
+        .header p { color: var(--muted); margin-top: 4px; font-size: 14px; }
+
+        .main { max-width: 1400px; margin: 0 auto; padding: 24px; }
+
+        .toolbar { display: flex; gap: 12px; margin-bottom: 24px; flex-wrap: wrap; align-items: center; }
+        .btn { display: inline-flex; align-items: center; gap: 6px; padding: 10px 20px; background: var(--accent); color: #fff; border: none; border-radius: var(--radius); font-size: 14px; font-weight: 600; cursor: pointer; transition: background .2s; }
+        .btn:hover { background: var(--accent-hover); }
+        .btn-green { background: var(--green); }
+        .btn-green:hover { background: #16a34a; }
+        .btn-orange { background: var(--orange); }
+        .btn-orange:hover { background: #ea580c; }
+        .btn-sm { padding: 6px 12px; font-size: 12px; }
+        .btn-outline { background: transparent; border: 1px solid var(--border); color: var(--text); }
+        .btn-outline:hover { border-color: var(--accent); color: var(--accent); background: transparent; }
+
+        .grid { display: grid; grid-template-columns: 340px 1fr; gap: 24px; }
+        @media (max-width: 900px) { .grid { grid-template-columns: 1fr; } }
+
+        .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; margin-bottom: 16px; }
+        .card h2 { font-size: 16px; font-weight: 600; margin-bottom: 14px; display: flex; align-items: center; gap: 8px; }
+
+        .form-group { margin-bottom: 14px; }
+        .form-group label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 4px; font-weight: 500; text-transform: uppercase; letter-spacing: .5px; }
+        .form-group input, .form-group select, .form-group textarea { width: 100%; background: var(--bg); border: 1px solid var(--border); border-radius: 4px; color: var(--text); padding: 8px 10px; font-size: 14px; font-family: inherit; }
+        .form-group input:focus, .form-group select:focus, .form-group textarea:focus { outline: none; border-color: var(--accent); }
+        .form-group textarea { resize: vertical; min-height: 60px; }
+
+        .priority-btns { display: flex; gap: 6px; }
+        .priority-btns button { flex: 1; padding: 6px; border: 1px solid var(--border); border-radius: 4px; background: var(--bg); color: var(--muted); font-size: 12px; cursor: pointer; transition: .2s; }
+        .priority-btns button.active { border-color: var(--accent); color: var(--text); background: rgba(59,130,246,.15); }
+        .priority-btns button[data-p="critical"].active { border-color: var(--red); background: rgba(239,68,68,.15); color: var(--red); }
+        .priority-btns button[data-p="high"].active { border-color: var(--orange); background: rgba(249,115,22,.15); color: var(--orange); }
+        .priority-btns button[data-p="medium"].active { border-color: var(--yellow); background: rgba(234,179,8,.15); color: var(--yellow); }
+        .priority-btns button[data-p="low"].active { border-color: var(--green); background: rgba(34,197,94,.15); color: var(--green); }
+
+        .tag { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 600; }
+        .tag-critical { background: rgba(239,68,68,.2); color: var(--red); }
+        .tag-high { background: rgba(249,115,22,.2); color: var(--orange); }
+        .tag-medium { background: rgba(234,179,8,.2); color: var(--yellow); }
+        .tag-low { background: rgba(34,197,94,.2); color: var(--green); }
+        .tag-conflict { background: rgba(239,68,68,.25); color: var(--red); }
+        .tag-scheduled { background: rgba(59,130,246,.2); color: var(--accent); }
+        .tag-pending { background: rgba(148,163,184,.2); color: var(--muted); }
+        .tag-running { background: rgba(168,85,247,.2); color: var(--purple); }
+
+        /* Timeline / Gantt */
+        .gantt-wrap { overflow-x: auto; }
+        .gantt { position: relative; min-height: 200px; }
+        .gantt-header { display: flex; border-bottom: 1px solid var(--border); padding-bottom: 6px; margin-bottom: 8px; }
+        .gantt-hour { flex: 0 0 60px; text-align: center; font-size: 11px; color: var(--muted); }
+        .gantt-row { display: flex; align-items: center; margin-bottom: 4px; height: 32px; position: relative; }
+        .gantt-label { flex: 0 0 140px; font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding-right: 8px; }
+        .gantt-track { flex: 1; position: relative; height: 24px; background: rgba(51,65,85,.3); border-radius: 4px; }
+        .gantt-bar { position: absolute; height: 100%; border-radius: 4px; top: 0; min-width: 4px; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 600; color: #fff; overflow: hidden; cursor: pointer; }
+        .gantt-bar:hover { filter: brightness(1.2); }
+        .gantt-now { position: absolute; top: 0; bottom: 0; width: 2px; background: var(--red); z-index: 5; }
+
+        /* Queue */
+        .queue-item { display: flex; align-items: center; gap: 10px; padding: 10px; border: 1px solid var(--border); border-radius: var(--radius); margin-bottom: 8px; transition: .2s; }
+        .queue-item:hover { border-color: var(--accent); }
+        .queue-item .qi-name { font-weight: 600; font-size: 14px; flex: 1; }
+        .queue-item .qi-info { font-size: 12px; color: var(--muted); }
+        .queue-item .qi-actions { display: flex; gap: 4px; }
+
+        /* Alerts */
+        .alert { padding: 10px 14px; border-radius: var(--radius); margin-bottom: 8px; font-size: 13px; display: flex; align-items: flex-start; gap: 8px; }
+        .alert-warn { background: rgba(234,179,8,.1); border: 1px solid rgba(234,179,8,.3); color: var(--yellow); }
+        .alert-danger { background: rgba(239,68,68,.1); border: 1px solid rgba(239,68,68,.3); color: var(--red); }
+        .alert-info { background: rgba(59,130,246,.1); border: 1px solid rgba(59,130,246,.3); color: var(--accent); }
+        .alert-success { background: rgba(34,197,94,.1); border: 1px solid rgba(34,197,94,.3); color: var(--green); }
+
+        /* Stats row */
+        .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; margin-bottom: 20px; }
+        .stat { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px; text-align: center; }
+        .stat .val { font-size: 28px; font-weight: 700; }
+        .stat .lbl { font-size: 11px; color: var(--muted); text-transform: uppercase; margin-top: 2px; }
+
+        /* Recommendations */
+        .rec { padding: 10px 14px; border-left: 3px solid var(--accent); background: rgba(59,130,246,.05); border-radius: 0 var(--radius) var(--radius) 0; margin-bottom: 8px; font-size: 13px; }
+        .rec strong { color: var(--accent); }
+
+        .empty { text-align: center; padding: 40px; color: var(--muted); }
+
+        /* Modal */
+        .modal-bg { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.6); z-index: 100; align-items: center; justify-content: center; }
+        .modal-bg.open { display: flex; }
+        .modal { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 24px; width: 90%; max-width: 480px; max-height: 80vh; overflow-y: auto; }
+        .modal h3 { margin-bottom: 16px; font-size: 18px; }
+
+        .chip-group { display: flex; flex-wrap: wrap; gap: 6px; }
+        .chip { padding: 4px 10px; border: 1px solid var(--border); border-radius: 14px; font-size: 12px; cursor: pointer; transition: .2s; background: var(--bg); color: var(--muted); }
+        .chip.active { border-color: var(--accent); color: var(--accent); background: rgba(59,130,246,.1); }
+
+        .export-row { display: flex; gap: 8px; margin-top: 16px; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🗓️ Smart Experiment <span>Scheduler</span></h1>
+        <p>Intelligent experiment scheduling with conflict detection, priority optimization, and proactive recommendations</p>
+    </div>
+
+    <div class="main">
+        <div class="stats" id="stats"></div>
+
+        <div class="toolbar">
+            <button class="btn btn-green" onclick="openAddModal()">➕ New Experiment</button>
+            <button class="btn btn-orange" onclick="autoSchedule()">🤖 Auto-Schedule All</button>
+            <button class="btn" onclick="runDiagnostics()">🔍 Run Diagnostics</button>
+            <button class="btn btn-outline" onclick="loadPreset('bioprint')">📋 Bioprint Preset</button>
+            <button class="btn btn-outline" onclick="loadPreset('cellculture')">🧫 Cell Culture Preset</button>
+            <button class="btn btn-outline" onclick="loadPreset('stress')">⚡ Stress Test</button>
+            <span style="flex:1"></span>
+            <button class="btn btn-outline btn-sm" onclick="exportJSON()">📥 Export JSON</button>
+            <button class="btn btn-outline btn-sm" onclick="exportCSV()">📥 Export CSV</button>
+        </div>
+
+        <div id="alerts"></div>
+
+        <div class="grid">
+            <div>
+                <div class="card">
+                    <h2>📋 Experiment Queue</h2>
+                    <div id="queue"></div>
+                </div>
+                <div class="card">
+                    <h2>💡 Recommendations</h2>
+                    <div id="recs"></div>
+                </div>
+                <div class="card">
+                    <h2>🔧 Equipment Status</h2>
+                    <div id="equipment"></div>
+                </div>
+            </div>
+            <div>
+                <div class="card">
+                    <h2>📊 Schedule Timeline</h2>
+                    <div class="gantt-wrap" id="gantt-wrap"></div>
+                </div>
+                <div class="card">
+                    <h2>📈 Utilization Analysis</h2>
+                    <canvas id="utilChart" height="200"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add/Edit Modal -->
+    <div class="modal-bg" id="addModal">
+        <div class="modal">
+            <h3 id="modalTitle">➕ New Experiment</h3>
+            <div class="form-group">
+                <label>Experiment Name</label>
+                <input id="expName" placeholder="e.g. Collagen Scaffold Print #42">
+            </div>
+            <div class="form-group">
+                <label>Duration (hours)</label>
+                <input id="expDuration" type="number" min="0.5" max="48" step="0.5" value="2">
+            </div>
+            <div class="form-group">
+                <label>Priority</label>
+                <div class="priority-btns" id="priorityBtns">
+                    <button data-p="critical" onclick="setPriority('critical')">🔴 Critical</button>
+                    <button data-p="high" onclick="setPriority('high')">🟠 High</button>
+                    <button data-p="medium" class="active" onclick="setPriority('medium')">🟡 Medium</button>
+                    <button data-p="low" onclick="setPriority('low')">🟢 Low</button>
+                </div>
+            </div>
+            <div class="form-group">
+                <label>Required Equipment</label>
+                <div class="chip-group" id="equipChips"></div>
+            </div>
+            <div class="form-group">
+                <label>Required Materials</label>
+                <div class="chip-group" id="matChips"></div>
+            </div>
+            <div class="form-group">
+                <label>Preferred Start (optional)</label>
+                <input id="expStart" type="datetime-local">
+            </div>
+            <div class="form-group">
+                <label>Deadline (optional)</label>
+                <input id="expDeadline" type="datetime-local">
+            </div>
+            <div class="form-group">
+                <label>Notes</label>
+                <textarea id="expNotes" placeholder="Special instructions, dependencies..."></textarea>
+            </div>
+            <div style="display:flex;gap:8px;margin-top:16px">
+                <button class="btn btn-green" style="flex:1" onclick="saveExperiment()">💾 Save</button>
+                <button class="btn btn-outline" style="flex:1" onclick="closeModal()">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+    // ========== DATA MODEL ==========
+    const EQUIPMENT = [
+        { id: 'printer1', name: 'BioBot Printer #1', icon: '🖨️', status: 'available' },
+        { id: 'printer2', name: 'BioBot Printer #2', icon: '🖨️', status: 'available' },
+        { id: 'incubator1', name: 'CO₂ Incubator A', icon: '🌡️', status: 'available' },
+        { id: 'incubator2', name: 'CO₂ Incubator B', icon: '🌡️', status: 'maintenance' },
+        { id: 'microscope', name: 'Confocal Microscope', icon: '🔬', status: 'available' },
+        { id: 'centrifuge', name: 'Centrifuge', icon: '🔄', status: 'available' },
+        { id: 'laminar', name: 'Laminar Flow Hood', icon: '🧹', status: 'available' },
+        { id: 'crosslinker', name: 'UV Crosslinker', icon: '💡', status: 'available' }
+    ];
+
+    const MATERIALS = [
+        'Collagen Type I', 'GelMA', 'Alginate', 'Fibrinogen', 'Hyaluronic Acid',
+        'PEGDA', 'Matrigel', 'PCL', 'PLGA', 'Cell Media DMEM', 'PBS', 'Trypsin'
+    ];
+
+    let experiments = [];
+    let editingId = null;
+    let selectedPriority = 'medium';
+    let nextId = 1;
+
+    // ========== SCHEDULING ENGINE ==========
+    const PRIORITY_WEIGHT = { critical: 100, high: 50, medium: 20, low: 5 };
+
+    function autoSchedule() {
+        // Sort by priority (descending) then deadline (ascending)
+        const unscheduled = experiments.filter(e => !e.scheduledStart || e.status === 'pending');
+        unscheduled.sort((a, b) => {
+            const pw = (PRIORITY_WEIGHT[b.priority] || 0) - (PRIORITY_WEIGHT[a.priority] || 0);
+            if (pw !== 0) return pw;
+            if (a.deadline && b.deadline) return new Date(a.deadline) - new Date(b.deadline);
+            if (a.deadline) return -1;
+            if (b.deadline) return 1;
+            return 0;
+        });
+
+        const now = new Date();
+        // Build equipment timeline: map of equipId -> sorted array of [start, end]
+        const timeline = {};
+        EQUIPMENT.forEach(eq => { timeline[eq.id] = []; });
+
+        // Add already-scheduled experiments
+        experiments.filter(e => e.scheduledStart && e.status === 'scheduled').forEach(e => {
+            const s = new Date(e.scheduledStart).getTime();
+            const end = s + e.duration * 3600000;
+            (e.equipment || []).forEach(eqId => {
+                if (!timeline[eqId]) timeline[eqId] = [];
+                timeline[eqId].push([s, end]);
+            });
+        });
+
+        for (const exp of unscheduled) {
+            const slot = findEarliestSlot(exp, timeline, now);
+            if (slot) {
+                exp.scheduledStart = new Date(slot).toISOString();
+                exp.status = 'scheduled';
+                const end = slot + exp.duration * 3600000;
+                (exp.equipment || []).forEach(eqId => {
+                    if (!timeline[eqId]) timeline[eqId] = [];
+                    timeline[eqId].push([slot, end]);
+                });
+            }
+        }
+
+        detectConflicts();
+        render();
+    }
+
+    function findEarliestSlot(exp, timeline, now) {
+        let candidate = exp.preferredStart ? Math.max(new Date(exp.preferredStart).getTime(), now.getTime()) : now.getTime();
+        // Round up to next 30-min
+        candidate = Math.ceil(candidate / 1800000) * 1800000;
+        const durMs = exp.duration * 3600000;
+        const eqIds = (exp.equipment || []).filter(id => {
+            const eq = EQUIPMENT.find(e => e.id === id);
+            return eq && eq.status !== 'maintenance';
+        });
+
+        for (let attempt = 0; attempt < 200; attempt++) {
+            let conflict = false;
+            for (const eqId of eqIds) {
+                const slots = timeline[eqId] || [];
+                for (const [s, e] of slots) {
+                    if (candidate < e && candidate + durMs > s) {
+                        conflict = true;
+                        candidate = Math.max(candidate, Math.ceil(e / 1800000) * 1800000);
+                        break;
+                    }
+                }
+                if (conflict) break;
+            }
+            if (!conflict) return candidate;
+        }
+        return null;
+    }
+
+    function detectConflicts() {
+        const alerts = [];
+        const scheduled = experiments.filter(e => e.scheduledStart);
+
+        // Equipment conflicts
+        for (let i = 0; i < scheduled.length; i++) {
+            for (let j = i + 1; j < scheduled.length; j++) {
+                const a = scheduled[i], b = scheduled[j];
+                const aStart = new Date(a.scheduledStart).getTime();
+                const aEnd = aStart + a.duration * 3600000;
+                const bStart = new Date(b.scheduledStart).getTime();
+                const bEnd = bStart + b.duration * 3600000;
+                if (aStart < bEnd && bStart < aEnd) {
+                    const shared = (a.equipment || []).filter(e => (b.equipment || []).includes(e));
+                    if (shared.length > 0) {
+                        const eqNames = shared.map(id => EQUIPMENT.find(e => e.id === id)?.name || id);
+                        alerts.push({ type: 'danger', msg: `⚠️ Equipment conflict: "${a.name}" and "${b.name}" overlap on ${eqNames.join(', ')}` });
+                    }
+                }
+            }
+        }
+
+        // Deadline warnings
+        scheduled.forEach(e => {
+            if (e.deadline) {
+                const end = new Date(e.scheduledStart).getTime() + e.duration * 3600000;
+                if (end > new Date(e.deadline).getTime()) {
+                    alerts.push({ type: 'warn', msg: `⏰ "${e.name}" scheduled past its deadline` });
+                }
+            }
+        });
+
+        // Maintenance equipment warnings
+        experiments.forEach(e => {
+            (e.equipment || []).forEach(eqId => {
+                const eq = EQUIPMENT.find(x => x.id === eqId);
+                if (eq && eq.status === 'maintenance') {
+                    alerts.push({ type: 'warn', msg: `🔧 "${e.name}" requires ${eq.name} which is under maintenance` });
+                }
+            });
+        });
+
+        return alerts;
+    }
+
+    function generateRecommendations() {
+        const recs = [];
+        const now = new Date();
+
+        // Utilization analysis
+        const scheduled = experiments.filter(e => e.scheduledStart && e.status === 'scheduled');
+        const equipUsage = {};
+        EQUIPMENT.forEach(eq => { equipUsage[eq.id] = 0; });
+        scheduled.forEach(e => {
+            (e.equipment || []).forEach(eqId => { equipUsage[eqId] = (equipUsage[eqId] || 0) + e.duration; });
+        });
+
+        const totalHours = scheduled.reduce((s, e) => s + e.duration, 0);
+        const maxEq = Object.entries(equipUsage).sort((a, b) => b[1] - a[1])[0];
+        if (maxEq && maxEq[1] > 0) {
+            const eq = EQUIPMENT.find(e => e.id === maxEq[0]);
+            recs.push(`<strong>Bottleneck:</strong> ${eq?.name || maxEq[0]} is booked for ${maxEq[1].toFixed(1)}h — consider staggering experiments`);
+        }
+
+        // Idle equipment
+        const idle = EQUIPMENT.filter(eq => eq.status === 'available' && (equipUsage[eq.id] || 0) === 0);
+        if (idle.length > 0) {
+            recs.push(`<strong>Underutilized:</strong> ${idle.map(e => e.name).join(', ')} — consider parallelizing work`);
+        }
+
+        // Priority clustering
+        const critCount = experiments.filter(e => e.priority === 'critical' && e.status !== 'scheduled').length;
+        if (critCount > 0) {
+            recs.push(`<strong>⚠️ ${critCount} critical experiment(s) unscheduled</strong> — run Auto-Schedule to prioritize them`);
+        }
+
+        // Material sharing opportunity
+        const matMap = {};
+        experiments.forEach(e => {
+            (e.materials || []).forEach(m => {
+                if (!matMap[m]) matMap[m] = [];
+                matMap[m].push(e.name);
+            });
+        });
+        Object.entries(matMap).forEach(([m, names]) => {
+            if (names.length >= 3) {
+                recs.push(`<strong>Batch opportunity:</strong> ${names.length} experiments use ${m} — prepare a shared batch to reduce waste`);
+            }
+        });
+
+        if (experiments.length === 0) {
+            recs.push('<strong>Get started:</strong> Add experiments or load a preset to see intelligent scheduling in action');
+        }
+
+        return recs;
+    }
+
+    function runDiagnostics() {
+        autoSchedule();
+        const alerts = detectConflicts();
+        const recs = generateRecommendations();
+
+        // Add diagnostic-specific insights
+        const now = new Date();
+        const next24h = experiments.filter(e => {
+            if (!e.scheduledStart) return false;
+            const s = new Date(e.scheduledStart);
+            return s >= now && s <= new Date(now.getTime() + 86400000);
+        });
+
+        if (next24h.length === 0) {
+            alerts.push({ type: 'info', msg: '📅 No experiments scheduled in the next 24 hours' });
+        } else {
+            alerts.push({ type: 'success', msg: `✅ ${next24h.length} experiment(s) scheduled in the next 24 hours` });
+        }
+
+        // Overload detection
+        const hourBuckets = {};
+        experiments.filter(e => e.scheduledStart).forEach(e => {
+            const start = new Date(e.scheduledStart);
+            for (let h = 0; h < e.duration; h++) {
+                const key = new Date(start.getTime() + h * 3600000).toISOString().slice(0, 13);
+                hourBuckets[key] = (hourBuckets[key] || 0) + 1;
+            }
+        });
+        const peak = Object.entries(hourBuckets).sort((a, b) => b[1] - a[1])[0];
+        if (peak && peak[1] >= 3) {
+            alerts.push({ type: 'warn', msg: `🔥 Peak load: ${peak[1]} concurrent experiments at ${peak[0].slice(5)}:00 — ensure staff coverage` });
+        }
+
+        renderAlerts(alerts);
+        render();
+    }
+
+    // ========== PRESETS ==========
+    function loadPreset(name) {
+        experiments = [];
+        const now = new Date();
+        const h = n => new Date(now.getTime() + n * 3600000).toISOString().slice(0, 16);
+
+        if (name === 'bioprint') {
+            experiments = [
+                mkExp('Collagen Scaffold Print', 3, 'critical', ['printer1', 'laminar'], ['Collagen Type I', 'Cell Media DMEM'], h(1), h(8)),
+                mkExp('GelMA Crosslink Test', 1.5, 'high', ['crosslinker', 'laminar'], ['GelMA', 'PBS'], null, h(6)),
+                mkExp('Cell Viability Assay', 2, 'high', ['microscope', 'incubator1'], ['Cell Media DMEM', 'Trypsin'], h(4), null),
+                mkExp('Alginate Bead Encapsulation', 2.5, 'medium', ['printer2', 'centrifuge'], ['Alginate', 'Cell Media DMEM'], null, h(12)),
+                mkExp('Scaffold Maturation Check', 1, 'low', ['incubator1', 'microscope'], ['PBS'], h(8), null),
+                mkExp('PCL Frame Print', 4, 'medium', ['printer1'], ['PCL'], null, h(16)),
+            ];
+        } else if (name === 'cellculture') {
+            experiments = [
+                mkExp('Cell Thawing & Seeding', 1.5, 'critical', ['laminar', 'incubator1'], ['Cell Media DMEM', 'Trypsin'], h(0.5), h(3)),
+                mkExp('Media Change (Batch)', 1, 'high', ['laminar'], ['Cell Media DMEM', 'PBS'], h(2), null),
+                mkExp('Passage & Split', 2, 'high', ['laminar', 'centrifuge'], ['Trypsin', 'Cell Media DMEM', 'PBS'], null, h(8)),
+                mkExp('Mycoplasma Test', 1, 'medium', ['microscope'], ['PBS'], h(4), null),
+                mkExp('Transfection', 3, 'critical', ['laminar', 'incubator1'], ['Cell Media DMEM'], null, h(10)),
+                mkExp('Imaging & Analysis', 2, 'low', ['microscope'], ['PBS'], h(6), null),
+            ];
+        } else if (name === 'stress') {
+            for (let i = 0; i < 15; i++) {
+                const pris = ['critical', 'high', 'medium', 'low'];
+                const eqs = EQUIPMENT.filter(e => e.status === 'available');
+                const reqEq = [eqs[i % eqs.length].id, eqs[(i + 3) % eqs.length].id];
+                const mats = [MATERIALS[i % MATERIALS.length], MATERIALS[(i + 5) % MATERIALS.length]];
+                experiments.push(mkExp(`Experiment #${i + 1}`, 1 + (i % 4), pris[i % 4], reqEq, mats,
+                    Math.random() > 0.5 ? h(i * 0.8) : null, Math.random() > 0.3 ? h(i * 1.5 + 6) : null));
+            }
+        }
+        nextId = experiments.length + 1;
+        autoSchedule();
+    }
+
+    function mkExp(name, duration, priority, equipment, materials, preferredStart, deadline) {
+        return {
+            id: nextId++, name, duration, priority, equipment, materials,
+            preferredStart: preferredStart || null, deadline: deadline || null,
+            scheduledStart: null, status: 'pending', notes: ''
+        };
+    }
+
+    // ========== UI ==========
+    function render() {
+        renderStats();
+        renderQueue();
+        renderGantt();
+        renderEquipment();
+        renderRecs();
+        renderUtilChart();
+    }
+
+    function renderStats() {
+        const total = experiments.length;
+        const sched = experiments.filter(e => e.status === 'scheduled').length;
+        const conflicts = detectConflicts().filter(a => a.type === 'danger').length;
+        const totalHours = experiments.reduce((s, e) => s + e.duration, 0);
+
+        document.getElementById('stats').innerHTML = `
+            <div class="stat"><div class="val">${total}</div><div class="lbl">Experiments</div></div>
+            <div class="stat"><div class="val" style="color:var(--green)">${sched}</div><div class="lbl">Scheduled</div></div>
+            <div class="stat"><div class="val" style="color:${conflicts ? 'var(--red)' : 'var(--green)'}">${conflicts}</div><div class="lbl">Conflicts</div></div>
+            <div class="stat"><div class="val">${totalHours.toFixed(1)}h</div><div class="lbl">Total Lab Time</div></div>
+            <div class="stat"><div class="val">${EQUIPMENT.filter(e => e.status === 'available').length}/${EQUIPMENT.length}</div><div class="lbl">Equipment Ready</div></div>
+        `;
+    }
+
+    function renderQueue() {
+        const el = document.getElementById('queue');
+        if (experiments.length === 0) { el.innerHTML = '<div class="empty">No experiments yet. Add one or load a preset!</div>'; return; }
+        el.innerHTML = experiments.map(e => `
+            <div class="queue-item">
+                <div>
+                    <div class="qi-name">${e.name}</div>
+                    <div class="qi-info">${e.duration}h · <span class="tag tag-${e.priority}">${e.priority}</span> · <span class="tag tag-${e.status}">${e.status}</span></div>
+                </div>
+                <div class="qi-actions">
+                    <button class="btn btn-outline btn-sm" onclick="editExperiment(${e.id})">✏️</button>
+                    <button class="btn btn-outline btn-sm" onclick="removeExperiment(${e.id})" style="color:var(--red)">🗑️</button>
+                </div>
+            </div>
+        `).join('');
+    }
+
+    function renderGantt() {
+        const wrap = document.getElementById('gantt-wrap');
+        const scheduled = experiments.filter(e => e.scheduledStart);
+        if (scheduled.length === 0) { wrap.innerHTML = '<div class="empty">Schedule experiments to see the timeline</div>'; return; }
+
+        const times = scheduled.map(e => new Date(e.scheduledStart).getTime());
+        const ends = scheduled.map(e => new Date(e.scheduledStart).getTime() + e.duration * 3600000);
+        const minT = Math.min(...times);
+        const maxT = Math.max(...ends);
+        const spanH = Math.ceil((maxT - minT) / 3600000) + 1;
+        const pxPerHour = 60;
+
+        const colors = { critical: '#ef4444', high: '#f97316', medium: '#eab308', low: '#22c55e' };
+
+        let headerHtml = '';
+        for (let h = 0; h <= spanH; h++) {
+            const t = new Date(minT + h * 3600000);
+            headerHtml += `<div class="gantt-hour">${t.getHours().toString().padStart(2, '0')}:00</div>`;
+        }
+
+        let rowsHtml = scheduled.map(e => {
+            const s = new Date(e.scheduledStart).getTime();
+            const left = ((s - minT) / 3600000) * pxPerHour;
+            const width = e.duration * pxPerHour;
+            return `<div class="gantt-row">
+                <div class="gantt-label" title="${e.name}">${e.name}</div>
+                <div class="gantt-track" style="width:${spanH * pxPerHour}px">
+                    <div class="gantt-bar" style="left:${left}px;width:${width}px;background:${colors[e.priority]}" title="${e.name}: ${e.duration}h">${e.duration}h</div>
+                </div>
+            </div>`;
+        }).join('');
+
+        // Now line
+        const now = Date.now();
+        let nowLine = '';
+        if (now >= minT && now <= maxT) {
+            const nowLeft = 140 + ((now - minT) / 3600000) * pxPerHour;
+            nowLine = `<div class="gantt-now" style="left:${nowLeft}px" title="Now"></div>`;
+        }
+
+        wrap.innerHTML = `<div class="gantt" style="position:relative">
+            ${nowLine}
+            <div class="gantt-header"><div style="flex:0 0 140px"></div>${headerHtml}</div>
+            ${rowsHtml}
+        </div>`;
+    }
+
+    function renderEquipment() {
+        const el = document.getElementById('equipment');
+        const usage = {};
+        experiments.filter(e => e.status === 'scheduled').forEach(e => {
+            (e.equipment || []).forEach(eqId => { usage[eqId] = (usage[eqId] || 0) + e.duration; });
+        });
+
+        el.innerHTML = EQUIPMENT.map(eq => {
+            const hrs = usage[eq.id] || 0;
+            const statusColor = eq.status === 'maintenance' ? 'var(--red)' : hrs > 0 ? 'var(--accent)' : 'var(--green)';
+            const statusText = eq.status === 'maintenance' ? '🔧 Maintenance' : hrs > 0 ? `📊 ${hrs.toFixed(1)}h booked` : '✅ Available';
+            return `<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--border)">
+                <span>${eq.icon}</span>
+                <span style="flex:1;font-size:13px">${eq.name}</span>
+                <span style="font-size:12px;color:${statusColor}">${statusText}</span>
+            </div>`;
+        }).join('');
+    }
+
+    function renderRecs() {
+        const el = document.getElementById('recs');
+        const recs = generateRecommendations();
+        if (recs.length === 0) { el.innerHTML = '<div class="empty">No recommendations</div>'; return; }
+        el.innerHTML = recs.map(r => `<div class="rec">${r}</div>`).join('');
+    }
+
+    function renderAlerts(alerts) {
+        const el = document.getElementById('alerts');
+        if (!alerts) alerts = detectConflicts();
+        el.innerHTML = alerts.map(a => `<div class="alert alert-${a.type}">${a.msg}</div>`).join('');
+    }
+
+    function renderUtilChart() {
+        const canvas = document.getElementById('utilChart');
+        const ctx = canvas.getContext('2d');
+        const W = canvas.width = canvas.parentElement.clientWidth - 40;
+        const H = canvas.height = 180;
+        ctx.clearRect(0, 0, W, H);
+
+        const usage = {};
+        EQUIPMENT.filter(e => e.status === 'available').forEach(eq => { usage[eq.id] = 0; });
+        experiments.filter(e => e.status === 'scheduled').forEach(e => {
+            (e.equipment || []).forEach(eqId => { if (usage[eqId] !== undefined) usage[eqId] += e.duration; });
+        });
+
+        const entries = Object.entries(usage);
+        if (entries.length === 0) return;
+
+        const maxVal = Math.max(...entries.map(e => e[1]), 1);
+        const barW = Math.min(40, (W - 40) / entries.length - 8);
+        const startX = 40;
+
+        // Axes
+        ctx.strokeStyle = '#334155';
+        ctx.beginPath(); ctx.moveTo(35, 10); ctx.lineTo(35, H - 25); ctx.lineTo(W, H - 25); ctx.stroke();
+
+        entries.forEach(([eqId, hrs], i) => {
+            const eq = EQUIPMENT.find(e => e.id === eqId);
+            const x = startX + i * (barW + 8) + 4;
+            const barH = (hrs / maxVal) * (H - 50);
+            const y = H - 25 - barH;
+
+            const grad = ctx.createLinearGradient(x, y, x, H - 25);
+            grad.addColorStop(0, '#3b82f6'); grad.addColorStop(1, '#1e40af');
+            ctx.fillStyle = grad;
+            ctx.fillRect(x, y, barW, barH);
+
+            // Label
+            ctx.fillStyle = '#94a3b8';
+            ctx.font = '10px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText(eq ? eq.name.split(' ').pop() : eqId, x + barW / 2, H - 8);
+
+            // Value
+            ctx.fillStyle = '#e2e8f0';
+            ctx.font = '11px sans-serif';
+            ctx.fillText(hrs.toFixed(1) + 'h', x + barW / 2, y - 4);
+        });
+    }
+
+    // ========== MODAL ==========
+    function openAddModal() {
+        editingId = null;
+        document.getElementById('modalTitle').textContent = '➕ New Experiment';
+        document.getElementById('expName').value = '';
+        document.getElementById('expDuration').value = 2;
+        document.getElementById('expStart').value = '';
+        document.getElementById('expDeadline').value = '';
+        document.getElementById('expNotes').value = '';
+        setPriority('medium');
+        renderChips();
+        document.getElementById('addModal').classList.add('open');
+    }
+
+    function editExperiment(id) {
+        const exp = experiments.find(e => e.id === id);
+        if (!exp) return;
+        editingId = id;
+        document.getElementById('modalTitle').textContent = '✏️ Edit Experiment';
+        document.getElementById('expName').value = exp.name;
+        document.getElementById('expDuration').value = exp.duration;
+        document.getElementById('expStart').value = exp.preferredStart ? exp.preferredStart.slice(0, 16) : '';
+        document.getElementById('expDeadline').value = exp.deadline ? exp.deadline.slice(0, 16) : '';
+        document.getElementById('expNotes').value = exp.notes || '';
+        setPriority(exp.priority);
+        renderChips(exp.equipment, exp.materials);
+        document.getElementById('addModal').classList.add('open');
+    }
+
+    function closeModal() { document.getElementById('addModal').classList.remove('open'); }
+
+    function setPriority(p) {
+        selectedPriority = p;
+        document.querySelectorAll('.priority-btns button').forEach(b => {
+            b.classList.toggle('active', b.dataset.p === p);
+        });
+    }
+
+    function renderChips(selEq, selMat) {
+        selEq = selEq || []; selMat = selMat || [];
+        document.getElementById('equipChips').innerHTML = EQUIPMENT.map(eq =>
+            `<div class="chip ${selEq.includes(eq.id) ? 'active' : ''}" data-id="${eq.id}" onclick="toggleChip(this)">${eq.icon} ${eq.name}</div>`
+        ).join('');
+        document.getElementById('matChips').innerHTML = MATERIALS.map(m =>
+            `<div class="chip ${selMat.includes(m) ? 'active' : ''}" data-id="${m}" onclick="toggleChip(this)">🧪 ${m}</div>`
+        ).join('');
+    }
+
+    function toggleChip(el) { el.classList.toggle('active'); }
+
+    function saveExperiment() {
+        const name = document.getElementById('expName').value.trim();
+        if (!name) { alert('Name is required'); return; }
+
+        const selEquip = [...document.querySelectorAll('#equipChips .chip.active')].map(c => c.dataset.id);
+        const selMats = [...document.querySelectorAll('#matChips .chip.active')].map(c => c.dataset.id);
+
+        const data = {
+            name,
+            duration: parseFloat(document.getElementById('expDuration').value) || 2,
+            priority: selectedPriority,
+            equipment: selEquip,
+            materials: selMats,
+            preferredStart: document.getElementById('expStart').value || null,
+            deadline: document.getElementById('expDeadline').value || null,
+            notes: document.getElementById('expNotes').value,
+            scheduledStart: null,
+            status: 'pending'
+        };
+
+        if (editingId) {
+            const idx = experiments.findIndex(e => e.id === editingId);
+            if (idx >= 0) { experiments[idx] = { ...experiments[idx], ...data }; }
+        } else {
+            data.id = nextId++;
+            experiments.push(data);
+        }
+
+        closeModal();
+        render();
+    }
+
+    function removeExperiment(id) {
+        experiments = experiments.filter(e => e.id !== id);
+        render();
+    }
+
+    // ========== EXPORT ==========
+    function exportJSON() {
+        const blob = new Blob([JSON.stringify(experiments, null, 2)], { type: 'application/json' });
+        const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+        a.download = 'experiment-schedule.json'; a.click();
+    }
+
+    function exportCSV() {
+        const headers = ['Name', 'Duration(h)', 'Priority', 'Status', 'Scheduled Start', 'Deadline', 'Equipment', 'Materials'];
+        const rows = experiments.map(e => [
+            e.name, e.duration, e.priority, e.status,
+            e.scheduledStart || '', e.deadline || '',
+            (e.equipment || []).join('; '), (e.materials || []).join('; ')
+        ]);
+        const csv = [headers, ...rows].map(r => r.map(c => `"${c}"`).join(',')).join('\n');
+        const blob = new Blob([csv], { type: 'text/csv' });
+        const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+        a.download = 'experiment-schedule.csv'; a.click();
+    }
+
+    // Initial render
+    render();
+    </script>
+</body>
+</html>

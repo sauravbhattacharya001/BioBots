@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Reagent Expiry Watchdog — BioBots</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{--bg:#0f172a;--card:#1e293b;--border:#334155;--text:#e2e8f0;--dim:#94a3b8;--green:#22c55e;--yellow:#eab308;--orange:#f97316;--red:#ef4444;--darkred:#dc2626;--accent:#38bdf8}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;padding:1.5rem}
+h1{font-size:1.6rem;background:linear-gradient(135deg,var(--accent),var(--green));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.subtitle{color:var(--dim);font-size:.85rem;margin-bottom:1.5rem}
+.top-bar{display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;flex-wrap:wrap;gap:.5rem}
+.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:.75rem;margin-bottom:1.5rem}
+.card{background:var(--card);border:1px solid var(--border);border-radius:.75rem;padding:1rem;text-align:center}
+.card .val{font-size:1.8rem;font-weight:700;margin:.25rem 0}
+.card .lbl{font-size:.75rem;color:var(--dim);text-transform:uppercase;letter-spacing:.05em}
+.card.red .val{color:var(--red)}.card.orange .val{color:var(--orange)}.card.yellow .val{color:var(--yellow)}.card.green .val{color:var(--green)}
+.panels{display:grid;grid-template-columns:3fr 2fr;gap:1rem;margin-bottom:1.5rem}
+@media(max-width:768px){.panels{grid-template-columns:1fr}}
+.panel{background:var(--card);border:1px solid var(--border);border-radius:.75rem;padding:1rem;max-height:320px;overflow-y:auto}
+.panel h3{font-size:.85rem;color:var(--dim);text-transform:uppercase;letter-spacing:.05em;margin-bottom:.75rem}
+.alert-item{padding:.5rem .75rem;border-radius:.5rem;margin-bottom:.5rem;font-size:.85rem;border-left:3px solid var(--dim)}
+.alert-item.critical{border-color:var(--red);background:rgba(239,68,68,.08)}
+.alert-item.warning{border-color:var(--orange);background:rgba(249,115,22,.08)}
+.alert-item.info{border-color:var(--yellow);background:rgba(234,179,8,.08)}
+.alert-item.ok{border-color:var(--green);background:rgba(34,197,94,.08)}
+.disposal-item{display:flex;align-items:center;gap:.5rem;padding:.4rem 0;border-bottom:1px solid var(--border);font-size:.85rem}
+.disposal-item:last-child{border-bottom:none}
+.disposal-item input[type=checkbox]{accent-color:var(--red)}
+canvas{width:100%;height:180px;border-radius:.5rem;background:rgba(0,0,0,.2);margin-bottom:1.5rem;cursor:crosshair}
+.table-wrap{background:var(--card);border:1px solid var(--border);border-radius:.75rem;padding:1rem;margin-bottom:1.5rem;overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:.8rem}
+th{text-align:left;padding:.5rem;color:var(--dim);border-bottom:1px solid var(--border);cursor:pointer;user-select:none}
+th:hover{color:var(--text)}
+td{padding:.5rem;border-bottom:1px solid var(--border)}
+.badge{display:inline-block;padding:.1rem .4rem;border-radius:9999px;font-size:.7rem;font-weight:600}
+.badge-expired{background:rgba(220,38,38,.2);color:var(--darkred)}
+.badge-critical{background:rgba(239,68,68,.15);color:var(--red)}
+.badge-warning{background:rgba(249,115,22,.15);color:var(--orange)}
+.badge-caution{background:rgba(234,179,8,.15);color:var(--yellow)}
+.badge-ok{background:rgba(34,197,94,.15);color:var(--green)}
+.toggle{display:flex;align-items:center;gap:.5rem;font-size:.85rem;cursor:pointer}
+.toggle input{display:none}
+.toggle .sw{width:36px;height:20px;background:var(--border);border-radius:10px;position:relative;transition:.2s}
+.toggle .sw::after{content:'';position:absolute;top:2px;left:2px;width:16px;height:16px;background:var(--dim);border-radius:50%;transition:.2s}
+.toggle input:checked+.sw{background:var(--green)}
+.toggle input:checked+.sw::after{left:18px;background:#fff}
+.pulse{width:8px;height:8px;border-radius:50%;background:var(--green);display:inline-block;animation:pulse 1.5s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+.collapsible{margin-bottom:1rem}
+.collapsible summary{cursor:pointer;font-size:.9rem;font-weight:600;color:var(--accent);margin-bottom:.5rem}
+.form-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:.5rem;margin-bottom:.75rem}
+input,select{background:var(--bg);border:1px solid var(--border);color:var(--text);padding:.4rem .6rem;border-radius:.4rem;font-size:.8rem}
+input:focus,select:focus{outline:none;border-color:var(--accent)}
+button{background:var(--accent);color:#000;border:none;padding:.5rem 1rem;border-radius:.4rem;font-weight:600;cursor:pointer;font-size:.8rem}
+button:hover{opacity:.85}
+button.danger{background:var(--red);color:#fff}
+button.secondary{background:var(--border);color:var(--text)}
+.tooltip{position:absolute;background:var(--card);border:1px solid var(--border);border-radius:.5rem;padding:.5rem .75rem;font-size:.75rem;pointer-events:none;z-index:100;max-width:220px;box-shadow:0 4px 12px rgba(0,0,0,.4)}
+.export-row{display:flex;gap:.5rem;margin-bottom:1.5rem;flex-wrap:wrap}
+</style>
+</head>
+<body>
+<div class="top-bar">
+<div><h1>🔬 Reagent Expiry Watchdog</h1><p class="subtitle">Autonomous expiry monitoring • Waste prevention • Reorder intelligence</p></div>
+<label class="toggle"><span id="triageLabel">Auto-Triage</span><input type="checkbox" id="triageToggle"><span class="sw"></span><span id="triageDot" style="display:none" class="pulse"></span></label>
+</div>
+
+<div class="cards" id="cards"></div>
+<div class="panels">
+<div class="panel" id="alertsPanel"><h3>⚡ Proactive Alerts</h3><div id="alertsList"></div></div>
+<div class="panel" id="disposalPanel"><h3>🗑️ Disposal Queue</h3><div id="disposalList"></div><button class="danger" style="margin-top:.5rem" onclick="confirmDisposal()">Confirm Disposal</button></div>
+</div>
+
+<canvas id="timeline" height="180"></canvas>
+<div id="timelineTooltip" class="tooltip" style="display:none"></div>
+
+<div class="export-row">
+<button onclick="exportJSON()">📦 Export JSON</button>
+<button class="secondary" onclick="exportCSV()">📋 Export Alerts CSV</button>
+</div>
+
+<div class="table-wrap">
+<table><thead><tr><th onclick="sortTable('name')">Name</th><th onclick="sortTable('category')">Category</th><th onclick="sortTable('lot')">Lot</th><th onclick="sortTable('qty')">Qty</th><th onclick="sortTable('expiry')">Expiry</th><th onclick="sortTable('daysLeft')">Days Left</th><th onclick="sortTable('status')">Status</th><th>Forecast</th></tr></thead><tbody id="tableBody"></tbody></table>
+</div>
+
+<details class="collapsible"><summary>➕ Add Reagent</summary>
+<div class="form-grid">
+<input id="fName" placeholder="Name"><select id="fCat"><option value="bioink">Bioink</option><option value="crosslinker">Crosslinker</option><option value="reagent">Reagent</option><option value="media">Media</option><option value="enzyme">Enzyme</option><option value="buffer">Buffer</option><option value="other">Other</option></select>
+<input id="fLot" placeholder="Lot #"><input id="fQty" type="number" placeholder="Quantity"><input id="fUnit" placeholder="Unit (mL, g...)">
+<select id="fStorage"><option value="RT">RT</option><option value="4°C">4°C</option><option value="-20°C">-20°C</option><option value="-80°C">-80°C</option><option value="LN2">LN2</option></select>
+<input id="fLocation" placeholder="Location"><input id="fReceived" type="date"><input id="fExpiry" type="date">
+</div><button onclick="addReagent()">Add</button>
+</details>
+
+<details class="collapsible"><summary>📊 Log Usage</summary>
+<div class="form-grid">
+<select id="uName"></select><input id="uQty" type="number" placeholder="Amount used"><input id="uNote" placeholder="Note (optional)">
+</div><button onclick="logUsage()">Log</button>
+</details>
+
+<script>
+var STORAGE_KEY='biobots_expiry_watchdog';
+var COST_MAP={bioink:35,crosslinker:25,reagent:20,media:30,enzyme:45,buffer:10,other:15};
+var state=loadState();
+
+function loadState(){try{var s=localStorage.getItem(STORAGE_KEY);if(s)return JSON.parse(s)}catch(e){}return initSeed()}
+function saveState(){localStorage.setItem(STORAGE_KEY,JSON.stringify(state))}
+
+function initSeed(){
+var now=Date.now(),day=864e5;
+var reagents=[
+{name:'Alginate 2%',category:'bioink',lot:'ALG-2024-A1',quantity:45,unit:'mL',storage:'4°C',location:'Fridge A-2',received:now-60*day,expiry:now+25*day,usage:[]},
+{name:'Gelatin 5%',category:'bioink',lot:'GEL-2024-B3',quantity:30,unit:'mL',storage:'4°C',location:'Fridge A-1',received:now-90*day,expiry:now+5*day,usage:[]},
+{name:'Collagen Type I',category:'bioink',lot:'COL-2024-C7',quantity:10,unit:'mL',storage:'-20°C',location:'Freezer B-3',received:now-45*day,expiry:now+60*day,usage:[]},
+{name:'Fibrinogen',category:'bioink',lot:'FIB-2024-D2',quantity:8,unit:'mg',storage:'-80°C',location:'Freezer C-1',received:now-30*day,expiry:now+90*day,usage:[]},
+{name:'CaCl₂ 100mM',category:'crosslinker',lot:'CAC-2024-E5',quantity:200,unit:'mL',storage:'RT',location:'Shelf D-4',received:now-120*day,expiry:now+180*day,usage:[]},
+{name:'Thrombin',category:'enzyme',lot:'THR-2024-F1',quantity:5,unit:'mL',storage:'-20°C',location:'Freezer B-2',received:now-20*day,expiry:now+12*day,usage:[]},
+{name:'DMEM High Glucose',category:'media',lot:'DME-2024-G8',quantity:500,unit:'mL',storage:'4°C',location:'Fridge A-3',received:now-40*day,expiry:now+45*day,usage:[]},
+{name:'FBS',category:'media',lot:'FBS-2024-H2',quantity:50,unit:'mL',storage:'-20°C',location:'Freezer B-1',received:now-60*day,expiry:now-3*day,usage:[]},
+{name:'Trypsin-EDTA',category:'enzyme',lot:'TRY-2024-I4',quantity:100,unit:'mL',storage:'-20°C',location:'Freezer B-4',received:now-15*day,expiry:now+75*day,usage:[]},
+{name:'PBS 1X',category:'buffer',lot:'PBS-2024-J6',quantity:1000,unit:'mL',storage:'RT',location:'Shelf D-1',received:now-30*day,expiry:now+330*day,usage:[]},
+{name:'Pluronic F-127',category:'bioink',lot:'PLU-2024-K3',quantity:25,unit:'g',storage:'RT',location:'Shelf D-2',received:now-100*day,expiry:now+2*day,usage:[]},
+{name:'Hyaluronic Acid',category:'bioink',lot:'HYA-2024-L9',quantity:15,unit:'g',storage:'4°C',location:'Fridge A-4',received:now-50*day,expiry:now+20*day,usage:[]},
+{name:'Matrigel',category:'bioink',lot:'MAT-2024-M1',quantity:3,unit:'mL',storage:'-20°C',location:'Freezer B-5',received:now-10*day,expiry:now-7*day,usage:[]},
+{name:'PEG-DA',category:'crosslinker',lot:'PEG-2024-N5',quantity:50,unit:'mL',storage:'4°C',location:'Fridge A-5',received:now-25*day,expiry:now+55*day,usage:[]},
+{name:'Genipin',category:'crosslinker',lot:'GEN-2024-O2',quantity:10,unit:'g',storage:'-20°C',location:'Freezer B-6',received:now-35*day,expiry:now+8*day,usage:[]}
+];
+return{reagents:reagents,disposalHistory:[]}
+}
+
+function daysUntilExpiry(r){return Math.round((r.expiry-Date.now())/864e5)}
+function getStatus(d){if(d<0)return'expired';if(d<=7)return'critical';if(d<=15)return'warning';if(d<=30)return'caution';return'ok'}
+function statusColor(s){return s==='expired'?'var(--darkred)':s==='critical'?'var(--red)':s==='warning'?'var(--orange)':s==='caution'?'var(--yellow)':'var(--green)'}
+
+function getWasteScore(){
+var score=0,maxScore=0;
+state.reagents.forEach(function(r){
+var d=daysUntilExpiry(r),cost=COST_MAP[r.category]||15;
+maxScore+=cost*r.quantity*.01;
+if(d<0)score+=cost*r.quantity*.01;
+else if(d<=7)score+=cost*r.quantity*.008;
+else if(d<=15)score+=cost*r.quantity*.004;
+else if(d<=30)score+=cost*r.quantity*.001;
+});
+return maxScore>0?Math.min(100,Math.round(score/maxScore*100)):0;
+}
+
+function getEstimatedWaste(){
+var total=0;
+state.reagents.forEach(function(r){
+var d=daysUntilExpiry(r);
+if(d<=30){var cost=COST_MAP[r.category]||15;total+=cost*(d<0?1:d<=7?.7:d<=15?.3:.1)}
+});
+return total;
+}
+
+function generateAlerts(){
+var alerts=[];
+state.reagents.forEach(function(r){
+var d=daysUntilExpiry(r),cost=COST_MAP[r.category]||15;
+if(d<0)alerts.push({priority:0,cls:'critical',text:'🗑️ Dispose expired '+r.name+' (Lot: '+r.lot+') — expired '+Math.abs(d)+' days ago'});
+else if(d<=3)alerts.push({priority:1,cls:'critical',text:'🚨 Use '+r.name+' within '+d+' days or risk $'+cost+' waste'});
+else if(d<=7)alerts.push({priority:2,cls:'warning',text:'⚠️ '+r.name+' expires in '+d+' days — prioritize usage'});
+else if(d<=15)alerts.push({priority:3,cls:'info',text:'📋 Consider reordering '+r.name+' — expires '+new Date(r.expiry).toLocaleDateString()});
+else if(d<=30){
+var forecast=getUsageForecast(r);
+if(forecast==='expires-first')alerts.push({priority:4,cls:'info',text:'📦 '+r.name+' will expire before full use — share or accelerate consumption'});
+}
+});
+// Cluster detection
+var locations={};
+state.reagents.forEach(function(r){var d=daysUntilExpiry(r);if(d>0&&d<=14){if(!locations[r.location])locations[r.location]=[];locations[r.location].push(r.name)}});
+Object.keys(locations).forEach(function(loc){if(locations[loc].length>=2)alerts.push({priority:2.5,cls:'warning',text:'🔍 Storage audit needed: '+locations[loc].length+' items at '+loc+' approaching expiry cluster'})});
+alerts.sort(function(a,b){return a.priority-b.priority});
+return alerts;
+}
+
+function getUsageForecast(r){
+if(!r.usage||r.usage.length<2)return'unknown';
+var totalUsed=0;r.usage.forEach(function(u){totalUsed+=u.qty});
+var span=(r.usage[r.usage.length-1].date-r.usage[0].date)/864e5;
+if(span<1)return'unknown';
+var rate=totalUsed/span;
+var daysToEmpty=rate>0?r.quantity/rate:Infinity;
+var daysToExpiry=daysUntilExpiry(r);
+if(daysToExpiry<0)return'expired';
+if(daysToEmpty<daysToExpiry)return'runs-out-first';
+return'expires-first';
+}
+
+function renderCards(){
+var expired=0,crit=0,warn=0,total=state.reagents.length;
+state.reagents.forEach(function(r){var d=daysUntilExpiry(r);if(d<0)expired++;else if(d<=7)crit++;else if(d<=30)warn++});
+var ws=getWasteScore(),wc=getEstimatedWaste();
+document.getElementById('cards').innerHTML=
+'<div class="card"><div class="val">'+total+'</div><div class="lbl">Total Tracked</div></div>'+
+'<div class="card red"><div class="val">'+expired+'</div><div class="lbl">Expired</div></div>'+
+'<div class="card orange"><div class="val">'+crit+'</div><div class="lbl">≤7 Days</div></div>'+
+'<div class="card yellow"><div class="val">'+warn+'</div><div class="lbl">≤30 Days</div></div>'+
+'<div class="card '+(ws>60?'red':ws>30?'orange':'green')+'"><div class="val">'+ws+'</div><div class="lbl">Waste Risk</div></div>'+
+'<div class="card '+(wc>100?'red':wc>30?'orange':'green')+'"><div class="val">$'+Math.round(wc)+'</div><div class="lbl">Est. Waste</div></div>';
+}
+
+function renderAlerts(){
+var alerts=generateAlerts();
+var html=alerts.length?'':'<p style="color:var(--dim);font-size:.85rem">✅ No urgent alerts</p>';
+alerts.forEach(function(a){html+='<div class="alert-item '+a.cls+'">'+a.text+'</div>'});
+document.getElementById('alertsList').innerHTML=html;
+}
+
+function renderDisposal(){
+var html='';var hasItems=false;
+state.reagents.forEach(function(r,i){
+if(daysUntilExpiry(r)<0){hasItems=true;html+='<div class="disposal-item"><input type="checkbox" data-idx="'+i+'"><span>'+r.name+' ('+r.lot+') — expired '+Math.abs(daysUntilExpiry(r))+'d ago</span></div>'}
+});
+if(!hasItems)html='<p style="color:var(--dim);font-size:.85rem">No items pending disposal</p>';
+document.getElementById('disposalList').innerHTML=html;
+}
+
+function confirmDisposal(){
+var checks=document.querySelectorAll('#disposalList input:checked');
+var indices=[];checks.forEach(function(c){indices.push(parseInt(c.dataset.idx))});
+indices.sort(function(a,b){return b-a});
+indices.forEach(function(i){
+var r=state.reagents[i];
+state.disposalHistory.push({name:r.name,lot:r.lot,disposedAt:Date.now()});
+state.reagents.splice(i,1);
+});
+if(indices.length>0){saveState();renderAll()}
+}
+
+var sortKey='daysLeft',sortDir=1;
+function sortTable(key){if(sortKey===key)sortDir*=-1;else{sortKey=key;sortDir=1}renderTable()}
+
+function renderTable(){
+var rows=state.reagents.map(function(r,i){var d=daysUntilExpiry(r);return{r:r,i:i,d:d,s:getStatus(d)}});
+rows.sort(function(a,b){
+var av,bv;
+if(sortKey==='name'){av=a.r.name.toLowerCase();bv=b.r.name.toLowerCase();return av<bv?-sortDir:av>bv?sortDir:0}
+if(sortKey==='category'){av=a.r.category;bv=b.r.category;return av<bv?-sortDir:av>bv?sortDir:0}
+if(sortKey==='lot'){av=a.r.lot;bv=b.r.lot;return av<bv?-sortDir:av>bv?sortDir:0}
+if(sortKey==='qty')return(a.r.quantity-b.r.quantity)*sortDir;
+if(sortKey==='expiry')return(a.r.expiry-b.r.expiry)*sortDir;
+if(sortKey==='daysLeft')return(a.d-b.d)*sortDir;
+if(sortKey==='status'){var p={expired:0,critical:1,warning:2,caution:3,ok:4};return(p[a.s]-p[b.s])*sortDir}
+return 0;
+});
+var html='';
+rows.forEach(function(row){
+var r=row.r,d=row.d,s=row.s;
+var fc=getUsageForecast(r);
+var fcText=fc==='runs-out-first'?'<span style="color:var(--orange)">Runs out first</span>':fc==='expires-first'?'<span style="color:var(--red)">Expires first</span>':fc==='expired'?'—':'<span style="color:var(--dim)">Insufficient data</span>';
+html+='<tr><td>'+r.name+'</td><td>'+r.category+'</td><td>'+r.lot+'</td><td>'+r.quantity+' '+r.unit+'</td><td>'+new Date(r.expiry).toLocaleDateString()+'</td><td style="color:'+statusColor(s)+'">'+d+'</td><td><span class="badge badge-'+s+'">'+(s==='ok'?'OK':s.charAt(0).toUpperCase()+s.slice(1))+'</span></td><td>'+fcText+'</td></tr>';
+});
+document.getElementById('tableBody').innerHTML=html;
+}
+
+function renderTimeline(){
+var canvas=document.getElementById('timeline');
+var ctx=canvas.getContext('2d');
+var dpr=window.devicePixelRatio||1;
+canvas.width=canvas.offsetWidth*dpr;canvas.height=180*dpr;
+ctx.scale(dpr,dpr);
+var W=canvas.offsetWidth,H=180;
+ctx.clearRect(0,0,W,H);
+
+if(!state.reagents.length)return;
+var now=Date.now(),minD=-14,maxD=100;
+var pad={l:100,r:20,t:25,b:20};
+var plotW=W-pad.l-pad.r,plotH=H-pad.t-pad.b;
+var barH=Math.min(16,plotH/state.reagents.length-2);
+
+// axis
+ctx.strokeStyle='#334155';ctx.lineWidth=1;
+ctx.beginPath();ctx.moveTo(pad.l,pad.t);ctx.lineTo(pad.l,H-pad.b);ctx.stroke();
+// today line
+var todayX=pad.l+(-minD)/(maxD-minD)*plotW;
+ctx.strokeStyle='rgba(56,189,248,.5)';ctx.setLineDash([4,3]);
+ctx.beginPath();ctx.moveTo(todayX,pad.t);ctx.lineTo(todayX,H-pad.b);ctx.stroke();
+ctx.setLineDash([]);
+ctx.fillStyle='var(--accent)';ctx.font='10px system-ui';ctx.fillText('Today',todayX-14,pad.t-5);
+
+// day markers
+ctx.fillStyle='#64748b';ctx.font='9px system-ui';
+[-7,0,7,14,30,60,90].forEach(function(d){
+var x=pad.l+(d-minD)/(maxD-minD)*plotW;
+if(x>=pad.l&&x<=W-pad.r){ctx.fillText(d+'d',x-8,H-pad.b+12)}
+});
+
+state.reagents.forEach(function(r,i){
+var d=daysUntilExpiry(r);
+var s=getStatus(d);
+var y=pad.t+i*(plotH/state.reagents.length);
+// label
+ctx.fillStyle='#94a3b8';ctx.font='10px system-ui';
+ctx.fillText(r.name.slice(0,14),4,y+barH/2+3);
+// bar from today to expiry
+var startX=todayX;
+var endD=Math.min(d,maxD);
+var endX=pad.l+(endD-minD)/(maxD-minD)*plotW;
+if(d<0){startX=pad.l+(d-minD)/(maxD-minD)*plotW;endX=todayX}
+var color=s==='expired'?'rgba(220,38,38,.6)':s==='critical'?'rgba(239,68,68,.7)':s==='warning'?'rgba(249,115,22,.6)':s==='caution'?'rgba(234,179,8,.5)':'rgba(34,197,94,.5)';
+ctx.fillStyle=color;
+ctx.fillRect(Math.min(startX,endX),y,Math.abs(endX-startX)||2,barH);
+});
+canvas._reagentRects=state.reagents.map(function(r,i){var y=pad.t+i*(plotH/state.reagents.length);return{y:y,h:barH,r:r}});
+}
+
+// Timeline hover
+document.getElementById('timeline').addEventListener('mousemove',function(e){
+var rect=this.getBoundingClientRect();
+var y=e.clientY-rect.top;
+var tip=document.getElementById('timelineTooltip');
+var rects=this._reagentRects;
+if(!rects){tip.style.display='none';return}
+var found=null;
+for(var i=0;i<rects.length;i++){if(y>=rects[i].y&&y<=rects[i].y+rects[i].h){found=rects[i].r;break}}
+if(found){
+var d=daysUntilExpiry(found);
+tip.innerHTML='<b>'+found.name+'</b><br>Lot: '+found.lot+'<br>Expiry: '+new Date(found.expiry).toLocaleDateString()+'<br>Days: '+d+'<br>Storage: '+found.storage+'<br>Location: '+found.location;
+tip.style.display='block';tip.style.left=(e.pageX+12)+'px';tip.style.top=(e.pageY-60)+'px';
+}else{tip.style.display='none'}
+});
+document.getElementById('timeline').addEventListener('mouseleave',function(){document.getElementById('timelineTooltip').style.display='none'});
+
+function addReagent(){
+var name=document.getElementById('fName').value.trim();
+var expiry=document.getElementById('fExpiry').value;
+if(!name||!expiry){alert('Name and expiry date required');return}
+state.reagents.push({
+name:name,category:document.getElementById('fCat').value,
+lot:document.getElementById('fLot').value||'N/A',
+quantity:parseFloat(document.getElementById('fQty').value)||1,
+unit:document.getElementById('fUnit').value||'units',
+storage:document.getElementById('fStorage').value,
+location:document.getElementById('fLocation').value||'Unassigned',
+received:document.getElementById('fReceived').value?new Date(document.getElementById('fReceived').value).getTime():Date.now(),
+expiry:new Date(expiry).getTime(),usage:[]
+});
+saveState();renderAll();
+document.getElementById('fName').value='';
+}
+
+function logUsage(){
+var name=document.getElementById('uName').value;
+var qty=parseFloat(document.getElementById('uQty').value);
+if(!name||!qty){alert('Select reagent and enter amount');return}
+var r=state.reagents.find(function(x){return x.name===name});
+if(!r)return;
+r.usage.push({qty:qty,date:Date.now(),note:document.getElementById('uNote').value||''});
+r.quantity=Math.max(0,r.quantity-qty);
+saveState();renderAll();
+document.getElementById('uQty').value='';document.getElementById('uNote').value='';
+}
+
+function populateUsageSelect(){
+var sel=document.getElementById('uName');
+sel.innerHTML='<option value="">Select reagent...</option>';
+state.reagents.forEach(function(r){sel.innerHTML+='<option value="'+r.name+'">'+r.name+' ('+r.quantity+' '+r.unit+')</option>'});
+}
+
+function exportJSON(){
+var blob=new Blob([JSON.stringify(state,null,2)],{type:'application/json'});
+var a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='expiry-watchdog-export.json';a.click();
+}
+
+function exportCSV(){
+var alerts=generateAlerts();
+var csv='Priority,Type,Message\n';
+alerts.forEach(function(a){csv+=a.priority+','+a.cls+',"'+a.text.replace(/"/g,'""')+'"\n'});
+var blob=new Blob([csv],{type:'text/csv'});
+var a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='expiry-alerts.csv';a.click();
+}
+
+// Auto-triage
+var triageInterval=null;
+document.getElementById('triageToggle').addEventListener('change',function(){
+var dot=document.getElementById('triageDot');
+if(this.checked){dot.style.display='inline-block';triageInterval=setInterval(function(){renderAll()},5000)}
+else{dot.style.display='none';clearInterval(triageInterval);triageInterval=null}
+});
+
+function renderAll(){renderCards();renderAlerts();renderDisposal();renderTable();renderTimeline();populateUsageSelect()}
+window.addEventListener('resize',renderTimeline);
+renderAll();
+</script>
+</body>
+</html>

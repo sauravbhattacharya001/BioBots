@@ -84,8 +84,12 @@ function createCellViabilityCalculator() {
         var corrTreated = opts.treated - blank;
         var corrControl = opts.control - blank;
         if (corrControl <= 0) throw new Error('Corrected control absorbance must be > 0');
+        // Clamp corrected treated to 0 — negative values from spectrophotometer
+        // noise (treated < blank) are physically meaningless.
+        var belowBlank = corrTreated < 0;
+        if (belowBlank) corrTreated = 0;
         var pct = round((corrTreated / corrControl) * 100);
-        return {
+        var result = {
             viabilityPct: pct,
             correctedTreated: round(corrTreated, 4),
             correctedControl: round(corrControl, 4),
@@ -93,6 +97,10 @@ function createCellViabilityCalculator() {
             method: 'absorbance-based',
             formula: 'viability = ((treated - blank) / (control - blank)) × 100'
         };
+        if (belowBlank) {
+            result.warning = 'Treated absorbance below blank — corrected treated clamped to 0 (viability set to 0%)';
+        }
+        return result;
     }
 
     /**
