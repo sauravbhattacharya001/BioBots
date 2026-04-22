@@ -168,20 +168,37 @@ function createYieldAnalyzer(options) {
             return new Date(a.date || 0) - new Date(b.date || 0);
         });
 
+        // Sliding-window rolling yield: O(n) instead of O(n × ws).
+        // The previous implementation allocated a slice and re-counted
+        // successes for every window position, making it O(n × ws).
+        // Now we seed the count from the first window, then add/remove
+        // one element per step.
         var rollingYield = [];
-        for (var i = 0; i <= sorted.length - ws; i++) {
-            var window = sorted.slice(i, i + ws);
+        if (sorted.length >= ws) {
             var successCount = 0;
-            for (var j = 0; j < window.length; j++) {
-                if (_classifyOutcome(window[j]) === OUTCOMES.SUCCESS) successCount++;
+            // Seed the first window
+            for (var si = 0; si < ws; si++) {
+                if (_classifyOutcome(sorted[si]) === OUTCOMES.SUCCESS) successCount++;
             }
             rollingYield.push({
-                windowStart: i,
-                windowEnd: i + ws - 1,
+                windowStart: 0,
+                windowEnd: ws - 1,
                 yieldRate: _pct(successCount, ws),
-                startDate: sorted[i].date || null,
-                endDate: sorted[i + ws - 1].date || null
+                startDate: sorted[0].date || null,
+                endDate: sorted[ws - 1].date || null
             });
+            // Slide: drop the element leaving the window, add the one entering
+            for (var i = 1; i <= sorted.length - ws; i++) {
+                if (_classifyOutcome(sorted[i - 1]) === OUTCOMES.SUCCESS) successCount--;
+                if (_classifyOutcome(sorted[i + ws - 1]) === OUTCOMES.SUCCESS) successCount++;
+                rollingYield.push({
+                    windowStart: i,
+                    windowEnd: i + ws - 1,
+                    yieldRate: _pct(successCount, ws),
+                    startDate: sorted[i].date || null,
+                    endDate: sorted[i + ws - 1].date || null
+                });
+            }
         }
 
         // Direction
