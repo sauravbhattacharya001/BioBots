@@ -327,6 +327,71 @@ Examples:
 
 ---
 
+## Adding a New SDK Module
+
+The `index.js` entry point uses a **lazy-loaded manifest** pattern. To expose a new computation module through the npm package:
+
+### Step 1: Create the module
+
+Place your module in `docs/shared/` (shared modules are used by both the docs site and the SDK). Export a factory function:
+
+```javascript
+'use strict';
+
+function createYourModule() {
+  return {
+    compute: function(input) {
+      // ...
+    }
+  };
+}
+
+if (typeof module !== 'undefined') {
+  module.exports = { createYourModule: createYourModule };
+}
+```
+
+### Step 2: Register in the manifest
+
+Add one line to the `manifest` array in `index.js`:
+
+```javascript
+['createYourModule', './docs/shared/yourModule', 'createYourModule'],
+```
+
+The module is now lazy-loaded on first access — no startup cost for consumers who don't use it.
+
+### Step 3: Add tests
+
+Create `__tests__/yourModule.test.js`. Follow the existing pattern — use `@jest-environment jsdom` if the module touches DOM APIs, plain Node otherwise. The project has 130+ test files; match the style of a similar module.
+
+### Step 4: Update docs
+
+If the module is user-facing, add it to the relevant `docs/*.html` page(s).
+
+## Troubleshooting
+
+| Problem | Solution |
+|---------|----------|
+| `npm test` fails with "Cannot find module" | Run `npm install` — a dependency may be missing after a rebase |
+| NuGet restore fails in Visual Studio | Right-click solution → "Restore NuGet Packages", or delete `packages/` and rebuild |
+| `bioprint-data.json` not found at runtime | Ensure it's in the project root and `DataFilePath` in `Web.config` is correct (or absent for default) |
+| Coverage below thresholds after adding code | Add tests for your new code — thresholds are enforced in `package.json` (60% branches, 70% functions/lines/statements) |
+| Jest tests hang or timeout | Check for unclosed timers or async operations; use `jest.useFakeTimers()` if your module uses `setTimeout`/`setInterval` |
+| Port conflict when running locally | Change the port in Visual Studio project properties → Debug → App URL |
+| Git rebase conflicts in `package-lock.json` | Accept either version, then run `npm install` to regenerate |
+
+## Security Guidelines
+
+BioBots processes biomedical/bioprinting data. Contributors should:
+
+- **Never commit real patient or lab data** — use synthetic data in tests and examples
+- **Sanitize all user inputs** rendered in HTML — use `escapeHtml()` (see existing pattern in docs pages)
+- **Avoid `eval()`, `Function()`, or `innerHTML` with untrusted data** in frontend code
+- **Keep dependencies minimal** — every new npm/NuGet dependency increases the attack surface
+- **Review Dependabot PRs carefully** — don't auto-merge major version bumps without checking changelogs for breaking changes
+- **Report vulnerabilities privately** — email the maintainer rather than opening a public issue
+
 ## Questions?
 
 Open an issue or reach out to [@sauravbhattacharya001](https://github.com/sauravbhattacharya001).
