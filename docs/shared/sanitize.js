@@ -11,7 +11,15 @@
  */
 
 /** Keys that must never be accepted from untrusted input. */
-var DANGEROUS_KEYS = { '__proto__': 1, 'constructor': 1, 'prototype': 1 };
+// Use Object.defineProperty for '__proto__' — object literal syntax
+// `{ '__proto__': 1 }` sets the object's prototype instead of creating
+// a regular enumerable property, so `DANGEROUS_KEYS['__proto__']` would
+// return Object.prototype (truthy but !== 1), making isDangerousKey()
+// silently fail to detect the most critical prototype-pollution vector.
+var DANGEROUS_KEYS = Object.create(null);
+DANGEROUS_KEYS['__proto__'] = 1;
+DANGEROUS_KEYS['constructor'] = 1;
+DANGEROUS_KEYS['prototype'] = 1;
 
 /**
  * Strip prototype-pollution keys from an untrusted object.

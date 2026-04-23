@@ -201,8 +201,8 @@ function formatHtml(entry) {
     h.push('th{background:#f5f5f5}.meta{color:#666;font-size:0.9em}.tag{background:#e0e7ff;padding:2px 8px;border-radius:3px;margin-right:4px;font-size:0.85em}');
     h.push('</style></head><body>');
     h.push('<h1>' + escapeHtml(entry.title) + '</h1>');
-    h.push('<p class="meta"><strong>ID:</strong> ' + entry.id +
-        ' &nbsp;|&nbsp; <strong>Date:</strong> ' + entry.timestamp +
+    h.push('<p class="meta"><strong>ID:</strong> ' + escapeHtml(entry.id) +
+        ' &nbsp;|&nbsp; <strong>Date:</strong> ' + escapeHtml(entry.timestamp) +
         ' &nbsp;|&nbsp; <strong>Researcher:</strong> ' + escapeHtml(entry.researcher) + '</p>');
 
     if (entry.objective) {

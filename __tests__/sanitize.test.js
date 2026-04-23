@@ -177,11 +177,23 @@ describe('sanitize', () => {
     // ── DANGEROUS_KEYS export ────────────────────────────
 
     describe('DANGEROUS_KEYS', () => {
-        test('contains constructor and prototype keys', () => {
-            // __proto__ is not enumerable via Object.keys due to JS semantics
+        test('contains __proto__, constructor, and prototype keys', () => {
+            // All three dangerous keys are now properly detectable
+            // via isDangerousKey() after switching to Object.create(null)
+            expect(DANGEROUS_KEYS['__proto__']).toBe(1);
             expect(DANGEROUS_KEYS['constructor']).toBe(1);
             expect(DANGEROUS_KEYS['prototype']).toBe(1);
-            expect(Object.keys(DANGEROUS_KEYS).sort()).toEqual(['constructor', 'prototype']);
+            expect(Object.keys(DANGEROUS_KEYS).sort()).toEqual(['__proto__', 'constructor', 'prototype']);
+        });
+
+        test('isDangerousKey detects __proto__', () => {
+            // Regression: the old object-literal DANGEROUS_KEYS silently
+            // failed to detect __proto__ because `{ '__proto__': 1 }` sets
+            // the prototype rather than creating an enumerable property.
+            expect(isDangerousKey('__proto__')).toBe(true);
+            expect(isDangerousKey('constructor')).toBe(true);
+            expect(isDangerousKey('prototype')).toBe(true);
+            expect(isDangerousKey('safe_key')).toBe(false);
         });
     });
 });

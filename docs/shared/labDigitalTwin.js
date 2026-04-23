@@ -50,6 +50,8 @@ function linReg(xs, ys) {
     return { slope: slope, intercept: intercept, r2: r2 };
 }
 
+var _sanitize = require('./sanitize');
+
 function daysBetween(a, b) {
     return (new Date(b) - new Date(a)) / 86400000;
 }
@@ -94,6 +96,7 @@ function createLabDigitalTwin() {
 
     function registerEquipment(eq) {
         if (!eq || !eq.id) throw new Error('Equipment must have an id');
+        if (_sanitize.isDangerousKey(eq.id)) throw new Error('Invalid equipment id');
         equipment[eq.id] = {
             id: eq.id,
             name: eq.name || eq.id,
@@ -109,6 +112,7 @@ function createLabDigitalTwin() {
 
     function registerReagent(r) {
         if (!r || !r.id) throw new Error('Reagent must have an id');
+        if (_sanitize.isDangerousKey(r.id)) throw new Error('Invalid reagent id');
         reagents[r.id] = {
             id: r.id,
             name: r.name || r.id,

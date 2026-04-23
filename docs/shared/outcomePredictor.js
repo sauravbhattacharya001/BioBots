@@ -87,6 +87,7 @@ var CONFIDENCE_LEVELS = [
 // ── Helpers ─────────────────────────────────────────────────────────
 
 var clamp = require('./utils').clamp;
+var _sanitize = require('./sanitize');
 
 /**
  * Score how well a value fits within an optimal range.
@@ -148,6 +149,9 @@ function createOutcomePredictor() {
             throw new Error('recordOutcome requires {success: boolean}');
         }
         var mat = (exp.material || 'unknown').toLowerCase().replace(/\s+/g, '_');
+        if (_sanitize.isDangerousKey(mat)) {
+            throw new Error('Invalid material name: ' + mat);
+        }
         var record = {
             material: mat,
             temperature: exp.temperature != null ? Number(exp.temperature) : null,
@@ -177,6 +181,9 @@ function createOutcomePredictor() {
     function predict(params) {
         if (!params) throw new Error('predict requires experiment parameters');
         var mat = (params.material || 'unknown').toLowerCase().replace(/\s+/g, '_');
+        if (_sanitize.isDangerousKey(mat)) {
+            throw new Error('Invalid material name: ' + mat);
+        }
         var profile = PARAM_PROFILES[mat] || null;
 
         // ── Profile-based score (how well params fit known optimal ranges) ──
