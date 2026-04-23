@@ -79,6 +79,7 @@ var manifest = [
     ['createOutcomePredictor',          './docs/shared/outcomePredictor',      'createOutcomePredictor'],
     ['createContaminationEarlyWarning', './docs/shared/contaminationEarlyWarning', 'createContaminationEarlyWarning'],
     ['createAnomalyCorrelator',          './docs/shared/anomalyCorrelator',          'createAnomalyCorrelator'],
+    ['createLabDigitalTwin',              './docs/shared/labDigitalTwin',             'createLabDigitalTwin'],
     ['createLabEquipmentScheduler',      './docs/shared/equipmentScheduler',         'createLabEquipmentScheduler'],
     ['createProtocolDeviationTracker',   './docs/shared/protocolDeviation',          'createProtocolDeviationTracker'],
     ['createExperimentReplicator',       './docs/shared/experimentReplicator',       'createExperimentReplicator'],
