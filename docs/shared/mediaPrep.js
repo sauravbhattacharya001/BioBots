@@ -280,23 +280,41 @@ function createMediaPrepCalculator() {
                 throw new Error('Valid recipe and positive newVolume required');
             }
             var factor = newVolume / recipe.targetVolume;
-            var scaled = JSON.parse(JSON.stringify(recipe));
-            scaled.targetVolume = newVolume;
-            scaled.baseMediaVolume = Math.round(recipe.baseMediaVolume * factor * 1000) / 1000;
-            scaled.totalSupplementVolume = Math.round(recipe.totalSupplementVolume * factor * 1000) / 1000;
 
-            if (scaled.powder) {
-                scaled.powder.mass = Math.round(recipe.powder.mass * factor * 1000) / 1000;
+            // Build the scaled recipe directly instead of
+            // JSON.parse(JSON.stringify(recipe)) which serialises +
+            // parses the entire object graph, then re-clones every
+            // supplement a second time inside the .map() below.
+            // Recipes are shallow-enough (flat scalars + one array of
+            // flat supplement objects) that targeted copies are both
+            // faster and allocation-lighter.
+            var scaled = {
+                targetVolume: newVolume,
+                unit: recipe.unit,
+                baseMedia: recipe.baseMedia,
+                mediaFullName: recipe.mediaFullName,
+                fromPowder: recipe.fromPowder,
+                totalSupplementVolume: Math.round(recipe.totalSupplementVolume * factor * 1000) / 1000,
+                baseMediaVolume: Math.round(recipe.baseMediaVolume * factor * 1000) / 1000,
+                steps: recipe.steps.slice(),
+                warnings: recipe.warnings.slice(),
+                filterSize: recipe.filterSize
+            };
+
+            if (recipe.powder) {
+                scaled.powder = { mass: Math.round(recipe.powder.mass * factor * 1000) / 1000, unit: recipe.powder.unit };
             }
-            if (scaled.sodiumBicarbonate) {
-                scaled.sodiumBicarbonate.mass = Math.round(recipe.sodiumBicarbonate.mass * factor * 1000) / 1000;
+            if (recipe.sodiumBicarbonate) {
+                scaled.sodiumBicarbonate = { mass: Math.round(recipe.sodiumBicarbonate.mass * factor * 1000) / 1000, unit: recipe.sodiumBicarbonate.unit };
             }
-            if (scaled.waterVolume) {
+            if (recipe.waterVolume) {
                 scaled.waterVolume = Math.round(recipe.waterVolume * factor * 1000) / 1000;
             }
 
+            // Shallow-copy each supplement object (flat scalar fields)
+            // and scale the numeric quantities in one pass.
             scaled.supplements = recipe.supplements.map(function (s) {
-                var ns = JSON.parse(JSON.stringify(s));
+                var ns = Object.assign({}, s);
                 if (ns.volumeToAdd) ns.volumeToAdd = Math.round(s.volumeToAdd * factor * 1000) / 1000;
                 if (ns.massToAdd) ns.massToAdd = Math.round(s.massToAdd * factor * 10000) / 10000;
                 return ns;
