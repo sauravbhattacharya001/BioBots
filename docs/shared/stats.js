@@ -238,5 +238,20 @@ exports.pstddev = pstddev;
 exports.percentile = percentile;
 exports.percentileSorted = percentileSorted;
 exports.linearRegression = linearRegression;
+
+/**
+ * Backward-compatible linear regression returning rSquared instead of r2.
+ *
+ * Consolidates the identical r2 → rSquared aliasing wrappers that were
+ * duplicated in gelElectrophoresis.js and spectrophotometer.js.
+ *
+ * @param {number[]} xs
+ * @param {number[]} ys
+ * @returns {{ slope: number, intercept: number, rSquared: number }}
+ */
+exports.linearRegressionCompat = function linearRegressionCompat(xs, ys) {
+    var result = linearRegression(xs, ys);
+    return { slope: result.slope, intercept: result.intercept, rSquared: result.r2 };
+};
 exports.descriptiveStats = descriptiveStats;
 exports.minMax = minMax;

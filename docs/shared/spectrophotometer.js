@@ -46,13 +46,8 @@ var _stats = require('./stats');
 var mean = _stats.mean;
 var stdDev = _stats.pstddev;
 
-/* Linear regression — delegates to shared stats module.
- * Aliases r2 → rSquared for backward compatibility. */
-var _linReg = _stats.linearRegression;
-function linearRegression(xVals, yVals) {
-  var result = _linReg(xVals, yVals);
-  return { slope: result.slope, intercept: result.intercept, rSquared: result.r2 };
-}
+/* Linear regression — delegates to shared stats module. */
+var linearRegression = _stats.linearRegressionCompat;
 
 /* ---------- OD600 Cell Density ---------- */
 

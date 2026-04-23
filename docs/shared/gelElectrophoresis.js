@@ -63,16 +63,9 @@ function validateArray(arr, name, minLen) {
 }
 
 /**
- * Simple linear regression: y = slope * x + intercept
- * Returns { slope, intercept, rSquared }
- * Delegates to shared stats.linearRegression and aliases r2 → rSquared
- * for backward compatibility with existing consumers.
+ * Linear regression with rSquared (delegates to shared stats module).
  */
-var _linReg = require('./stats').linearRegression;
-function linearRegression(xs, ys) {
-  var result = _linReg(xs, ys);
-  return { slope: result.slope, intercept: result.intercept, rSquared: result.r2 };
-}
+var linearRegression = require('./stats').linearRegressionCompat;
 
 /* ---------- Core functions ---------- */
 
