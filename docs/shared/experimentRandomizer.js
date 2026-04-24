@@ -1,5 +1,8 @@
 'use strict';
 
+var _sanitize = require('./sanitize');
+var _isDangerousKey = _sanitize.isDangerousKey;
+
 /**
  * Experiment Randomizer — randomized experimental design for bioprinting studies.
  *
@@ -49,9 +52,12 @@ function shuffle(arr, rng) {
 
 // ── Blinding code generation ───────────────────────────────────────
 function generateBlindingCodes(treatments, rng) {
-    var codes = {};
-    var used = {};
+    var codes = Object.create(null);
+    var used = Object.create(null);
     for (var i = 0; i < treatments.length; i++) {
+        // Reject prototype-pollution keys in treatment names (CWE-1321).
+        // Treatment names are used as object property keys in the codes dict.
+        if (_isDangerousKey(treatments[i])) continue;
         var code;
         do {
             code = String.fromCharCode(65 + Math.floor(rng() * 26)) +
