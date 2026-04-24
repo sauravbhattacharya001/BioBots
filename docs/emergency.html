@@ -1,0 +1,504 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>BioBots — Lab Emergency Response Planner</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🚨</text></svg>">
+    <style>
+        :root{--bg:#0f172a;--surface:#1e293b;--border:#334155;--text:#e2e8f0;--muted:#94a3b8;--accent:#38bdf8;--accent-hover:#7dd3fc;--success:#4ade80;--warning:#fbbf24;--error:#f87171;--purple:#a78bfa}
+        *{margin:0;padding:0;box-sizing:border-box}
+        body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;padding:1.5rem}
+        header{text-align:center;margin-bottom:1.5rem}
+        header h1{font-size:1.8rem;font-weight:700;background:linear-gradient(135deg,var(--error),var(--warning));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+        header p{color:var(--muted);margin-top:.3rem;font-size:.9rem}
+        .tabs{display:flex;gap:.5rem;justify-content:center;margin-bottom:1.5rem;flex-wrap:wrap}
+        .tab{padding:.5rem 1rem;border-radius:8px;border:1px solid var(--border);background:var(--surface);color:var(--muted);cursor:pointer;font-size:.85rem;transition:all .2s}
+        .tab:hover{border-color:var(--accent);color:var(--text)}
+        .tab.active{background:var(--accent);color:var(--bg);border-color:var(--accent);font-weight:600}
+        .panel{display:none;max-width:1200px;margin:0 auto}.panel.active{display:block}
+        .card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:1.2rem;margin-bottom:1rem}
+        .card h3{font-size:1rem;margin-bottom:.8rem;color:var(--accent)}
+        .grid2{display:grid;grid-template-columns:1fr 1fr;gap:1rem}
+        .grid4{display:grid;grid-template-columns:repeat(4,1fr);gap:1rem}
+        @media(max-width:900px){.grid2,.grid4{grid-template-columns:1fr}}
+        .stat-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:1rem;text-align:center}
+        .stat-card .value{font-size:2rem;font-weight:700}.stat-card .label{font-size:.8rem;color:var(--muted);margin-top:.2rem}
+        table{width:100%;border-collapse:collapse;font-size:.85rem}
+        th,td{padding:.5rem .6rem;text-align:left;border-bottom:1px solid var(--border)}
+        th{color:var(--muted);font-weight:600;font-size:.8rem;text-transform:uppercase}
+        .badge{display:inline-block;padding:.15rem .5rem;border-radius:999px;font-size:.75rem;font-weight:600}
+        .badge-critical{background:rgba(248,113,113,.15);color:var(--error)}
+        .badge-high{background:rgba(251,191,36,.15);color:var(--warning)}
+        .badge-medium{background:rgba(56,189,248,.15);color:var(--accent)}
+        .badge-low{background:rgba(74,222,128,.15);color:var(--success)}
+        .badge-info{background:rgba(167,139,250,.15);color:var(--purple)}
+        button,.btn{padding:.5rem 1rem;border-radius:8px;border:1px solid var(--border);background:var(--surface);color:var(--text);cursor:pointer;font-size:.85rem;transition:all .2s}
+        button:hover,.btn:hover{border-color:var(--accent);color:var(--accent)}
+        .btn-primary{background:var(--accent);color:var(--bg);border-color:var(--accent);font-weight:600}
+        .btn-primary:hover{background:var(--accent-hover)}
+        .btn-danger{background:var(--error);color:#fff;border-color:var(--error)}.btn-danger:hover{opacity:.9}
+        .btn-sm{padding:.3rem .6rem;font-size:.78rem}
+        input,select,textarea{background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:.5rem .7rem;color:var(--text);font-size:.85rem;width:100%}
+        input:focus,select:focus,textarea:focus{outline:none;border-color:var(--accent)}
+        textarea{resize:vertical;min-height:60px}
+        label{font-size:.8rem;color:var(--muted);display:block;margin-bottom:.3rem}
+        .form-row{margin-bottom:.8rem}
+        .flex{display:flex;gap:.5rem;align-items:center}
+        .flex-between{display:flex;justify-content:space-between;align-items:center}
+        .mt{margin-top:1rem}
+        .log-entry{padding:.5rem .7rem;border-left:3px solid var(--border);margin-bottom:.5rem;font-size:.82rem;background:rgba(15,23,42,.5);border-radius:0 6px 6px 0}
+        .log-entry.critical{border-left-color:var(--error)}.log-entry.warning{border-left-color:var(--warning)}.log-entry.info{border-left-color:var(--accent)}.log-entry.success{border-left-color:var(--success)}
+        .log-entry .ts{color:var(--muted);font-size:.75rem}
+        .protocol-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:1rem;cursor:pointer;transition:all .2s}
+        .protocol-card:hover{border-color:var(--accent)}
+        .protocol-card h4{font-size:.95rem;margin-bottom:.4rem}
+        .protocol-card .meta{font-size:.8rem;color:var(--muted)}
+        .checklist-item{padding:.4rem 0;display:flex;gap:.5rem;align-items:flex-start;font-size:.85rem}
+        .checklist-item input[type="checkbox"]{width:auto;margin-top:.15rem}
+        .drill-cal{display:grid;grid-template-columns:repeat(7,1fr);gap:2px;font-size:.75rem}
+        .drill-cal .day{padding:.3rem;text-align:center;border-radius:4px;background:var(--bg);min-height:2.5rem}
+        .drill-cal .day.has-drill{background:rgba(56,189,248,.15);border:1px solid var(--accent)}
+        .drill-cal .day.today{border:1px solid var(--warning)}
+        .drill-cal .day-header{font-weight:600;color:var(--muted);padding:.3rem;text-align:center}
+        .toggle-switch{position:relative;width:48px;height:24px;display:inline-block}
+        .toggle-switch input{opacity:0;width:0;height:0}
+        .toggle-slider{position:absolute;cursor:pointer;top:0;left:0;right:0;bottom:0;background:var(--border);border-radius:24px;transition:.3s}
+        .toggle-slider:before{content:'';position:absolute;height:18px;width:18px;left:3px;bottom:3px;background:var(--text);border-radius:50%;transition:.3s}
+        .toggle-switch input:checked+.toggle-slider{background:var(--accent)}
+        .toggle-switch input:checked+.toggle-slider:before{transform:translateX(24px)}
+        canvas{border-radius:8px}
+        .modal-overlay{display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.6);z-index:100;justify-content:center;align-items:center}
+        .modal-overlay.open{display:flex}
+        .modal{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:1.5rem;max-width:600px;width:90%;max-height:80vh;overflow-y:auto}
+        .modal h3{margin-bottom:1rem}
+        .severity-bar{height:6px;border-radius:3px;background:var(--border);overflow:hidden}
+        .severity-bar .fill{height:100%;border-radius:3px;transition:width .3s}
+    </style>
+</head>
+<body>
+    <header>
+        <h1>🚨 Lab Emergency Response Planner</h1>
+        <p>Autonomous emergency preparedness, drill scheduling, incident tracking &amp; proactive safety monitoring</p>
+    </header>
+    <div class="tabs" id="tabs">
+        <div class="tab active" data-tab="dashboard">📊 Dashboard</div>
+        <div class="tab" data-tab="protocols">📋 Protocols</div>
+        <div class="tab" data-tab="drills">🏋️ Drill Scheduler</div>
+        <div class="tab" data-tab="incidents">📝 Incident Log</div>
+        <div class="tab" data-tab="monitor">🤖 Auto-Monitor</div>
+    </div>
+    <div class="panel active" id="panel-dashboard">
+        <div class="grid4" id="dash-stats"></div>
+        <div class="grid2 mt">
+            <div class="card"><h3>🎯 Readiness Radar</h3><canvas id="radarCanvas" width="400" height="350"></canvas></div>
+            <div class="card"><h3>⚠️ Threat Assessment</h3><div id="threatAssessment"></div></div>
+        </div>
+        <div class="card mt"><div class="flex-between"><h3>📈 Recent Activity</h3><span style="font-size:.8rem;color:var(--muted)" id="dashActivityCount"></span></div><div id="dashActivity" style="max-height:300px;overflow-y:auto"></div></div>
+    </div>
+    <div class="panel" id="panel-protocols">
+        <div class="flex-between" style="margin-bottom:1rem">
+            <div class="flex"><input type="text" id="protoSearch" placeholder="Search protocols..." style="width:250px"><select id="protoFilter" style="width:150px"><option value="">All Types</option><option value="chemical">Chemical</option><option value="biohazard">Biohazard</option><option value="equipment">Equipment</option><option value="fire">Fire</option><option value="electrical">Electrical</option><option value="environmental">Environmental</option></select></div>
+            <button class="btn-primary" onclick="showAddProtocol()">+ Add Protocol</button>
+        </div>
+        <div class="grid2" id="protoGrid"></div>
+    </div>
+    <div class="panel" id="panel-drills">
+        <div class="grid2">
+            <div class="card"><div class="flex-between"><h3>📅 Drill Calendar</h3><div class="flex"><button class="btn-sm" onclick="calNav(-1)">◀</button><span id="calTitle" style="font-size:.85rem;min-width:120px;text-align:center"></span><button class="btn-sm" onclick="calNav(1)">▶</button></div></div><div class="drill-cal mt" id="drillCalendar"></div></div>
+            <div>
+                <div class="card"><h3>➕ Schedule Drill</h3>
+                    <div class="form-row"><label>Protocol</label><select id="drillProto"></select></div>
+                    <div class="form-row"><label>Date</label><input type="date" id="drillDate"></div>
+                    <div class="form-row"><label>Recurrence</label><select id="drillRecur"><option value="none">One-time</option><option value="weekly">Weekly</option><option value="monthly">Monthly</option><option value="quarterly">Quarterly</option></select></div>
+                    <div class="form-row"><label>Participants</label><input type="text" id="drillParticipants" placeholder="e.g., Lab Team A"></div>
+                    <button class="btn-primary mt" onclick="scheduleDrill()">Schedule</button>
+                </div>
+                <div class="card mt"><h3>💡 Recommendations</h3><div id="drillRecs"></div></div>
+            </div>
+        </div>
+        <div class="card mt"><div class="flex-between"><h3>📜 Drill History</h3><button class="btn-sm" onclick="exportDrills()">Export CSV</button></div>
+            <table><thead><tr><th>Date</th><th>Protocol</th><th>Participants</th><th>Duration</th><th>Issues</th><th>Actions</th></tr></thead><tbody id="drillHistory"></tbody></table>
+        </div>
+    </div>
+    <div class="panel" id="panel-incidents">
+        <div class="flex-between" style="margin-bottom:1rem">
+            <div class="flex">
+                <select id="incFilter" style="width:130px"><option value="">All Types</option><option value="chemical">Chemical</option><option value="biohazard">Biohazard</option><option value="equipment">Equipment</option><option value="fire">Fire</option><option value="electrical">Electrical</option><option value="environmental">Environmental</option></select>
+                <select id="incSevFilter" style="width:130px"><option value="">All Severity</option><option value="5">Critical (5)</option><option value="4">High (4)</option><option value="3">Medium (3)</option><option value="2">Low (2)</option><option value="1">Minor (1)</option></select>
+            </div>
+            <div class="flex"><button class="btn-sm" onclick="exportIncidents('json')">JSON</button><button class="btn-sm" onclick="exportIncidents('csv')">CSV</button><button class="btn-primary btn-sm" onclick="showAddIncident()">+ Log Incident</button></div>
+        </div>
+        <div class="card"><h3>📊 Incident Timeline</h3><canvas id="timelineCanvas" width="1100" height="120"></canvas></div>
+        <div class="card mt" id="incPatterns"></div>
+        <div class="card mt"><table><thead><tr><th>Date</th><th>Type</th><th>Severity</th><th>Location</th><th>Description</th><th>Resolution</th><th>Actions</th></tr></thead><tbody id="incTable"></tbody></table></div>
+    </div>
+    <div class="panel" id="panel-monitor">
+        <div class="card"><div class="flex-between"><h3>🤖 Autonomous Safety Monitor</h3><div class="flex"><span style="font-size:.85rem" id="monitorStatus">Inactive</span><label class="toggle-switch"><input type="checkbox" id="monitorToggle" onchange="toggleMonitor()"><span class="toggle-slider"></span></label></div></div><p style="font-size:.82rem;color:var(--muted);margin-top:.5rem">Continuously analyzes emergency preparedness: overdue drills, incident patterns, protocol coverage gaps, and readiness degradation.</p></div>
+        <div class="grid2 mt">
+            <div class="card"><h3>🔍 Findings</h3><div id="monitorFindings" style="max-height:400px;overflow-y:auto"></div></div>
+            <div class="card"><h3>💡 Proactive Recommendations</h3><div id="monitorRecs" style="max-height:400px;overflow-y:auto"></div></div>
+        </div>
+        <div class="card mt"><h3>📜 Activity Log</h3><div id="monitorLog" style="max-height:300px;overflow-y:auto;font-family:monospace;font-size:.78rem"></div></div>
+    </div>
+    <!-- Modals -->
+    <div class="modal-overlay" id="protoModal"><div class="modal"><div class="flex-between"><h3 id="protoModalTitle">Add Protocol</h3><button class="btn-sm" onclick="closeModal('protoModal')">✕</button></div>
+        <div class="form-row"><label>Name</label><input type="text" id="pmName"></div>
+        <div class="form-row"><label>Type</label><select id="pmType"><option value="chemical">Chemical</option><option value="biohazard">Biohazard</option><option value="equipment">Equipment</option><option value="fire">Fire</option><option value="electrical">Electrical</option><option value="environmental">Environmental</option></select></div>
+        <div class="form-row"><label>Severity (1-5)</label><input type="number" id="pmSeverity" min="1" max="5" value="3"></div>
+        <div class="form-row"><label>Response Steps (one per line)</label><textarea id="pmSteps" rows="6"></textarea></div>
+        <div class="form-row"><label>Required PPE</label><input type="text" id="pmPPE" placeholder="Gloves, goggles, lab coat"></div>
+        <div class="form-row"><label>Containment Info</label><textarea id="pmContainment" rows="2"></textarea></div>
+        <div class="form-row"><label>Notification Chain</label><input type="text" id="pmNotify" placeholder="Lab Lead → Safety Officer → EHS"></div>
+        <div class="form-row"><label>Est. Response Time (min)</label><input type="number" id="pmTime" min="1" value="15"></div>
+        <button class="btn-primary mt" onclick="saveProtocol()">Save Protocol</button>
+    </div></div>
+    <div class="modal-overlay" id="incModal"><div class="modal"><div class="flex-between"><h3>Log Incident</h3><button class="btn-sm" onclick="closeModal('incModal')">✕</button></div>
+        <div class="form-row"><label>Date</label><input type="date" id="imDate"></div>
+        <div class="form-row"><label>Type</label><select id="imType"><option value="chemical">Chemical</option><option value="biohazard">Biohazard</option><option value="equipment">Equipment</option><option value="fire">Fire</option><option value="electrical">Electrical</option><option value="environmental">Environmental</option></select></div>
+        <div class="form-row"><label>Severity (1-5)</label><input type="number" id="imSeverity" min="1" max="5" value="3"></div>
+        <div class="form-row"><label>Location</label><input type="text" id="imLocation" placeholder="Lab 201-B"></div>
+        <div class="form-row"><label>Description</label><textarea id="imDesc" rows="3"></textarea></div>
+        <div class="form-row"><label>Actions Taken</label><textarea id="imActions" rows="3"></textarea></div>
+        <div class="form-row"><label>Resolution Time (min)</label><input type="number" id="imResTime" min="0" value="15"></div>
+        <div class="form-row"><label>Lessons Learned</label><textarea id="imLessons" rows="2"></textarea></div>
+        <button class="btn-primary mt" onclick="saveIncident()">Log Incident</button>
+    </div></div>
+    <div class="modal-overlay" id="drillModal"><div class="modal"><div class="flex-between"><h3 id="drillModalTitle">Protocol Drill</h3><button class="btn-sm" onclick="closeModal('drillModal')">✕</button></div>
+        <div id="drillWalkthrough"></div>
+        <div class="mt flex-between"><span id="drillTimer" style="font-size:1.2rem;font-weight:700;color:var(--warning)">00:00</span><button class="btn-sm" onclick="completeDrill()">✅ Complete Drill</button></div>
+    </div></div>
+    <div class="modal-overlay" id="detailModal"><div class="modal"><div class="flex-between"><h3 id="detailTitle"></h3><button class="btn-sm" onclick="closeModal('detailModal')">✕</button></div><div id="detailContent"></div></div></div>
+<script>
+const LS=k=>'biobots_emergency_'+k;
+const load=k=>{try{return JSON.parse(localStorage.getItem(LS(k)))}catch{return null}};
+const save=(k,v)=>localStorage.setItem(LS(k),JSON.stringify(v));
+const CATEGORIES=['Chemical Spills','Biohazard','Equipment Failure','Fire','Electrical','Environmental'];
+const CAT_KEYS=['chemical','biohazard','equipment','fire','electrical','environmental'];
+const CAT_COLORS=['#f87171','#a78bfa','#38bdf8','#fbbf24','#fb923c','#4ade80'];
+const SEV_BADGES={5:'critical',4:'high',3:'medium',2:'low',1:'low'};
+const SEV_LABELS={5:'Critical',4:'High',3:'Medium',2:'Low',1:'Minor'};
+let protocols=load('protocols')||[];
+let incidents=load('incidents')||[];
+let drills=load('drills')||[];
+let monitorActive=false,monitorInterval=null,monitorLogArr=[];
+let drillStartTime=null,drillProtoId=null;
+let calMonth=new Date().getMonth(),calYear=new Date().getFullYear();
+
+if(!protocols.length){
+    protocols=[
+        {id:'p1',name:'Small Chemical Spill',type:'chemical',severity:2,steps:['Alert nearby personnel','Don appropriate PPE (gloves, goggles, lab coat)','Contain spill with absorbent pads','Clean area with neutralizing agent','Dispose of waste in hazardous waste container','Document incident','Ventilate area for 15 minutes'],ppe:'Nitrile gloves, safety goggles, lab coat',containment:'Use spill pillows to create perimeter. Max 500mL.',notify:'Lab Lead → Safety Officer',responseTime:10},
+        {id:'p2',name:'Large Chemical Spill (>1L)',type:'chemical',severity:4,steps:['Evacuate immediate area','Alert lab supervisor and EHS','Call emergency services if toxic fumes','Block off area with caution tape','Do NOT attempt cleanup without HAZMAT training','Wait for EHS response team','Document all personnel exposure'],ppe:'Full face respirator, chemical-resistant suit, double gloves',containment:'Evacuate 50ft radius. Seal room if airborne.',notify:'Lab Lead → Safety Officer → EHS → Building Manager',responseTime:5},
+        {id:'p3',name:'Biohazard Exposure',type:'biohazard',severity:5,steps:['Remove contaminated clothing immediately','Flush affected area with water for 15 min','Report to supervisor immediately','Seek medical evaluation','Complete exposure incident form','Quarantine affected workspace','Decontaminate area per BSL protocol'],ppe:'BSL-2: gloves, gown, face shield. BSL-3: full suit, PAPR',containment:'Seal BSC. Autoclave all materials. 10% bleach surface decon.',notify:'Lab Lead → Biosafety Officer → Occupational Health → EHS',responseTime:3},
+        {id:'p4',name:'Equipment Malfunction',type:'equipment',severity:3,steps:['Power off equipment immediately','Place "Out of Service" tag','Document malfunction details and error codes','Notify equipment manager','Check for hazardous material leaks','Secure any in-progress samples','Submit maintenance request'],ppe:'Standard lab PPE',containment:'Isolate equipment. Check for fluid/gas leaks.',notify:'Lab Lead → Equipment Manager → Facilities',responseTime:15},
+        {id:'p5',name:'Fire/Thermal Event',type:'fire',severity:5,steps:['Activate fire alarm','Evacuate via nearest exit','Call 911 if uncontrolled','Use fire extinguisher only if trained and safe','Close doors behind you','Account for all personnel at assembly point','Do NOT re-enter until cleared by fire dept'],ppe:'None during evacuation. Fire-rated PPE for response team only.',containment:'Close fire doors. Shut off gas lines. Activate suppression system.',notify:'911 → Building Manager → Lab Director → EHS',responseTime:2},
+        {id:'p6',name:'Electrical Hazard',type:'electrical',severity:4,steps:['Do NOT touch the person or equipment','Cut power at breaker panel','Call 911 if someone is injured','Use non-conductive materials to separate victim from source','Administer CPR if trained and needed','Secure area and mark hazard','Document and report to facilities'],ppe:'Insulated gloves (Class 0+), rubber-soled shoes',containment:'De-energize circuit. 10ft clearance zone.',notify:'911 → Facilities → Lab Director → EHS',responseTime:3},
+        {id:'p7',name:'Gas Leak',type:'environmental',severity:4,steps:['Do NOT operate electrical switches','Evacuate area immediately','Open windows if safe to do so','Call facilities emergency line','Call 911 if strong odor','Account for personnel at assembly point','Do not return until gas levels verified safe'],ppe:'SCBA for responders. None for evacuees.',containment:'Evacuate floor. Shut supply valve if accessible.',notify:'Facilities Emergency → 911 → Building Manager → EHS',responseTime:3},
+        {id:'p8',name:'Contamination Breach',type:'biohazard',severity:4,steps:['Isolate contaminated area','Alert biosafety officer','Don appropriate BSL-level PPE','Apply disinfectant per protocol','Remove and autoclave contaminated materials','Swab test area post-decontamination','Document breach source and timeline'],ppe:'BSL-2 minimum: double gloves, gown, face shield, shoe covers',containment:'Seal room. Negative pressure if available. 30-min contact time for disinfectant.',notify:'Biosafety Officer → Lab Lead → EHS → Health Services',responseTime:10}
+    ];
+    save('protocols',protocols);
+}
+if(!incidents.length){
+    const now=Date.now(),day=864e5;
+    incidents=[
+        {id:'i1',date:new Date(now-45*day).toISOString().slice(0,10),type:'chemical',severity:2,location:'Lab 201-A',desc:'Small acetone spill during transfer (~200mL)',actions:'Contained with absorbent pads, area ventilated',resTime:12,lessons:'Use secondary containment tray for transfers'},
+        {id:'i2',date:new Date(now-30*day).toISOString().slice(0,10),type:'equipment',severity:3,location:'Print Bay 3',desc:'Bioprinter nozzle overheating, thermal runaway warning',actions:'Emergency shutdown, nozzle replaced, calibration reset',resTime:45,lessons:'Add pre-print thermal check to SOP'},
+        {id:'i3',date:new Date(now-22*day).toISOString().slice(0,10),type:'chemical',severity:1,location:'Lab 201-A',desc:'Minor ethanol splash on bench during cleaning',actions:'Wiped immediately, no exposure',resTime:2,lessons:'Wear splash goggles even during cleanup'},
+        {id:'i4',date:new Date(now-15*day).toISOString().slice(0,10),type:'biohazard',severity:3,location:'BSC Room 105',desc:'Cell culture flask dropped, media splash outside BSC',actions:'Area decontaminated with 10% bleach, samples discarded',resTime:25,lessons:'Always work within BSC drip tray boundaries'},
+        {id:'i5',date:new Date(now-8*day).toISOString().slice(0,10),type:'electrical',severity:2,location:'Equipment Room',desc:'Sparking outlet detected behind centrifuge',actions:'Breaker shut off, electrician called, outlet replaced',resTime:60,lessons:'Schedule quarterly electrical inspection'},
+        {id:'i6',date:new Date(now-3*day).toISOString().slice(0,10),type:'chemical',severity:2,location:'Lab 201-A',desc:'Isopropanol bottle cracked, slow leak on shelf',actions:'Contained in secondary tray, bottle replaced',resTime:8,lessons:'Inspect chemical containers weekly for integrity'}
+    ];
+    save('incidents',incidents);
+}
+if(!drills.length){
+    const now=Date.now(),day=864e5;
+    drills=[
+        {id:'d1',protoId:'p1',date:new Date(now-60*day).toISOString().slice(0,10),participants:'Lab Team A',duration:8,issues:'None',completed:true,recur:'monthly'},
+        {id:'d2',protoId:'p5',date:new Date(now-45*day).toISOString().slice(0,10),participants:'All Staff',duration:12,issues:'Exit B blocked by equipment',completed:true,recur:'quarterly'},
+        {id:'d3',protoId:'p3',date:new Date(now-20*day).toISOString().slice(0,10),participants:'BSL Team',duration:15,issues:'PPE donning took >3min for 2 members',completed:true,recur:'monthly'},
+        {id:'d4',protoId:'p4',date:new Date(now+5*day).toISOString().slice(0,10),participants:'Print Bay Crew',duration:null,issues:null,completed:false,recur:'monthly'},
+        {id:'d5',protoId:'p7',date:new Date(now+12*day).toISOString().slice(0,10),participants:'All Staff',duration:null,issues:null,completed:false,recur:'quarterly'}
+    ];
+    save('drills',drills);
+}
+
+document.querySelectorAll('.tab').forEach(t=>t.addEventListener('click',()=>{
+    document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));
+    document.querySelectorAll('.panel').forEach(x=>x.classList.remove('active'));
+    t.classList.add('active');document.getElementById('panel-'+t.dataset.tab).classList.add('active');
+    if(t.dataset.tab==='dashboard')renderDashboard();
+    if(t.dataset.tab==='protocols')renderProtocols();
+    if(t.dataset.tab==='drills')renderDrills();
+    if(t.dataset.tab==='incidents')renderIncidents();
+}));
+
+function uid(){return 'x'+Math.random().toString(36).slice(2,9)}
+function closeModal(id){document.getElementById(id).classList.remove('open')}
+function sevBadge(s){return`<span class="badge badge-${SEV_BADGES[s]||'low'}">${SEV_LABELS[s]||s}</span>`}
+function typeBadge(t){const c={chemical:'critical',biohazard:'info',equipment:'medium',fire:'high',electrical:'high',environmental:'low'};const i={chemical:'🧪',biohazard:'☣️',equipment:'🔧',fire:'🔥',electrical:'⚡',environmental:'🌿'};return`<span class="badge badge-${c[t]||'info'}">${i[t]||''} ${t}</span>`}
+function daysSince(d){return Math.floor((Date.now()-new Date(d).getTime())/864e5)}
+function daysUntil(d){return Math.floor((new Date(d).getTime()-Date.now())/864e5)}
+function downloadFile(n,c,m){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([c],{type:m}));a.download=n;a.click()}
+
+function calcReadiness(){
+    let s=0,m=0;
+    CAT_KEYS.forEach(k=>{m+=15;if(protocols.some(p=>p.type===k))s+=15});
+    CAT_KEYS.forEach(k=>{m+=10;const pids=protocols.filter(p=>p.type===k).map(p=>p.id);if(drills.some(d=>d.completed&&pids.includes(d.protoId)&&daysSince(d.date)<90))s+=10});
+    CAT_KEYS.forEach(k=>{m+=5;if(!incidents.some(i=>i.type===k&&daysSince(i.date)<30))s+=5});
+    m+=10;if(!drills.some(d=>!d.completed&&daysUntil(d.date)<0))s+=10;
+    return Math.round(s/m*100);
+}
+function categoryReadiness(ck){
+    let s=0,m=0;
+    m+=30;if(protocols.some(p=>p.type===ck))s+=30;
+    m+=40;const pids=protocols.filter(p=>p.type===ck).map(p=>p.id);const rd=drills.filter(d=>d.completed&&pids.includes(d.protoId)).sort((a,b)=>b.date.localeCompare(a.date))[0];
+    if(rd){const d=daysSince(rd.date);s+=d<30?40:d<60?25:d<90?10:0}
+    m+=30;const ri=incidents.filter(i=>i.type===ck&&daysSince(i.date)<90);s+=Math.max(0,30-ri.length*10);
+    return Math.round(s/m*100);
+}
+
+function renderDashboard(){
+    const ai=incidents.filter(i=>daysSince(i.date)<7).length;
+    const r=calcReadiness();
+    const nd=drills.filter(d=>!d.completed).sort((a,b)=>a.date.localeCompare(b.date))[0];
+    const od=drills.filter(d=>!d.completed&&daysUntil(d.date)<0).length;
+    document.getElementById('dash-stats').innerHTML=[
+        {v:ai,l:'Active Incidents (7d)',c:ai>0?'var(--error)':'var(--success)'},
+        {v:r+'%',l:'Readiness Score',c:r>=80?'var(--success)':r>=50?'var(--warning)':'var(--error)'},
+        {v:nd?nd.date:'None',l:'Next Drill',c:'var(--accent)'},
+        {v:od,l:'Overdue Drills',c:od>0?'var(--error)':'var(--success)'}
+    ].map(s=>`<div class="stat-card"><div class="value" style="color:${s.c}">${s.v}</div><div class="label">${s.l}</div></div>`).join('');
+    drawRadar();renderThreatAssessment();renderDashActivity();
+}
+
+function drawRadar(){
+    const canvas=document.getElementById('radarCanvas'),ctx=canvas.getContext('2d');
+    const W=canvas.width,H=canvas.height,cx=W/2,cy=H/2+10,R=Math.min(W,H)/2-50;
+    ctx.clearRect(0,0,W,H);
+    const vals=CAT_KEYS.map(k=>categoryReadiness(k)/100),n=vals.length;
+    const angle=i=>(Math.PI*2*i/n)-Math.PI/2;
+    [.25,.5,.75,1].forEach(r=>{ctx.beginPath();for(let i=0;i<=n;i++){const a=angle(i%n);ctx[i?'lineTo':'moveTo'](cx+Math.cos(a)*R*r,cy+Math.sin(a)*R*r)}ctx.strokeStyle='#334155';ctx.lineWidth=1;ctx.stroke()});
+    for(let i=0;i<n;i++){const a=angle(i);ctx.beginPath();ctx.moveTo(cx,cy);ctx.lineTo(cx+Math.cos(a)*R,cy+Math.sin(a)*R);ctx.strokeStyle='#334155';ctx.stroke()}
+    ctx.beginPath();vals.forEach((v,i)=>{const a=angle(i);ctx[i?'lineTo':'moveTo'](cx+Math.cos(a)*R*v,cy+Math.sin(a)*R*v)});ctx.closePath();ctx.fillStyle='rgba(56,189,248,.15)';ctx.fill();ctx.strokeStyle='#38bdf8';ctx.lineWidth=2;ctx.stroke();
+    vals.forEach((v,i)=>{const a=angle(i);ctx.beginPath();ctx.arc(cx+Math.cos(a)*R*v,cy+Math.sin(a)*R*v,4,0,Math.PI*2);ctx.fillStyle=CAT_COLORS[i];ctx.fill()});
+    ctx.font='12px -apple-system,sans-serif';ctx.textAlign='center';
+    CATEGORIES.forEach((cat,i)=>{const a=angle(i),lx=cx+Math.cos(a)*(R+30),ly=cy+Math.sin(a)*(R+20);ctx.fillStyle=CAT_COLORS[i];ctx.fillText(cat,lx,ly);ctx.fillStyle='#94a3b8';ctx.font='11px -apple-system,sans-serif';ctx.fillText(Math.round(vals[i]*100)+'%',lx,ly+14);ctx.font='12px -apple-system,sans-serif'});
+}
+
+function renderThreatAssessment(){
+    const threats=[];
+    CAT_KEYS.forEach((k,i)=>{
+        const r=categoryReadiness(k),ri=incidents.filter(x=>x.type===k&&daysSince(x.date)<30).length;
+        const pids=protocols.filter(p=>p.type===k).map(p=>p.id);
+        const ld=drills.filter(d=>d.completed&&pids.includes(d.protoId)).sort((a,b)=>b.date.localeCompare(a.date))[0];
+        const dd=ld?daysSince(ld.date):999;
+        let level='low',msg='Preparedness adequate';
+        if(r<30){level='critical';msg='Critical readiness gap — immediate action needed'}
+        else if(r<50){level='high';msg=ri>1?`${ri} incidents in 30 days`:dd>90?`No drill in ${dd} days`:'Below target readiness'}
+        else if(r<70){level='medium';msg=dd>60?`Last drill ${dd} days ago`:'Moderate readiness'}
+        threats.push({cat:CATEGORIES[i],readiness:r,level,msg,incidents:ri,drillDays:dd});
+    });
+    threats.sort((a,b)=>a.readiness-b.readiness);
+    document.getElementById('threatAssessment').innerHTML=threats.map(t=>`
+        <div style="margin-bottom:.8rem">
+            <div class="flex-between"><span style="font-weight:600">${t.cat}</span><span class="badge badge-${t.level==='critical'?'critical':t.level==='high'?'high':t.level==='medium'?'medium':'low'}">${t.level.toUpperCase()}</span></div>
+            <div class="severity-bar" style="margin-top:.3rem"><div class="fill" style="width:${t.readiness}%;background:${t.readiness>=70?'var(--success)':t.readiness>=40?'var(--warning)':'var(--error)'}"></div></div>
+            <div style="font-size:.8rem;color:var(--muted);margin-top:.2rem">${t.msg} · ${t.incidents} incident(s) 30d · Drill: ${t.drillDays<999?t.drillDays+'d ago':'Never'}</div>
+        </div>`).join('');
+}
+
+function renderDashActivity(){
+    const items=[];
+    incidents.forEach(i=>items.push({date:i.date,text:`🚨 Incident: ${i.desc} (${i.location})`,type:'critical'}));
+    drills.filter(d=>d.completed).forEach(d=>{const p=protocols.find(x=>x.id===d.protoId);items.push({date:d.date,text:`✅ Drill: ${p?p.name:'Unknown'} — ${d.duration}min`,type:'success'})});
+    drills.filter(d=>!d.completed).forEach(d=>{const p=protocols.find(x=>x.id===d.protoId);items.push({date:d.date,text:`📅 Scheduled: ${p?p.name:'Unknown'}`,type:'info'})});
+    items.sort((a,b)=>b.date.localeCompare(a.date));
+    document.getElementById('dashActivityCount').textContent=items.length+' events';
+    document.getElementById('dashActivity').innerHTML=items.slice(0,20).map(i=>`<div class="log-entry ${i.type}"><span class="ts">${i.date}</span> ${i.text}</div>`).join('')||'<div style="color:var(--muted);font-size:.85rem">No activity</div>';
+}
+
+function renderProtocols(){
+    const q=document.getElementById('protoSearch').value.toLowerCase(),f=document.getElementById('protoFilter').value;
+    const filtered=protocols.filter(p=>(!q||p.name.toLowerCase().includes(q)||p.type.includes(q))&&(!f||p.type===f));
+    document.getElementById('protoGrid').innerHTML=filtered.map(p=>`
+        <div class="protocol-card" onclick="showProtocolDetail('${p.id}')">
+            <div class="flex-between"><h4>${p.name}</h4>${sevBadge(p.severity)}</div>
+            <div class="meta" style="margin-top:.3rem">${typeBadge(p.type)} · ${p.steps.length} steps · ~${p.responseTime}min</div>
+            <div style="font-size:.8rem;color:var(--muted);margin-top:.5rem">PPE: ${p.ppe}</div>
+            <div class="mt flex" style="gap:.3rem"><button class="btn-sm" onclick="event.stopPropagation();startDrillWalkthrough('${p.id}')">▶ Start Drill</button><button class="btn-sm" onclick="event.stopPropagation();deleteProtocol('${p.id}')">🗑</button></div>
+        </div>`).join('')||'<div style="color:var(--muted)">No protocols match</div>';
+}
+document.getElementById('protoSearch').addEventListener('input',renderProtocols);
+document.getElementById('protoFilter').addEventListener('change',renderProtocols);
+
+function showAddProtocol(){
+    document.getElementById('protoModalTitle').textContent='Add Protocol';
+    ['pmName','pmSteps','pmPPE','pmContainment','pmNotify'].forEach(id=>document.getElementById(id).value='');
+    document.getElementById('pmSeverity').value=3;document.getElementById('pmTime').value=15;document.getElementById('pmType').value='chemical';
+    document.getElementById('protoModal').classList.add('open');
+}
+function saveProtocol(){
+    const name=document.getElementById('pmName').value.trim();if(!name)return;
+    protocols.push({id:uid(),name,type:document.getElementById('pmType').value,severity:+document.getElementById('pmSeverity').value,steps:document.getElementById('pmSteps').value.split('\n').filter(s=>s.trim()),ppe:document.getElementById('pmPPE').value.trim(),containment:document.getElementById('pmContainment').value.trim(),notify:document.getElementById('pmNotify').value.trim(),responseTime:+document.getElementById('pmTime').value});
+    save('protocols',protocols);closeModal('protoModal');renderProtocols();
+}
+function deleteProtocol(id){if(!confirm('Delete this protocol?'))return;protocols=protocols.filter(p=>p.id!==id);save('protocols',protocols);renderProtocols()}
+function showProtocolDetail(id){
+    const p=protocols.find(x=>x.id===id);if(!p)return;
+    document.getElementById('detailTitle').textContent=p.name;
+    document.getElementById('detailContent').innerHTML=`
+        <div class="flex" style="gap:.5rem;margin-bottom:1rem">${typeBadge(p.type)} ${sevBadge(p.severity)} <span style="color:var(--muted);font-size:.85rem">~${p.responseTime}min response</span></div>
+        <div class="card"><h3>📋 Response Steps</h3>${p.steps.map((s,i)=>`<div class="checklist-item"><strong>${i+1}.</strong> ${s}</div>`).join('')}</div>
+        <div class="card"><h3>🥽 Required PPE</h3><p style="font-size:.85rem">${p.ppe}</p></div>
+        <div class="card"><h3>🔒 Containment</h3><p style="font-size:.85rem">${p.containment||'N/A'}</p></div>
+        <div class="card"><h3>📞 Notification Chain</h3><p style="font-size:.85rem">${p.notify||'N/A'}</p></div>`;
+    document.getElementById('detailModal').classList.add('open');
+}
+
+function startDrillWalkthrough(pid){
+    const p=protocols.find(x=>x.id===pid);if(!p)return;
+    drillProtoId=pid;drillStartTime=Date.now();
+    document.getElementById('drillModalTitle').textContent='🏋️ Drill: '+p.name;
+    document.getElementById('drillWalkthrough').innerHTML=`<div style="margin-bottom:.5rem">${typeBadge(p.type)} ${sevBadge(p.severity)}</div><div class="card"><h3>PPE Check</h3><p style="font-size:.85rem">${p.ppe}</p></div>${p.steps.map((s,i)=>`<div class="checklist-item"><input type="checkbox" id="dc${i}"><label for="dc${i}" style="display:inline">${s}</label></div>`).join('')}`;
+    document.getElementById('drillModal').classList.add('open');updateDrillTimer();
+}
+function updateDrillTimer(){
+    if(!drillStartTime)return;const e=Math.floor((Date.now()-drillStartTime)/1000);
+    document.getElementById('drillTimer').textContent=String(Math.floor(e/60)).padStart(2,'0')+':'+String(e%60).padStart(2,'0');
+    if(document.getElementById('drillModal').classList.contains('open'))requestAnimationFrame(()=>setTimeout(updateDrillTimer,500));
+}
+function completeDrill(){
+    const dur=Math.round((Date.now()-drillStartTime)/6e4);
+    const issues=prompt('Issues found during drill? (leave blank if none)')||'None';
+    drills.push({id:uid(),protoId:drillProtoId,date:new Date().toISOString().slice(0,10),participants:'Current Team',duration:dur,issues,completed:true,recur:'none'});
+    save('drills',drills);drillStartTime=null;drillProtoId=null;closeModal('drillModal');renderDrills();
+}
+
+function renderDrills(){
+    document.getElementById('drillProto').innerHTML=protocols.map(p=>`<option value="${p.id}">${p.name}</option>`).join('');
+    document.getElementById('drillDate').value=new Date(Date.now()+7*864e5).toISOString().slice(0,10);
+    renderDrillCalendar();renderDrillHistory();renderDrillRecs();
+}
+function scheduleDrill(){
+    const pid=document.getElementById('drillProto').value,date=document.getElementById('drillDate').value;if(!pid||!date)return;
+    drills.push({id:uid(),protoId:pid,date,participants:document.getElementById('drillParticipants').value||'TBD',duration:null,issues:null,completed:false,recur:document.getElementById('drillRecur').value});
+    save('drills',drills);renderDrills();
+}
+function renderDrillCalendar(){
+    const months=['January','February','March','April','May','June','July','August','September','October','November','December'];
+    document.getElementById('calTitle').textContent=months[calMonth]+' '+calYear;
+    const first=new Date(calYear,calMonth,1),last=new Date(calYear,calMonth+1,0),today=new Date().toISOString().slice(0,10);
+    let html=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].map(d=>`<div class="day-header">${d}</div>`).join('');
+    for(let i=0;i<first.getDay();i++)html+='<div class="day"></div>';
+    for(let d=1;d<=last.getDate();d++){const ds=`${calYear}-${String(calMonth+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;const hd=drills.some(dr=>dr.date===ds);html+=`<div class="day${hd?' has-drill':''}${ds===today?' today':''}">${d}${hd?'<br>🏋️':''}</div>`}
+    document.getElementById('drillCalendar').innerHTML=html;
+}
+function calNav(dir){calMonth+=dir;if(calMonth>11){calMonth=0;calYear++}if(calMonth<0){calMonth=11;calYear--}renderDrillCalendar()}
+function renderDrillHistory(){
+    const sorted=[...drills].sort((a,b)=>b.date.localeCompare(a.date));
+    document.getElementById('drillHistory').innerHTML=sorted.map(d=>{const p=protocols.find(x=>x.id===d.protoId);return`<tr><td>${d.date}</td><td>${p?p.name:'Unknown'}</td><td>${d.participants}</td><td>${d.completed?d.duration+'min':'<span style="color:var(--muted)">Pending</span>'}</td><td>${d.completed?(d.issues||'None'):'—'}</td><td>${!d.completed?`<button class="btn-sm btn-danger" onclick="cancelDrill('${d.id}')">Cancel</button>`:''}</td></tr>`}).join('')||'<tr><td colspan="6" style="color:var(--muted)">No drills</td></tr>';
+}
+function cancelDrill(id){drills=drills.filter(d=>d.id!==id);save('drills',drills);renderDrills()}
+function renderDrillRecs(){
+    const recs=[];
+    CAT_KEYS.forEach((k,i)=>{const pids=protocols.filter(p=>p.type===k).map(p=>p.id);const ld=drills.filter(d=>d.completed&&pids.includes(d.protoId)).sort((a,b)=>b.date.localeCompare(a.date))[0];const days=ld?daysSince(ld.date):999;
+        if(days>90)recs.push({sev:'critical',text:`⚠️ ${CATEGORIES[i]}: No drill in ${days<999?days+' days':'ever'}. Schedule immediately.`});
+        else if(days>60)recs.push({sev:'warning',text:`⏰ ${CATEGORIES[i]}: Last drill ${days} days ago. Consider scheduling soon.`})});
+    if(!protocols.length)recs.push({sev:'critical',text:'📋 No protocols defined!'});
+    if(!recs.length)recs.push({sev:'success',text:'✅ All drill schedules on track!'});
+    document.getElementById('drillRecs').innerHTML=recs.map(r=>`<div class="log-entry ${r.sev}">${r.text}</div>`).join('');
+}
+function exportDrills(){
+    const csv='Date,Protocol,Participants,Duration,Issues,Completed\n'+drills.map(d=>{const p=protocols.find(x=>x.id===d.protoId);return[d.date,p?p.name:'',d.participants,d.duration||'',d.issues||'',d.completed].join(',')}).join('\n');
+    downloadFile('drill-history.csv',csv,'text/csv');
+}
+
+function renderIncidents(){
+    const tf=document.getElementById('incFilter').value,sf=document.getElementById('incSevFilter').value;
+    const filtered=incidents.filter(i=>(!tf||i.type===tf)&&(!sf||i.severity===+sf)).sort((a,b)=>b.date.localeCompare(a.date));
+    document.getElementById('incTable').innerHTML=filtered.map(i=>`<tr><td>${i.date}</td><td>${typeBadge(i.type)}</td><td>${sevBadge(i.severity)}</td><td>${i.location}</td><td style="max-width:200px">${i.desc}</td><td>${i.resTime}min</td><td><button class="btn-sm" onclick="showIncidentDetail('${i.id}')">View</button> <button class="btn-sm" onclick="deleteIncident('${i.id}')">🗑</button></td></tr>`).join('')||'<tr><td colspan="7" style="color:var(--muted)">No incidents</td></tr>';
+    drawTimeline(filtered);detectPatterns(filtered);
+}
+document.getElementById('incFilter').addEventListener('change',renderIncidents);
+document.getElementById('incSevFilter').addEventListener('change',renderIncidents);
+
+function showAddIncident(){document.getElementById('imDate').value=new Date().toISOString().slice(0,10);document.getElementById('incModal').classList.add('open')}
+function saveIncident(){
+    incidents.push({id:uid(),date:document.getElementById('imDate').value,type:document.getElementById('imType').value,severity:+document.getElementById('imSeverity').value,location:document.getElementById('imLocation').value.trim(),desc:document.getElementById('imDesc').value.trim(),actions:document.getElementById('imActions').value.trim(),resTime:+document.getElementById('imResTime').value,lessons:document.getElementById('imLessons').value.trim()});
+    save('incidents',incidents);closeModal('incModal');renderIncidents();
+}
+function deleteIncident(id){if(!confirm('Delete?'))return;incidents=incidents.filter(i=>i.id!==id);save('incidents',incidents);renderIncidents()}
+function showIncidentDetail(id){
+    const i=incidents.find(x=>x.id===id);if(!i)return;
+    document.getElementById('detailTitle').textContent='Incident: '+i.date;
+    document.getElementById('detailContent').innerHTML=`<div class="flex" style="gap:.5rem;margin-bottom:1rem">${typeBadge(i.type)} ${sevBadge(i.severity)}</div><div class="card"><h3>📍 Location</h3><p style="font-size:.85rem">${i.location}</p></div><div class="card"><h3>📝 Description</h3><p style="font-size:.85rem">${i.desc}</p></div><div class="card"><h3>🛠 Actions Taken</h3><p style="font-size:.85rem">${i.actions||'Not recorded'}</p></div><div class="card"><h3>⏱ Resolution Time</h3><p style="font-size:.85rem">${i.resTime} minutes</p></div><div class="card"><h3>💡 Lessons Learned</h3><p style="font-size:.85rem">${i.lessons||'None recorded'}</p></div>`;
+    document.getElementById('detailModal').classList.add('open');
+}
+
+function drawTimeline(filtered){
+    const canvas=document.getElementById('timelineCanvas'),ctx=canvas.getContext('2d'),W=canvas.width,H=canvas.height;
+    ctx.clearRect(0,0,W,H);if(!filtered.length){ctx.fillStyle='#94a3b8';ctx.font='14px sans-serif';ctx.fillText('No incidents to display',W/2-60,H/2);return}
+    const sorted=[...filtered].sort((a,b)=>a.date.localeCompare(b.date));
+    const minD=new Date(sorted[0].date).getTime(),maxD=new Date(sorted[sorted.length-1].date).getTime(),range=Math.max(maxD-minD,864e5),pad=60;
+    ctx.beginPath();ctx.moveTo(pad,H/2);ctx.lineTo(W-pad,H/2);ctx.strokeStyle='#334155';ctx.lineWidth=2;ctx.stroke();
+    sorted.forEach((inc,idx)=>{const t=new Date(inc.date).getTime(),x=pad+((t-minD)/range)*(W-2*pad),y=H/2+(idx%2===0?-25:25),r=4+inc.severity*2,ci=CAT_KEYS.indexOf(inc.type);
+        ctx.beginPath();ctx.arc(x,y,r,0,Math.PI*2);ctx.fillStyle=ci>=0?CAT_COLORS[ci]:'#94a3b8';ctx.globalAlpha=.7;ctx.fill();ctx.globalAlpha=1;ctx.strokeStyle='#1e293b';ctx.lineWidth=1;ctx.stroke();
+        ctx.fillStyle='#94a3b8';ctx.font='10px sans-serif';ctx.textAlign='center';ctx.fillText(inc.date.slice(5),x,idx%2===0?y-r-4:y+r+12)});
+}
+
+function detectPatterns(filtered){
+    const patterns=[];const locCounts={};
+    filtered.forEach(i=>{locCounts[i.location]=(locCounts[i.location]||0)+1});
+    Object.entries(locCounts).filter(([,c])=>c>=3).forEach(([loc,c])=>patterns.push({sev:'warning',text:`📍 ${c} incidents at ${loc} — investigate root cause`}));
+    const recent=incidents.filter(i=>daysSince(i.date)<90),typeCounts={};
+    recent.forEach(i=>{typeCounts[i.type]=(typeCounts[i.type]||0)+1});
+    Object.entries(typeCounts).filter(([,c])=>c>=3).forEach(([type,c])=>patterns.push({sev:'critical',text:`⚠️ ${c} ${type} incidents in last 90 days — systemic issue?`}));
+    const last5=[...incidents].sort((a,b)=>b.date.localeCompare(a.date)).slice(0,5);
+    if(last5.length>=3&&last5[0].severity>last5[2].severity)patterns.push({sev:'warning',text:'📈 Incident severity trending upward'});
+    if(!patterns.length)patterns.push({sev:'success',text:'✅ No concerning patterns detected'});
+    document.getElementById('incPatterns').innerHTML='<h3>🔍 Pattern Detection</h3>'+patterns.map(p=>`<div class="log-entry ${p.sev}" style="margin-top:.5rem">${p.text}</div>`).join('');
+}
+function exportIncidents(fmt){
+    if(fmt==='json')downloadFile('incidents.json',JSON.stringify(incidents,null,2),'application/json');
+    else{const csv='Date,Type,Severity,Location,Description,Actions,Resolution,Lessons\n'+incidents.map(i=>[i.date,i.type,i.severity,`"${i.location}"`,`"${i.desc}"`,`"${i.actions}"`,i.resTime,`"${i.lessons}"`].join(',')).join('\n');downloadFile('incidents.csv',csv,'text/csv')}
+}
+
+function toggleMonitor(){
+    monitorActive=document.getElementById('monitorToggle').checked;
+    document.getElementById('monitorStatus').textContent=monitorActive?'🟢 Active':'Inactive';
+    document.getElementById('monitorStatus').style.color=monitorActive?'var(--success)':'var(--muted)';
+    if(monitorActive){addMonitorLog('info','Monitor activated');runMonitorCycle();monitorInterval=setInterval(runMonitorCycle,5000)}
+    else{clearInterval(monitorInterval);addMonitorLog('info','Monitor deactivated')}
+}
+function runMonitorCycle(){
+    const findings=[],recs=[];
+    const overdue=drills.filter(d=>!d.completed&&daysUntil(d.date)<0);
+    if(overdue.length){findings.push({sev:'critical',text:`${overdue.length} overdue drill(s)`});recs.push({sev:'critical',text:`Complete overdue: ${overdue.map(d=>{const p=protocols.find(x=>x.id===d.protoId);return p?p.name:'?'}).join(', ')}`})}
+    const covered=new Set(protocols.map(p=>p.type)),uncovered=CAT_KEYS.filter(k=>!covered.has(k));
+    if(uncovered.length){findings.push({sev:'warning',text:`Missing protocols: ${uncovered.join(', ')}`});recs.push({sev:'warning',text:`Create protocols for ${uncovered.join(', ')}`})}
+    const r90=incidents.filter(i=>daysSince(i.date)<90),tc={};r90.forEach(i=>{tc[i.type]=(tc[i.type]||0)+1});
+    Object.entries(tc).filter(([,c])=>c>=3).forEach(([t,c])=>{findings.push({sev:'critical',text:`Recurring ${t}: ${c} in 90d`});recs.push({sev:'critical',text:`Investigate root cause for ${t} incidents`})});
+    CAT_KEYS.forEach((k,i)=>{const pids=protocols.filter(p=>p.type===k).map(p=>p.id);const ld=drills.filter(d=>d.completed&&pids.includes(d.protoId)).sort((a,b)=>b.date.localeCompare(a.date))[0];const days=ld?daysSince(ld.date):999;
+        if(days>90){findings.push({sev:'warning',text:`${CATEGORIES[i]} drill gap: ${days<999?days+'d':'never'}`});recs.push({sev:'warning',text:`Schedule ${CATEGORIES[i]} drill within 2 weeks`})}});
+    const readiness=calcReadiness();
+    if(readiness<50){findings.push({sev:'critical',text:`Readiness critically low: ${readiness}%`});recs.push({sev:'critical',text:'Schedule all-hands safety review'})}
+    else if(readiness<70)findings.push({sev:'warning',text:`Readiness below target: ${readiness}%`});
+    const highRecent=incidents.filter(i=>i.severity>=4&&daysSince(i.date)<14);
+    if(highRecent.length){findings.push({sev:'critical',text:`${highRecent.length} high-severity incident(s) in 14d`});recs.push({sev:'warning',text:'Conduct post-incident review'})}
+    if(!findings.length)findings.push({sev:'success',text:'All systems nominal'});
+    if(!recs.length)recs.push({sev:'success',text:'No action items — preparedness is strong'});
+    document.getElementById('monitorFindings').innerHTML=findings.map(f=>`<div class="log-entry ${f.sev}">${f.text}</div>`).join('');
+    document.getElementById('monitorRecs').innerHTML=recs.map(r=>`<div class="log-entry ${r.sev}">${r.text}</div>`).join('');
+    addMonitorLog('info',`Cycle: ${findings.length} findings, ${recs.length} recs, readiness ${readiness}%`);
+}
+function addMonitorLog(level,text){
+    const ts=new Date().toLocaleTimeString(),icon={info:'ℹ️',warning:'⚠️',critical:'🚨',success:'✅'}[level]||'';
+    monitorLogArr.unshift(`<div class="log-entry ${level}"><span class="ts">[${ts}]</span> ${icon} ${text}</div>`);
+    if(monitorLogArr.length>50)monitorLogArr.length=50;
+    const el=document.getElementById('monitorLog');if(el)el.innerHTML=monitorLogArr.join('');
+}
+
+renderDashboard();
+</script>
+</body>
+</html>
