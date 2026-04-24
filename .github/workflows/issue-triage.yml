@@ -1,0 +1,127 @@
+name: Issue Triage
+
+on:
+  issues:
+    types: [opened, edited]
+
+permissions:
+  issues: write
+
+jobs:
+  triage:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Auto-label issues by content
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const issue = context.payload.issue;
+            const text = `${issue.title} ${issue.body || ''}`.toLowerCase();
+            const labels = [];
+
+            // Priority / severity
+            if (/\b(crash(es|ing)?|data.?loss|corrupt|broken|critical)\b/.test(text)) {
+              labels.push('priority/high');
+            }
+
+            // Category: bug
+            if (/\b(bug|defect|error|exception|fail(s|ed|ure|ing)?|broken|not.?work(ing)?|unexpected)\b/.test(text)) {
+              labels.push('bug');
+            }
+
+            // Category: feature request
+            if (/\b(feature|enhancement|request|would.?be.?nice|suggest(ion)?|add.?support|proposal)\b/.test(text)) {
+              labels.push('enhancement');
+            }
+
+            // Category: question / help
+            if (/\b(question|how.?(to|do|can)|help|confused|documentation|explain)\b/.test(text)) {
+              labels.push('question');
+            }
+
+            // Area: bioprinting / hardware
+            if (/\b(bioprint|extrusion|nozzle|syringe|gcode|g-code|printer|hardware|calibrat)/i.test(text)) {
+              labels.push('area/bioprinting');
+            }
+
+            // Area: data / analytics
+            if (/\b(data|csv|json|export|import|analytic|report|dashboard|chart|metric)/i.test(text)) {
+              labels.push('area/data');
+            }
+
+            // Area: API / backend
+            if (/\b(api|endpoint|controller|route|request|response|rest|http|server)/i.test(text)) {
+              labels.push('area/api');
+            }
+
+            // Area: UI / frontend
+            if (/\b(ui|ux|frontend|css|html|button|form|display|render|layout|page)/i.test(text)) {
+              labels.push('area/frontend');
+            }
+
+            // Area: Docker / deployment
+            if (/\b(docker|container|deploy|k8s|kubernetes|ci|cd|pipeline|workflow)/i.test(text)) {
+              labels.push('area/infrastructure');
+            }
+
+            // Area: security
+            if (/\b(secur|vulnerab|cve|xss|injection|auth|permission|token|credential)/i.test(text)) {
+              labels.push('security');
+            }
+
+            // Area: performance
+            if (/\b(perf(ormance)?|slow|latency|memory|leak|optimi[sz]|speed|throughput)/i.test(text)) {
+              labels.push('performance');
+            }
+
+            // Area: testing
+            if (/\b(test(s|ing)?|coverage|jest|spec|assert|mock|fixture)/i.test(text)) {
+              labels.push('area/testing');
+            }
+
+            if (labels.length > 0) {
+              // Ensure labels exist, create if needed
+              const existingLabels = await github.rest.issues.listLabelsForRepo({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                per_page: 100,
+              });
+              const existingNames = new Set(existingLabels.data.map(l => l.name));
+
+              const labelColors = {
+                'priority/high': 'D93F0B',
+                'bug': 'D73A4A',
+                'enhancement': 'A2EEEF',
+                'question': 'D876E3',
+                'area/bioprinting': '0E8A16',
+                'area/data': 'BFD4F2',
+                'area/api': 'FBCA04',
+                'area/frontend': '7057FF',
+                'area/infrastructure': 'E4E669',
+                'security': 'B60205',
+                'performance': 'F9D0C4',
+                'area/testing': 'C2E0C6',
+              };
+
+              for (const label of labels) {
+                if (!existingNames.has(label)) {
+                  await github.rest.issues.createLabel({
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    name: label,
+                    color: labelColors[label] || 'EDEDED',
+                  });
+                }
+              }
+
+              await github.rest.issues.addLabels({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issue.number,
+                labels: labels,
+              });
+
+              console.log(`Applied labels: ${labels.join(', ')}`);
+            } else {
+              console.log('No matching labels for this issue.');
+            }
