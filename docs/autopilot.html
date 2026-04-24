@@ -1,0 +1,688 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Print Quality Autopilot — BioBots</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🤖</text></svg>">
+    <style>
+        :root {
+            --bg: #0f172a; --surface: #1e293b; --border: #334155;
+            --text: #e2e8f0; --muted: #94a3b8; --accent: #3b82f6;
+            --accent-hover: #2563eb; --green: #22c55e; --red: #ef4444;
+            --yellow: #eab308; --orange: #f97316; --purple: #a855f7;
+            --cyan: #06b6d4; --radius: 8px;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+        .header { background: var(--surface); border-bottom: 1px solid var(--border); padding: 20px 32px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
+        .header h1 { font-size: 24px; font-weight: 700; }
+        .header h1 span { color: var(--accent); }
+        .header p { color: var(--muted); font-size: 14px; }
+        .header-left { display: flex; flex-direction: column; }
+        .header-right { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+        .container { max-width: 1400px; margin: 0 auto; padding: 24px; display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        @media (max-width: 900px) { .container { grid-template-columns: 1fr; padding: 16px; } }
+        .full-width { grid-column: 1 / -1; }
+        .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; }
+        .card h2 { font-size: 16px; font-weight: 600; margin-bottom: 14px; display: flex; align-items: center; gap: 8px; }
+        .btn { display: inline-flex; align-items: center; gap: 6px; padding: 8px 18px; background: var(--accent); color: #fff; border: none; border-radius: 6px; font-size: 13px; font-weight: 600; cursor: pointer; transition: background .2s; }
+        .btn:hover { background: var(--accent-hover); }
+        .btn-sm { padding: 5px 12px; font-size: 12px; }
+        .btn-red { background: var(--red); }
+        .btn-red:hover { background: #dc2626; }
+        .btn-green { background: var(--green); }
+        .btn-green:hover { background: #16a34a; }
+        .btn-yellow { background: var(--yellow); color: #000; }
+        .toggle-container { display: flex; align-items: center; gap: 10px; }
+        .toggle { position: relative; width: 44px; height: 24px; cursor: pointer; display: inline-block; }
+        .toggle input { opacity: 0; width: 0; height: 0; }
+        .toggle .slider { position: absolute; inset: 0; background: var(--border); border-radius: 12px; transition: .2s; }
+        .toggle .slider::before { content: ''; position: absolute; width: 18px; height: 18px; left: 3px; bottom: 3px; background: var(--text); border-radius: 50%; transition: .2s; }
+        .toggle input:checked + .slider { background: var(--accent); }
+        .toggle input:checked + .slider::before { transform: translateX(20px); }
+        .stats-row { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 16px; }
+        .stat { background: var(--bg); border: 1px solid var(--border); border-radius: 6px; padding: 12px 16px; flex: 1; min-width: 100px; text-align: center; }
+        .stat .val { font-size: 22px; font-weight: 700; }
+        .stat .lbl { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .5px; margin-top: 2px; }
+        .alert { padding: 10px 14px; border-radius: 6px; margin-bottom: 8px; font-size: 13px; display: flex; align-items: flex-start; gap: 8px; }
+        .alert-warn { background: rgba(234,179,8,.1); border: 1px solid rgba(234,179,8,.3); color: var(--yellow); }
+        .alert-crit { background: rgba(239,68,68,.1); border: 1px solid rgba(239,68,68,.3); color: var(--red); }
+        .alert-info { background: rgba(59,130,246,.1); border: 1px solid rgba(59,130,246,.3); color: var(--accent); }
+        .alert-ok { background: rgba(34,197,94,.1); border: 1px solid rgba(34,197,94,.3); color: var(--green); }
+        canvas { width: 100%; border-radius: 6px; }
+        table { width: 100%; border-collapse: collapse; font-size: 12px; }
+        th, td { padding: 8px 10px; text-align: left; border-bottom: 1px solid var(--border); }
+        th { color: var(--muted); font-weight: 600; text-transform: uppercase; font-size: 11px; letter-spacing: .5px; cursor: pointer; user-select: none; }
+        th:hover { color: var(--text); }
+        td { font-variant-numeric: tabular-nums; }
+        .badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 600; }
+        .badge-green { background: rgba(34,197,94,.15); color: var(--green); }
+        .badge-yellow { background: rgba(234,179,8,.15); color: var(--yellow); }
+        .badge-red { background: rgba(239,68,68,.15); color: var(--red); }
+        .badge-blue { background: rgba(59,130,246,.15); color: var(--accent); }
+        .knowledge-item { background: var(--bg); border: 1px solid var(--border); border-radius: 6px; padding: 10px 14px; margin-bottom: 8px; }
+        .knowledge-item .rule { font-size: 13px; margin-bottom: 4px; }
+        .knowledge-item .meta { font-size: 11px; color: var(--muted); }
+        .param-row { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
+        .param-row label { width: 120px; font-size: 13px; color: var(--muted); }
+        .param-row input[type="range"] { flex: 1; accent-color: var(--accent); }
+        .param-row .param-val { width: 60px; text-align: right; font-size: 13px; font-variant-numeric: tabular-nums; }
+        .suggestion { background: var(--bg); border: 1px solid var(--border); border-radius: 6px; padding: 10px 14px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; }
+        .suggestion .text { font-size: 13px; }
+        .suggestion .conf { font-size: 12px; color: var(--muted); }
+        .log-entry { font-size: 12px; color: var(--muted); padding: 4px 0; border-bottom: 1px solid rgba(51,65,85,.3); }
+        .log-entry .time { color: var(--accent); margin-right: 8px; }
+        .pulse { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; animation: pulse 2s infinite; }
+        .pulse-green { background: var(--green); }
+        .pulse-yellow { background: var(--yellow); }
+        .pulse-red { background: var(--red); }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: .3; } }
+        .empty { text-align: center; color: var(--muted); padding: 40px; font-size: 14px; }
+        #history-table { max-height: 300px; overflow-y: auto; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="header-left">
+            <h1>🤖 Print Quality <span>Autopilot</span></h1>
+            <p>Autonomous quality monitoring · Degradation detection · Parameter auto-tuning · Learning engine</p>
+        </div>
+        <div class="header-right">
+            <div class="toggle-container">
+                <label class="toggle"><input type="checkbox" id="autopilotToggle"><span class="slider"></span></label>
+                <span id="autopilotLabel" style="font-size:13px;">Autopilot OFF</span>
+            </div>
+            <div class="toggle-container">
+                <label class="toggle"><input type="checkbox" id="autorunToggle"><span class="slider"></span></label>
+                <span style="font-size:13px;">Auto-Run</span>
+            </div>
+            <button class="btn" onclick="runPrint()">▶ Run Print</button>
+            <button class="btn btn-red btn-sm" onclick="resetAll()">Reset</button>
+        </div>
+    </div>
+
+    <div class="container">
+        <!-- Autopilot Status -->
+        <div class="card">
+            <h2>🎛️ Autopilot Control</h2>
+            <div class="stats-row">
+                <div class="stat"><div class="val" id="apStatus" style="font-size:14px;color:var(--muted);">Idle</div><div class="lbl">Status</div></div>
+                <div class="stat"><div class="val" id="apInterventions" style="color:var(--accent)">0</div><div class="lbl">Interventions</div></div>
+                <div class="stat"><div class="val" id="apSuccessRate" style="color:var(--green)">—</div><div class="lbl">Success Rate</div></div>
+                <div class="stat"><div class="val" id="apSessions" style="color:var(--cyan)">0</div><div class="lbl">Sessions</div></div>
+            </div>
+            <div id="apAlerts"></div>
+            <div id="apLog" style="max-height:120px;overflow-y:auto;margin-top:10px;"></div>
+        </div>
+
+        <!-- Parameters -->
+        <div class="card">
+            <h2>⚙️ Print Parameters</h2>
+            <div class="param-row"><label>Temperature (°C)</label><input type="range" id="pTemp" min="20" max="45" step="0.5" value="37"><span class="param-val" id="pTempVal">37.0</span></div>
+            <div class="param-row"><label>Pressure (kPa)</label><input type="range" id="pPressure" min="10" max="80" step="1" value="40"><span class="param-val" id="pPressureVal">40</span></div>
+            <div class="param-row"><label>Speed (mm/s)</label><input type="range" id="pSpeed" min="1" max="30" step="0.5" value="12"><span class="param-val" id="pSpeedVal">12.0</span></div>
+            <div class="param-row"><label>Layer Height (µm)</label><input type="range" id="pLayer" min="50" max="500" step="10" value="200"><span class="param-val" id="pLayerVal">200</span></div>
+            <div class="param-row"><label>Nozzle (µm)</label><input type="range" id="pNozzle" min="100" max="800" step="50" value="400"><span class="param-val" id="pNozzleVal">400</span></div>
+        </div>
+
+        <!-- Quality Chart -->
+        <div class="card full-width">
+            <h2>📈 Quality Monitor <span style="font-size:12px;color:var(--muted);margin-left:auto;">Last 30 sessions</span></h2>
+            <canvas id="qualityChart" height="220"></canvas>
+            <div style="display:flex;gap:16px;margin-top:10px;flex-wrap:wrap;">
+                <span style="font-size:12px;"><span style="color:#3b82f6;">●</span> Accuracy</span>
+                <span style="font-size:12px;"><span style="color:#22c55e;">●</span> Viability</span>
+                <span style="font-size:12px;"><span style="color:#a855f7;">●</span> Adhesion</span>
+                <span style="font-size:12px;"><span style="color:#f97316;">●</span> Roughness (inv)</span>
+                <span style="font-size:12px;"><span style="color:var(--red);">- -</span> Threshold</span>
+            </div>
+        </div>
+
+        <!-- Degradation Alerts -->
+        <div class="card">
+            <h2>⚠️ Degradation Detector</h2>
+            <div id="degradationAlerts"><div class="empty">Run prints to detect degradation patterns</div></div>
+        </div>
+
+        <!-- Auto-Tuner Suggestions -->
+        <div class="card">
+            <h2>🔧 Parameter Auto-Tuner</h2>
+            <div id="tunerSuggestions"><div class="empty">Suggestions appear when degradation is detected</div></div>
+        </div>
+
+        <!-- Knowledge Base -->
+        <div class="card">
+            <h2>🧠 Learning Engine</h2>
+            <div class="stats-row">
+                <div class="stat"><div class="val" id="kbRules" style="color:var(--purple)">0</div><div class="lbl">Rules Learned</div></div>
+                <div class="stat"><div class="val" id="kbObservations" style="color:var(--cyan)">0</div><div class="lbl">Observations</div></div>
+            </div>
+            <div id="knowledgeBase"><div class="empty">The autopilot learns from outcomes over time</div></div>
+        </div>
+
+        <!-- Session History -->
+        <div class="card">
+            <h2>📋 Session History</h2>
+            <div id="history-table"><div class="empty">No sessions yet</div></div>
+        </div>
+    </div>
+
+    <script>
+    /* ========== STATE ========== */
+    const STORAGE_KEY = 'biobots_autopilot';
+    let state = loadState();
+
+    function defaultState() {
+        return {
+            sessions: [],
+            knowledge: {},   // { "metric|param|dir": { applied: 0, success: 0 } }
+            interventions: 0,
+            successfulInterventions: 0
+        };
+    }
+
+    function loadState() {
+        try { const s = JSON.parse(localStorage.getItem(STORAGE_KEY)); return s && s.sessions ? s : defaultState(); }
+        catch { return defaultState(); }
+    }
+
+    function saveState() { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }
+
+    /* ========== PARAMS ========== */
+    const paramIds = ['pTemp', 'pPressure', 'pSpeed', 'pLayer', 'pNozzle'];
+    const paramNames = ['temperature', 'pressure', 'speed', 'layerHeight', 'nozzle'];
+    const paramUnits = ['°C', 'kPa', 'mm/s', 'µm', 'µm'];
+
+    paramIds.forEach((id, i) => {
+        const el = document.getElementById(id);
+        const valEl = document.getElementById(id + 'Val');
+        el.addEventListener('input', () => { valEl.textContent = parseFloat(el.value).toFixed(id === 'pPressure' || id === 'pLayer' || id === 'pNozzle' ? 0 : 1); });
+    });
+
+    function getParams() {
+        return Object.fromEntries(paramIds.map((id, i) => [paramNames[i], parseFloat(document.getElementById(id).value)]));
+    }
+
+    function setParam(name, value) {
+        const i = paramNames.indexOf(name);
+        if (i < 0) return;
+        const el = document.getElementById(paramIds[i]);
+        value = Math.max(parseFloat(el.min), Math.min(parseFloat(el.max), value));
+        el.value = value;
+        document.getElementById(paramIds[i] + 'Val').textContent = parseFloat(value).toFixed(paramIds[i] === 'pPressure' || paramIds[i] === 'pLayer' || paramIds[i] === 'pNozzle' ? 0 : 1);
+    }
+
+    /* ========== QUALITY SIMULATION ========== */
+    function simulatePrint(params) {
+        // Base quality from parameters (optimal ranges)
+        const tempScore = 1 - Math.abs(params.temperature - 37) / 20;
+        const pressureScore = 1 - Math.abs(params.pressure - 40) / 50;
+        const speedScore = 1 - Math.abs(params.speed - 10) / 25;
+        const layerScore = 1 - Math.abs(params.layerHeight - 200) / 400;
+        const nozzleScore = 1 - Math.abs(params.nozzle - 400) / 600;
+
+        const base = (tempScore + pressureScore + speedScore + layerScore + nozzleScore) / 5;
+        const noise = () => (Math.random() - 0.5) * 0.08;
+
+        // Add session-count drift (simulates wear/degradation)
+        const n = state.sessions.length;
+        const drift = Math.min(n * 0.003, 0.15);
+
+        const accuracy = Math.max(0, Math.min(100, (base * 0.85 + 0.15 - drift + noise()) * 100));
+        const viability = Math.max(0, Math.min(100, (tempScore * 0.5 + pressureScore * 0.3 + 0.2 - drift * 0.8 + noise()) * 100));
+        const adhesion = Math.max(0, Math.min(10, (pressureScore * 0.4 + speedScore * 0.3 + layerScore * 0.3) * 10 - drift * 5 + noise() * 5));
+        const roughness = Math.max(0, Math.min(10, (1 - base) * 6 + drift * 4 + noise() * 3 + 1));
+
+        return {
+            accuracy: +accuracy.toFixed(1),
+            viability: +viability.toFixed(1),
+            adhesion: +adhesion.toFixed(2),
+            roughness: +roughness.toFixed(2)
+        };
+    }
+
+    /* ========== LINEAR REGRESSION ========== */
+    function linreg(vals) {
+        const n = vals.length;
+        if (n < 3) return { slope: 0, r2: 0 };
+        let sx = 0, sy = 0, sxy = 0, sx2 = 0, sy2 = 0;
+        for (let i = 0; i < n; i++) {
+            sx += i; sy += vals[i]; sxy += i * vals[i]; sx2 += i * i; sy2 += vals[i] * vals[i];
+        }
+        const denom = n * sx2 - sx * sx;
+        if (denom === 0) return { slope: 0, r2: 0 };
+        const slope = (n * sxy - sx * sy) / denom;
+        const intercept = (sy - slope * sx) / n;
+        const yMean = sy / n;
+        let ssTot = 0, ssRes = 0;
+        for (let i = 0; i < n; i++) {
+            ssTot += (vals[i] - yMean) ** 2;
+            ssRes += (vals[i] - (intercept + slope * i)) ** 2;
+        }
+        const r2 = ssTot === 0 ? 0 : 1 - ssRes / ssTot;
+        return { slope, r2, intercept };
+    }
+
+    /* ========== PEARSON CORRELATION ========== */
+    function pearson(xs, ys) {
+        const n = xs.length;
+        if (n < 3) return 0;
+        let sx = 0, sy = 0, sxy = 0, sx2 = 0, sy2 = 0;
+        for (let i = 0; i < n; i++) {
+            sx += xs[i]; sy += ys[i]; sxy += xs[i] * ys[i]; sx2 += xs[i] * xs[i]; sy2 += ys[i] * ys[i];
+        }
+        const denom = Math.sqrt((n * sx2 - sx * sx) * (n * sy2 - sy * sy));
+        return denom === 0 ? 0 : (n * sxy - sx * sy) / denom;
+    }
+
+    /* ========== DEGRADATION DETECTION ========== */
+    const metricNames = ['accuracy', 'viability', 'adhesion', 'roughness'];
+    const metricLabels = { accuracy: 'Accuracy (%)', viability: 'Viability (%)', adhesion: 'Adhesion', roughness: 'Roughness' };
+    const metricThresholds = { accuracy: -0.3, viability: -0.3, adhesion: -0.05, roughness: 0.05 };
+    // roughness: positive slope = degradation (higher = worse)
+
+    function detectDegradation() {
+        const recent = state.sessions.slice(-15);
+        if (recent.length < 5) return [];
+        const alerts = [];
+        for (const m of metricNames) {
+            const vals = recent.map(s => s.quality[m]);
+            const { slope, r2 } = linreg(vals);
+            const threshold = metricThresholds[m];
+            const isDegrading = m === 'roughness' ? slope > threshold : slope < threshold;
+            if (isDegrading && r2 > 0.15) {
+                const severity = r2 > 0.5 ? 'critical' : 'warning';
+                const current = vals[vals.length - 1];
+                const failVal = m === 'roughness' ? 8 : m === 'adhesion' ? 3 : 60;
+                const sessionsToFail = slope === 0 ? Infinity : Math.abs((failVal - current) / slope);
+                alerts.push({ metric: m, slope, r2, severity, sessionsToFail: Math.round(sessionsToFail), current });
+            }
+        }
+        return alerts;
+    }
+
+    /* ========== PARAMETER SUGGESTIONS ========== */
+    function generateSuggestions(alerts) {
+        const recent = state.sessions.slice(-15);
+        if (recent.length < 5) return [];
+        const suggestions = [];
+
+        for (const alert of alerts) {
+            const metricVals = recent.map(s => s.quality[alert.metric]);
+            for (const pName of paramNames) {
+                const paramVals = recent.map(s => s.params[pName]);
+                const corr = pearson(paramVals, metricVals);
+                if (Math.abs(corr) < 0.2) continue;
+
+                // For roughness, correlation is inverted (lower is better)
+                const direction = alert.metric === 'roughness'
+                    ? (corr > 0 ? 'decrease' : 'increase')
+                    : (corr > 0 ? 'increase' : 'decrease');
+
+                const currentVal = paramVals[paramVals.length - 1];
+                const adjustPct = Math.min(15, Math.round(Math.abs(corr) * 10 + 3));
+                const adjustVal = direction === 'increase'
+                    ? +(currentVal * (1 + adjustPct / 100)).toFixed(1)
+                    : +(currentVal * (1 - adjustPct / 100)).toFixed(1);
+
+                // Check knowledge base for past effectiveness
+                const kbKey = `${alert.metric}|${pName}|${direction}`;
+                const kb = state.knowledge[kbKey];
+                let confidence = Math.round(Math.abs(corr) * 80 + 10);
+                if (kb && kb.applied > 0) {
+                    confidence = Math.round((kb.success / kb.applied) * 100);
+                }
+
+                suggestions.push({
+                    metric: alert.metric,
+                    param: pName,
+                    direction,
+                    adjustPct,
+                    newValue: adjustVal,
+                    confidence,
+                    correlation: +corr.toFixed(3),
+                    kbKey
+                });
+            }
+        }
+
+        // Sort by confidence descending, take top suggestions
+        suggestions.sort((a, b) => b.confidence - a.confidence);
+        return suggestions.slice(0, 6);
+    }
+
+    /* ========== APPLY SUGGESTION ========== */
+    function applySuggestion(sug) {
+        const prevQuality = state.sessions.length > 0 ? { ...state.sessions[state.sessions.length - 1].quality } : null;
+        setParam(sug.param, sug.newValue);
+        state.interventions++;
+
+        // Record the intervention context for learning
+        if (!state._pendingLearning) state._pendingLearning = [];
+        state._pendingLearning.push({ kbKey: sug.kbKey, prevQuality, metric: sug.metric });
+
+        addLog(`Applied: ${sug.direction} ${sug.param} → ${sug.newValue}`, 'var(--accent)');
+        saveState();
+        updateUI();
+    }
+
+    /* ========== LEARNING ENGINE ========== */
+    function learnFromOutcome(session) {
+        if (!state._pendingLearning || state._pendingLearning.length === 0) return;
+
+        for (const pending of state._pendingLearning) {
+            if (!state.knowledge[pending.kbKey]) {
+                state.knowledge[pending.kbKey] = { applied: 0, success: 0 };
+            }
+            state.knowledge[pending.kbKey].applied++;
+
+            const improved = pending.metric === 'roughness'
+                ? session.quality[pending.metric] < (pending.prevQuality ? pending.prevQuality[pending.metric] : Infinity)
+                : session.quality[pending.metric] > (pending.prevQuality ? pending.prevQuality[pending.metric] : 0);
+
+            if (improved) {
+                state.knowledge[pending.kbKey].success++;
+                state.successfulInterventions++;
+            }
+        }
+        state._pendingLearning = [];
+    }
+
+    /* ========== RUN PRINT ========== */
+    function runPrint() {
+        const params = getParams();
+        const quality = simulatePrint(params);
+        const session = {
+            id: state.sessions.length + 1,
+            timestamp: new Date().toISOString(),
+            params: { ...params },
+            quality,
+            intervention: null
+        };
+
+        // Learn from previous interventions
+        learnFromOutcome(session);
+
+        state.sessions.push(session);
+        saveState();
+
+        addLog(`Session #${session.id}: Acc=${quality.accuracy}% Via=${quality.viability}% Adh=${quality.adhesion} Rgh=${quality.roughness}`, 'var(--text)');
+
+        // If autopilot is on, analyze and auto-apply
+        if (document.getElementById('autopilotToggle').checked) {
+            const alerts = detectDegradation();
+            if (alerts.length > 0) {
+                const suggestions = generateSuggestions(alerts);
+                if (suggestions.length > 0) {
+                    const best = suggestions[0];
+                    session.intervention = `${best.direction} ${best.param} (conf: ${best.confidence}%)`;
+                    applySuggestion(best);
+                    addLog(`🤖 Autopilot intervened: ${best.direction} ${best.param}`, 'var(--yellow)');
+                }
+            }
+        }
+
+        updateUI();
+    }
+
+    /* ========== CHART ========== */
+    function drawChart() {
+        const canvas = document.getElementById('qualityChart');
+        const ctx = canvas.getContext('2d');
+        const dpr = window.devicePixelRatio || 1;
+        const rect = canvas.getBoundingClientRect();
+        canvas.width = rect.width * dpr;
+        canvas.height = 220 * dpr;
+        ctx.scale(dpr, dpr);
+        const W = rect.width, H = 220;
+        ctx.clearRect(0, 0, W, H);
+
+        const sessions = state.sessions.slice(-30);
+        if (sessions.length < 2) {
+            ctx.fillStyle = '#94a3b8';
+            ctx.font = '14px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText('Run prints to see quality trends', W / 2, H / 2);
+            return;
+        }
+
+        const pad = { top: 10, right: 20, bottom: 25, left: 45 };
+        const cW = W - pad.left - pad.right;
+        const cH = H - pad.top - pad.bottom;
+
+        // Normalize: accuracy & viability 0-100, adhesion 0-10 → 0-100, roughness 0-10 → inverted 0-100
+        function normalize(val, metric) {
+            if (metric === 'adhesion') return val * 10;
+            if (metric === 'roughness') return (10 - val) * 10;
+            return val;
+        }
+
+        // Grid
+        ctx.strokeStyle = '#1e293b';
+        ctx.lineWidth = 1;
+        for (let i = 0; i <= 4; i++) {
+            const y = pad.top + (cH / 4) * i;
+            ctx.beginPath(); ctx.moveTo(pad.left, y); ctx.lineTo(W - pad.right, y); ctx.stroke();
+            ctx.fillStyle = '#94a3b8';
+            ctx.font = '10px sans-serif';
+            ctx.textAlign = 'right';
+            ctx.fillText((100 - i * 25) + '', pad.left - 5, y + 3);
+        }
+
+        // Threshold line at 60
+        const threshY = pad.top + cH * (1 - 60 / 100);
+        ctx.setLineDash([6, 4]);
+        ctx.strokeStyle = '#ef4444';
+        ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.moveTo(pad.left, threshY); ctx.lineTo(W - pad.right, threshY); ctx.stroke();
+        ctx.setLineDash([]);
+
+        // X labels
+        ctx.fillStyle = '#64748b';
+        ctx.font = '10px sans-serif';
+        ctx.textAlign = 'center';
+        const step = Math.max(1, Math.floor(sessions.length / 6));
+        for (let i = 0; i < sessions.length; i += step) {
+            const x = pad.left + (i / (sessions.length - 1)) * cW;
+            ctx.fillText('#' + sessions[i].id, x, H - 5);
+        }
+
+        // Lines
+        const colors = { accuracy: '#3b82f6', viability: '#22c55e', adhesion: '#a855f7', roughness: '#f97316' };
+        for (const m of metricNames) {
+            ctx.strokeStyle = colors[m];
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            sessions.forEach((s, i) => {
+                const x = pad.left + (i / (sessions.length - 1)) * cW;
+                const y = pad.top + cH * (1 - normalize(s.quality[m], m) / 100);
+                i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+            });
+            ctx.stroke();
+
+            // Dots on last point
+            const last = sessions[sessions.length - 1];
+            const lx = pad.left + cW;
+            const ly = pad.top + cH * (1 - normalize(last.quality[m], m) / 100);
+            ctx.fillStyle = colors[m];
+            ctx.beginPath(); ctx.arc(lx, ly, 4, 0, Math.PI * 2); ctx.fill();
+        }
+    }
+
+    /* ========== UI UPDATES ========== */
+    const logEntries = [];
+
+    function addLog(msg, color) {
+        const now = new Date();
+        const time = now.toLocaleTimeString('en-US', { hour12: false });
+        logEntries.unshift({ time, msg, color });
+        if (logEntries.length > 50) logEntries.pop();
+    }
+
+    function updateUI() {
+        // Stats
+        document.getElementById('apSessions').textContent = state.sessions.length;
+        document.getElementById('apInterventions').textContent = state.interventions;
+        document.getElementById('apSuccessRate').textContent = state.interventions > 0
+            ? Math.round((state.successfulInterventions / state.interventions) * 100) + '%' : '—';
+
+        const isAP = document.getElementById('autopilotToggle').checked;
+        const alerts = detectDegradation();
+        const statusEl = document.getElementById('apStatus');
+        if (!isAP) {
+            statusEl.textContent = 'Idle';
+            statusEl.style.color = 'var(--muted)';
+        } else if (alerts.length > 0) {
+            statusEl.innerHTML = '<span class="pulse pulse-yellow"></span>Adjusting';
+            statusEl.style.color = 'var(--yellow)';
+        } else {
+            statusEl.innerHTML = '<span class="pulse pulse-green"></span>Monitoring';
+            statusEl.style.color = 'var(--green)';
+        }
+
+        document.getElementById('autopilotLabel').textContent = isAP ? 'Autopilot ON' : 'Autopilot OFF';
+
+        // Alerts
+        const alertsEl = document.getElementById('apAlerts');
+        if (alerts.length === 0 && state.sessions.length > 4) {
+            alertsEl.innerHTML = '<div class="alert alert-ok">✅ All metrics within normal range</div>';
+        } else if (state.sessions.length <= 4) {
+            alertsEl.innerHTML = '';
+        } else {
+            alertsEl.innerHTML = alerts.map(a =>
+                `<div class="alert alert-${a.severity === 'critical' ? 'crit' : 'warn'}">
+                    ${a.severity === 'critical' ? '🔴' : '🟡'} <strong>${metricLabels[a.metric]}</strong> degrading (slope: ${a.slope.toFixed(3)}, R²: ${a.r2.toFixed(2)}) — ~${a.sessionsToFail} sessions to failure
+                </div>`
+            ).join('');
+        }
+
+        // Degradation panel
+        const degEl = document.getElementById('degradationAlerts');
+        if (state.sessions.length < 5) {
+            degEl.innerHTML = '<div class="empty">Need at least 5 sessions to detect patterns</div>';
+        } else if (alerts.length === 0) {
+            degEl.innerHTML = '<div class="alert alert-ok">✅ No degradation patterns detected</div>';
+        } else {
+            degEl.innerHTML = alerts.map(a =>
+                `<div class="alert alert-${a.severity === 'critical' ? 'crit' : 'warn'}">
+                    <div>
+                        <strong>${metricLabels[a.metric]}</strong><br>
+                        <span style="font-size:12px;">Trend: ${a.slope.toFixed(4)}/session · Confidence: ${(a.r2 * 100).toFixed(0)}% · Current: ${a.current} · Est. failure in ${a.sessionsToFail} sessions</span>
+                    </div>
+                </div>`
+            ).join('');
+        }
+
+        // Suggestions
+        const sugEl = document.getElementById('tunerSuggestions');
+        if (alerts.length === 0) {
+            sugEl.innerHTML = state.sessions.length < 5
+                ? '<div class="empty">Suggestions appear when degradation is detected</div>'
+                : '<div class="alert alert-ok">✅ No adjustments needed</div>';
+        } else {
+            const suggestions = generateSuggestions(alerts);
+            if (suggestions.length === 0) {
+                sugEl.innerHTML = '<div class="alert alert-info">ℹ️ Degradation detected but no clear parameter correlation found</div>';
+            } else {
+                sugEl.innerHTML = suggestions.map(s =>
+                    `<div class="suggestion">
+                        <div class="text">
+                            ${s.direction === 'increase' ? '📈' : '📉'} <strong>${s.direction}</strong> ${s.param} → <strong>${s.newValue}${paramUnits[paramNames.indexOf(s.param)]}</strong>
+                            <span style="color:var(--muted);font-size:11px;margin-left:6px;">(for ${metricLabels[s.metric]})</span>
+                        </div>
+                        <div style="display:flex;align-items:center;gap:8px;">
+                            <span class="conf" style="color:${s.confidence > 60 ? 'var(--green)' : s.confidence > 30 ? 'var(--yellow)' : 'var(--muted)'};">${s.confidence}% conf</span>
+                            <button class="btn btn-sm btn-green" onclick='applySuggestion(${JSON.stringify(s)})'>Apply</button>
+                        </div>
+                    </div>`
+                ).join('');
+            }
+        }
+
+        // Knowledge Base
+        const kbEntries = Object.entries(state.knowledge).filter(([, v]) => v.applied > 0);
+        document.getElementById('kbRules').textContent = kbEntries.length;
+        document.getElementById('kbObservations').textContent = kbEntries.reduce((s, [, v]) => s + v.applied, 0);
+        const kbEl = document.getElementById('knowledgeBase');
+        if (kbEntries.length === 0) {
+            kbEl.innerHTML = '<div class="empty">The autopilot learns from outcomes over time</div>';
+        } else {
+            kbEntries.sort((a, b) => b[1].applied - a[1].applied);
+            kbEl.innerHTML = kbEntries.map(([key, v]) => {
+                const [metric, param, dir] = key.split('|');
+                const rate = Math.round((v.success / v.applied) * 100);
+                const badge = rate >= 60 ? 'green' : rate >= 30 ? 'yellow' : 'red';
+                return `<div class="knowledge-item">
+                    <div class="rule">When <strong>${metricLabels[metric]}</strong> drops → <strong>${dir} ${param}</strong> helps <span class="badge badge-${badge}">${rate}%</span> of the time</div>
+                    <div class="meta">${v.applied} observations · ${v.success} successes</div>
+                </div>`;
+            }).join('');
+        }
+
+        // Log
+        const logEl = document.getElementById('apLog');
+        logEl.innerHTML = logEntries.slice(0, 20).map(e =>
+            `<div class="log-entry"><span class="time">${e.time}</span><span style="color:${e.color}">${e.msg}</span></div>`
+        ).join('');
+
+        // History table
+        const histEl = document.getElementById('history-table');
+        if (state.sessions.length === 0) {
+            histEl.innerHTML = '<div class="empty">No sessions yet</div>';
+        } else {
+            const rows = state.sessions.slice().reverse().slice(0, 50);
+            histEl.innerHTML = `<table><thead><tr>
+                <th>#</th><th>Temp</th><th>Pres</th><th>Speed</th><th>Acc%</th><th>Via%</th><th>Adh</th><th>Rgh</th><th>Intervention</th>
+            </tr></thead><tbody>${rows.map(s => {
+                const qBadge = (v, good, warn) => `<span class="badge badge-${v >= good ? 'green' : v >= warn ? 'yellow' : 'red'}">${v}</span>`;
+                return `<tr>
+                    <td>${s.id}</td>
+                    <td>${s.params.temperature}°C</td>
+                    <td>${s.params.pressure}</td>
+                    <td>${s.params.speed}</td>
+                    <td>${qBadge(s.quality.accuracy, 80, 60)}</td>
+                    <td>${qBadge(s.quality.viability, 80, 60)}</td>
+                    <td>${qBadge(s.quality.adhesion, 6, 3)}</td>
+                    <td>${qBadge(s.quality.roughness, 0, 0).replace(/badge-green/,'badge-'+(s.quality.roughness <= 4 ? 'green' : s.quality.roughness <= 6 ? 'yellow' : 'red'))}</td>
+                    <td style="font-size:11px;color:var(--muted);">${s.intervention || '—'}</td>
+                </tr>`;
+            }).join('')}</tbody></table>`;
+        }
+
+        // Chart
+        drawChart();
+    }
+
+    /* ========== AUTO-RUN ========== */
+    let autoRunInterval = null;
+    document.getElementById('autorunToggle').addEventListener('change', e => {
+        if (e.target.checked) {
+            autoRunInterval = setInterval(runPrint, 3000);
+            addLog('⚡ Auto-run started (every 3s)', 'var(--cyan)');
+        } else {
+            clearInterval(autoRunInterval);
+            autoRunInterval = null;
+            addLog('⏸ Auto-run stopped', 'var(--muted)');
+        }
+    });
+
+    document.getElementById('autopilotToggle').addEventListener('change', () => updateUI());
+
+    /* ========== RESET ========== */
+    function resetAll() {
+        if (!confirm('Reset all autopilot data?')) return;
+        state = defaultState();
+        saveState();
+        logEntries.length = 0;
+        addLog('🔄 All data reset', 'var(--red)');
+        updateUI();
+    }
+
+    /* ========== INIT ========== */
+    window.addEventListener('resize', drawChart);
+    updateUI();
+    addLog('🤖 Print Quality Autopilot initialized', 'var(--green)');
+    </script>
+</body>
+</html>
