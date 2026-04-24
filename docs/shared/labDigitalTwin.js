@@ -240,22 +240,40 @@ function createLabDigitalTwin() {
     // ── Anomaly detection ───────────────────────────────────────────
 
     function detectAnomalies() {
-        if (envReadings.length < 5) return [];
+        var n = envReadings.length;
+        if (n < 5) return [];
         var metrics = ['temperatureC', 'humidityPct', 'co2Pct', 'particleCount'];
+        var mLen = metrics.length;
+
+        // Single pass over envReadings to compute sum and sumSq for all
+        // 4 metrics simultaneously — replaces 4× .map() + 4× mean() +
+        // 4× stddev() (12 passes) with 1 pass.
+        var sums = new Array(mLen);
+        var sumSqs = new Array(mLen);
+        for (var mi = 0; mi < mLen; mi++) { sums[mi] = 0; sumSqs[mi] = 0; }
+
+        for (var ri = 0; ri < n; ri++) {
+            var reading = envReadings[ri];
+            for (var k = 0; k < mLen; k++) {
+                var v = reading[metrics[k]];
+                sums[k] += v;
+                sumSqs[k] += v * v;
+            }
+        }
+
         var alerts = [];
-        for (var m = 0; m < metrics.length; m++) {
-            var key = metrics[m];
-            var vals = envReadings.map(function(r) { return r[key]; });
-            var mu = mean(vals);
-            var sd = stddev(vals);
-            // Check last 3 readings
-            var start = Math.max(0, vals.length - 3);
-            for (var i = start; i < vals.length; i++) {
-                var z = zScore(vals[i], mu, sd);
+        var start = Math.max(0, n - 3);
+        for (var m = 0; m < mLen; m++) {
+            var mu = sums[m] / n;
+            var variance = sumSqs[m] / n - mu * mu;
+            var sd = variance > 0 ? Math.sqrt(variance) : 0;
+            for (var i = start; i < n; i++) {
+                var val = envReadings[i][metrics[m]];
+                var z = zScore(val, mu, sd);
                 if (z > 2.0) {
                     alerts.push({
-                        metric: key,
-                        value: vals[i],
+                        metric: metrics[m],
+                        value: val,
                         mean: Math.round(mu * 100) / 100,
                         stddev: Math.round(sd * 100) / 100,
                         zScore: Math.round(z * 100) / 100,
@@ -295,8 +313,12 @@ function createLabDigitalTwin() {
         var envScore = 100;
         var anomalies = detectAnomalies();
         if (anomalies.length > 0) {
-            var criticals = anomalies.filter(function(a) { return a.severity === 'critical'; }).length;
-            var warnings = anomalies.filter(function(a) { return a.severity === 'warning'; }).length;
+            var criticals = 0;
+            var warnings = 0;
+            for (var ai = 0; ai < anomalies.length; ai++) {
+                if (anomalies[ai].severity === 'critical') criticals++;
+                else if (anomalies[ai].severity === 'warning') warnings++;
+            }
             envScore = Math.max(0, 100 - criticals * 25 - warnings * 10);
         }
         var composite = Math.round(eqScore * 0.4 + rgScore * 0.35 + envScore * 0.25);
