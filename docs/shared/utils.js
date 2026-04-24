@@ -115,6 +115,13 @@ function computeStats(values) {
 }
 
 // ── Numeric Helpers ─────────────────────────────────────────────────────────
+// Canonical implementations live in validation.js. In CommonJS context,
+// delegate to that single source of truth. In eval/browser context,
+// these self-contained functions serve as the definition.
+
+var _val = (typeof module !== 'undefined' && module.exports)
+    ? (function() { try { return require('./validation'); } catch(_e) { return null; } })()
+    : null;
 
 /**
  * Clamp a value between a minimum and maximum bound.
@@ -123,11 +130,11 @@ function computeStats(values) {
  * @param {number} hi - Upper bound.
  * @returns {number} Clamped value.
  */
-function clamp(val, lo, hi) {
+var clamp = _val ? _val.clamp : function clamp(val, lo, hi) {
     return val < lo ? lo : val > hi ? hi : val;
-}
+};
 
-var _powTable = [1, 10, 100, 1000, 1e4, 1e5, 1e6, 1e7, 1e8, 1e9, 1e10];
+var _powTable = _val ? null : [1, 10, 100, 1000, 1e4, 1e5, 1e6, 1e7, 1e8, 1e9, 1e10];
 
 /**
  * Round a number to a given number of decimal places.
@@ -135,11 +142,11 @@ var _powTable = [1, 10, 100, 1000, 1e4, 1e5, 1e6, 1e7, 1e8, 1e9, 1e10];
  * @param {number} [decimals=2] - Number of decimal places.
  * @returns {number} Rounded value.
  */
-function round(val, decimals) {
+var round = _val ? _val.round : function round(val, decimals) {
     var d = decimals != null ? decimals : 2;
     var factor = d >= 0 && d <= 10 ? _powTable[d] : Math.pow(10, d);
     return Math.round(val * factor) / factor;
-}
+};
 
 // ── Validation Helpers ──────────────────────────────────────────
 

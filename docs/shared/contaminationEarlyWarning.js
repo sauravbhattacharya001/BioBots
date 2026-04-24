@@ -59,7 +59,7 @@ var MITIGATIONS = {
 
 // ── Helpers ────────────────────────────────────────────────────────
 
-var clamp = require('./utils').clamp;
+var clamp = require('./validation').clamp;
 
 function classifyValue(value, param) {
     var p = PARAMS[param];
