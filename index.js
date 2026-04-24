@@ -83,6 +83,7 @@ var manifest = [
     ['createLabEquipmentScheduler',      './docs/shared/equipmentScheduler',         'createLabEquipmentScheduler'],
     ['createProtocolDeviationTracker',   './docs/shared/protocolDeviation',          'createProtocolDeviationTracker'],
     ['createExperimentReplicator',       './docs/shared/experimentReplicator',       'createExperimentReplicator'],
+    ['createBatchGenealogyTracker',      './docs/shared/batchGenealogy',             'createBatchGenealogyTracker'],
 ];
 
 // ── Pre-computed lookup structures ─────────────────────────────────
