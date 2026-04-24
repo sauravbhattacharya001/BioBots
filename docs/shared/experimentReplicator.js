@@ -65,11 +65,14 @@ var PARAM_UNITS = {
     pressure: 'kPa', layerHeight: 'mm', nozzleDiameter: 'mm'
 };
 
+var _stats = require('./stats');
+
 function round(v, d) { var f = Math.pow(10, d || 2); return Math.round(v * f) / f; }
 
-function mean(arr) { if (!arr.length) return 0; var s = 0; for (var i = 0; i < arr.length; i++) s += arr[i]; return s / arr.length; }
+var mean = _stats.mean;
 
-function variance(arr) { if (arr.length < 2) return 0; var m = mean(arr); var s = 0; for (var i = 0; i < arr.length; i++) s += (arr[i] - m) * (arr[i] - m); return s / (arr.length - 1); }
+/** Sample variance derived from shared stddev (stddev² = variance). */
+function variance(arr) { if (arr.length < 2) return 0; var sd = _stats.stddev(arr); return sd * sd; }
 
 function uid() { return ++uid._c; } uid._c = 0;
 

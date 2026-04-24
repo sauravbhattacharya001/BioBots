@@ -27,28 +27,13 @@
  */
 
 // ── Helpers ─────────────────────────────────────────────────────────
+// Delegate to shared stats module instead of maintaining local copies
+// of mean, stddev, and linear regression.
 
-function linReg(xs, ys) {
-    var n = xs.length;
-    if (n < 2) return { slope: 0, intercept: ys[0] || 0, r2: 0 };
-    var sx = 0, sy = 0, sxx = 0, sxy = 0, syy = 0;
-    for (var i = 0; i < n; i++) {
-        sx += xs[i]; sy += ys[i];
-        sxx += xs[i] * xs[i]; sxy += xs[i] * ys[i]; syy += ys[i] * ys[i];
-    }
-    var denom = n * sxx - sx * sx;
-    if (Math.abs(denom) < 1e-12) return { slope: 0, intercept: sy / n, r2: 0 };
-    var slope = (n * sxy - sx * sy) / denom;
-    var intercept = (sy - slope * sx) / n;
-    var ssTot = syy - sy * sy / n;
-    var ssRes = 0;
-    for (var j = 0; j < n; j++) {
-        var pred = slope * xs[j] + intercept;
-        ssRes += (ys[j] - pred) * (ys[j] - pred);
-    }
-    var r2 = ssTot > 0 ? 1 - ssRes / ssTot : 0;
-    return { slope: slope, intercept: intercept, r2: r2 };
-}
+var _stats = require('./stats');
+var mean = _stats.mean;
+var stddev = _stats.stddev;
+var linReg = _stats.linearRegression;
 
 var _sanitize = require('./sanitize');
 
@@ -60,21 +45,6 @@ function addDays(dateStr, days) {
     var d = new Date(dateStr);
     d.setDate(d.getDate() + days);
     return d.toISOString().slice(0, 10);
-}
-
-function mean(arr) {
-    if (!arr.length) return 0;
-    var s = 0;
-    for (var i = 0; i < arr.length; i++) s += arr[i];
-    return s / arr.length;
-}
-
-function stddev(arr) {
-    if (arr.length < 2) return 0;
-    var m = mean(arr);
-    var s = 0;
-    for (var i = 0; i < arr.length; i++) s += (arr[i] - m) * (arr[i] - m);
-    return Math.sqrt(s / (arr.length - 1));
 }
 
 function zScore(value, m, sd) {
