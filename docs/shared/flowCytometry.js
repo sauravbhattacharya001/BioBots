@@ -242,6 +242,12 @@ function createFlowCytometryAnalyzer() {
 
     /**
      * Build histogram bins from event data.
+     *
+     * Optimized: when logScale is enabled, the previous implementation
+     * allocated a full O(n) intermediate array via .map().  Now computes
+     * min/max and bins in a single pass with inline log10 transform,
+     * halving memory pressure on large datasets (100K–1M events).
+     *
      * @param {Object} opts
      * @param {number[]} opts.events - Fluorescence intensity values
      * @param {number} [opts.bins=256] - Number of bins
@@ -255,27 +261,38 @@ function createFlowCytometryAnalyzer() {
         var ev = opts.events;
         var numBins = opts.bins || 256;
         var useLog = !!opts.logScale;
+        var n = ev.length;
 
-        var values = useLog
-            ? ev.map(function (v) { return v > 0 ? Math.log10(v) : 0; })
-            : ev;
+        // Pass 1: compute min/max with inline transform (avoids O(n) temp array)
+        var minVal, maxVal;
+        if (useLog) {
+            var first = ev[0] > 0 ? Math.log10(ev[0]) : 0;
+            minVal = first;
+            maxVal = first;
+            for (var p = 1; p < n; p++) {
+                var lv = ev[p] > 0 ? Math.log10(ev[p]) : 0;
+                if (lv < minVal) minVal = lv;
+                if (lv > maxVal) maxVal = lv;
+            }
+        } else {
+            var bounds = minMax(ev);
+            minVal = bounds.min;
+            maxVal = bounds.max;
+        }
 
-        // Use iterative min/max instead of Math.min/max.apply() which
-        // throws RangeError on arrays larger than ~65K elements due to
-        // call-stack argument limits — a real problem since flow cytometry
-        // datasets routinely contain 100K–1M events.
-        var bounds = minMax(values);
-        var minVal = bounds.min;
-        var maxVal = bounds.max;
         var range = maxVal - minVal || 1;
         var binWidth = range / numBins;
+        var invBinWidth = 1 / binWidth;  // multiply instead of divide in hot loop
 
         var bins = new Array(numBins);
         for (var b = 0; b < numBins; b++) bins[b] = 0;
 
-        for (var i = 0; i < values.length; i++) {
-            var idx = Math.floor((values[i] - minVal) / binWidth);
-            if (idx >= numBins) idx = numBins - 1;
+        // Pass 2: bin assignment with inline transform
+        var lastBin = numBins - 1;
+        for (var i = 0; i < n; i++) {
+            var val = useLog ? (ev[i] > 0 ? Math.log10(ev[i]) : 0) : ev[i];
+            var idx = (val - minVal) * invBinWidth | 0;
+            if (idx > lastBin) idx = lastBin;
             bins[idx]++;
         }
 
@@ -285,13 +302,21 @@ function createFlowCytometryAnalyzer() {
             minValue: Math.round(minVal * 1000) / 1000,
             maxValue: Math.round(maxVal * 1000) / 1000,
             logScale: useLog,
-            totalEvents: ev.length,
+            totalEvents: n,
             peakBin: (function() { var max = 0, idx = 0; for (var j = 0; j < bins.length; j++) { if (bins[j] > max) { max = bins[j]; idx = j; } } return idx; })(),
         };
     }
 
     /**
      * Calculate spillover compensation between two channels.
+     *
+     * Computes the linear regression slope (spillover coefficient) in a
+     * single pass over the data.  Previously, mean() was called twice
+     * (2 full passes) before the regression pass, totalling 3 passes.
+     * Now uses the algebraic identity:
+     *   slope = (n·ΣXY − ΣX·ΣY) / (n·ΣX² − (ΣX)²)
+     * which needs only ΣX, ΣY, ΣXY, ΣX² — all computable in one loop.
+     *
      * @param {Object} opts
      * @param {number[]} opts.singleStainPrimary - Intensities in primary channel
      * @param {number[]} opts.singleStainSpillover - Intensities in spillover channel
@@ -307,17 +332,20 @@ function createFlowCytometryAnalyzer() {
 
         var primary = opts.singleStainPrimary;
         var spillover = opts.singleStainSpillover;
+        var n = primary.length;
 
-        // Calculate spillover coefficient via linear regression slope
-        var mP = mean(primary);
-        var mS = mean(spillover);
-        var num = 0, den = 0;
-        for (var i = 0; i < primary.length; i++) {
-            num += (primary[i] - mP) * (spillover[i] - mS);
-            den += (primary[i] - mP) * (primary[i] - mP);
+        // Single-pass accumulation for slope = (n·ΣXY - ΣX·ΣY) / (n·ΣX² - (ΣX)²)
+        var sumP = 0, sumS = 0, sumPP = 0, sumPS = 0;
+        for (var i = 0; i < n; i++) {
+            var p = primary[i];
+            sumP += p;
+            sumS += spillover[i];
+            sumPP += p * p;
+            sumPS += p * spillover[i];
         }
 
-        var coefficient = den !== 0 ? num / den : 0;
+        var denom = n * sumPP - sumP * sumP;
+        var coefficient = denom !== 0 ? (n * sumPS - sumP * sumS) / denom : 0;
 
         return {
             spilloverCoefficient: Math.round(coefficient * 10000) / 10000,
