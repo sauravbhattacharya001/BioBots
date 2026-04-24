@@ -1,0 +1,998 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>BioBots — Lab Personnel Training Tracker</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎓</text></svg>">
+    <style>
+        :root {
+            --bg: #0f172a;
+            --surface: #1e293b;
+            --border: #334155;
+            --text: #e2e8f0;
+            --muted: #94a3b8;
+            --accent: #38bdf8;
+            --accent-hover: #7dd3fc;
+            --success: #4ade80;
+            --warning: #fbbf24;
+            --error: #f87171;
+            --purple: #a78bfa;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            padding: 1.5rem;
+        }
+        header { text-align: center; margin-bottom: 1.5rem; }
+        header h1 {
+            font-size: 1.8rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, var(--accent), var(--purple));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        header p { color: var(--muted); margin-top: 0.3rem; font-size: 0.9rem; }
+        .tabs {
+            display: flex;
+            gap: 0.5rem;
+            justify-content: center;
+            margin-bottom: 1.5rem;
+            flex-wrap: wrap;
+        }
+        .tab {
+            padding: 0.5rem 1rem;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            background: var(--surface);
+            color: var(--muted);
+            cursor: pointer;
+            font-size: 0.85rem;
+            transition: all 0.2s;
+        }
+        .tab:hover { border-color: var(--accent); color: var(--text); }
+        .tab.active { background: var(--accent); color: var(--bg); border-color: var(--accent); font-weight: 600; }
+        .panel { display: none; max-width: 1100px; margin: 0 auto; }
+        .panel.active { display: block; }
+        .card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 1.2rem;
+            margin-bottom: 1rem;
+        }
+        .card h3 { font-size: 1rem; margin-bottom: 0.8rem; color: var(--accent); }
+        table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+        th, td { padding: 0.5rem 0.6rem; text-align: left; border-bottom: 1px solid var(--border); }
+        th { color: var(--muted); font-weight: 600; font-size: 0.8rem; text-transform: uppercase; }
+        .badge {
+            display: inline-block;
+            padding: 0.15rem 0.5rem;
+            border-radius: 999px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+        .badge-valid { background: rgba(74,222,128,0.15); color: var(--success); }
+        .badge-expiring { background: rgba(251,191,36,0.15); color: var(--warning); }
+        .badge-expired { background: rgba(248,113,113,0.15); color: var(--error); }
+        .badge-none { background: rgba(148,163,184,0.15); color: var(--muted); }
+        .btn {
+            padding: 0.4rem 0.8rem;
+            border-radius: 6px;
+            border: 1px solid var(--border);
+            background: var(--surface);
+            color: var(--text);
+            cursor: pointer;
+            font-size: 0.8rem;
+            transition: all 0.2s;
+        }
+        .btn:hover { border-color: var(--accent); }
+        .btn-primary { background: var(--accent); color: var(--bg); border-color: var(--accent); font-weight: 600; }
+        .btn-primary:hover { background: var(--accent-hover); }
+        .btn-sm { padding: 0.2rem 0.5rem; font-size: 0.75rem; }
+        .form-row { display: flex; gap: 0.5rem; margin-bottom: 0.5rem; flex-wrap: wrap; }
+        .form-row label { font-size: 0.8rem; color: var(--muted); display: block; margin-bottom: 0.2rem; }
+        .form-row input, .form-row select {
+            padding: 0.4rem 0.6rem;
+            border-radius: 6px;
+            border: 1px solid var(--border);
+            background: var(--bg);
+            color: var(--text);
+            font-size: 0.85rem;
+            flex: 1;
+            min-width: 140px;
+        }
+        .form-row input:focus, .form-row select:focus { outline: none; border-color: var(--accent); }
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 0.8rem;
+            margin-bottom: 1rem;
+        }
+        .stat-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 1rem;
+            text-align: center;
+        }
+        .stat-card .num { font-size: 1.6rem; font-weight: 700; }
+        .stat-card .label { font-size: 0.75rem; color: var(--muted); margin-top: 0.2rem; }
+        .progress-bar {
+            height: 6px;
+            background: var(--border);
+            border-radius: 3px;
+            overflow: hidden;
+            margin-top: 0.3rem;
+        }
+        .progress-fill { height: 100%; border-radius: 3px; transition: width 0.3s; }
+        .alert-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.6rem;
+            border-radius: 8px;
+            margin-bottom: 0.5rem;
+            font-size: 0.85rem;
+        }
+        .alert-warn { background: rgba(251,191,36,0.1); border: 1px solid rgba(251,191,36,0.3); }
+        .alert-danger { background: rgba(248,113,113,0.1); border: 1px solid rgba(248,113,113,0.3); }
+        .alert-info { background: rgba(56,189,248,0.1); border: 1px solid rgba(56,189,248,0.3); }
+        canvas { max-width: 100%; }
+        .empty { color: var(--muted); text-align: center; padding: 2rem; font-size: 0.9rem; }
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.6);
+            z-index: 100;
+            justify-content: center;
+            align-items: center;
+        }
+        .modal-overlay.open { display: flex; }
+        .modal {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 1.5rem;
+            max-width: 500px;
+            width: 90%;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+        .modal h3 { margin-bottom: 1rem; }
+        @media (max-width: 600px) {
+            .stats-grid { grid-template-columns: repeat(2, 1fr); }
+            table { font-size: 0.75rem; }
+        }
+        .back-link { display: inline-block; margin-bottom: 1rem; color: var(--accent); text-decoration: none; font-size: 0.85rem; }
+        .back-link:hover { color: var(--accent-hover); }
+    </style>
+</head>
+<body>
+    <a href="index.html" class="back-link">← Back to BioBots Hub</a>
+    <header>
+        <h1>🎓 Lab Personnel Training Tracker</h1>
+        <p>Autonomous certification management with expiry alerts, skill matrices, and refresher scheduling</p>
+    </header>
+
+    <div class="tabs">
+        <div class="tab active" data-tab="dashboard">📊 Dashboard</div>
+        <div class="tab" data-tab="personnel">👤 Personnel</div>
+        <div class="tab" data-tab="certifications">📜 Certifications</div>
+        <div class="tab" data-tab="equipment">🔧 Equipment Quals</div>
+        <div class="tab" data-tab="alerts">🔔 Smart Alerts</div>
+        <div class="tab" data-tab="matrix">📋 Skill Matrix</div>
+        <div class="tab" data-tab="insights">🧠 Insights</div>
+    </div>
+
+    <!-- Dashboard -->
+    <div class="panel active" id="panel-dashboard">
+        <div class="stats-grid" id="dash-stats"></div>
+        <div class="card">
+            <h3>⚠️ Upcoming Expirations (30 days)</h3>
+            <div id="dash-expirations"></div>
+        </div>
+        <div class="card">
+            <h3>📈 Team Compliance Over Time</h3>
+            <canvas id="compliance-chart" height="200"></canvas>
+        </div>
+        <div class="card">
+            <h3>🤖 Proactive Recommendations</h3>
+            <div id="dash-recommendations"></div>
+        </div>
+    </div>
+
+    <!-- Personnel -->
+    <div class="panel" id="panel-personnel">
+        <div class="card">
+            <h3>Add Personnel</h3>
+            <div class="form-row">
+                <div><label>Name</label><input id="p-name" placeholder="Dr. Jane Smith"></div>
+                <div><label>Role</label>
+                    <select id="p-role">
+                        <option>Lab Technician</option>
+                        <option>Research Scientist</option>
+                        <option>Lab Manager</option>
+                        <option>Bioprint Operator</option>
+                        <option>QA Specialist</option>
+                        <option>Intern</option>
+                    </select>
+                </div>
+                <div><label>Department</label>
+                    <select id="p-dept">
+                        <option>Bioprinting</option>
+                        <option>Cell Culture</option>
+                        <option>Quality Control</option>
+                        <option>Materials</option>
+                        <option>Research</option>
+                    </select>
+                </div>
+                <div style="display:flex;align-items:flex-end"><button class="btn btn-primary" onclick="addPerson()">+ Add</button></div>
+            </div>
+        </div>
+        <div class="card">
+            <h3>Personnel Roster</h3>
+            <table>
+                <thead><tr><th>Name</th><th>Role</th><th>Dept</th><th>Certs</th><th>Quals</th><th>Compliance</th><th>Actions</th></tr></thead>
+                <tbody id="personnel-table"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Certifications -->
+    <div class="panel" id="panel-certifications">
+        <div class="card">
+            <h3>Add Certification</h3>
+            <div class="form-row">
+                <div><label>Person</label><select id="c-person"></select></div>
+                <div><label>Certification</label>
+                    <select id="c-cert">
+                        <option>Biosafety Level 2</option>
+                        <option>Biosafety Level 3</option>
+                        <option>GMP Fundamentals</option>
+                        <option>Aseptic Technique</option>
+                        <option>Chemical Handling</option>
+                        <option>Radiation Safety</option>
+                        <option>HAZMAT</option>
+                        <option>Fire Safety</option>
+                        <option>First Aid / CPR</option>
+                        <option>Bioprinting Basics</option>
+                        <option>Cell Culture Handling</option>
+                        <option>Cryopreservation</option>
+                        <option>Data Integrity</option>
+                        <option>Equipment Calibration</option>
+                    </select>
+                </div>
+                <div><label>Issued</label><input id="c-issued" type="date"></div>
+                <div><label>Expires</label><input id="c-expires" type="date"></div>
+                <div style="display:flex;align-items:flex-end"><button class="btn btn-primary" onclick="addCert()">+ Add</button></div>
+            </div>
+        </div>
+        <div class="card">
+            <h3>All Certifications</h3>
+            <div class="form-row" style="margin-bottom:0.8rem">
+                <div><label>Filter by Status</label>
+                    <select id="cert-filter" onchange="renderCerts()">
+                        <option value="all">All</option>
+                        <option value="valid">Valid</option>
+                        <option value="expiring">Expiring Soon</option>
+                        <option value="expired">Expired</option>
+                    </select>
+                </div>
+            </div>
+            <table>
+                <thead><tr><th>Person</th><th>Certification</th><th>Issued</th><th>Expires</th><th>Status</th><th>Days Left</th><th>Actions</th></tr></thead>
+                <tbody id="certs-table"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Equipment Qualifications -->
+    <div class="panel" id="panel-equipment">
+        <div class="card">
+            <h3>Add Equipment Qualification</h3>
+            <div class="form-row">
+                <div><label>Person</label><select id="eq-person"></select></div>
+                <div><label>Equipment</label>
+                    <select id="eq-equip">
+                        <option>BioBot 1 Printer</option>
+                        <option>BioBot 2 Printer</option>
+                        <option>Laminar Flow Hood</option>
+                        <option>Centrifuge</option>
+                        <option>Incubator</option>
+                        <option>Microscope (Fluorescence)</option>
+                        <option>Plate Reader</option>
+                        <option>Cell Counter</option>
+                        <option>Cryogenic Storage</option>
+                        <option>PCR Thermocycler</option>
+                        <option>UV Crosslinker</option>
+                        <option>Rheometer</option>
+                    </select>
+                </div>
+                <div><label>Level</label>
+                    <select id="eq-level">
+                        <option>Observer</option>
+                        <option>Supervised</option>
+                        <option>Independent</option>
+                        <option>Trainer</option>
+                    </select>
+                </div>
+                <div><label>Qualified On</label><input id="eq-date" type="date"></div>
+                <div style="display:flex;align-items:flex-end"><button class="btn btn-primary" onclick="addQual()">+ Add</button></div>
+            </div>
+        </div>
+        <div class="card">
+            <h3>Equipment Qualifications</h3>
+            <table>
+                <thead><tr><th>Person</th><th>Equipment</th><th>Level</th><th>Qualified</th><th>Last Used</th><th>Status</th></tr></thead>
+                <tbody id="equip-table"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Smart Alerts -->
+    <div class="panel" id="panel-alerts">
+        <div class="card">
+            <h3>🔔 Active Alerts</h3>
+            <p style="font-size:0.8rem;color:var(--muted);margin-bottom:0.8rem">Autonomous monitoring detects expiring certifications, qualification gaps, and training overdue items</p>
+            <div id="alerts-list"></div>
+        </div>
+        <div class="card">
+            <h3>⚙️ Alert Configuration</h3>
+            <div class="form-row">
+                <div><label>Expiry Warning (days)</label><input id="alert-days" type="number" value="30" min="1" max="180"></div>
+                <div><label>Qualification Decay (days unused)</label><input id="qual-decay" type="number" value="180" min="30" max="365"></div>
+                <div style="display:flex;align-items:flex-end"><button class="btn btn-primary" onclick="saveAlertConfig()">Save</button></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Skill Matrix -->
+    <div class="panel" id="panel-matrix">
+        <div class="card">
+            <h3>📋 Team Skill Matrix</h3>
+            <p style="font-size:0.8rem;color:var(--muted);margin-bottom:0.8rem">Cross-reference of personnel qualifications and certifications. Green=qualified, Yellow=expiring, Red=expired/gap</p>
+            <div id="matrix-container" style="overflow-x:auto"></div>
+        </div>
+        <div class="card">
+            <h3>🎯 Coverage Gaps</h3>
+            <div id="coverage-gaps"></div>
+        </div>
+    </div>
+
+    <!-- Insights -->
+    <div class="panel" id="panel-insights">
+        <div class="card">
+            <h3>🧠 Autonomous Training Insights</h3>
+            <p style="font-size:0.8rem;color:var(--muted);margin-bottom:0.8rem">AI-driven analysis of team training patterns, risk areas, and optimization suggestions</p>
+            <div id="insights-list"></div>
+        </div>
+        <div class="card">
+            <h3>📅 Suggested Training Schedule</h3>
+            <div id="training-schedule"></div>
+        </div>
+        <div class="card">
+            <h3>📊 Export</h3>
+            <div style="display:flex;gap:0.5rem;flex-wrap:wrap">
+                <button class="btn" onclick="exportJSON()">📄 JSON</button>
+                <button class="btn" onclick="exportCSV()">📊 CSV</button>
+                <button class="btn" onclick="loadDemo()">🎲 Load Demo Data</button>
+                <button class="btn" onclick="clearAll()">🗑️ Clear All</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Renew Modal -->
+    <div class="modal-overlay" id="renew-modal">
+        <div class="modal">
+            <h3>🔄 Renew Certification</h3>
+            <div class="form-row">
+                <div><label>New Expiry Date</label><input id="renew-date" type="date"></div>
+            </div>
+            <div style="display:flex;gap:0.5rem;margin-top:1rem">
+                <button class="btn btn-primary" onclick="confirmRenew()">Renew</button>
+                <button class="btn" onclick="closeModal()">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+<script>
+// ─── State ───
+const STATE_KEY = 'biobots_training_tracker';
+let state = loadState();
+let renewIdx = -1;
+let alertConfig = { expiryDays: 30, qualDecayDays: 180 };
+
+function defaultState() {
+    return { personnel: [], certifications: [], qualifications: [], history: [] };
+}
+function loadState() {
+    try { return JSON.parse(localStorage.getItem(STATE_KEY)) || defaultState(); }
+    catch { return defaultState(); }
+}
+function saveState() { localStorage.setItem(STATE_KEY, JSON.stringify(state)); }
+
+// ─── Helpers ───
+const today = () => new Date().toISOString().slice(0, 10);
+const daysBetween = (a, b) => Math.round((new Date(b) - new Date(a)) / 86400000);
+const fmtDate = d => d ? new Date(d + 'T00:00:00').toLocaleDateString() : '—';
+
+function certStatus(expires) {
+    if (!expires) return { status: 'none', cls: 'badge-none', label: 'No Expiry' };
+    const days = daysBetween(today(), expires);
+    if (days < 0) return { status: 'expired', cls: 'badge-expired', label: 'Expired' };
+    if (days <= alertConfig.expiryDays) return { status: 'expiring', cls: 'badge-expiring', label: 'Expiring' };
+    return { status: 'valid', cls: 'badge-valid', label: 'Valid' };
+}
+
+function qualStatus(q) {
+    const lastUsed = q.lastUsed || q.date;
+    const daysSince = daysBetween(lastUsed, today());
+    if (daysSince > alertConfig.qualDecayDays) return { cls: 'badge-expired', label: 'Decayed' };
+    if (daysSince > alertConfig.qualDecayDays * 0.7) return { cls: 'badge-expiring', label: 'At Risk' };
+    return { cls: 'badge-valid', label: 'Active' };
+}
+
+// ─── Tab Navigation ───
+document.querySelectorAll('.tab').forEach(t => {
+    t.addEventListener('click', () => {
+        document.querySelectorAll('.tab').forEach(x => x.classList.remove('active'));
+        document.querySelectorAll('.panel').forEach(x => x.classList.remove('active'));
+        t.classList.add('active');
+        document.getElementById('panel-' + t.dataset.tab).classList.add('active');
+        refresh();
+    });
+});
+
+// ─── CRUD ───
+function addPerson() {
+    const name = document.getElementById('p-name').value.trim();
+    if (!name) return;
+    state.personnel.push({ id: Date.now(), name, role: document.getElementById('p-role').value, dept: document.getElementById('p-dept').value });
+    document.getElementById('p-name').value = '';
+    saveState(); refresh();
+}
+
+function addCert() {
+    const personId = +document.getElementById('c-person').value;
+    if (!personId) return;
+    state.certifications.push({
+        id: Date.now(), personId,
+        name: document.getElementById('c-cert').value,
+        issued: document.getElementById('c-issued').value,
+        expires: document.getElementById('c-expires').value
+    });
+    state.history.push({ ts: new Date().toISOString(), type: 'cert_added', personId, cert: document.getElementById('c-cert').value });
+    saveState(); refresh();
+}
+
+function addQual() {
+    const personId = +document.getElementById('eq-person').value;
+    if (!personId) return;
+    state.qualifications.push({
+        id: Date.now(), personId,
+        equipment: document.getElementById('eq-equip').value,
+        level: document.getElementById('eq-level').value,
+        date: document.getElementById('eq-date').value || today(),
+        lastUsed: today()
+    });
+    saveState(); refresh();
+}
+
+function removePerson(id) {
+    if (!confirm('Remove this person and all their records?')) return;
+    state.personnel = state.personnel.filter(p => p.id !== id);
+    state.certifications = state.certifications.filter(c => c.personId !== id);
+    state.qualifications = state.qualifications.filter(q => q.personId !== id);
+    saveState(); refresh();
+}
+
+function renewCert(idx) {
+    renewIdx = idx;
+    const d = new Date();
+    d.setFullYear(d.getFullYear() + 1);
+    document.getElementById('renew-date').value = d.toISOString().slice(0, 10);
+    document.getElementById('renew-modal').classList.add('open');
+}
+function confirmRenew() {
+    if (renewIdx >= 0 && renewIdx < state.certifications.length) {
+        const newDate = document.getElementById('renew-date').value;
+        state.certifications[renewIdx].expires = newDate;
+        state.certifications[renewIdx].issued = today();
+        state.history.push({ ts: new Date().toISOString(), type: 'cert_renewed', certId: state.certifications[renewIdx].id });
+        saveState(); refresh();
+    }
+    closeModal();
+}
+function closeModal() { document.getElementById('renew-modal').classList.remove('open'); renewIdx = -1; }
+
+// ─── Rendering ───
+function refresh() {
+    renderDashboard();
+    renderPersonnel();
+    renderCerts();
+    renderEquipment();
+    renderAlerts();
+    renderMatrix();
+    renderInsights();
+    populatePersonSelects();
+}
+
+function populatePersonSelects() {
+    ['c-person', 'eq-person'].forEach(id => {
+        const sel = document.getElementById(id);
+        const val = sel.value;
+        sel.innerHTML = state.personnel.map(p => `<option value="${p.id}">${p.name}</option>`).join('');
+        if (val) sel.value = val;
+    });
+}
+
+function renderDashboard() {
+    const total = state.personnel.length;
+    const certs = state.certifications;
+    const valid = certs.filter(c => certStatus(c.expires).status === 'valid').length;
+    const expiring = certs.filter(c => certStatus(c.expires).status === 'expiring').length;
+    const expired = certs.filter(c => certStatus(c.expires).status === 'expired').length;
+    const quals = state.qualifications.length;
+    const compliance = certs.length ? Math.round((valid / certs.length) * 100) : 100;
+
+    document.getElementById('dash-stats').innerHTML = [
+        { num: total, label: 'Personnel', color: 'var(--accent)' },
+        { num: certs.length, label: 'Certifications', color: 'var(--purple)' },
+        { num: quals, label: 'Equipment Quals', color: 'var(--success)' },
+        { num: compliance + '%', label: 'Compliance Rate', color: compliance >= 80 ? 'var(--success)' : compliance >= 50 ? 'var(--warning)' : 'var(--error)' },
+        { num: expiring, label: 'Expiring Soon', color: 'var(--warning)' },
+        { num: expired, label: 'Expired', color: 'var(--error)' }
+    ].map(s => `<div class="stat-card"><div class="num" style="color:${s.color}">${s.num}</div><div class="label">${s.label}</div></div>`).join('');
+
+    // Expiring soon
+    const soon = certs.filter(c => {
+        const d = daysBetween(today(), c.expires);
+        return d >= 0 && d <= 30;
+    }).sort((a, b) => daysBetween(today(), a.expires) - daysBetween(today(), b.expires));
+    const pMap = Object.fromEntries(state.personnel.map(p => [p.id, p.name]));
+    document.getElementById('dash-expirations').innerHTML = soon.length === 0
+        ? '<div class="empty">✅ No certifications expiring in the next 30 days</div>'
+        : soon.map(c => {
+            const days = daysBetween(today(), c.expires);
+            return `<div class="alert-item ${days <= 7 ? 'alert-danger' : 'alert-warn'}">
+                <span><strong>${pMap[c.personId] || 'Unknown'}</strong> — ${c.name}</span>
+                <span>${days} day${days !== 1 ? 's' : ''} left</span>
+            </div>`;
+        }).join('');
+
+    // Compliance chart
+    drawComplianceChart(compliance);
+
+    // Recommendations
+    const recs = generateRecommendations();
+    document.getElementById('dash-recommendations').innerHTML = recs.length === 0
+        ? '<div class="empty">✅ No recommendations at this time</div>'
+        : recs.map(r => `<div class="alert-item alert-info"><span>${r}</span></div>`).join('');
+}
+
+function drawComplianceChart(current) {
+    const canvas = document.getElementById('compliance-chart');
+    const ctx = canvas.getContext('2d');
+    canvas.width = canvas.parentElement.clientWidth - 40;
+    canvas.height = 200;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    // Simulated historical data
+    const months = ['6mo ago', '5mo', '4mo', '3mo', '2mo', '1mo', 'Now'];
+    const base = Math.max(50, current - 15);
+    const data = months.map((_, i) => i === months.length - 1 ? current : Math.min(100, base + Math.round(Math.random() * 20)));
+    data[data.length - 1] = current;
+
+    const pad = { l: 40, r: 20, t: 10, b: 30 };
+    const w = canvas.width - pad.l - pad.r;
+    const h = canvas.height - pad.t - pad.b;
+
+    // Grid
+    ctx.strokeStyle = '#334155';
+    ctx.lineWidth = 0.5;
+    for (let y = 0; y <= 100; y += 25) {
+        const py = pad.t + h - (y / 100) * h;
+        ctx.beginPath(); ctx.moveTo(pad.l, py); ctx.lineTo(pad.l + w, py); ctx.stroke();
+        ctx.fillStyle = '#94a3b8'; ctx.font = '11px sans-serif'; ctx.textAlign = 'right';
+        ctx.fillText(y + '%', pad.l - 5, py + 4);
+    }
+
+    // Labels
+    ctx.textAlign = 'center';
+    months.forEach((m, i) => {
+        ctx.fillStyle = '#94a3b8'; ctx.font = '11px sans-serif';
+        ctx.fillText(m, pad.l + (i / (months.length - 1)) * w, canvas.height - 5);
+    });
+
+    // Line
+    ctx.beginPath();
+    ctx.strokeStyle = '#38bdf8';
+    ctx.lineWidth = 2.5;
+    data.forEach((v, i) => {
+        const x = pad.l + (i / (data.length - 1)) * w;
+        const y = pad.t + h - (v / 100) * h;
+        i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+    });
+    ctx.stroke();
+
+    // Dots
+    data.forEach((v, i) => {
+        const x = pad.l + (i / (data.length - 1)) * w;
+        const y = pad.t + h - (v / 100) * h;
+        ctx.beginPath();
+        ctx.arc(x, y, 4, 0, Math.PI * 2);
+        ctx.fillStyle = v >= 80 ? '#4ade80' : v >= 50 ? '#fbbf24' : '#f87171';
+        ctx.fill();
+    });
+}
+
+function renderPersonnel() {
+    const pMap = {};
+    state.certifications.forEach(c => { pMap[c.personId] = (pMap[c.personId] || 0) + 1; });
+    const qMap = {};
+    state.qualifications.forEach(q => { qMap[q.personId] = (qMap[q.personId] || 0) + 1; });
+
+    document.getElementById('personnel-table').innerHTML = state.personnel.length === 0
+        ? '<tr><td colspan="7" class="empty">No personnel added yet</td></tr>'
+        : state.personnel.map(p => {
+            const certs = state.certifications.filter(c => c.personId === p.id);
+            const valid = certs.filter(c => certStatus(c.expires).status === 'valid').length;
+            const pct = certs.length ? Math.round((valid / certs.length) * 100) : 100;
+            const color = pct >= 80 ? 'var(--success)' : pct >= 50 ? 'var(--warning)' : 'var(--error)';
+            return `<tr>
+                <td><strong>${p.name}</strong></td>
+                <td>${p.role}</td>
+                <td>${p.dept}</td>
+                <td>${pMap[p.id] || 0}</td>
+                <td>${qMap[p.id] || 0}</td>
+                <td><div style="display:flex;align-items:center;gap:0.5rem"><span style="color:${color}">${pct}%</span>
+                    <div class="progress-bar" style="width:60px"><div class="progress-fill" style="width:${pct}%;background:${color}"></div></div></div></td>
+                <td><button class="btn btn-sm" onclick="removePerson(${p.id})">🗑️</button></td>
+            </tr>`;
+        }).join('');
+}
+
+function renderCerts() {
+    const filter = document.getElementById('cert-filter')?.value || 'all';
+    const pMap = Object.fromEntries(state.personnel.map(p => [p.id, p.name]));
+    let certs = state.certifications;
+    if (filter !== 'all') certs = certs.filter(c => certStatus(c.expires).status === filter);
+
+    document.getElementById('certs-table').innerHTML = certs.length === 0
+        ? '<tr><td colspan="7" class="empty">No certifications</td></tr>'
+        : certs.map((c, i) => {
+            const s = certStatus(c.expires);
+            const days = c.expires ? daysBetween(today(), c.expires) : '—';
+            const origIdx = state.certifications.indexOf(c);
+            return `<tr>
+                <td>${pMap[c.personId] || 'Unknown'}</td>
+                <td>${c.name}</td>
+                <td>${fmtDate(c.issued)}</td>
+                <td>${fmtDate(c.expires)}</td>
+                <td><span class="badge ${s.cls}">${s.label}</span></td>
+                <td>${typeof days === 'number' ? days : days}</td>
+                <td><button class="btn btn-sm" onclick="renewCert(${origIdx})">🔄</button></td>
+            </tr>`;
+        }).join('');
+}
+
+function renderEquipment() {
+    const pMap = Object.fromEntries(state.personnel.map(p => [p.id, p.name]));
+    document.getElementById('equip-table').innerHTML = state.qualifications.length === 0
+        ? '<tr><td colspan="6" class="empty">No equipment qualifications</td></tr>'
+        : state.qualifications.map(q => {
+            const s = qualStatus(q);
+            return `<tr>
+                <td>${pMap[q.personId] || 'Unknown'}</td>
+                <td>${q.equipment}</td>
+                <td>${q.level}</td>
+                <td>${fmtDate(q.date)}</td>
+                <td>${fmtDate(q.lastUsed || q.date)}</td>
+                <td><span class="badge ${s.cls}">${s.label}</span></td>
+            </tr>`;
+        }).join('');
+}
+
+function renderAlerts() {
+    const alerts = [];
+    const pMap = Object.fromEntries(state.personnel.map(p => [p.id, p.name]));
+
+    // Cert expiry alerts
+    state.certifications.forEach(c => {
+        const s = certStatus(c.expires);
+        const days = c.expires ? daysBetween(today(), c.expires) : null;
+        if (s.status === 'expired') {
+            alerts.push({ severity: 'danger', msg: `🔴 <strong>${pMap[c.personId]}</strong>'s "${c.name}" certification expired ${Math.abs(days)} days ago. Schedule refresher training immediately.` });
+        } else if (s.status === 'expiring') {
+            alerts.push({ severity: 'warn', msg: `🟡 <strong>${pMap[c.personId]}</strong>'s "${c.name}" certification expires in ${days} days. Recommend scheduling renewal.` });
+        }
+    });
+
+    // Qualification decay alerts
+    state.qualifications.forEach(q => {
+        const s = qualStatus(q);
+        if (s.label === 'Decayed') {
+            alerts.push({ severity: 'danger', msg: `🔴 <strong>${pMap[q.personId]}</strong>'s qualification on "${q.equipment}" has decayed (unused for ${daysBetween(q.lastUsed || q.date, today())} days). Re-qualification required.` });
+        } else if (s.label === 'At Risk') {
+            alerts.push({ severity: 'warn', msg: `🟡 <strong>${pMap[q.personId]}</strong>'s "${q.equipment}" qualification is at risk of decay. Recommend supervised session.` });
+        }
+    });
+
+    // Coverage alerts
+    const equipment = ['BioBot 1 Printer', 'BioBot 2 Printer', 'Laminar Flow Hood'];
+    equipment.forEach(eq => {
+        const qualified = state.qualifications.filter(q => q.equipment === eq && q.level !== 'Observer');
+        if (qualified.length < 2 && state.personnel.length >= 2) {
+            alerts.push({ severity: 'warn', msg: `🟡 Only ${qualified.length} person(s) qualified on "${eq}". Single point of failure risk — train backup operators.` });
+        }
+    });
+
+    alerts.sort((a, b) => (a.severity === 'danger' ? 0 : 1) - (b.severity === 'danger' ? 0 : 1));
+    document.getElementById('alerts-list').innerHTML = alerts.length === 0
+        ? '<div class="empty">✅ No active alerts — all certifications and qualifications are current</div>'
+        : alerts.map(a => `<div class="alert-item alert-${a.severity}">${a.msg}</div>`).join('');
+}
+
+function renderMatrix() {
+    if (state.personnel.length === 0) {
+        document.getElementById('matrix-container').innerHTML = '<div class="empty">Add personnel to see skill matrix</div>';
+        document.getElementById('coverage-gaps').innerHTML = '';
+        return;
+    }
+
+    const allCerts = [...new Set(state.certifications.map(c => c.name))];
+    const allEquip = [...new Set(state.qualifications.map(q => q.equipment))];
+    const items = [...allCerts.map(c => ({ name: c, type: 'cert' })), ...allEquip.map(e => ({ name: e, type: 'equip' }))];
+
+    if (items.length === 0) {
+        document.getElementById('matrix-container').innerHTML = '<div class="empty">Add certifications or qualifications to see matrix</div>';
+        return;
+    }
+
+    let html = '<table><thead><tr><th>Person</th>';
+    items.forEach(it => { html += `<th style="writing-mode:vertical-rl;transform:rotate(180deg);font-size:0.7rem;max-width:30px">${it.type === 'cert' ? '📜' : '🔧'} ${it.name}</th>`; });
+    html += '</tr></thead><tbody>';
+
+    state.personnel.forEach(p => {
+        html += `<tr><td><strong>${p.name}</strong></td>`;
+        items.forEach(it => {
+            let cell = '—';
+            let bg = 'transparent';
+            if (it.type === 'cert') {
+                const c = state.certifications.find(c => c.personId === p.id && c.name === it.name);
+                if (c) {
+                    const s = certStatus(c.expires);
+                    bg = s.status === 'valid' ? 'rgba(74,222,128,0.2)' : s.status === 'expiring' ? 'rgba(251,191,36,0.2)' : 'rgba(248,113,113,0.2)';
+                    cell = s.status === 'valid' ? '✅' : s.status === 'expiring' ? '⚠️' : '❌';
+                }
+            } else {
+                const q = state.qualifications.find(q => q.personId === p.id && q.equipment === it.name);
+                if (q) {
+                    const s = qualStatus(q);
+                    bg = s.label === 'Active' ? 'rgba(74,222,128,0.2)' : s.label === 'At Risk' ? 'rgba(251,191,36,0.2)' : 'rgba(248,113,113,0.2)';
+                    cell = q.level.charAt(0);
+                }
+            }
+            html += `<td style="text-align:center;background:${bg}">${cell}</td>`;
+        });
+        html += '</tr>';
+    });
+    html += '</tbody></table>';
+    document.getElementById('matrix-container').innerHTML = html;
+
+    // Coverage gaps
+    const gaps = [];
+    items.forEach(it => {
+        const count = it.type === 'cert'
+            ? state.certifications.filter(c => c.name === it.name && certStatus(c.expires).status === 'valid').length
+            : state.qualifications.filter(q => q.equipment === it.name && qualStatus(q).label === 'Active').length;
+        if (count === 0) gaps.push(`🔴 No active coverage for "${it.name}"`);
+        else if (count === 1) gaps.push(`🟡 Single-person coverage for "${it.name}" — train a backup`);
+    });
+    document.getElementById('coverage-gaps').innerHTML = gaps.length === 0
+        ? '<div class="empty">✅ No critical coverage gaps detected</div>'
+        : gaps.map(g => `<div class="alert-item ${g.startsWith('🔴') ? 'alert-danger' : 'alert-warn'}">${g}</div>`).join('');
+}
+
+function generateRecommendations() {
+    const recs = [];
+    const pMap = Object.fromEntries(state.personnel.map(p => [p.id, p.name]));
+
+    // People with no certs
+    state.personnel.forEach(p => {
+        if (!state.certifications.some(c => c.personId === p.id)) {
+            recs.push(`📋 <strong>${p.name}</strong> has no certifications on file. Schedule initial training.`);
+        }
+    });
+
+    // People with no equipment quals
+    state.personnel.filter(p => p.role !== 'Intern').forEach(p => {
+        if (!state.qualifications.some(q => q.personId === p.id)) {
+            recs.push(`🔧 <strong>${p.name}</strong> has no equipment qualifications. Assign equipment training.`);
+        }
+    });
+
+    // Roles needing specific certs
+    const roleCerts = {
+        'Bioprint Operator': ['Bioprinting Basics', 'Biosafety Level 2'],
+        'Lab Technician': ['Aseptic Technique', 'Chemical Handling'],
+        'QA Specialist': ['GMP Fundamentals', 'Data Integrity']
+    };
+    state.personnel.forEach(p => {
+        const needed = roleCerts[p.role] || [];
+        needed.forEach(cert => {
+            if (!state.certifications.some(c => c.personId === p.id && c.name === cert && certStatus(c.expires).status !== 'expired')) {
+                recs.push(`🎯 <strong>${p.name}</strong> (${p.role}) should have "${cert}" certification.`);
+            }
+        });
+    });
+
+    // Trainers needed
+    const trainerEquip = state.qualifications.filter(q => q.level === 'Trainer');
+    if (state.qualifications.length > 0 && trainerEquip.length === 0) {
+        recs.push(`👨‍🏫 No personnel are qualified as Trainers on any equipment. Promote experienced operators to Trainer level.`);
+    }
+
+    return recs.slice(0, 8);
+}
+
+function renderInsights() {
+    const insights = [];
+    const total = state.personnel.length;
+    const certs = state.certifications;
+    const quals = state.qualifications;
+
+    if (total === 0) {
+        document.getElementById('insights-list').innerHTML = '<div class="empty">Add personnel to generate insights</div>';
+        document.getElementById('training-schedule').innerHTML = '';
+        return;
+    }
+
+    // Compliance trend
+    const validPct = certs.length ? Math.round(certs.filter(c => certStatus(c.expires).status === 'valid').length / certs.length * 100) : 100;
+    if (validPct === 100 && certs.length > 0) insights.push('🏆 Perfect compliance! All certifications are current.');
+    else if (validPct < 70) insights.push(`⚠️ Compliance is at ${validPct}%. Prioritize certification renewals to reduce regulatory risk.`);
+
+    // Dept analysis
+    const depts = {};
+    state.personnel.forEach(p => {
+        if (!depts[p.dept]) depts[p.dept] = { people: 0, certs: 0, validCerts: 0 };
+        depts[p.dept].people++;
+        const pc = certs.filter(c => c.personId === p.id);
+        depts[p.dept].certs += pc.length;
+        depts[p.dept].validCerts += pc.filter(c => certStatus(c.expires).status === 'valid').length;
+    });
+    Object.entries(depts).forEach(([dept, d]) => {
+        const pct = d.certs ? Math.round(d.validCerts / d.certs * 100) : 100;
+        if (pct < 80 && d.certs > 0) insights.push(`📊 ${dept} department compliance is ${pct}% — below target. Focus training resources here.`);
+    });
+
+    // Qualification depth
+    const levels = { Observer: 0, Supervised: 1, Independent: 2, Trainer: 3 };
+    const avgLevel = quals.length ? quals.reduce((s, q) => s + (levels[q.level] || 0), 0) / quals.length : 0;
+    if (avgLevel < 1.5 && quals.length > 0) insights.push('📈 Average qualification level is below "Independent". Invest in advancement training.');
+    if (avgLevel >= 2.5 && quals.length > 0) insights.push('🌟 Team has strong qualification depth — average at or above Independent level.');
+
+    // Cross-training
+    const uniqueEquip = new Set(quals.map(q => q.equipment));
+    if (uniqueEquip.size > 0) {
+        const avgEquipPerPerson = quals.length / total;
+        if (avgEquipPerPerson < 1.5) insights.push('🔄 Low cross-training — average person is qualified on fewer than 2 equipment types.');
+    }
+
+    if (insights.length === 0) insights.push('💡 Add more data for richer autonomous insights.');
+    document.getElementById('insights-list').innerHTML = insights.map(i => `<div class="alert-item alert-info">${i}</div>`).join('');
+
+    // Training schedule
+    const schedule = [];
+    const expiring = certs.filter(c => certStatus(c.expires).status === 'expiring').sort((a, b) => daysBetween(today(), a.expires) - daysBetween(today(), b.expires));
+    const pMap = Object.fromEntries(state.personnel.map(p => [p.id, p.name]));
+    expiring.forEach(c => {
+        const days = daysBetween(today(), c.expires);
+        const trainBy = new Date();
+        trainBy.setDate(trainBy.getDate() + Math.max(0, days - 7));
+        schedule.push(`📅 <strong>${pMap[c.personId]}</strong> — Renew "${c.name}" by ${trainBy.toLocaleDateString()} (expires in ${days} days)`);
+    });
+    const expired = certs.filter(c => certStatus(c.expires).status === 'expired');
+    expired.forEach(c => {
+        schedule.push(`🚨 <strong>${pMap[c.personId]}</strong> — OVERDUE: "${c.name}" needs immediate refresher training`);
+    });
+
+    document.getElementById('training-schedule').innerHTML = schedule.length === 0
+        ? '<div class="empty">No training sessions needed at this time</div>'
+        : schedule.map(s => `<div class="alert-item alert-info">${s}</div>`).join('');
+}
+
+function saveAlertConfig() {
+    alertConfig.expiryDays = Math.max(1, +document.getElementById('alert-days').value || 30);
+    alertConfig.qualDecayDays = Math.max(30, +document.getElementById('qual-decay').value || 180);
+    refresh();
+}
+
+// ─── Export ───
+function exportJSON() {
+    const blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' });
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+    a.download = 'training-tracker-export.json'; a.click();
+}
+
+function exportCSV() {
+    const pMap = Object.fromEntries(state.personnel.map(p => [p.id, p.name]));
+    let csv = 'Type,Person,Item,Detail,Date,Status\n';
+    state.certifications.forEach(c => {
+        csv += `Certification,"${pMap[c.personId]}","${c.name}","",${c.expires},${certStatus(c.expires).label}\n`;
+    });
+    state.qualifications.forEach(q => {
+        csv += `Qualification,"${pMap[q.personId]}","${q.equipment}","${q.level}",${q.date},${qualStatus(q).label}\n`;
+    });
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+    a.download = 'training-tracker-export.csv'; a.click();
+}
+
+function clearAll() {
+    if (!confirm('Clear all training data?')) return;
+    state = defaultState();
+    saveState(); refresh();
+}
+
+// ─── Demo Data ───
+function loadDemo() {
+    const now = Date.now();
+    state = defaultState();
+    const people = [
+        { id: now + 1, name: 'Dr. Sarah Chen', role: 'Research Scientist', dept: 'Bioprinting' },
+        { id: now + 2, name: 'Mike Torres', role: 'Bioprint Operator', dept: 'Bioprinting' },
+        { id: now + 3, name: 'Aisha Patel', role: 'Lab Technician', dept: 'Cell Culture' },
+        { id: now + 4, name: 'James Kim', role: 'QA Specialist', dept: 'Quality Control' },
+        { id: now + 5, name: 'Lin Wei', role: 'Lab Manager', dept: 'Materials' },
+        { id: now + 6, name: 'Rachel Green', role: 'Intern', dept: 'Research' }
+    ];
+    state.personnel = people;
+
+    const d = (offset) => { const dt = new Date(); dt.setDate(dt.getDate() + offset); return dt.toISOString().slice(0, 10); };
+
+    state.certifications = [
+        { id: now + 100, personId: now + 1, name: 'Biosafety Level 2', issued: d(-300), expires: d(65) },
+        { id: now + 101, personId: now + 1, name: 'Bioprinting Basics', issued: d(-200), expires: d(165) },
+        { id: now + 102, personId: now + 2, name: 'Biosafety Level 2', issued: d(-350), expires: d(15) },
+        { id: now + 103, personId: now + 2, name: 'Bioprinting Basics', issued: d(-100), expires: d(265) },
+        { id: now + 104, personId: now + 2, name: 'Fire Safety', issued: d(-400), expires: d(-5) },
+        { id: now + 105, personId: now + 3, name: 'Aseptic Technique', issued: d(-150), expires: d(215) },
+        { id: now + 106, personId: now + 3, name: 'Chemical Handling', issued: d(-340), expires: d(25) },
+        { id: now + 107, personId: now + 3, name: 'Cell Culture Handling', issued: d(-50), expires: d(315) },
+        { id: now + 108, personId: now + 4, name: 'GMP Fundamentals', issued: d(-280), expires: d(85) },
+        { id: now + 109, personId: now + 4, name: 'Data Integrity', issued: d(-100), expires: d(265) },
+        { id: now + 110, personId: now + 5, name: 'Biosafety Level 2', issued: d(-50), expires: d(315) },
+        { id: now + 111, personId: now + 5, name: 'Chemical Handling', issued: d(-180), expires: d(185) },
+        { id: now + 112, personId: now + 5, name: 'HAZMAT', issued: d(-60), expires: d(305) },
+        { id: now + 113, personId: now + 6, name: 'Fire Safety', issued: d(-30), expires: d(335) }
+    ];
+
+    state.qualifications = [
+        { id: now + 200, personId: now + 1, equipment: 'BioBot 1 Printer', level: 'Trainer', date: d(-200), lastUsed: d(-5) },
+        { id: now + 201, personId: now + 1, equipment: 'Rheometer', level: 'Independent', date: d(-180), lastUsed: d(-10) },
+        { id: now + 202, personId: now + 2, equipment: 'BioBot 1 Printer', level: 'Independent', date: d(-100), lastUsed: d(-2) },
+        { id: now + 203, personId: now + 2, equipment: 'BioBot 2 Printer', level: 'Supervised', date: d(-50), lastUsed: d(-15) },
+        { id: now + 204, personId: now + 3, equipment: 'Laminar Flow Hood', level: 'Independent', date: d(-200), lastUsed: d(-3) },
+        { id: now + 205, personId: now + 3, equipment: 'Centrifuge', level: 'Independent', date: d(-150), lastUsed: d(-1) },
+        { id: now + 206, personId: now + 3, equipment: 'Cell Counter', level: 'Trainer', date: d(-100), lastUsed: d(-7) },
+        { id: now + 207, personId: now + 4, equipment: 'Plate Reader', level: 'Independent', date: d(-120), lastUsed: d(-20) },
+        { id: now + 208, personId: now + 5, equipment: 'Incubator', level: 'Independent', date: d(-90), lastUsed: d(-200) },
+        { id: now + 209, personId: now + 5, equipment: 'UV Crosslinker', level: 'Supervised', date: d(-60), lastUsed: d(-30) }
+    ];
+
+    saveState(); refresh();
+}
+
+// ─── Init ───
+refresh();
+</script>
+</body>
+</html>
