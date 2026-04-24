@@ -521,6 +521,35 @@ function createRiskAssessor(customThresholds) {
         };
     }
 
+    // ── Declarative improvement rules ────────────────────────
+    // Maps dimension names to parameter checks. Each entry
+    // specifies: param name, threshold above which to suggest a
+    // change, the suggested safe value, and unit.  Replaces the
+    // previous if-chain that duplicated this logic per dimension.
+
+    var _IMPROVEMENT_RULES = {
+        'Pressure Damage': [
+            { param: 'pressure', threshold: thresholds.pressure.safePressure, suggested: thresholds.pressure.safePressure, unit: 'kPa' },
+        ],
+        'Nozzle Clogging': [
+            { param: 'pressure', threshold: thresholds.pressure.safePressure, suggested: thresholds.pressure.safePressure, unit: 'kPa' },
+        ],
+        'Cell Viability': [
+            { param: 'temperature', threshold: null, suggested: 37, unit: '\u00B0C',
+              check: function (p) { return p.temperature != null && Math.abs(p.temperature - 37) > 3; } },
+        ],
+        'Layer Adhesion': [
+            { param: 'layerHeight', threshold: 0.4, suggested: 0.3, unit: 'mm' },
+            { param: 'printSpeed', threshold: 10, suggested: 10, unit: 'mm/s' },
+        ],
+        'Over-Crosslinking': [
+            { param: 'crosslinkIntensity', threshold: 40, suggested: 40, unit: '%' },
+        ],
+        'Dehydration': [
+            { param: 'printTimeMinutes', threshold: 30, suggested: 30, unit: 'minutes' },
+        ],
+    };
+
     function suggestImprovements(params, targetScore) {
         if (targetScore == null) targetScore = 30;
         var current = assess(params);
@@ -541,47 +570,20 @@ function createRiskAssessor(customThresholds) {
                     parameterChanges: [],
                 };
 
-                if (dim.dimension === 'Pressure Damage' || dim.dimension === 'Nozzle Clogging') {
-                    if ((params.pressure || 0) > thresholds.pressure.safePressure) {
-                        suggestion.parameterChanges.push({
-                            parameter: 'pressure', current: params.pressure,
-                            suggested: thresholds.pressure.safePressure, unit: 'kPa',
-                        });
+                var rules = _IMPROVEMENT_RULES[dim.dimension];
+                if (rules) {
+                    for (var r = 0; r < rules.length; r++) {
+                        var rule = rules[r];
+                        var applies = rule.check
+                            ? rule.check(params)
+                            : (params[rule.param] || 0) > rule.threshold;
+                        if (applies) {
+                            suggestion.parameterChanges.push({
+                                parameter: rule.param, current: params[rule.param],
+                                suggested: rule.suggested, unit: rule.unit,
+                            });
+                        }
                     }
-                }
-                if (dim.dimension === 'Cell Viability') {
-                    if (params.temperature != null && Math.abs(params.temperature - 37) > 3) {
-                        suggestion.parameterChanges.push({
-                            parameter: 'temperature', current: params.temperature,
-                            suggested: 37, unit: '\u00B0C',
-                        });
-                    }
-                }
-                if (dim.dimension === 'Layer Adhesion') {
-                    if ((params.layerHeight || 0) > 0.4)
-                        suggestion.parameterChanges.push({
-                            parameter: 'layerHeight', current: params.layerHeight,
-                            suggested: 0.3, unit: 'mm',
-                        });
-                    if ((params.printSpeed || 0) > 10)
-                        suggestion.parameterChanges.push({
-                            parameter: 'printSpeed', current: params.printSpeed,
-                            suggested: 10, unit: 'mm/s',
-                        });
-                }
-                if (dim.dimension === 'Over-Crosslinking') {
-                    if ((params.crosslinkIntensity || 0) > 40)
-                        suggestion.parameterChanges.push({
-                            parameter: 'crosslinkIntensity', current: params.crosslinkIntensity,
-                            suggested: 40, unit: '%',
-                        });
-                }
-                if (dim.dimension === 'Dehydration') {
-                    if ((params.printTimeMinutes || 0) > 30)
-                        suggestion.parameterChanges.push({
-                            parameter: 'printTimeMinutes', current: params.printTimeMinutes,
-                            suggested: 30, unit: 'minutes',
-                        });
                 }
 
                 if (suggestion.parameterChanges.length > 0 || dim.mitigations.length > 0) {
@@ -606,54 +608,67 @@ function createRiskAssessor(customThresholds) {
             return { sampleSize: 0, analyses: [] };
         }
 
-        var successes = [], failures = [];
-        for (var i = 0; i < printData.length; i++) {
-            var entry = printData[i];
-            var result = assess(entry.params);
-            var record = { params: entry.params, outcome: entry.outcome, assessment: result };
-            if (entry.outcome === 'success') successes.push(record);
-            else failures.push(record);
-        }
-
-        function avgScore(records) {
-            if (records.length === 0) return 0;
-            var sum = 0;
-            for (var j = 0; j < records.length; j++) sum += records[j].assessment.overallScore;
-            return Math.round(sum / records.length);
-        }
-
         var dimNames = ['Nozzle Clogging', 'Cell Viability', 'Structural Collapse',
             'Layer Adhesion', 'Over-Crosslinking', 'Dehydration',
             'Contamination', 'Pressure Damage'];
 
-        var dimensionAnalysis = dimNames.map(function (name) {
-            function dimAvg(records) {
-                if (records.length === 0) return 0;
-                var sum = 0;
-                for (var k = 0; k < records.length; k++) {
-                    var dims = records[k].assessment.dimensions;
-                    for (var m = 0; m < dims.length; m++) {
-                        if (dims[m].dimension === name) { sum += dims[m].score; break; }
-                    }
-                }
-                return Math.round(sum / records.length);
+        // Accumulate overall and per-dimension score sums in a single
+        // pass over records.  The previous code created a dimAvg closure
+        // per dimension (8×) that each scanned all records' dimension
+        // arrays by name — O(records × dims²).  Indexing dimensions by
+        // name during assessment reduces this to O(records × dims).
+        var successOverall = 0, failureOverall = 0;
+        var successCount = 0, failureCount = 0;
+        var successDimSums = {};
+        var failureDimSums = {};
+        for (var di = 0; di < dimNames.length; di++) {
+            successDimSums[dimNames[di]] = 0;
+            failureDimSums[dimNames[di]] = 0;
+        }
+
+        for (var i = 0; i < printData.length; i++) {
+            var entry = printData[i];
+            var result = assess(entry.params);
+            var isSuccess = entry.outcome === 'success';
+
+            if (isSuccess) {
+                successOverall += result.overallScore;
+                successCount++;
+            } else {
+                failureOverall += result.overallScore;
+                failureCount++;
             }
-            return {
+
+            // Index dimensions by name — O(dims) per record instead of
+            // O(dims²) from the previous nested name-scan approach.
+            var dims = result.dimensions;
+            for (var d = 0; d < dims.length; d++) {
+                if (isSuccess) successDimSums[dims[d].dimension] += dims[d].score;
+                else failureDimSums[dims[d].dimension] += dims[d].score;
+            }
+        }
+
+        var dimensionAnalysis = [];
+        for (var n = 0; n < dimNames.length; n++) {
+            var name = dimNames[n];
+            var avgS = successCount > 0 ? Math.round(successDimSums[name] / successCount) : 0;
+            var avgF = failureCount > 0 ? Math.round(failureDimSums[name] / failureCount) : 0;
+            dimensionAnalysis.push({
                 dimension: name,
-                avgScoreSuccess: dimAvg(successes),
-                avgScoreFailure: dimAvg(failures),
-                gap: dimAvg(failures) - dimAvg(successes),
-            };
-        });
+                avgScoreSuccess: avgS,
+                avgScoreFailure: avgF,
+                gap: avgF - avgS,
+            });
+        }
 
         dimensionAnalysis.sort(function (a, b) { return b.gap - a.gap; });
 
         return {
             sampleSize: printData.length,
-            successCount: successes.length,
-            failureCount: failures.length,
-            avgScoreSuccess: avgScore(successes),
-            avgScoreFailure: avgScore(failures),
+            successCount: successCount,
+            failureCount: failureCount,
+            avgScoreSuccess: successCount > 0 ? Math.round(successOverall / successCount) : 0,
+            avgScoreFailure: failureCount > 0 ? Math.round(failureOverall / failureCount) : 0,
             dimensionAnalysis: dimensionAnalysis,
             mostPredictive: dimensionAnalysis.length > 0 ? dimensionAnalysis[0].dimension : null,
         };
