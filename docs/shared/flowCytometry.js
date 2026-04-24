@@ -72,20 +72,65 @@ function createFlowCytometryAnalyzer() {
         },
     };
 
-    /* ── Statistics helpers (delegated to shared stats module) ── */
-    var _stats = require('./stats');
-    var mean = _stats.mean;
-    var medianSorted = _stats.medianSorted;
-    var percentileSorted = _stats.percentileSorted;
-    var stddev = _stats.pstddev;  // flow cytometry uses population stddev
-    var minMax = _stats.minMax;
+    /* ── Statistics helpers ── */
 
     function sortNumeric(arr) {
         return arr.slice().sort(function (a, b) { return a - b; });
     }
 
+    function mean(arr) {
+        if (!arr.length) return 0;
+        var sum = 0;
+        for (var i = 0; i < arr.length; i++) sum += arr[i];
+        return sum / arr.length;
+    }
+
+    /**
+     * Compute median from a pre-sorted array (avoids redundant sorting).
+     * @param {number[]} sorted - Already sorted array
+     * @returns {number}
+     */
+    function medianSorted(sorted) {
+        if (!sorted.length) return 0;
+        var mid = Math.floor(sorted.length / 2);
+        return sorted.length % 2 !== 0 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
+    }
+
     function median(arr) {
         return medianSorted(sortNumeric(arr));
+    }
+
+    /**
+     * Compute standard deviation using a numerically stable single-pass
+     * Welford algorithm. Avoids the two-pass approach (mean then sum-of-squares)
+     * which requires iterating the array twice.
+     * @param {number[]} arr
+     * @returns {number} Population standard deviation
+     */
+    function stddev(arr) {
+        if (arr.length < 2) return 0;
+        var m = 0;
+        var m2 = 0;
+        for (var i = 0; i < arr.length; i++) {
+            var delta = arr[i] - m;
+            m += delta / (i + 1);
+            m2 += delta * (arr[i] - m);
+        }
+        return Math.sqrt(m2 / arr.length);
+    }
+
+    /**
+     * Compute percentile from a pre-sorted array (avoids redundant sorting).
+     * @param {number[]} sorted - Already sorted array
+     * @param {number} p - Percentile (0-100)
+     * @returns {number}
+     */
+    function percentileSorted(sorted, p) {
+        var idx = (p / 100) * (sorted.length - 1);
+        var lo = Math.floor(idx);
+        var hi = Math.ceil(idx);
+        if (lo === hi) return sorted[lo];
+        return sorted[lo] + (idx - lo) * (sorted[hi] - sorted[lo]);
     }
 
     function percentile(arr, p) {
@@ -102,9 +147,19 @@ function createFlowCytometryAnalyzer() {
      * Find min and max of an array in a single pass.
      * Unlike Math.min/max.apply(), this does not risk a stack overflow
      * on large arrays (flow cytometry datasets routinely have 100K–1M events).
-     * Delegates to stats.minMax.
-     * @deprecated Use _stats.minMax directly.
+     * @param {number[]} arr
+     * @returns {{ min: number, max: number }}
      */
+    function minMax(arr) {
+        var lo = arr[0];
+        var hi = arr[0];
+        for (var i = 1; i < arr.length; i++) {
+            if (arr[i] < lo) lo = arr[i];
+            else if (arr[i] > hi) hi = arr[i];
+        }
+        return { min: lo, max: hi };
+    }
+
     /* ── Core analysis functions ── */
 
     /**

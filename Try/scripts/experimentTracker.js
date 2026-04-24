@@ -41,11 +41,6 @@
  *   const verdict = exp.evaluate('supported', 'All viability thresholds met');
  */
 
-var _stats = require('./scriptUtils');
-var _descriptiveStats = require('../../docs/shared/stats').descriptiveStats;
-var _stripDangerousKeys = require('../../docs/shared/sanitize').stripDangerousKeys;
-var _isDangerousKey = require('../../docs/shared/sanitize').isDangerousKey;
-
 function createExperimentTracker(options) {
     options = options || {};
 
@@ -137,9 +132,38 @@ function createExperimentTracker(options) {
      * @param {number[]} values
      * @returns {{ count: number, mean: number, stdDev: number, min: number, max: number, cv: number }}
      */
-    // Delegate to shared stats module — eliminates ~35 lines of
-    // hand-rolled mean/stddev/min/max/cv that duplicated docs/shared/stats.
-    var computeStats = _descriptiveStats;
+    function computeStats(values) {
+        if (!values || values.length === 0) {
+            return { count: 0, mean: 0, stdDev: 0, min: 0, max: 0, cv: 0 };
+        }
+        var n = values.length;
+        var sum = 0;
+        var min = Infinity;
+        var max = -Infinity;
+        for (var i = 0; i < n; i++) {
+            sum += values[i];
+            if (values[i] < min) min = values[i];
+            if (values[i] > max) max = values[i];
+        }
+        var mean = sum / n;
+
+        var sumSqDiff = 0;
+        for (var j = 0; j < n; j++) {
+            var diff = values[j] - mean;
+            sumSqDiff += diff * diff;
+        }
+        var stdDev = n > 1 ? Math.sqrt(sumSqDiff / (n - 1)) : 0;
+        var cv = mean !== 0 ? (stdDev / Math.abs(mean)) * 100 : 0;
+
+        return {
+            count: n,
+            mean: Math.round(mean * 10000) / 10000,
+            stdDev: Math.round(stdDev * 10000) / 10000,
+            min: min,
+            max: max,
+            cv: Math.round(cv * 100) / 100
+        };
+    }
 
     /**
      * Escape a value for CSV output.
@@ -171,33 +195,6 @@ function createExperimentTracker(options) {
      * @returns {Object} Experiment API
      */
     function createExperimentHandle(data) {
-
-        // Cache variable-name lookup sets once per handle — avoids
-        // rebuilding O(vars) maps on every addTrial() call.  With
-        // maxTrials=10000 and ~5 variables this eliminates ~100k
-        // redundant object allocations and property assignments.
-        var _ivNameCache = null;
-        var _dvNameCache = null;
-
-        function _getIvNames() {
-            if (!_ivNameCache) {
-                _ivNameCache = {};
-                for (var i = 0; i < data.variables.independent.length; i++) {
-                    _ivNameCache[data.variables.independent[i].name] = true;
-                }
-            }
-            return _ivNameCache;
-        }
-
-        function _getDvNames() {
-            if (!_dvNameCache) {
-                _dvNameCache = {};
-                for (var i = 0; i < data.variables.dependent.length; i++) {
-                    _dvNameCache[data.variables.dependent[i].name] = true;
-                }
-            }
-            return _dvNameCache;
-        }
 
         function assertMutable() {
             if (data.state === STATES.COMPLETED || data.state === STATES.FAILED ||
@@ -290,8 +287,11 @@ function createExperimentTracker(options) {
                     throw new Error('Trial outputs must be an object');
                 }
 
-                // Validate input keys match independent variables (cached lookup)
-                var ivNames = _getIvNames();
+                // Validate input keys match independent variables
+                var ivNames = {};
+                for (var iv = 0; iv < data.variables.independent.length; iv++) {
+                    ivNames[data.variables.independent[iv].name] = true;
+                }
                 var inputKeys = Object.keys(inputs);
                 for (var ik = 0; ik < inputKeys.length; ik++) {
                     if (!ivNames[inputKeys[ik]]) {
@@ -299,8 +299,11 @@ function createExperimentTracker(options) {
                     }
                 }
 
-                // Validate output keys match dependent variables (cached lookup)
-                var dvNames = _getDvNames();
+                // Validate output keys match dependent variables
+                var dvNames = {};
+                for (var dv = 0; dv < data.variables.dependent.length; dv++) {
+                    dvNames[data.variables.dependent[dv].name] = true;
+                }
                 var outputKeys = Object.keys(outputs);
                 for (var ok = 0; ok < outputKeys.length; ok++) {
                     if (!dvNames[outputKeys[ok]]) {
@@ -826,11 +829,6 @@ function createExperimentTracker(options) {
 
             for (var i = 0; i < ids.length; i++) {
                 var id = ids[i];
-                // Reject prototype-pollution keys (__proto__, constructor, prototype)
-                if (_isDangerousKey(id)) {
-                    skipped++;
-                    continue;
-                }
                 if (experiments[id]) {
                     skipped++;
                     continue;
@@ -841,8 +839,7 @@ function createExperimentTracker(options) {
                     skipped++;
                     continue;
                 }
-                // Sanitize imported data to strip any nested pollution vectors
-                experiments[id] = _stripDangerousKeys(deepClone(d));
+                experiments[id] = deepClone(d);
                 imported++;
                 // Update counter to avoid ID collision
                 var num = parseInt(id.replace('EXP-', ''), 10);

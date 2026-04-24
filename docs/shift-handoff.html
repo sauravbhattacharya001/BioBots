@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Lab Shift Handoff — BioBots</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧬</text></svg>">
+    <style>
+        :root{--bg:#0f172a;--surface:#1e293b;--border:#334155;--text:#e2e8f0;--muted:#94a3b8;--accent:#38bdf8;--accent-hover:#7dd3fc;--success:#4ade80;--error:#f87171;--warning:#fbbf24;--purple:#a78bfa}
+        *{margin:0;padding:0;box-sizing:border-box}
+        body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;padding:1.5rem}
+        .container{max-width:1200px;margin:0 auto}
+        a{color:var(--accent);text-decoration:none}a:hover{text-decoration:underline}
+        .back-link{display:inline-block;margin-bottom:1rem;font-size:.9rem}
+        header{text-align:center;margin-bottom:2rem}
+        header h1{font-size:1.8rem;font-weight:700;background:linear-gradient(135deg,var(--accent),var(--success));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+        header p{color:var(--muted);margin-top:.4rem}
+        .shift-badge{display:inline-block;padding:.3rem .8rem;border-radius:20px;font-size:.8rem;font-weight:600;margin-top:.5rem}
+        .grid{display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1.5rem}
+        @media(max-width:800px){.grid{grid-template-columns:1fr}}
+        .card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:1.2rem;overflow:hidden}
+        .card h2{font-size:1rem;margin-bottom:.8rem;display:flex;align-items:center;gap:.5rem}
+        .card.full{grid-column:1/-1}
+        .badge{display:inline-block;padding:.15rem .5rem;border-radius:8px;font-size:.7rem;font-weight:600;text-transform:uppercase}
+        .badge-critical{background:#f871711a;color:var(--error)}.badge-high{background:#fbbf241a;color:var(--warning)}.badge-medium{background:#38bdf81a;color:var(--accent)}.badge-low{background:#4ade801a;color:var(--success)}
+        .badge-running{background:#38bdf81a;color:var(--accent)}.badge-paused{background:#fbbf241a;color:var(--warning)}.badge-needs-attention{background:#f871711a;color:var(--error)}.badge-completed{background:#4ade801a;color:var(--success)}
+        .badge-available{background:#4ade801a;color:var(--success)}.badge-in-use{background:#38bdf81a;color:var(--accent)}.badge-maintenance{background:#f871711a;color:var(--error)}
+        table{width:100%;border-collapse:collapse;font-size:.85rem}
+        th,td{text-align:left;padding:.5rem .6rem;border-bottom:1px solid var(--border)}
+        th{color:var(--muted);font-weight:500;font-size:.75rem;text-transform:uppercase}
+        .progress-bar{width:60px;height:6px;background:var(--border);border-radius:3px;overflow:hidden;display:inline-block;vertical-align:middle}
+        .progress-fill{height:100%;background:var(--accent);border-radius:3px}
+        .checklist-item{display:flex;align-items:center;gap:.6rem;padding:.4rem 0;font-size:.85rem;border-bottom:1px solid var(--border)}
+        .checklist-item:last-child{border:none}
+        .checklist-item input{width:16px;height:16px;accent-color:var(--success)}
+        .checklist-item.checked span{text-decoration:line-through;color:var(--muted)}
+        .checklist-cat{font-size:.7rem;color:var(--muted);margin-left:auto;text-transform:uppercase}
+        .rec-item{display:flex;gap:.6rem;padding:.5rem 0;font-size:.85rem;border-bottom:1px solid var(--border);align-items:flex-start}
+        .rec-item:last-child{border:none}
+        .rec-icon{font-size:1rem;flex-shrink:0}
+        .incident-item{padding:.4rem 0;font-size:.82rem;border-bottom:1px solid var(--border)}
+        .incident-item:last-child{border:none}
+        .incident-time{color:var(--muted);font-size:.75rem}
+        .env-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:.5rem}
+        .env-card{background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:.6rem;text-align:center;font-size:.8rem}
+        .env-card .val{font-size:1.2rem;font-weight:700;color:var(--accent)}
+        .env-card.flagged{border-color:var(--warning)}.env-card.flagged .val{color:var(--warning)}
+        .toolbar{display:flex;gap:.5rem;margin-bottom:1rem;flex-wrap:wrap}
+        .btn{padding:.5rem 1rem;border:1px solid var(--border);background:var(--surface);color:var(--text);border-radius:8px;cursor:pointer;font-size:.82rem;transition:all .15s}
+        .btn:hover{border-color:var(--accent);color:var(--accent)}
+        .btn-primary{background:var(--accent);color:#0f172a;border-color:var(--accent);font-weight:600}
+        .btn-primary:hover{background:var(--accent-hover)}
+        canvas{border-radius:8px;display:block;width:100%}
+        .tab-bar{display:flex;gap:0;margin-bottom:1rem;border-bottom:2px solid var(--border)}
+        .tab{padding:.5rem 1rem;cursor:pointer;color:var(--muted);font-size:.85rem;border-bottom:2px solid transparent;margin-bottom:-2px;transition:all .15s}
+        .tab.active{color:var(--accent);border-bottom-color:var(--accent)}.tab:hover{color:var(--text)}
+        .tab-content{display:none}.tab-content.active{display:block}
+        .stats-row{display:flex;gap:1rem;margin-bottom:1rem;flex-wrap:wrap}
+        .stat{background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:.8rem 1rem;flex:1;min-width:120px;text-align:center}
+        .stat .num{font-size:1.5rem;font-weight:700;color:var(--accent)}
+        .stat .lbl{font-size:.72rem;color:var(--muted);text-transform:uppercase;margin-top:.2rem}
+        .history-list{max-height:300px;overflow-y:auto}
+        .history-entry{padding:.5rem;border-bottom:1px solid var(--border);font-size:.82rem;cursor:pointer;transition:background .15s}
+        .history-entry:hover{background:var(--bg)}
+        .history-entry .ts{color:var(--muted);font-size:.75rem}
+    </style>
+</head>
+<body>
+<div class="container">
+    <a href="hub.html" class="back-link">← Back to Hub</a>
+    <header>
+        <h1>🔄 Lab Shift Handoff</h1>
+        <p>Autonomous shift summary — everything the incoming team needs to know</p>
+        <div class="shift-badge" id="shiftBadge"></div>
+    </header>
+    <div class="stats-row" id="statsRow"></div>
+    <div class="toolbar">
+        <button class="btn btn-primary" id="btnGenerate">⚡ Generate Handoff</button>
+        <button class="btn" id="btnExportMd">📋 Export Markdown</button>
+        <button class="btn" id="btnExportJson">📦 Export JSON</button>
+        <button class="btn" id="btnPrint">🖨️ Print</button>
+    </div>
+    <div class="tab-bar">
+        <div class="tab active" data-tab="overview">Overview</div>
+        <div class="tab" data-tab="timeline">Timeline</div>
+        <div class="tab" data-tab="checklist">Checklist</div>
+        <div class="tab" data-tab="tasks">Priority Queue</div>
+        <div class="tab" data-tab="history">History</div>
+    </div>
+    <div class="tab-content active" id="tab-overview">
+        <div class="grid">
+            <div class="card"><h2>🧪 Active Experiments</h2><table><thead><tr><th>Experiment</th><th>Status</th><th>Progress</th><th>Printer</th></tr></thead><tbody id="expTable"></tbody></table></div>
+            <div class="card"><h2>🖨️ Equipment Status</h2><table><thead><tr><th>Name</th><th>Status</th><th>Hours</th></tr></thead><tbody id="eqTable"></tbody></table></div>
+            <div class="card"><h2>🧴 Reagent Alerts</h2><table><thead><tr><th>Reagent</th><th>Stock</th><th>Alert</th></tr></thead><tbody id="reagentTable"></tbody></table></div>
+            <div class="card"><h2>🌡️ Environment</h2><div class="env-grid" id="envGrid"></div></div>
+            <div class="card full"><h2>🤖 Proactive Recommendations</h2><div id="recList"></div></div>
+            <div class="card full"><h2>⚠️ Recent Incidents (Last 8h)</h2><div id="incidentList"></div></div>
+        </div>
+    </div>
+    <div class="tab-content" id="tab-timeline"><div class="card full"><h2>📊 24-Hour Shift Timeline</h2><div style="overflow-x:auto"><canvas id="timelineCanvas"></canvas></div></div></div>
+    <div class="tab-content" id="tab-checklist"><div class="card full"><h2>✅ Handoff Checklist</h2><p style="color:var(--muted);font-size:.8rem;margin-bottom:.8rem">Complete all items before handing off to incoming team</p><div id="checklistContainer"></div></div></div>
+    <div class="tab-content" id="tab-tasks"><div class="card full"><h2>📋 Priority Queue</h2><table><thead><tr><th>Priority</th><th>Task</th><th>Est.</th><th>Due</th></tr></thead><tbody id="taskTable"></tbody></table></div></div>
+    <div class="tab-content" id="tab-history"><div class="card full"><h2>📜 Handoff History</h2><div style="margin-bottom:.8rem"><button class="btn" id="btnClearHistory">Clear History</button></div><div class="history-list" id="historyList"></div></div></div>
+</div>
+<script src="shared/shiftHandoff.js"></script>
+<script>
+(function() {
+    let handoff = ShiftHandoff.buildHandoff();
+    document.querySelectorAll('.tab').forEach(tab => {
+        tab.addEventListener('click', () => {
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+            tab.classList.add('active');
+            document.getElementById('tab-' + tab.dataset.tab).classList.add('active');
+            if (tab.dataset.tab === 'timeline') renderTL();
+        });
+    });
+    function render() {
+        const badge = document.getElementById('shiftBadge');
+        badge.textContent = 'Current: ' + handoff.shift.name + ' Shift';
+        badge.style.background = handoff.shift.color + '33';
+        badge.style.color = handoff.shift.color;
+        const running = handoff.experiments.filter(e => e.status === 'running').length;
+        document.getElementById('statsRow').innerHTML = [
+            { num: running, lbl: 'Running Experiments' },
+            { num: handoff.equipment.filter(e => e.status === 'in-use').length, lbl: 'Equipment In Use' },
+            { num: handoff.reagents.filter(r => r.alert).length, lbl: 'Reagent Alerts' },
+            { num: handoff.tasks.filter(t => t.priority === 'critical').length, lbl: 'Critical Tasks' },
+            { num: handoff.recommendations.length, lbl: 'Recommendations' }
+        ].map(s => '<div class="stat"><div class="num">' + s.num + '</div><div class="lbl">' + s.lbl + '</div></div>').join('');
+        document.getElementById('expTable').innerHTML = handoff.experiments.filter(e => e.status !== 'completed').map(e =>
+            '<tr><td>' + e.name + '</td><td><span class="badge badge-' + e.status + '">' + e.status + '</span></td><td><div class="progress-bar"><div class="progress-fill" style="width:' + e.progress + '%"></div></div> ' + e.progress + '%</td><td>' + e.printer + '</td></tr>'
+        ).join('');
+        document.getElementById('eqTable').innerHTML = handoff.equipment.map(e =>
+            '<tr><td>' + e.name + '</td><td><span class="badge badge-' + e.status + '">' + e.status + '</span></td><td>' + (e.hours > 0 ? e.hours + 'h' : '—') + '</td></tr>'
+        ).join('');
+        document.getElementById('reagentTable').innerHTML = handoff.reagents.filter(r => r.alert).map(r =>
+            '<tr><td>' + r.name + '</td><td>' + r.stock + ' ' + r.unit + '</td><td><span class="badge badge-' + (r.alert === 'low-stock' ? 'critical' : 'high') + '">' + r.alert.replace('-', ' ') + '</span></td></tr>'
+        ).join('');
+        document.getElementById('envGrid').innerHTML = handoff.environment.map(z =>
+            '<div class="env-card' + (z.flag ? ' flagged' : '') + '"><div style="font-size:.75rem;color:var(--muted);margin-bottom:.3rem">' + z.zone + '</div><div class="val">' + z.temp + '°C</div><div style="font-size:.7rem;color:var(--muted)">' + z.humidity + '% RH' + (z.co2 !== null ? ' · ' + z.co2 + '% CO₂' : '') + '</div></div>'
+        ).join('');
+        var icons = { experiment: '🧪', equipment: '🖨️', reagent: '🧴', environment: '🌡️' };
+        document.getElementById('recList').innerHTML = handoff.recommendations.map(r =>
+            '<div class="rec-item"><span class="rec-icon">' + (icons[r.type] || '💡') + '</span><span><span class="badge badge-' + r.priority + '">' + r.priority + '</span> ' + r.msg + '</span></div>'
+        ).join('');
+        document.getElementById('incidentList').innerHTML = handoff.incidents.map(inc =>
+            '<div class="incident-item"><span class="badge badge-' + (inc.severity === 'critical' ? 'critical' : inc.severity === 'warning' ? 'high' : 'low') + '">' + inc.severity + '</span> ' + inc.msg + ' <span class="incident-time">' + new Date(inc.time).toLocaleTimeString() + '</span></div>'
+        ).join('');
+        document.getElementById('taskTable').innerHTML = handoff.tasks.map(t =>
+            '<tr><td><span class="badge badge-' + t.priority + '">' + t.priority + '</span></td><td>' + t.title + '</td><td>' + t.est + '</td><td>' + new Date(t.due).toLocaleTimeString() + '</td></tr>'
+        ).join('');
+        renderChecklist();
+        renderHistory();
+    }
+    function renderChecklist() {
+        var saved = JSON.parse(localStorage.getItem('biobots_checklist') || '{}');
+        document.getElementById('checklistContainer').innerHTML = handoff.checklist.map(function(item) {
+            var checked = saved[item.id] || false;
+            return '<div class="checklist-item' + (checked ? ' checked' : '') + '"><input type="checkbox" data-id="' + item.id + '"' + (checked ? ' checked' : '') + '><span>' + item.text + '</span><span class="checklist-cat">' + item.category + '</span></div>';
+        }).join('');
+        document.querySelectorAll('#checklistContainer input').forEach(function(cb) {
+            cb.addEventListener('change', function() {
+                var s = JSON.parse(localStorage.getItem('biobots_checklist') || '{}');
+                s[cb.dataset.id] = cb.checked;
+                localStorage.setItem('biobots_checklist', JSON.stringify(s));
+                cb.parentElement.classList.toggle('checked', cb.checked);
+            });
+        });
+    }
+    function renderHistory() {
+        var history = ShiftHandoff.getHistory();
+        var el = document.getElementById('historyList');
+        if (!history.length) { el.innerHTML = '<p style="color:var(--muted);padding:1rem;font-size:.85rem">No handoffs recorded yet. Click "Generate Handoff" to save one.</p>'; return; }
+        el.innerHTML = history.map(function(h, i) {
+            return '<div class="history-entry"><strong>' + h.shift.name + ' Shift</strong> — ' + h.experiments.filter(function(e){return e.status==='running';}).length + ' running, ' + h.tasks.length + ' tasks<br><span class="ts">' + new Date(h.timestamp).toLocaleString() + '</span></div>';
+        }).join('');
+    }
+    function renderTL() {
+        var canvas = document.getElementById('timelineCanvas');
+        var events = ShiftHandoff.generateTimelineEvents(handoff.experiments, handoff.equipment);
+        setTimeout(function() { ShiftHandoff.renderTimeline(canvas, events); }, 50);
+    }
+    document.getElementById('btnGenerate').addEventListener('click', function() {
+        handoff = ShiftHandoff.buildHandoff();
+        ShiftHandoff.saveHandoff(handoff);
+        localStorage.removeItem('biobots_checklist');
+        render();
+    });
+    document.getElementById('btnExportMd').addEventListener('click', function() {
+        var md = ShiftHandoff.exportMarkdown(handoff);
+        var blob = new Blob([md], { type: 'text/markdown' });
+        var a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+        a.download = 'handoff-' + new Date().toISOString().slice(0,16) + '.md'; a.click();
+    });
+    document.getElementById('btnExportJson').addEventListener('click', function() {
+        var json = ShiftHandoff.exportJSON(handoff);
+        var blob = new Blob([json], { type: 'application/json' });
+        var a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+        a.download = 'handoff-' + new Date().toISOString().slice(0,16) + '.json'; a.click();
+    });
+    document.getElementById('btnPrint').addEventListener('click', function() { window.print(); });
+    document.getElementById('btnClearHistory').addEventListener('click', function() { ShiftHandoff.clearHistory(); renderHistory(); });
+    window.addEventListener('resize', function() { if (document.getElementById('tab-timeline').classList.contains('active')) renderTL(); });
+    render();
+})();
+</script>
+</body>
+</html>

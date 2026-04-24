@@ -179,18 +179,18 @@ function createEnvironmentalMonitor(opts) {
     readings.forEach(function (r) {
       if (r[param] !== null && r[param] !== undefined) vals.push(r[param]);
     });
-    var inRangeCount = 0;
-    for (var j = 0; j < vals.length; j++) {
-      if (vals[j] >= limits[param].min && vals[j] <= limits[param].max) inRangeCount++;
-    }
     return {
       count: vals.length,
       mean: round(mean(vals)),
       stddev: round(stddev(vals)),
       min: round(minVal(vals)),
       max: round(maxVal(vals)),
-      inRange: inRangeCount,
-      outOfRange: vals.length - inRangeCount
+      inRange: vals.filter(function (v) {
+        return v >= limits[param].min && v <= limits[param].max;
+      }).length,
+      outOfRange: vals.filter(function (v) {
+        return v < limits[param].min || v > limits[param].max;
+      }).length
     };
   }
 
@@ -199,14 +199,11 @@ function createEnvironmentalMonitor(opts) {
     PARAMS.forEach(function (p) { stats[p] = getStats(p); });
 
     var totalReadings = readings.length;
-
-    // Build a Set of reading indices that have alerts for O(1) lookup
-    // instead of scanning the entire alerts array per reading (O(n×m)).
-    var excursionIndices = {};
-    for (var ai = 0; ai < alerts.length; ai++) {
-      excursionIndices[alerts[ai].index] = true;
-    }
-    var excursionReadings = Object.keys(excursionIndices).length;
+    var excursionReadings = 0;
+    readings.forEach(function (r, idx) {
+      var hasExcursion = alerts.some(function (a) { return a.index === idx; });
+      if (hasExcursion) excursionReadings++;
+    });
 
     return {
       profiles: profileNames,
@@ -221,17 +218,11 @@ function createEnvironmentalMonitor(opts) {
       excursionRate: totalReadings ? round(excursionReadings / totalReadings * 100) : 0,
       stats: stats,
       alerts: alerts.slice(),
-      stability: getStabilityScore(stats)
+      stability: getStabilityScore()
     };
   }
 
-  /**
-   * Compute stability score.
-   * @param {Object} [precomputedStats] - If provided, reuse stats from
-   *   getReport() instead of recomputing getStats() for every param.
-   *   This avoids a redundant O(n × params) scan of all readings.
-   */
-  function getStabilityScore(precomputedStats) {
+  function getStabilityScore() {
     // 0–100 score: 100 = perfectly stable, penalised by excursions and variance
     if (!readings.length) return null;
     var score = 100;
@@ -239,7 +230,7 @@ function createEnvironmentalMonitor(opts) {
     score -= Math.min(excursionPenalty, 60);
 
     PARAMS.forEach(function (p) {
-      var s = precomputedStats ? precomputedStats[p] : getStats(p);
+      var s = getStats(p);
       if (s.count > 1 && s.stddev !== null) {
         var range = limits[p].max - limits[p].min;
         if (range > 0) {

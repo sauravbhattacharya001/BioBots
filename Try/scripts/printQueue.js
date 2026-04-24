@@ -5,8 +5,6 @@
  * and status tracking for bioprint runs.
  */
 
-const _stripDangerousKeys = require('../../docs/shared/sanitize').stripDangerousKeys;
-
 // ── Priority Levels ──
 const PRIORITIES = { URGENT: 0, HIGH: 1, NORMAL: 2, LOW: 3 };
 const PRIORITY_LABELS = ['Urgent', 'High', 'Normal', 'Low'];
@@ -90,18 +88,14 @@ class PrintQueue {
         this.jobs = [];
         this.history = [];
         this.maxConcurrent = 1;
-        /** @private O(1) job lookup by id — maps id → job object */
-        this._idIndex = new Map();
     }
 
     /** Add a job to the queue. */
     addJob(job) {
-        if (this._idIndex.has(job.id)) {
+        if (this.jobs.find(j => j.id === job.id) || this.history.find(j => j.id === job.id)) {
             throw new Error(`Duplicate job id: ${job.id}`);
         }
-        const copy = { ...job };
-        this.jobs.push(copy);
-        this._idIndex.set(copy.id, copy);
+        this.jobs.push({ ...job });
         this._sortQueue();
         return this;
     }
@@ -113,20 +107,18 @@ class PrintQueue {
         if (this.jobs[idx].status === STATUS.PRINTING) {
             throw new Error('Cannot remove a printing job; cancel it first');
         }
-        const removed = this.jobs.splice(idx, 1)[0];
-        this._idIndex.delete(id);
-        return removed;
+        return this.jobs.splice(idx, 1)[0];
     }
 
-    /** Get a job by id (from queue or history). O(1) via index. */
+    /** Get a job by id (from queue or history). */
     getJob(id) {
-        return this._idIndex.get(id) || null;
+        return this.jobs.find(j => j.id === id) || this.history.find(j => j.id === id) || null;
     }
 
     /** Update job priority and re-sort. */
     setPriority(id, priority) {
-        const job = this._idIndex.get(id);
-        if (!job || this.history.indexOf(job) !== -1) throw new Error(`Job not found in queue: ${id}`);
+        const job = this.jobs.find(j => j.id === id);
+        if (!job) throw new Error(`Job not found in queue: ${id}`);
         if (job.status === STATUS.PRINTING) throw new Error('Cannot re-prioritize a printing job');
         job.priority = priority;
         this._sortQueue();
@@ -135,15 +127,11 @@ class PrintQueue {
 
     /** Start the next eligible job. */
     startNext() {
-        // Single pass to count active and collect resource holders
-        const resourceHolders = [];
-        let activeCount = 0;
-        for (const j of this.jobs) {
-            if (j.status === STATUS.PRINTING) { activeCount++; resourceHolders.push(j); }
-            else if (j.status === STATUS.PAUSED) { resourceHolders.push(j); }
-        }
-        if (activeCount >= this.maxConcurrent) return null;
+        const active = this.jobs.filter(j => j.status === STATUS.PRINTING);
+        if (active.length >= this.maxConcurrent) return null;
 
+        // Paused jobs still hold their resources, so include them in conflict checks
+        const resourceHolders = this.jobs.filter(j => j.status === STATUS.PRINTING || j.status === STATUS.PAUSED);
         const next = this.jobs.find(j => j.status === STATUS.QUEUED && !this._hasConflict(j, resourceHolders));
         if (!next) return null;
 
@@ -154,8 +142,8 @@ class PrintQueue {
 
     /** Mark a job as completed. */
     completeJob(id) {
-        const job = this._idIndex.get(id);
-        if (!job || this.history.indexOf(job) !== -1) throw new Error(`Job not found: ${id}`);
+        const job = this.jobs.find(j => j.id === id);
+        if (!job) throw new Error(`Job not found: ${id}`);
         job.status = STATUS.COMPLETED;
         job.completedAt = Date.now();
         this._moveToHistory(id);
@@ -164,8 +152,8 @@ class PrintQueue {
 
     /** Mark a job as failed. */
     failJob(id, reason) {
-        const job = this._idIndex.get(id);
-        if (!job || this.history.indexOf(job) !== -1) throw new Error(`Job not found: ${id}`);
+        const job = this.jobs.find(j => j.id === id);
+        if (!job) throw new Error(`Job not found: ${id}`);
         job.status = STATUS.FAILED;
         job.completedAt = Date.now();
         job.notes = reason ? `${job.notes} [FAIL] ${reason}`.trim() : job.notes;
@@ -175,8 +163,8 @@ class PrintQueue {
 
     /** Cancel a job. */
     cancelJob(id) {
-        const job = this._idIndex.get(id);
-        if (!job || this.history.indexOf(job) !== -1) throw new Error(`Job not found: ${id}`);
+        const job = this.jobs.find(j => j.id === id);
+        if (!job) throw new Error(`Job not found: ${id}`);
         job.status = STATUS.CANCELLED;
         job.completedAt = Date.now();
         this._moveToHistory(id);
@@ -185,7 +173,7 @@ class PrintQueue {
 
     /** Pause a printing job. */
     pauseJob(id) {
-        const job = this._idIndex.get(id);
+        const job = this.jobs.find(j => j.id === id);
         if (!job || job.status !== STATUS.PRINTING) throw new Error('Can only pause a printing job');
         job.status = STATUS.PAUSED;
         return job;
@@ -193,7 +181,7 @@ class PrintQueue {
 
     /** Resume a paused job. */
     resumeJob(id) {
-        const job = this._idIndex.get(id);
+        const job = this.jobs.find(j => j.id === id);
         if (!job || job.status !== STATUS.PAUSED) throw new Error('Can only resume a paused job');
         job.status = STATUS.PRINTING;
         return job;
@@ -223,45 +211,33 @@ class PrintQueue {
         return conflicts;
     }
 
-    /** Get queue statistics. Single pass over jobs + history. */
+    /** Get queue statistics. */
     getStats() {
-        const byStatus = { queued: 0, printing: 0, completed: 0, failed: 0, cancelled: 0, paused: 0 };
-        let totalEstimated = 0;
-        let durationSum = 0;
-        let completedCount = 0;
-        let earliestStart = Infinity;
+        const all = [...this.jobs, ...this.history];
+        const byStatus = {};
+        for (const s of Object.values(STATUS)) byStatus[s] = all.filter(j => j.status === s).length;
 
-        // Single pass over jobs
-        for (const j of this.jobs) {
-            byStatus[j.status] = (byStatus[j.status] || 0) + 1;
-            if (j.status === STATUS.QUEUED) totalEstimated += j.estimatedMinutes;
-        }
+        const completed = this.history.filter(j => j.status === STATUS.COMPLETED && j.startedAt && j.completedAt);
+        const avgDuration = completed.length > 0
+            ? completed.reduce((sum, j) => sum + (j.completedAt - j.startedAt), 0) / completed.length / 60000
+            : 0;
 
-        // Single pass over history
-        for (const j of this.history) {
-            byStatus[j.status] = (byStatus[j.status] || 0) + 1;
-            if (j.status === STATUS.COMPLETED && j.startedAt && j.completedAt) {
-                durationSum += j.completedAt - j.startedAt;
-                completedCount++;
-                if (j.startedAt < earliestStart) earliestStart = j.startedAt;
-            }
-        }
-
-        const total = this.jobs.length + this.history.length;
-        const avgDuration = completedCount > 0 ? durationSum / completedCount / 60000 : 0;
+        const totalEstimated = this.jobs
+            .filter(j => j.status === STATUS.QUEUED)
+            .reduce((sum, j) => sum + j.estimatedMinutes, 0);
 
         return {
-            total,
-            queued: byStatus.queued,
-            printing: byStatus.printing,
-            completed: byStatus.completed,
-            failed: byStatus.failed,
-            cancelled: byStatus.cancelled,
-            paused: byStatus.paused,
+            total: all.length,
+            queued: byStatus.queued || 0,
+            printing: byStatus.printing || 0,
+            completed: byStatus.completed || 0,
+            failed: byStatus.failed || 0,
+            cancelled: byStatus.cancelled || 0,
+            paused: byStatus.paused || 0,
             avgDurationMin: Math.round(avgDuration * 10) / 10,
             estimatedRemainingMin: Math.round(totalEstimated * 10) / 10,
-            throughputPerHour: completedCount > 0
-                ? Math.round(completedCount / ((Date.now() - earliestStart) / 3600000) * 10) / 10
+            throughputPerHour: completed.length > 0
+                ? Math.round(completed.length / ((Date.now() - completed.reduce((min, j) => j.startedAt < min ? j.startedAt : min, completed[0].startedAt)) / 3600000) * 10) / 10
                 : 0,
         };
     }
@@ -310,14 +286,9 @@ class PrintQueue {
     /** Import queue state from JSON. */
     static fromJSON(data) {
         const q = new PrintQueue();
-        // Sanitize imported data to prevent prototype pollution
-        const safe = _stripDangerousKeys(data || {});
-        q.jobs = Array.isArray(safe.jobs) ? safe.jobs : [];
-        q.history = Array.isArray(safe.history) ? safe.history : [];
-        q.maxConcurrent = typeof safe.maxConcurrent === 'number' ? safe.maxConcurrent : 1;
-        // Rebuild id index from imported data
-        for (const j of q.jobs) q._idIndex.set(j.id, j);
-        for (const j of q.history) q._idIndex.set(j.id, j);
+        q.jobs = data.jobs || [];
+        q.history = data.history || [];
+        q.maxConcurrent = data.maxConcurrent || 1;
         return q;
     }
 }

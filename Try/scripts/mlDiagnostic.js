@@ -28,6 +28,8 @@ const { clamp } = require('./scriptUtils');
  *   const clusters = ml.clusterDiagnoses();
  */
 
+'use strict';
+
 // ── Vector helpers ────────────────────────────────────────────────
 
 /**
@@ -371,27 +373,13 @@ function createMLDiagnostic(options) {
 
       if (!changed) break;
 
-      // Update centroids using per-cluster accumulation instead of
-      // filter+map per cluster (avoids k × O(n) array allocations per iter).
-      // Reset centroid accumulators
-      var clusterCounts = new Array(k).fill(0);
-      var clusterSums = [];
-      for (var _c = 0; _c < k; _c++) {
-        clusterSums.push(new Array(vectors[0].length).fill(0));
-      }
-      for (var _i = 0; _i < vectors.length; _i++) {
-        var ci = assignments[_i];
-        clusterCounts[ci]++;
-        var vec = vectors[_i];
-        var sums = clusterSums[ci];
-        for (var _d = 0; _d < vec.length; _d++) {
-          sums[_d] += vec[_d];
-        }
-      }
-      for (var c = 0; c < k; c++) {
-        if (clusterCounts[c] > 0) {
-          for (var d = 0; d < centroids[c].length; d++) {
-            centroids[c][d] = clusterSums[c][d] / clusterCounts[c];
+      // Update centroids
+      for (let c = 0; c < k; c++) {
+        const members = vectors.filter((_, i) => assignments[i] === c);
+        if (members.length > 0) {
+          const mean = vectorMean(members);
+          for (let d = 0; d < centroids[c].length; d++) {
+            centroids[c][d] = mean[d];
           }
         }
       }

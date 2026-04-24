@@ -146,7 +146,6 @@ function createHealthDashboard(options) {
 
   // ── State ───────────────────────────────────────────────────
   var prints = [];
-  var _lastSuccessCount = null;  // cached by _scorePrintSuccess for getHealth reuse
   var maintenanceLogs = [];
   var materialLogs = [];
   var contaminationEvents = [];
@@ -273,20 +272,7 @@ function createHealthDashboard(options) {
       return { score: 100, alerts: [{ severity: 'info', message: 'Not enough prints to score (' + prints.length + '/' + thresholds.minPrintsForScore + ')', dimension: 'printSuccess' }] };
     }
 
-    // Single pass: count successes and collect failure reasons simultaneously
-    // — replaces 3 separate .filter() calls over prints (O(3N) → O(N)).
-    var successes = 0;
-    var failureReasons = {};
-    for (var pi = 0; pi < prints.length; pi++) {
-      if (prints[pi].success) {
-        successes++;
-      } else if (prints[pi].failureReason) {
-        failureReasons[prints[pi].failureReason] = (failureReasons[prints[pi].failureReason] || 0) + 1;
-      }
-    }
-    // Cache for getHealth stats reuse — avoids a redundant filter in getHealth
-    _lastSuccessCount = successes;
-
+    var successes = prints.filter(function(p) { return p.success; }).length;
     var rate = successes / prints.length;
     var score;
 
@@ -305,26 +291,23 @@ function createHealthDashboard(options) {
     }
 
     // Trend analysis — compare last 3 vs previous 3
-    // Count successes in the two windows directly instead of slice+filter
     if (prints.length >= 6) {
-      var recentSucc = 0;
-      var prevSucc = 0;
-      var len = prints.length;
-      for (var ti = len - 6; ti < len; ti++) {
-        if (prints[ti].success) {
-          if (ti >= len - 3) recentSucc++;
-          else prevSucc++;
-        }
-      }
-      if (recentSucc / 3 < prevSucc / 3 - 0.2) {
+      var recent = prints.slice(-3);
+      var previous = prints.slice(-6, -3);
+      var recentRate = recent.filter(function(p) { return p.success; }).length / 3;
+      var prevRate = previous.filter(function(p) { return p.success; }).length / 3;
+      if (recentRate < prevRate - 0.2) {
         alerts.push({ severity: 'warning', message: 'Declining print success trend detected', dimension: 'printSuccess' });
       }
     }
 
-    // Top failure reasons — already collected in single pass above
-    var hasFailures = Object.keys(failureReasons).length > 0;
-    if (hasFailures) {
-      var reasons = failureReasons;
+    // Top failure reasons
+    var failures = prints.filter(function(p) { return !p.success && p.failureReason; });
+    if (failures.length > 0) {
+      var reasons = {};
+      failures.forEach(function(f) {
+        reasons[f.failureReason] = (reasons[f.failureReason] || 0) + 1;
+      });
       var topReason = Object.keys(reasons).sort(function(a, b) { return reasons[b] - reasons[a]; })[0];
       if (reasons[topReason] >= 2) {
         alerts.push({ severity: 'info', message: 'Top failure reason: "' + topReason + '" (' + reasons[topReason] + ' occurrences)', dimension: 'printSuccess' });
@@ -613,23 +596,15 @@ function createHealthDashboard(options) {
       return (SEVERITY_LEVELS[b.severity] || 0) - (SEVERITY_LEVELS[a.severity] || 0);
     });
 
-    // Stats — reuse cached success count from _scorePrintSuccess (avoids
-    // redundant .filter() over prints). Single-pass material totals
-    // replaces 2 separate .reduce() calls (O(2M) → O(M)).
-    var cachedSuccesses = _lastSuccessCount !== null ? _lastSuccessCount : prints.filter(function(p) { return p.success; }).length;
-    var totalUsed = 0;
-    var totalWasted = 0;
-    for (var mi = 0; mi < materialLogs.length; mi++) {
-      totalUsed += materialLogs[mi].usedMl;
-      totalWasted += materialLogs[mi].wastedMl;
-    }
+    // Stats
+    var successes = prints.filter(function(p) { return p.success; }).length;
     var stats = {
       totalPrints: prints.length,
-      successfulPrints: cachedSuccesses,
-      successRate: prints.length > 0 ? round(cachedSuccesses / prints.length, 3) : null,
+      successfulPrints: successes,
+      successRate: prints.length > 0 ? round(successes / prints.length, 3) : null,
       totalMaintenanceTasks: maintenanceLogs.length,
-      totalMaterialUsedMl: round(totalUsed, 2),
-      totalMaterialWastedMl: round(totalWasted, 2),
+      totalMaterialUsedMl: round(materialLogs.reduce(function(s, m) { return s + m.usedMl; }, 0), 2),
+      totalMaterialWastedMl: round(materialLogs.reduce(function(s, m) { return s + m.wastedMl; }, 0), 2),
       contaminationEvents: contaminationEvents.length,
       calibrationEvents: calibrationLogs.length
     };

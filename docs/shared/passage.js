@@ -1,7 +1,6 @@
 'use strict';
 
 var round = require('./validation').round;
-var _isDangerousKey = require('./sanitize').isDangerousKey;
 
 /**
  * Cell Passage Tracker — tracks cell line passages for bioprinting workflows.
@@ -26,7 +25,6 @@ function createPassageTracker() {
 
     function addCellLine(opts) {
         if (!opts || !opts.id) throw new Error('Cell line id is required');
-        if (_isDangerousKey(opts.id)) throw new Error('Invalid cell line id');
         if (cellLines[opts.id]) throw new Error('Cell line already exists: ' + opts.id);
         cellLines[opts.id] = {
             id: opts.id,
@@ -177,19 +175,15 @@ function createPassageTracker() {
 
         var cl = cellLines[cellLineId];
         var optimal = cl.optimalConfluence;
-        // Single pass: accumulate confluence sum alongside range
-        // classification, eliminating the redundant .reduce() traversal.
-        var inRange = 0, overConfluent = 0, underConfluent = 0, sumConf = 0;
+        var inRange = 0, overConfluent = 0, underConfluent = 0;
 
-        for (var ci = 0; ci < ps.length; ci++) {
-            var conf = ps[ci].confluence;
-            sumConf += conf;
-            if (conf >= optimal.min && conf <= optimal.max) inRange++;
-            else if (conf > optimal.max) overConfluent++;
+        ps.forEach(function (p) {
+            if (p.confluence >= optimal.min && p.confluence <= optimal.max) inRange++;
+            else if (p.confluence > optimal.max) overConfluent++;
             else underConfluent++;
-        }
+        });
 
-        var avg = sumConf / ps.length;
+        var avg = ps.reduce(function (s, p) { return s + p.confluence; }, 0) / ps.length;
 
         return {
             profile: inRange / ps.length >= 0.7 ? 'well_managed' : 'needs_attention',
@@ -256,16 +250,7 @@ function createPassageTracker() {
         };
     }
 
-    /**
-     * Assess senescence risk for a cell line.
-     *
-     * @param {string} cellLineId - Cell line identifier
-     * @param {Object} [precomputedTrend] - Optional pre-computed viability
-     *   trend (from getViabilityTrend) to avoid redundant recomputation
-     *   when the caller already has it.
-     * @returns {Object} Risk assessment with action recommendation
-     */
-    function getSenescenceRisk(cellLineId, precomputedTrend) {
+    function getSenescenceRisk(cellLineId) {
         if (!cellLines[cellLineId]) throw new Error('Cell line not found: ' + cellLineId);
         var cl = cellLines[cellLineId];
         var ps = passages[cellLineId];
@@ -278,7 +263,7 @@ function createPassageTracker() {
         else if (ratio > 0.75) risk = 'high';
         else if (ratio > 0.5) risk = 'moderate';
 
-        var viabilityTrend = precomputedTrend || getViabilityTrend(cellLineId);
+        var viabilityTrend = getViabilityTrend(cellLineId);
 
         return {
             risk: risk,
@@ -295,16 +280,13 @@ function createPassageTracker() {
 
     function getCellLineReport(cellLineId) {
         if (!cellLines[cellLineId]) throw new Error('Cell line not found: ' + cellLineId);
-        // Compute viability trend once and share with getSenescenceRisk
-        // to avoid the redundant linear regression (was computed twice).
-        var viabilityTrend = getViabilityTrend(cellLineId);
         return {
             cellLine: getCellLine(cellLineId),
             passageCount: passages[cellLineId].length,
-            viabilityTrend: viabilityTrend,
+            viabilityTrend: getViabilityTrend(cellLineId),
             confluenceProfile: getConfluenceProfile(cellLineId),
             optimalWindow: getOptimalPassageWindow(cellLineId),
-            senescenceRisk: getSenescenceRisk(cellLineId, viabilityTrend),
+            senescenceRisk: getSenescenceRisk(cellLineId),
             recentPassages: getPassageHistory(cellLineId, { limit: 5 }),
             alerts: alerts.filter(function (a) { return a.cellLineId === cellLineId; })
         };
@@ -315,17 +297,10 @@ function createPassageTracker() {
         if (ids.length === 0) return { cellLines: 0, summary: 'No cell lines registered' };
 
         var riskCounts = { low: 0, moderate: 0, high: 0, critical: 0, unknown: 0 };
-        // Pre-compute viability trends once per cell line and share with
-        // getSenescenceRisk, avoiding redundant linear regressions.
-        // Also inline getCellLineStatus to reuse passages[id] lookup
-        // instead of re-fetching it in a separate function call.
-        var reports = new Array(ids.length);
-        for (var ri = 0; ri < ids.length; ri++) {
-            var id = ids[ri];
-            var trend = getViabilityTrend(id);
-            var risk = getSenescenceRisk(id, trend);
+        var reports = ids.map(function (id) {
+            var risk = getSenescenceRisk(id);
             riskCounts[risk.risk]++;
-            reports[ri] = {
+            return {
                 id: id,
                 name: cellLines[id].name,
                 currentPassage: risk.currentPassage,
@@ -333,7 +308,7 @@ function createPassageTracker() {
                 risk: risk.risk,
                 status: getCellLineStatus(id)
             };
-        }
+        });
 
         return {
             cellLines: ids.length,
@@ -379,23 +354,10 @@ function createPassageTracker() {
     // --- Alerts ---
 
     function getAlerts(opts) {
-        // Single-pass filter instead of up to 3 sequential .filter()
-        // calls that each copy the array. For 1000 alerts with all 3
-        // filters active, this reduces from ~3000 to ~1000 iterations
-        // and avoids 2 intermediate array allocations.
-        if (!opts) return alerts.slice();
-        var wantCellLine = opts.cellLineId || null;
-        var wantUnack = !!opts.unacknowledged;
-        var wantSeverity = opts.severity || null;
-        if (!wantCellLine && !wantUnack && !wantSeverity) return alerts.slice();
-        var result = [];
-        for (var i = 0; i < alerts.length; i++) {
-            var a = alerts[i];
-            if (wantCellLine && a.cellLineId !== wantCellLine) continue;
-            if (wantUnack && a.acknowledged) continue;
-            if (wantSeverity && a.severity !== wantSeverity) continue;
-            result.push(a);
-        }
+        var result = alerts.slice();
+        if (opts && opts.cellLineId) result = result.filter(function (a) { return a.cellLineId === opts.cellLineId; });
+        if (opts && opts.unacknowledged) result = result.filter(function (a) { return !a.acknowledged; });
+        if (opts && opts.severity) result = result.filter(function (a) { return a.severity === opts.severity; });
         return result;
     }
 

@@ -47,7 +47,7 @@ jobs:
 
       - name: Setup NuGet (C# only)
         if: matrix.language == 'csharp'
-        uses: NuGet/setup-nuget@v4
+        uses: NuGet/setup-nuget@v3
 
       - name: Restore & Build (C# only)
         if: matrix.language == 'csharp'

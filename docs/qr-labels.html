@@ -1,0 +1,609 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>QR Label Generator — BioBots</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧬</text></svg>">
+    <style>
+        :root {
+            --bg: #0f172a;
+            --surface: #1e293b;
+            --border: #334155;
+            --text: #e2e8f0;
+            --muted: #94a3b8;
+            --accent: #38bdf8;
+            --accent-hover: #7dd3fc;
+            --success: #4ade80;
+            --error: #f87171;
+            --warning: #fbbf24;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            padding: 1.5rem;
+        }
+        header {
+            display: flex; align-items: center; gap: 1rem; margin-bottom: 1.5rem; flex-wrap: wrap;
+        }
+        header h1 {
+            font-size: 1.5rem;
+            background: linear-gradient(135deg, var(--accent), var(--success));
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        .back-link {
+            color: var(--muted); text-decoration: none; font-size: 0.9rem;
+        }
+        .back-link:hover { color: var(--accent); }
+        .layout {
+            display: grid; grid-template-columns: 340px 1fr; gap: 1.5rem; max-width: 1200px;
+        }
+        @media (max-width: 800px) { .layout { grid-template-columns: 1fr; } }
+        .panel {
+            background: var(--surface); border: 1px solid var(--border);
+            border-radius: 12px; padding: 1.5rem;
+        }
+        .panel h2 {
+            font-size: 1rem; color: var(--muted); margin-bottom: 1rem; font-weight: 500;
+        }
+        .form-group { margin-bottom: 1rem; }
+        .form-group label {
+            display: block; font-size: 0.8rem; color: var(--muted); margin-bottom: 0.3rem;
+            font-weight: 500; text-transform: uppercase; letter-spacing: 0.04em;
+        }
+        input, select, textarea {
+            width: 100%; background: var(--bg); border: 1px solid var(--border);
+            color: var(--text); padding: 0.5rem 0.7rem; border-radius: 6px;
+            font-size: 0.9rem; outline: none; font-family: inherit;
+        }
+        input:focus, select:focus, textarea:focus { border-color: var(--accent); }
+        textarea { resize: vertical; min-height: 60px; }
+        .row { display: flex; gap: 0.75rem; }
+        .row .form-group { flex: 1; }
+        button {
+            background: var(--accent); color: var(--bg); border: none;
+            padding: 0.55rem 1.1rem; border-radius: 6px; font-size: 0.85rem;
+            font-weight: 600; cursor: pointer; transition: all 0.2s;
+        }
+        button:hover { background: var(--accent-hover); transform: translateY(-1px); }
+        .btn-secondary {
+            background: var(--surface); color: var(--text); border: 1px solid var(--border);
+        }
+        .btn-secondary:hover { border-color: var(--accent); background: var(--surface); }
+        .btn-danger { background: var(--error); }
+        .btn-danger:hover { background: #ef4444; }
+        .btn-row { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-top: 1rem; }
+
+        /* Label preview grid */
+        .label-grid {
+            display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+            gap: 1rem; margin-top: 1rem;
+        }
+        .label-card {
+            background: #fff; color: #111; border-radius: 8px; padding: 0.75rem;
+            display: flex; gap: 0.6rem; align-items: flex-start; position: relative;
+            border: 1px solid #ddd;
+        }
+        .label-card canvas { flex-shrink: 0; }
+        .label-info { flex: 1; font-size: 0.7rem; line-height: 1.4; overflow: hidden; }
+        .label-info .lid { font-weight: 700; font-size: 0.8rem; color: #000; margin-bottom: 2px; }
+        .label-info .meta { color: #555; }
+        .label-count {
+            font-size: 0.8rem; color: var(--muted); margin-top: 0.5rem;
+        }
+        .empty-state {
+            text-align: center; color: var(--muted); padding: 3rem 1rem;
+            font-size: 0.9rem;
+        }
+
+        /* Print styles */
+        @media print {
+            body { background: #fff; color: #000; padding: 0; }
+            header, .panel:first-child, .btn-row, .label-count, .back-link { display: none !important; }
+            .layout { display: block; }
+            .panel { border: none; background: none; padding: 0; }
+            .label-grid {
+                grid-template-columns: repeat(3, 1fr); gap: 0.3cm;
+            }
+            .label-card { border: 1px solid #ccc; break-inside: avoid; }
+        }
+
+        .preset-chips { display: flex; gap: 0.4rem; flex-wrap: wrap; margin-bottom: 1rem; }
+        .chip {
+            background: var(--bg); border: 1px solid var(--border); color: var(--muted);
+            padding: 0.3rem 0.7rem; border-radius: 20px; font-size: 0.75rem;
+            cursor: pointer; transition: all 0.2s;
+        }
+        .chip:hover, .chip.active { border-color: var(--accent); color: var(--accent); }
+    </style>
+</head>
+<body>
+    <header>
+        <a href="index.html" class="back-link">← Dashboard</a>
+        <h1>🏷️ QR Label Generator</h1>
+    </header>
+
+    <div class="layout">
+        <!-- Config Panel -->
+        <div class="panel">
+            <h2>Label Configuration</h2>
+
+            <div class="preset-chips">
+                <span class="chip active" onclick="applyPreset('tube')">🧪 Tubes</span>
+                <span class="chip" onclick="applyPreset('plate')">🍽️ Plates</span>
+                <span class="chip" onclick="applyPreset('slide')">🔬 Slides</span>
+                <span class="chip" onclick="applyPreset('reagent')">🧫 Reagents</span>
+                <span class="chip" onclick="applyPreset('bioink')">💉 Bioink</span>
+                <span class="chip" onclick="applyPreset('scaffold')">🏗️ Scaffold</span>
+            </div>
+
+            <div class="form-group">
+                <label>Sample Prefix</label>
+                <input type="text" id="prefix" value="ALG" maxlength="8" placeholder="e.g. ALG, COL, GEL">
+            </div>
+            <div class="row">
+                <div class="form-group">
+                    <label>Sample Type</label>
+                    <select id="sampleType">
+                        <option value="tube">Tube</option>
+                        <option value="plate">Well Plate</option>
+                        <option value="slide">Slide</option>
+                        <option value="reagent">Reagent</option>
+                        <option value="bioink">Bioink</option>
+                        <option value="scaffold">Scaffold</option>
+                        <option value="custom">Custom</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Count</label>
+                    <input type="number" id="count" value="12" min="1" max="200">
+                </div>
+            </div>
+            <div class="form-group">
+                <label>Project Name</label>
+                <input type="text" id="project" value="" placeholder="e.g. Cartilage-v2">
+            </div>
+            <div class="row">
+                <div class="form-group">
+                    <label>Operator</label>
+                    <input type="text" id="operator" value="" placeholder="Initials">
+                </div>
+                <div class="form-group">
+                    <label>Date</label>
+                    <input type="date" id="labelDate">
+                </div>
+            </div>
+            <div class="form-group">
+                <label>Extra Metadata (one per line, key=value)</label>
+                <textarea id="extraMeta" placeholder="concentration=5mg/mL&#10;passage=P3&#10;lot=L2024-019"></textarea>
+            </div>
+            <div class="row">
+                <div class="form-group">
+                    <label>QR Size (px)</label>
+                    <select id="qrSize">
+                        <option value="64">Small (64)</option>
+                        <option value="96" selected>Medium (96)</option>
+                        <option value="128">Large (128)</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Start Number</label>
+                    <input type="number" id="startNum" value="1" min="1">
+                </div>
+            </div>
+            <div class="form-group">
+                <label>QR Content Format</label>
+                <select id="qrFormat">
+                    <option value="json">JSON (structured)</option>
+                    <option value="uri">URI (biobots://...)</option>
+                    <option value="text">Plain Text</option>
+                </select>
+            </div>
+
+            <div class="btn-row">
+                <button onclick="generateLabels()">🏷️ Generate Labels</button>
+                <button class="btn-secondary" onclick="printLabels()">🖨️ Print</button>
+                <button class="btn-secondary" onclick="exportCSV()">📄 CSV</button>
+                <button class="btn-danger" onclick="clearLabels()">✕ Clear</button>
+            </div>
+        </div>
+
+        <!-- Preview Panel -->
+        <div class="panel">
+            <h2>Label Preview</h2>
+            <div class="label-count" id="labelCount"></div>
+            <div id="labelGrid" class="label-grid">
+                <div class="empty-state">Configure and click "Generate Labels" to preview</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+    /* ================================================================
+       Minimal QR Code Generator (Mode: Byte, EC Level L, Version 1-4)
+       Generates QR codes entirely client-side with zero dependencies.
+       Based on ISO/IEC 18004 — simplified for short data payloads.
+       ================================================================ */
+    var QR = (function() {
+        // Generator polynomials for EC level L
+        var EC_CODEWORDS = [0, 7, 10, 15, 20]; // versions 0-4 (0 unused)
+        var DATA_CODEWORDS = [0, 19, 34, 55, 80];
+        var SIZES = [0, 21, 25, 29, 33];
+        var ALIGNMENT = [0, 0, 18, 22, 26]; // alignment pattern center (0 = none)
+
+        // GF(256) log/exp tables
+        var EXP = new Array(256), LOG = new Array(256);
+        (function() {
+            var v = 1;
+            for (var i = 0; i < 255; i++) {
+                EXP[i] = v; LOG[v] = i;
+                v = (v << 1) ^ (v & 128 ? 0x11d : 0);
+            }
+            EXP[255] = EXP[0];
+        })();
+
+        function gfMul(a, b) { return a === 0 || b === 0 ? 0 : EXP[(LOG[a] + LOG[b]) % 255]; }
+
+        function polyMul(p, q) {
+            var r = new Array(p.length + q.length - 1).fill(0);
+            for (var i = 0; i < p.length; i++)
+                for (var j = 0; j < q.length; j++)
+                    r[i + j] ^= gfMul(p[i], q[j]);
+            return r;
+        }
+
+        function generatorPoly(n) {
+            var g = [1];
+            for (var i = 0; i < n; i++) g = polyMul(g, [1, EXP[i]]);
+            return g;
+        }
+
+        function ecEncode(data, ecCount) {
+            var gen = generatorPoly(ecCount);
+            var msg = new Array(data.length + ecCount).fill(0);
+            for (var i = 0; i < data.length; i++) msg[i] = data[i];
+            for (var i = 0; i < data.length; i++) {
+                var coef = msg[i];
+                if (coef !== 0)
+                    for (var j = 0; j < gen.length; j++)
+                        msg[i + j] ^= gfMul(gen[j], coef);
+            }
+            return msg.slice(data.length);
+        }
+
+        function bestVersion(len) {
+            // byte mode: 4 bits mode + 8 bits length + data*8 bits
+            for (var v = 1; v <= 4; v++) {
+                if (len <= DATA_CODEWORDS[v] - 2) return v; // -2 for mode+length overhead
+            }
+            return 0; // too long
+        }
+
+        function encodeData(bytes, version) {
+            var totalDC = DATA_CODEWORDS[version];
+            var bits = [];
+            function push(val, count) { for (var i = count - 1; i >= 0; i--) bits.push((val >> i) & 1); }
+            push(4, 4); // byte mode indicator
+            push(bytes.length, 8); // character count
+            for (var i = 0; i < bytes.length; i++) push(bytes[i], 8);
+            push(0, Math.min(4, totalDC * 8 - bits.length)); // terminator
+            while (bits.length % 8) bits.push(0); // byte alignment
+            // pad codewords
+            var pads = [0xEC, 0x11], pi = 0;
+            while (bits.length < totalDC * 8) {
+                push(pads[pi], 8); pi ^= 1;
+            }
+            var codewords = [];
+            for (var i = 0; i < bits.length; i += 8)
+                codewords.push((bits[i]<<7)|(bits[i+1]<<6)|(bits[i+2]<<5)|(bits[i+3]<<4)|
+                               (bits[i+4]<<3)|(bits[i+5]<<2)|(bits[i+6]<<1)|bits[i+7]);
+            return codewords;
+        }
+
+        function createMatrix(version) {
+            var size = SIZES[version];
+            var m = []; for (var i = 0; i < size; i++) { m[i] = []; for (var j = 0; j < size; j++) m[i][j] = -1; }
+            return m;
+        }
+
+        function setModule(m, r, c, val) { if (r >= 0 && r < m.length && c >= 0 && c < m.length) m[r][c] = val; }
+
+        function addFinderPattern(m, row, col) {
+            for (var r = -1; r <= 7; r++)
+                for (var c = -1; c <= 7; c++) {
+                    var rr = row + r, cc = col + c;
+                    if (rr < 0 || rr >= m.length || cc < 0 || cc >= m.length) continue;
+                    var inOuter = r === 0 || r === 6 || c === 0 || c === 6;
+                    var inInner = r >= 2 && r <= 4 && c >= 2 && c <= 4;
+                    var inSep = r === -1 || r === 7 || c === -1 || c === 7;
+                    m[rr][cc] = (inOuter || inInner) && !inSep ? 1 : 0;
+                }
+        }
+
+        function addAlignmentPattern(m, row, col) {
+            for (var r = -2; r <= 2; r++)
+                for (var c = -2; c <= 2; c++) {
+                    var v = (Math.abs(r) === 2 || Math.abs(c) === 2 || (r === 0 && c === 0)) ? 1 : 0;
+                    m[row + r][col + c] = v;
+                }
+        }
+
+        function addTimingPatterns(m) {
+            var size = m.length;
+            for (var i = 8; i < size - 8; i++) {
+                if (m[6][i] === -1) m[6][i] = (i % 2 === 0) ? 1 : 0;
+                if (m[i][6] === -1) m[i][6] = (i % 2 === 0) ? 1 : 0;
+            }
+        }
+
+        function reserveFormatArea(m) {
+            var size = m.length;
+            for (var i = 0; i < 8; i++) {
+                if (m[8][i] === -1) m[8][i] = 0;
+                if (m[i][8] === -1) m[i][8] = 0;
+                if (m[8][size - 1 - i] === -1) m[8][size - 1 - i] = 0;
+                if (m[size - 1 - i][8] === -1) m[size - 1 - i][8] = 0;
+            }
+            if (m[8][8] === -1) m[8][8] = 0;
+            m[size - 8][8] = 1; // dark module
+        }
+
+        function placeData(m, dataBits) {
+            var size = m.length, idx = 0;
+            for (var right = size - 1; right >= 1; right -= 2) {
+                if (right === 6) right = 5; // skip timing column
+                for (var vert = 0; vert < size; vert++) {
+                    for (var j = 0; j < 2; j++) {
+                        var col = right - j;
+                        var upward = ((Math.floor((size - 1 - right) / 2)) % 2 === 0);
+                        var row = upward ? size - 1 - vert : vert;
+                        if (m[row][col] !== -1) continue;
+                        m[row][col] = idx < dataBits.length ? dataBits[idx++] : 0;
+                    }
+                }
+            }
+        }
+
+        // Mask pattern 0: (row + col) % 2 === 0
+        function applyMask(m) {
+            var size = m.length;
+            // We need to know which modules are "data" vs "function"
+            // For simplicity, we re-check: function patterns are already final
+            // We flagged data modules as -1 before placement; after placement they're 0/1
+            // We'll apply mask 0 to all non-function modules
+        }
+
+        function writeFormatInfo(m) {
+            // Format: EC Level L (01), Mask 0 (000) = 01000
+            // With BCH error correction -> 0x77C4 -> binary 111011111000100
+            var FORMAT_BITS = [1,1,1,0,1,1,1,1,1,0,0,0,1,0,0];
+            var size = m.length;
+            // Around top-left finder
+            for (var i = 0; i < 6; i++) m[8][i] = FORMAT_BITS[i];
+            m[8][7] = FORMAT_BITS[6]; m[8][8] = FORMAT_BITS[7]; m[7][8] = FORMAT_BITS[8];
+            for (var i = 9; i < 15; i++) m[14 - i][8] = FORMAT_BITS[i];
+            // Around bottom-left and top-right finders
+            for (var i = 0; i < 7; i++) m[size - 1 - i][8] = FORMAT_BITS[i];
+            for (var i = 7; i < 15; i++) m[8][size - 15 + i] = FORMAT_BITS[i];
+        }
+
+        function generate(text) {
+            var bytes = [];
+            for (var i = 0; i < text.length; i++) {
+                var c = text.charCodeAt(i);
+                if (c < 128) bytes.push(c);
+                else if (c < 2048) { bytes.push(192 | (c >> 6)); bytes.push(128 | (c & 63)); }
+                else { bytes.push(224 | (c >> 12)); bytes.push(128 | ((c >> 6) & 63)); bytes.push(128 | (c & 63)); }
+            }
+
+            var version = bestVersion(bytes.length);
+            if (version === 0) return null; // data too long
+
+            var dataCW = encodeData(bytes, version);
+            var ecCW = ecEncode(dataCW, EC_CODEWORDS[version]);
+            var allCW = dataCW.concat(ecCW);
+
+            var dataBits = [];
+            for (var i = 0; i < allCW.length; i++)
+                for (var b = 7; b >= 0; b--) dataBits.push((allCW[i] >> b) & 1);
+
+            var m = createMatrix(version);
+            addFinderPattern(m, 0, 0);
+            addFinderPattern(m, 0, m.length - 7);
+            addFinderPattern(m, m.length - 7, 0);
+            if (ALIGNMENT[version]) addAlignmentPattern(m, ALIGNMENT[version], ALIGNMENT[version]);
+            addTimingPatterns(m);
+            reserveFormatArea(m);
+
+            // Mark function modules so we know where data goes
+            var funcMap = createMatrix(version);
+            for (var r = 0; r < m.length; r++)
+                for (var c = 0; c < m.length; c++)
+                    funcMap[r][c] = m[r][c] !== -1 ? 1 : 0;
+
+            placeData(m, dataBits);
+
+            // Apply mask 0: (row+col)%2==0 toggle
+            for (var r = 0; r < m.length; r++)
+                for (var c = 0; c < m.length; c++)
+                    if (!funcMap[r][c]) m[r][c] ^= ((r + c) % 2 === 0) ? 1 : 0;
+
+            writeFormatInfo(m);
+            return m;
+        }
+
+        function toCanvas(canvas, matrix, size) {
+            if (!matrix) { canvas.width = size; canvas.height = size; return; }
+            var modules = matrix.length;
+            var cellSize = Math.floor(size / (modules + 8)); // quiet zone = 4 each side
+            var totalPx = cellSize * (modules + 8);
+            canvas.width = totalPx; canvas.height = totalPx;
+            var ctx = canvas.getContext('2d');
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(0, 0, totalPx, totalPx);
+            ctx.fillStyle = '#000000';
+            var offset = cellSize * 4;
+            for (var r = 0; r < modules; r++)
+                for (var c = 0; c < modules; c++)
+                    if (matrix[r][c] === 1)
+                        ctx.fillRect(offset + c * cellSize, offset + r * cellSize, cellSize, cellSize);
+        }
+
+        return { generate: generate, toCanvas: toCanvas };
+    })();
+
+    /* ================================================================
+       Label Generator Logic
+       ================================================================ */
+    var generatedLabels = [];
+
+    var PRESETS = {
+        tube:     { prefix: 'TUB', sampleType: 'tube',     project: '', extraMeta: 'volume=\npassage=' },
+        plate:    { prefix: 'PLT', sampleType: 'plate',    project: '', extraMeta: 'wells=96\nformat=' },
+        slide:    { prefix: 'SLD', sampleType: 'slide',    project: '', extraMeta: 'stain=\nthickness=' },
+        reagent:  { prefix: 'RGT', sampleType: 'reagent',  project: '', extraMeta: 'concentration=\nlot=' },
+        bioink:   { prefix: 'BNK', sampleType: 'bioink',   project: '', extraMeta: 'viscosity=\ncells/mL=\npassage=' },
+        scaffold: { prefix: 'SCF', sampleType: 'scaffold', project: '', extraMeta: 'material=\npore_size=\nporosity=' }
+    };
+
+    function applyPreset(name) {
+        var p = PRESETS[name];
+        document.getElementById('prefix').value = p.prefix;
+        document.getElementById('sampleType').value = p.sampleType;
+        document.getElementById('extraMeta').value = p.extraMeta;
+        document.querySelectorAll('.chip').forEach(function(c) { c.classList.remove('active'); });
+        event.target.classList.add('active');
+    }
+
+    function padZero(n, w) { var s = '' + n; while (s.length < w) s = '0' + s; return s; }
+
+    function generateLabels() {
+        var prefix = document.getElementById('prefix').value.trim() || 'SMP';
+        var sampleType = document.getElementById('sampleType').value;
+        var count = Math.min(200, Math.max(1, parseInt(document.getElementById('count').value) || 1));
+        var project = document.getElementById('project').value.trim();
+        var operator = document.getElementById('operator').value.trim();
+        var dateStr = document.getElementById('labelDate').value || new Date().toISOString().slice(0, 10);
+        var datePart = dateStr.replace(/-/g, '');
+        var extraRaw = document.getElementById('extraMeta').value.trim();
+        var qrSize = parseInt(document.getElementById('qrSize').value);
+        var startNum = Math.max(1, parseInt(document.getElementById('startNum').value) || 1);
+        var qrFormat = document.getElementById('qrFormat').value;
+
+        var extraMeta = {};
+        if (extraRaw) {
+            extraRaw.split('\n').forEach(function(line) {
+                var parts = line.split('=');
+                if (parts.length >= 2 && parts[0].trim() && parts[1].trim())
+                    extraMeta[parts[0].trim()] = parts[1].trim();
+            });
+        }
+
+        generatedLabels = [];
+        var grid = document.getElementById('labelGrid');
+        grid.innerHTML = '';
+
+        for (var i = 0; i < count; i++) {
+            var num = startNum + i;
+            var id = prefix + '-' + datePart + '-' + padZero(num, 3);
+            var label = {
+                id: id,
+                type: sampleType,
+                project: project,
+                operator: operator,
+                date: dateStr,
+                meta: Object.assign({}, extraMeta)
+            };
+
+            var qrContent;
+            if (qrFormat === 'json') {
+                var obj = { id: id, type: sampleType, date: dateStr };
+                if (project) obj.project = project;
+                if (operator) obj.operator = operator;
+                Object.keys(extraMeta).forEach(function(k) { obj[k] = extraMeta[k]; });
+                qrContent = JSON.stringify(obj);
+            } else if (qrFormat === 'uri') {
+                var params = ['type=' + sampleType, 'date=' + dateStr];
+                if (project) params.push('project=' + encodeURIComponent(project));
+                if (operator) params.push('op=' + encodeURIComponent(operator));
+                Object.keys(extraMeta).forEach(function(k) {
+                    params.push(encodeURIComponent(k) + '=' + encodeURIComponent(extraMeta[k]));
+                });
+                qrContent = 'biobots://' + id + '?' + params.join('&');
+            } else {
+                var lines = [id, sampleType, dateStr];
+                if (project) lines.push(project);
+                if (operator) lines.push(operator);
+                Object.keys(extraMeta).forEach(function(k) { lines.push(k + ': ' + extraMeta[k]); });
+                qrContent = lines.join('\n');
+            }
+
+            label.qrContent = qrContent;
+            generatedLabels.push(label);
+
+            var card = document.createElement('div');
+            card.className = 'label-card';
+
+            var canvas = document.createElement('canvas');
+            var matrix = QR.generate(qrContent);
+            QR.toCanvas(canvas, matrix, qrSize);
+            card.appendChild(canvas);
+
+            var info = document.createElement('div');
+            info.className = 'label-info';
+            var metaLines = [];
+            if (project) metaLines.push(project);
+            if (operator) metaLines.push('Op: ' + operator);
+            metaLines.push(dateStr);
+            metaLines.push(sampleType.toUpperCase());
+            Object.keys(extraMeta).forEach(function(k) { metaLines.push(k + ': ' + extraMeta[k]); });
+            info.innerHTML = '<div class="lid">' + escHtml(id) + '</div>' +
+                             '<div class="meta">' + metaLines.map(escHtml).join('<br>') + '</div>';
+            card.appendChild(info);
+            grid.appendChild(card);
+        }
+
+        document.getElementById('labelCount').textContent = count + ' label' + (count !== 1 ? 's' : '') + ' generated';
+    }
+
+    function escHtml(s) {
+        return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+
+    function printLabels() {
+        if (!generatedLabels.length) { generateLabels(); }
+        window.print();
+    }
+
+    function exportCSV() {
+        if (!generatedLabels.length) { generateLabels(); }
+        var rows = [['ID','Type','Project','Operator','Date','QR Content','Metadata']];
+        generatedLabels.forEach(function(l) {
+            var meta = Object.keys(l.meta).map(function(k) { return k + '=' + l.meta[k]; }).join('; ');
+            rows.push([l.id, l.type, l.project, l.operator, l.date, l.qrContent, meta]);
+        });
+        var csv = rows.map(function(r) {
+            return r.map(function(c) { return '"' + String(c).replace(/"/g, '""') + '"'; }).join(',');
+        }).join('\n');
+        var blob = new Blob([csv], { type: 'text/csv' });
+        var a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = 'biobots-labels-' + new Date().toISOString().slice(0,10) + '.csv';
+        a.click();
+    }
+
+    function clearLabels() {
+        generatedLabels = [];
+        document.getElementById('labelGrid').innerHTML = '<div class="empty-state">Configure and click "Generate Labels" to preview</div>';
+        document.getElementById('labelCount').textContent = '';
+    }
+
+    // Set default date to today
+    document.getElementById('labelDate').value = new Date().toISOString().slice(0, 10);
+    </script>
+</body>
+</html>

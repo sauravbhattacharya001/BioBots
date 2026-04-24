@@ -506,19 +506,6 @@ const CO_OCCURRENCE_PATTERNS = [
   },
 ];
 
-// ── Pre-indexed rule lookup ──────────────────────────────────────
-// Index DIAGNOSTIC_RULES by symptom at module load time so that
-// diagnose() only iterates the rules relevant to the observed
-// symptoms — O(matched) instead of O(all_rules) per call.
-
-const RULES_BY_SYMPTOM = Object.freeze(
-  DIAGNOSTIC_RULES.reduce((idx, rule) => {
-    if (!idx[rule.symptom]) idx[rule.symptom] = [];
-    idx[rule.symptom].push(rule);
-    return idx;
-  }, {})
-);
-
 // ── Main diagnostic engine ───────────────────────────────────────
 
 function createFailureDiagnostic() {
@@ -549,23 +536,20 @@ function createFailureDiagnostic() {
     const sev = severity && SEVERITY_WEIGHT[severity] ? severity : SEVERITY.MODERATE;
     const sevWeight = SEVERITY_WEIGHT[sev];
 
-    // Collect matching rules using pre-indexed lookup.
-    // Only rules for the observed symptoms are visited.
+    // Collect matching rules
     const causeScores = {};
-    for (const symptom of symptoms) {
-      const rules = RULES_BY_SYMPTOM[symptom];
-      if (!rules) continue;
-      for (const rule of rules) {
-        const paramBoost = typeof rule.paramCheck === 'function' ? rule.paramCheck(params || null) : 0;
-        const rawConfidence = Math.min(1.0, rule.confidence + paramBoost);
+    for (const rule of DIAGNOSTIC_RULES) {
+      if (!symptoms.includes(rule.symptom)) continue;
 
-        if (!causeScores[rule.cause]) {
-          causeScores[rule.cause] = { totalConfidence: 0, matchedSymptoms: [], ruleCount: 0 };
-        }
-        causeScores[rule.cause].totalConfidence += rawConfidence;
-        causeScores[rule.cause].matchedSymptoms.push(rule.symptom);
-        causeScores[rule.cause].ruleCount += 1;
+      const paramBoost = typeof rule.paramCheck === 'function' ? rule.paramCheck(params || null) : 0;
+      const rawConfidence = Math.min(1.0, rule.confidence + paramBoost);
+
+      if (!causeScores[rule.cause]) {
+        causeScores[rule.cause] = { totalConfidence: 0, matchedSymptoms: [], ruleCount: 0 };
       }
+      causeScores[rule.cause].totalConfidence += rawConfidence;
+      causeScores[rule.cause].matchedSymptoms.push(rule.symptom);
+      causeScores[rule.cause].ruleCount += 1;
     }
 
     // Apply co-occurrence boosts
@@ -915,7 +899,5 @@ if (typeof module !== 'undefined' && module.exports) {
     ROOT_CAUSES,
     CORRECTIVE_ACTIONS,
     CO_OCCURRENCE_PATTERNS,
-    DIAGNOSTIC_RULES,
-    RULES_BY_SYMPTOM,
   };
 }

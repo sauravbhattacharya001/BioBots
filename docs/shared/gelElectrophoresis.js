@@ -63,9 +63,31 @@ function validateArray(arr, name, minLen) {
 }
 
 /**
- * Linear regression with rSquared (delegates to shared stats module).
+ * Simple linear regression: y = slope * x + intercept
+ * Returns { slope, intercept, rSquared }
  */
-var linearRegression = require('./stats').linearRegressionCompat;
+function linearRegression(xs, ys) {
+  var n = xs.length;
+  var sumX = 0, sumY = 0, sumXY = 0, sumX2 = 0, sumY2 = 0;
+  for (var i = 0; i < n; i++) {
+    sumX  += xs[i];
+    sumY  += ys[i];
+    sumXY += xs[i] * ys[i];
+    sumX2 += xs[i] * xs[i];
+    sumY2 += ys[i] * ys[i];
+  }
+  var slope = (n * sumXY - sumX * sumY) / (n * sumX2 - sumX * sumX);
+  var intercept = (sumY - slope * sumX) / n;
+  var ssRes = 0, ssTot = 0;
+  var meanY = sumY / n;
+  for (var j = 0; j < n; j++) {
+    var predicted = slope * xs[j] + intercept;
+    ssRes += (ys[j] - predicted) * (ys[j] - predicted);
+    ssTot += (ys[j] - meanY) * (ys[j] - meanY);
+  }
+  var rSquared = ssTot === 0 ? 1 : 1 - ssRes / ssTot;
+  return { slope: slope, intercept: intercept, rSquared: rSquared };
+}
 
 /* ---------- Core functions ---------- */
 

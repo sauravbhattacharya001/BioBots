@@ -67,25 +67,7 @@ function clamp(val, lo, hi) {
   return val < lo ? lo : val > hi ? hi : val;
 }
 
-/**
- * Escape a string for safe insertion into HTML.
- * Prevents XSS when rendering user-supplied data.
- *
- * @param {*} str - Value to escape (coerced to string).
- * @returns {string} HTML-safe string with &, <, >, ", ' escaped.
- */
-function escapeHtml(str) {
-  if (str == null) return '';
-  return String(str)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
-}
-
 exports.validatePositive = validatePositive;
 exports.validateNonNegative = validateNonNegative;
 exports.round = round;
 exports.clamp = clamp;
-exports.escapeHtml = escapeHtml;

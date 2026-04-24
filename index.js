@@ -77,12 +77,6 @@ var manifest = [
     ['createGrowthCurveAnalyzer',      './docs/shared/growthCurve',           'createGrowthCurveAnalyzer'],
     ['createPrintResolutionCalculator', './docs/shared/printResolution',       'createPrintResolutionCalculator'],
     ['createOutcomePredictor',          './docs/shared/outcomePredictor',      'createOutcomePredictor'],
-    ['createContaminationEarlyWarning', './docs/shared/contaminationEarlyWarning', 'createContaminationEarlyWarning'],
-    ['createAnomalyCorrelator',          './docs/shared/anomalyCorrelator',          'createAnomalyCorrelator'],
-    ['createLabDigitalTwin',              './docs/shared/labDigitalTwin',             'createLabDigitalTwin'],
-    ['createLabEquipmentScheduler',      './docs/shared/equipmentScheduler',         'createLabEquipmentScheduler'],
-    ['createProtocolDeviationTracker',   './docs/shared/protocolDeviation',          'createProtocolDeviationTracker'],
-    ['createExperimentReplicator',       './docs/shared/experimentReplicator',       'createExperimentReplicator'],
 ];
 
 // ── Pre-computed lookup structures ─────────────────────────────────

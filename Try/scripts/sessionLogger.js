@@ -1,17 +1,5 @@
 'use strict';
 
-/** Strip prototype-polluting keys from a shallow object (CWE-1321). */
-var _DANGEROUS_KEYS = { '__proto__': 1, 'constructor': 1, 'prototype': 1 };
-function _cleanObj(obj) {
-  if (!obj || typeof obj !== 'object') return {};
-  var out = {};
-  var keys = Object.keys(obj);
-  for (var i = 0; i < keys.length; i++) {
-    if (!_DANGEROUS_KEYS[keys[i]]) out[keys[i]] = obj[keys[i]];
-  }
-  return out;
-}
-
 /**
  * Escape a value for safe inclusion in a CSV cell.
  *
@@ -223,7 +211,7 @@ function createSessionLogger(options) {
         function logLayerComplete(layerNum, data) {
             layerCount = layerNum;
             return log('MOTION', 'INFO', 'Layer ' + layerNum + ' complete',
-                Object.assign({ layerNumber: layerNum }, _cleanObj(data)));
+                Object.assign({ layerNumber: layerNum }, data || {}));
         }
 
         function logTemperature(zone, tempC, data) {
@@ -231,12 +219,12 @@ function createSessionLogger(options) {
             if (tempC > 42 || tempC < 15) severity = 'WARNING';
             if (tempC > 50 || tempC < 4) severity = 'ERROR';
             return log('THERMAL', severity, zone + ' temperature: ' + tempC.toFixed(1) + '\u00B0C',
-                Object.assign({ zone: zone, temperature: tempC }, _cleanObj(data)));
+                Object.assign({ zone: zone, temperature: tempC }, data || {}));
         }
 
         function logNozzleSwitch(fromNozzle, toNozzle, data) {
             return log('NOZZLE', 'INFO', 'Switched nozzle ' + fromNozzle + ' \u2192 ' + toNozzle,
-                Object.assign({ from: fromNozzle, to: toNozzle }, _cleanObj(data)));
+                Object.assign({ from: fromNozzle, to: toNozzle }, data || {}));
         }
 
         function logPressure(nozzleId, pressureKPa, data) {
@@ -244,7 +232,7 @@ function createSessionLogger(options) {
             if (pressureKPa > 200) severity = 'WARNING';
             if (pressureKPa > 350) severity = 'ERROR';
             return log('MATERIAL', severity, 'Nozzle ' + nozzleId + ' pressure: ' + pressureKPa + ' kPa',
-                Object.assign({ nozzleId: nozzleId, pressure: pressureKPa }, _cleanObj(data)));
+                Object.assign({ nozzleId: nozzleId, pressure: pressureKPa }, data || {}));
         }
 
         function logError(message, data) {
@@ -252,7 +240,7 @@ function createSessionLogger(options) {
         }
 
         function logAnnotation(message, data) {
-            return log('USER', 'INFO', message, Object.assign({ type: 'annotation' }, _cleanObj(data)));
+            return log('USER', 'INFO', message, Object.assign({ type: 'annotation' }, data || {}));
         }
 
         function logSafetyAlert(message, data) {

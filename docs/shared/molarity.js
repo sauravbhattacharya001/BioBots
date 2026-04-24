@@ -127,12 +127,6 @@ function createMolarityCalculator() {
                             (c2 === null ? 1 : 0) + (v2 === null ? 1 : 0);
             if (nullCount !== 1) throw new Error('Set exactly one of c1, v1Ml, c2, v2Ml to null.');
 
-            // Validate non-null values are positive to prevent division by zero
-            if (c1 !== null && c1 <= 0) throw new Error('c1 must be positive (got ' + c1 + ').');
-            if (v1 !== null && v1 <= 0) throw new Error('v1Ml must be positive (got ' + v1 + ').');
-            if (c2 !== null && c2 <= 0) throw new Error('c2 must be positive (got ' + c2 + ').');
-            if (v2 !== null && v2 <= 0) throw new Error('v2Ml must be positive (got ' + v2 + ').');
-
             if (c1 === null)  c1 = round((c2 * v2) / v1);
             if (v1 === null)  v1 = round((c2 * v2) / c1);
             if (c2 === null)  c2 = round((c1 * v1) / v2);

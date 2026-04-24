@@ -18,31 +18,6 @@
  *   console.log(report.chainIntegrity); // 'intact'
  */
 
-// ── Prototype Pollution Guard ────────────────────────────────────────────────
-var _DANGEROUS_KEYS = { '__proto__': 1, 'constructor': 1, 'prototype': 1 };
-
-function _sanitizeDeep(obj, depth) {
-  if (depth === undefined) depth = 0;
-  if (!obj || typeof obj !== 'object' || depth > 32) return obj;
-  if (Array.isArray(obj)) {
-    var arr = [];
-    for (var a = 0; a < obj.length; a++) {
-      arr.push(typeof obj[a] === 'object' && obj[a] !== null
-        ? _sanitizeDeep(obj[a], depth + 1) : obj[a]);
-    }
-    return arr;
-  }
-  var out = {};
-  var keys = Object.keys(obj);
-  for (var i = 0; i < keys.length; i++) {
-    if (_DANGEROUS_KEYS[keys[i]]) continue;
-    var val = obj[keys[i]];
-    out[keys[i]] = (typeof val === 'object' && val !== null)
-      ? _sanitizeDeep(val, depth + 1) : val;
-  }
-  return out;
-}
-
 var EVENT_TYPES = {
   print_start:      { category: 'print',       severity: 'info',     label: 'Print Started' },
   print_complete:   { category: 'print',       severity: 'info',     label: 'Print Completed' },
@@ -148,7 +123,7 @@ function createLabAuditTrail(options) {
       type: evt.type, category: meta.category,
       severity: meta.severity, label: meta.label,
       operator: evt.operator.trim(),
-      data: _sanitizeDeep(evt.data || {}), notes: evt.notes || '',
+      data: evt.data || {}, notes: evt.notes || '',
       prevHash: _lastHash, hash: ''
     };
     entry.hash = computeEntryHash(entry, _lastHash);
@@ -313,7 +288,7 @@ function createLabAuditTrail(options) {
         category: e.category || (EVENT_TYPES[e.type] || {}).category || 'system',
         severity: e.severity || (EVENT_TYPES[e.type] || {}).severity || 'info',
         label: (EVENT_TYPES[e.type] || {}).label || e.type,
-        operator: e.operator, data: _sanitizeDeep(e.data || {}), notes: e.notes || '',
+        operator: e.operator, data: e.data || {}, notes: e.notes || '',
         prevHash: e.prevHash, hash: e.hash });
       _lastHash = e.hash;
     });

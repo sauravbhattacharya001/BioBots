@@ -16,22 +16,43 @@
 
 // ── helpers ────────────────────────────────────────────────────────
 
-var _stats = require('./stats');
-var mean = _stats.mean;
-var linearRegression = _stats.linearRegression;
+function mean(arr) {
+    if (!arr.length) return 0;
+    var s = 0;
+    for (var i = 0; i < arr.length; i++) s += arr[i];
+    return s / arr.length;
+}
 
-var _utilsRound = require('./utils').round;
-function round(v, d) { return _utilsRound(v, d != null ? d : 4); }
+function linearRegression(xs, ys) {
+    var n = xs.length;
+    var mx = mean(xs), my = mean(ys);
+    var num = 0, den = 0;
+    for (var i = 0; i < n; i++) {
+        num += (xs[i] - mx) * (ys[i] - my);
+        den += (xs[i] - mx) * (xs[i] - mx);
+    }
+    var slope = den === 0 ? 0 : num / den;
+    var intercept = my - slope * mx;
+    // R²
+    var ssTot = 0, ssRes = 0;
+    for (var j = 0; j < n; j++) {
+        var pred = slope * xs[j] + intercept;
+        ssTot += (ys[j] - my) * (ys[j] - my);
+        ssRes += (ys[j] - pred) * (ys[j] - pred);
+    }
+    var r2 = ssTot === 0 ? 1 : 1 - ssRes / ssTot;
+    return { slope: slope, intercept: intercept, r2: r2 };
+}
 
-// Hoist sanitize require to module level — avoids repeated require()
-// resolution on every validateInput() call.  Node caches modules, but
-// the cache lookup + property access still costs ~1µs per call which
-// adds up when validating many datasets in batch comparisons.
-var _sanitize = require('./sanitize');
+function round(v, d) {
+    var f = Math.pow(10, d || 4);
+    return Math.round(v * f) / f;
+}
 
 function validateInput(data) {
     if (!data || typeof data !== 'object') throw new Error('Input must be an object');
     // Strip prototype-pollution keys from untrusted input
+    var _sanitize = require('./sanitize');
     if (_sanitize.isDangerousKey('__proto__')) {
         var keys = Object.keys(data);
         for (var _k = 0; _k < keys.length; _k++) {

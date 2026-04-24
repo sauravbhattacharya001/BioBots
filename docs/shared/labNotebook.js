@@ -29,9 +29,8 @@
  *   console.log(entry.markdown);
  */
 
-// ── imports ────────────────────────────────────────────────────────
-
-var escapeHtml = require('./validation').escapeHtml;
+var _sanitize = require('./sanitize');
+var _isDangerousKey = _sanitize.isDangerousKey;
 
 // ── helpers ────────────────────────────────────────────────────────
 
@@ -47,6 +46,14 @@ function generateEntryId() {
     var ts = Date.now().toString(36).toUpperCase();
     var rand = Math.random().toString(36).substring(2, 6).toUpperCase();
     return 'LNB-' + ts + '-' + rand;
+}
+
+function escapeHtml(s) {
+    return String(s)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
 }
 
 // ── formatters ─────────────────────────────────────────────────────
@@ -102,6 +109,7 @@ function formatPlainText(entry) {
         lines.push('RESULTS');
         lines.push('───────');
         Object.keys(entry.results).forEach(function (k) {
+            if (_isDangerousKey(k)) return;
             lines.push('  ' + k + ': ' + entry.results[k]);
         });
         lines.push('');
@@ -171,6 +179,7 @@ function formatMarkdown(entry) {
         lines.push('| Metric | Value |');
         lines.push('|--------|-------|');
         Object.keys(entry.results).forEach(function (k) {
+            if (_isDangerousKey(k)) return;
             lines.push('| ' + k + ' | ' + entry.results[k] + ' |');
         });
         lines.push('');
@@ -201,8 +210,8 @@ function formatHtml(entry) {
     h.push('th{background:#f5f5f5}.meta{color:#666;font-size:0.9em}.tag{background:#e0e7ff;padding:2px 8px;border-radius:3px;margin-right:4px;font-size:0.85em}');
     h.push('</style></head><body>');
     h.push('<h1>' + escapeHtml(entry.title) + '</h1>');
-    h.push('<p class="meta"><strong>ID:</strong> ' + escapeHtml(entry.id) +
-        ' &nbsp;|&nbsp; <strong>Date:</strong> ' + escapeHtml(entry.timestamp) +
+    h.push('<p class="meta"><strong>ID:</strong> ' + entry.id +
+        ' &nbsp;|&nbsp; <strong>Date:</strong> ' + entry.timestamp +
         ' &nbsp;|&nbsp; <strong>Researcher:</strong> ' + escapeHtml(entry.researcher) + '</p>');
 
     if (entry.objective) {
@@ -235,6 +244,7 @@ function formatHtml(entry) {
     if (entry.results) {
         h.push('<h2>Results</h2><table><tr><th>Metric</th><th>Value</th></tr>');
         Object.keys(entry.results).forEach(function (k) {
+            if (_isDangerousKey(k)) return;
             h.push('<tr><td>' + escapeHtml(k) + '</td><td>' + escapeHtml(entry.results[k]) + '</td></tr>');
         });
         h.push('</table>');
@@ -313,7 +323,7 @@ function createLabNotebookGenerator(opts) {
                 materials: params.materials || [],
                 protocol: params.protocol || [],
                 observations: params.observations || null,
-                results: params.results || null,
+                results: params.results ? _sanitize.stripDangerousKeys(params.results) : null,
                 notes: params.notes || null,
                 tags: params.tags || []
             };

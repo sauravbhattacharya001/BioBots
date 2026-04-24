@@ -603,6 +603,15 @@ function createSterilizationAnalyzer(userConfig) {
             }
         }
 
+        // Pre-resolve material lookups once (was re-looked-up for every method)
+        var materialCache = [];
+        for (var mci = 0; mci < opts.materials.length; mci++) {
+            materialCache.push({
+                name: opts.materials[mci],
+                data: _lookupMaterial(opts.materials[mci])
+            });
+        }
+
         // For each method, check material compatibility and compute required time
         var methodKeys = Object.keys(METHODS);
         var candidates = [];
@@ -616,9 +625,9 @@ function createSterilizationAnalyzer(userConfig) {
             var allCompatible = true;
             var incompatMaterials = [];
 
-            for (var mati = 0; mati < opts.materials.length; mati++) {
-                var matName = opts.materials[mati];
-                var mat = _lookupMaterial(matName);
+            for (var mati = 0; mati < materialCache.length; mati++) {
+                var matName = materialCache[mati].name;
+                var mat = materialCache[mati].data;
                 var ret = mat[method];
                 if (ret == null || ret < config.materialThreshold) {
                     allCompatible = false;
@@ -682,8 +691,16 @@ function createSterilizationAnalyzer(userConfig) {
 
         candidates.sort(function(a, b) { return b.score - a.score; });
 
-        var feasible = candidates.filter(function(c) { return c.feasible; });
-        var infeasible = candidates.filter(function(c) { return !c.feasible; });
+        // Single-pass partition instead of two filter passes
+        var feasible = [];
+        var infeasible = [];
+        for (var fi = 0; fi < candidates.length; fi++) {
+            if (candidates[fi].feasible) {
+                feasible.push(candidates[fi]);
+            } else {
+                infeasible.push(candidates[fi]);
+            }
+        }
 
         return {
             materials: opts.materials,
@@ -908,6 +925,9 @@ function createSterilizationAnalyzer(userConfig) {
         var methodKeys = Object.keys(METHODS);
         var comparison = [];
 
+        // Pre-compute constant log reduction outside the loop (was recomputed per method)
+        var defaultLogRed = _requiredLogReduction(config.defaultBioburden, config.defaultSAL);
+
         for (var i = 0; i < methodKeys.length; i++) {
             var m = methodKeys[i];
             var dv = lookup.data[m];
@@ -922,8 +942,7 @@ function createSterilizationAnalyzer(userConfig) {
 
             if (dv != null) {
                 // Time to achieve SAL 10^-6 from default bioburden
-                var logRed = _requiredLogReduction(config.defaultBioburden, config.defaultSAL);
-                entry.timeToSAL = _round(dv * logRed * config.safetyFactor, 1);
+                entry.timeToSAL = _round(dv * defaultLogRed * config.safetyFactor, 1);
                 entry.timeUnit = _durationUnit(m);
             }
 

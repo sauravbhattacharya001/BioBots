@@ -73,9 +73,6 @@ var PARAM_WEIGHTS = {
     nozzleDiameter: 0.15
 };
 
-// Hoisted outside predict() to avoid re-creating on every call.
-var SIMILAR_CHECK_KEYS = ['temperature', 'cellDensity', 'speed', 'pressure'];
-
 var CONFIDENCE_LEVELS = [
     { min: 0, label: 'very low', description: 'Insufficient data — treat as rough estimate' },
     { min: 5, label: 'low', description: 'Limited data — moderate uncertainty' },
@@ -86,8 +83,7 @@ var CONFIDENCE_LEVELS = [
 
 // ── Helpers ─────────────────────────────────────────────────────────
 
-var clamp = require('./utils').clamp;
-var _sanitize = require('./sanitize');
+function clamp(val, lo, hi) { return Math.max(lo, Math.min(hi, val)); }
 
 /**
  * Score how well a value fits within an optimal range.
@@ -149,9 +145,6 @@ function createOutcomePredictor() {
             throw new Error('recordOutcome requires {success: boolean}');
         }
         var mat = (exp.material || 'unknown').toLowerCase().replace(/\s+/g, '_');
-        if (_sanitize.isDangerousKey(mat)) {
-            throw new Error('Invalid material name: ' + mat);
-        }
         var record = {
             material: mat,
             temperature: exp.temperature != null ? Number(exp.temperature) : null,
@@ -181,9 +174,6 @@ function createOutcomePredictor() {
     function predict(params) {
         if (!params) throw new Error('predict requires experiment parameters');
         var mat = (params.material || 'unknown').toLowerCase().replace(/\s+/g, '_');
-        if (_sanitize.isDangerousKey(mat)) {
-            throw new Error('Invalid material name: ' + mat);
-        }
         var profile = PARAM_PROFILES[mat] || null;
 
         // ── Profile-based score (how well params fit known optimal ranges) ──
@@ -245,16 +235,14 @@ function createOutcomePredictor() {
             // Refine with similar-parameter experiments (within 20% of each param).
             // Uses the per-material index instead of scanning all outcomes,
             // reducing search space from O(total) to O(material-count).
-            // Counts similar experiments and successes in a single pass
-            // instead of collecting into an array then filtering again.
             var materialOutcomes = outcomesByMaterial[mat] || [];
-            var similarCount = 0;
-            var similarSuccesses = 0;
+            var similar = [];
             for (var si = 0; si < materialOutcomes.length; si++) {
                 var o = materialOutcomes[si];
                 var close = true;
-                for (var j = 0; j < SIMILAR_CHECK_KEYS.length; j++) {
-                    var k = SIMILAR_CHECK_KEYS[j];
+                var checkKeys = ['temperature', 'cellDensity', 'speed', 'pressure'];
+                for (var j = 0; j < checkKeys.length; j++) {
+                    var k = checkKeys[j];
                     if (params[k] != null && o[k] != null) {
                         var ref = Math.abs(params[k]) || 1;
                         if (Math.abs(o[k] - params[k]) / ref > 0.2) {
@@ -263,15 +251,13 @@ function createOutcomePredictor() {
                         }
                     }
                 }
-                if (close) {
-                    similarCount++;
-                    if (o.success) similarSuccesses++;
-                }
+                if (close) similar.push(o);
             }
 
-            if (similarCount >= 3) {
-                historicalScore = similarSuccesses / similarCount;
-                matchingOutcomes = similarCount;
+            if (similar.length >= 3) {
+                var simSuccess = similar.filter(function (o) { return o.success; }).length;
+                historicalScore = simSuccess / similar.length;
+                matchingOutcomes = similar.length;
             }
         }
 

@@ -17,7 +17,7 @@ Analyze 3D bioprinting run data — cell viability, print resolution, crosslinki
 [![GitHub Pages](https://github.com/sauravbhattacharya001/BioBots/actions/workflows/pages.yml/badge.svg)](https://sauravbhattacharya001.github.io/BioBots/)
 ![Tests](https://img.shields.io/badge/tests-3664%20passed-brightgreen)
 ![Test Suites](https://img.shields.io/badge/test%20suites-71-blue)
-![Scripts](https://img.shields.io/badge/scripts-45%20modules-informational)
+![Scripts](https://img.shields.io/badge/scripts-25%20modules-informational)
 ![C#](https://img.shields.io/badge/C%23-ASP.NET%20Web%20API-purple)
 ![.NET Framework](https://img.shields.io/badge/.NET%20Framework-4.x-blue)
 [![Visual Studio](https://img.shields.io/badge/IDE-Visual%20Studio%202015+-blueviolet)](https://visualstudio.microsoft.com/)
@@ -42,12 +42,12 @@ Analyze 3D bioprinting run data — cell viability, print resolution, crosslinki
 - [API Reference](#-api-reference)
 - [Analysis Tools Deep Dive](#-analysis-tools-deep-dive)
 - [Technical Details](#-technical-details)
-- [SDK & Packages](#-sdk--packages)
+- [Packages](#-packages)
 - [License](#-license)
 
 ### ⚡ Quick Start — No Setup Required
 
-The 66  run entirely in your browser — no backend, no install, no dependencies:
+The 46 analysis tools run entirely in your browser — no backend, no install, no dependencies:
 
 **→ [Open the Dashboard](https://sauravbhattacharya001.github.io/BioBots/)**
 
@@ -68,11 +68,11 @@ The tool supports:
 - **Aggregation functions** — Maximum, Minimum, Average across all records
 - **11 queryable metrics** — From cell viability to extruder pressure
 - **File-watch caching** — Data reloads automatically when the JSON file changes (no restart needed)
-- **66  tools** — From Data Explorer and Quality Control to Scaffold Designer, Environment Monitor, and Failure Diagnostics — all running client-side with zero dependencies
+- **46 interactive analysis tools** — From Data Explorer and Quality Control to Scaffold Designer, Environment Monitor, and Failure Diagnostics — all running client-side with zero dependencies
 
 ### 🌐 Live Demo
 
-All 66  are deployed on GitHub Pages:
+All 46 analysis tools are deployed on GitHub Pages:
 
 | Tool | Description |
 |------|-------------|
@@ -119,29 +119,6 @@ All 66  are deployed on GitHub Pages:
 | [🗺️ Toolpath Analyzer](https://sauravbhattacharya001.github.io/BioBots/toolpath.html) | G-code toolpath visualization and analysis |
 | [♻️ Waste Tracker](https://sauravbhattacharya001.github.io/BioBots/waste.html) | Material waste logging and trend analysis |
 | [🛡️ Maintenance](https://sauravbhattacharya001.github.io/BioBots/maintenance.html) | Equipment maintenance scheduling and alerts |
-| [🧫 Bioink Database](https://sauravbhattacharya001.github.io/BioBots/bioink-database.html) | Bioink material properties database with search and comparison |
-| [🔗 Chain of Custody](https://sauravbhattacharya001.github.io/BioBots/chain-of-custody.html) | Sample chain-of-custody tracking and audit trail |
-| [🧪 Compatibility Matrix](https://sauravbhattacharya001.github.io/BioBots/compatibility.html) | Bioink compatibility matrix for material pairing |
-| [⚠️ Early Warning](https://sauravbhattacharya001.github.io/BioBots/early-warning.html) | Contamination early warning and detection system |
-| [🧬 Print Fingerprint](https://sauravbhattacharya001.github.io/BioBots/fingerprint.html) | Print DNA fingerprinting for unique run identification |
-| [📖 Glossary](https://sauravbhattacharya001.github.io/BioBots/glossary.html) | Bioprinting terminology reference |
-| [📈 Growth Curve](https://sauravbhattacharya001.github.io/BioBots/growth.html) | Growth curve analysis for cell proliferation tracking |
-| [🔍 Data Integrity](https://sauravbhattacharya001.github.io/BioBots/integrity.html) | Data integrity auditing and validation |
-| [🔬 Passage Tracker](https://sauravbhattacharya001.github.io/BioBots/passage.html) | Cell passage tracking and lineage management |
-| [🧫 Plate Designer](https://sauravbhattacharya001.github.io/BioBots/plate-designer.html) | Plate layout designer for experiment planning |
-| [📋 Recipe Builder](https://sauravbhattacharya001.github.io/BioBots/recipe.html) | Print recipe builder for reproducible protocols |
-| [🛡️ Safety Checklist](https://sauravbhattacharya001.github.io/BioBots/safety-checklist.html) | Lab safety checklist and compliance tracking |
-| [📦 Sample Registry](https://sauravbhattacharya001.github.io/BioBots/samples.html) | Sample tracking registry for inventory management |
-| [🎬 Simulator](https://sauravbhattacharya001.github.io/BioBots/simulator.html) | Print timeline simulator with step-by-step visualization |
-| [📐 Standard Curve](https://sauravbhattacharya001.github.io/BioBots/standard-curve.html) | Standard curve calculator for calibration data |
-| [📊 Statistics](https://sauravbhattacharya001.github.io/BioBots/stats.html) | Statistical analysis calculator with hypothesis testing |
-| [📅 Timeline Planner](https://sauravbhattacharya001.github.io/BioBots/timeline.html) | Bioprint timeline planning and scheduling |
-| [⏱️ Lab Timer](https://sauravbhattacharya001.github.io/BioBots/timer.html) | Multi-channel lab timer for protocol timing |
-| [📋 Sample Tracking](https://sauravbhattacharya001.github.io/BioBots/tracking.html) | Sample tracking board with status management |
-| [🔧 Troubleshooter](https://sauravbhattacharya001.github.io/BioBots/troubleshooter.html) | Interactive bioprint troubleshooter and diagnostics |
-| [🔄 Unit Converter](https://sauravbhattacharya001.github.io/BioBots/unit-converter.html) | Unit converter for bioprinting measurements |
-| [⚙️ Workflow Builder](https://sauravbhattacharya001.github.io/BioBots/workflow-builder.html) | Visual workflow builder for experiment pipelines |
-| [📊 Yield Analyzer](https://sauravbhattacharya001.github.io/BioBots/yield.html) | Print yield analysis and optimization |
 | [🔌 API Explorer](https://sauravbhattacharya001.github.io/BioBots/api.html) | Interactive REST API documentation and testing |
 | [📚 Developer Guide](https://sauravbhattacharya001.github.io/BioBots/guide.html) | Setup, testing, and contributing reference |
 | [🏛️ Architecture](https://sauravbhattacharya001.github.io/BioBots/architecture.html) | System architecture diagram |
@@ -275,7 +252,7 @@ The bundled `index.html` provides an interactive query builder:
 ### 🔬 Analysis Tools Deep Dive
 
 <details>
-<summary><strong>Click to expand detailed descriptions of all 66 </strong></summary>
+<summary><strong>Click to expand detailed descriptions of all 46 analysis tools</strong></summary>
 
 ### 📊 Data Explorer
 
@@ -443,54 +420,7 @@ npx http-server docs -p 8000
 | jQuery 3.7.1 | Frontend API client |
 | JSON | Data storage format |
 
-## 📦 SDK & Packages
-
-### npm Package — Bioprinting Computation Toolkit
-
-The npm package (`@sauravbhattacharya001/biobots`) ships **57 factory functions** covering material calculations, rheology modeling, cell viability estimation, GCode analysis, and more — all usable from Node.js with zero native dependencies.
-
-```bash
-npm install @sauravbhattacharya001/biobots
-```
-
-#### Quick Examples
-
-```js
-const biobots = require('@sauravbhattacharya001/biobots');
-
-// Material usage estimation
-const calc = biobots.createMaterialCalculator();
-const usage = calc.calculateUsage({
-  wellplate: 24,
-  layerHeight: 0.2,
-  layerNum: 10,
-  materialKey: 'alginate',
-  infillPercent: 80,
-  wastePercent: 15
-});
-console.log(usage.totalVolumeMl, usage.estimatedCost);
-
-// Rheology modeling (Power Law)
-const rheo = biobots.createRheologyModeler();
-const viscosity = rheo.powerLaw(100, { K: 50, n: 0.4 }); // η at γ̇ = 100 s⁻¹
-const window = rheo.printabilityWindow({ K: 50, n: 0.4 });
-console.log(window); // { minShearRate, maxShearRate, optimalRange }
-
-// Cell viability estimation
-const viability = biobots.createViabilityEstimator();
-const result = viability.estimate({
-  shearStress: 5.0,   // kPa
-  duration: 120,       // seconds
-  cellType: 'HeLa'
-});
-console.log(result.estimatedViability); // percentage
-
-// Discover all available factories
-console.log(biobots.listFactories()); // sorted array of 57 names
-console.log(biobots.factoryCount);     // 57
-```
-
-All modules are **lazy-loaded** — only the factories you call are loaded from disk, keeping `require()` startup fast.
+## 📦 Packages
 
 ### NuGet (GitHub Packages)
 

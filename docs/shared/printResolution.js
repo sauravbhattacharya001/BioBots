@@ -284,41 +284,19 @@ function findOptimalPressure(opts) {
   var targetStrand = opts.targetStrandDiameter;
   validatePositive(targetStrand, 'targetStrandDiameter');
 
-  // Sanitize once outside the search loop instead of on every iteration.
-  // The old brute-force sweep called stripDangerousKeys 200 times and
-  // evaluated calculateResolution at every step. Since strand diameter
-  // is monotonically increasing with pressure (Hagen-Poiseuille: Q ∝ P,
-  // strand ∝ √Q), we use binary search to converge in ~30 iterations
-  // instead of 200, a ~6× reduction in compute.
-  var baseCfg = _sanitize.stripDangerousKeys(opts);
-
-  // Helper: evaluate strand diameter at a given pressure
-  function evalAt(p) {
-    baseCfg.pressure = p;
-    return calculateResolution(baseCfg);
-  }
-
-  // Binary search exploiting monotonicity: higher pressure → wider strand
-  var lo = minP, hi = maxP;
-  var bestResult = null;
   var bestDiff = Infinity;
+  var bestResult = null;
+  var step = (maxP - minP) / 200;
 
-  for (var iter = 0; iter < 30; iter++) {
-    var mid = (lo + hi) / 2;
-    var r = evalAt(mid);
+  for (var p = minP; p <= maxP; p += step) {
+    var cfg = _sanitize.stripDangerousKeys(opts);
+    cfg.pressure = p;
+    var r = calculateResolution(cfg);
     var diff = Math.abs(r.strandDiameter_mm - targetStrand);
     if (diff < bestDiff) {
       bestDiff = diff;
       bestResult = r;
     }
-    // If achieved strand is too small, increase pressure; otherwise decrease
-    if (r.strandDiameter_mm < targetStrand) {
-      lo = mid;
-    } else {
-      hi = mid;
-    }
-    // Early exit when close enough (sub-micron precision)
-    if (bestDiff < 0.001) break;
   }
 
   return {

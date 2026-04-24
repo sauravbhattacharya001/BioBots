@@ -203,55 +203,6 @@ function productionRate(day, onsetDay, peakDay, maxRate) {
   return maxRate * onset * gaussian;
 }
 
-// ── O(1) single-day helpers ──
-// Avoids generating full curves when only a point value is needed.
-// The logistic growth equation is closed-form, so density at any day
-// is computable in constant time without iterating from day 0.
-
-/**
- * Compute cell density at a specific day using the logistic model.
- * O(1) — no curve generation needed.
- */
-function _cellDensityAtDay(cellType, initialDensity, day, tempC) {
-  const cell = getCellProfile(cellType);
-  tempC = tempC || 37;
-  const baseRate = Math.log(2) / (cell.doublingTimeHours / 24);
-  const tempFactor = Math.exp(-0.05 * Math.abs(tempC - 37));
-  const netRate = (baseRate * tempFactor) - cell.deathRate;
-  return logisticGrowth(initialDensity, cell.carryingCapacity, netRate, day);
-}
-
-/**
- * Compute cumulative ECM deposition up to a given day for a cell type.
- * O(days) but avoids constructing per-component curve arrays and result objects.
- * Returns a plain total suitable for maturity scoring.
- */
-function _ecmTotalAtDay(cellType, days, cellDensity) {
-  const cell = getCellProfile(cellType);
-  const ecm = cell.ecmProfile;
-  let total = 0;
-  for (const config of Object.values(ecm)) {
-    let cumulative = 0;
-    for (let d = 0; d <= days; d++) {
-      const rate = productionRate(d, config.onsetDay, config.peakDay, config.maxRate);
-      cumulative += rate * (cellDensity / 10e6);
-    }
-    total += cumulative;
-  }
-  return total;
-}
-
-/**
- * Compute mechanical maturation fraction at a given day.
- * O(1) sigmoid evaluation.
- */
-function _mechFractionAtDay(tissueType, day) {
-  const target = getTissueTarget(tissueType);
-  const halfwayDay = target.maturationDays * 0.5;
-  const steepness = 4 / target.maturationDays;
-  return 1 / (1 + Math.exp(-steepness * (day - halfwayDay)));
-}
-
 // ── Oxygen/nutrient diffusion (simplified Krogh model) ──
 
 function oxygenProfile(thicknessMm, cellDensity, consumptionRate, surfaceConc) {
@@ -486,14 +437,6 @@ function createMaturationSimulator(opts) {
 
   /**
    * Compute a composite tissue maturity score (0-100).
-   *
-   * Refactored to use O(1) cell density lookup and lightweight ECM/mech
-   * helpers instead of generating full curve objects (cellGrowth,
-   * ecmDeposition, mechanicalEvolution) that allocate day-by-day arrays
-   * only to extract a single summary number. This matters because
-   * optimalCultureTime and compareTrajectories call maturityScore in
-   * tight loops (up to 90 iterations), so the per-call overhead was
-   * quadratic in total work.
    */
   function maturityScore(params) {
     params = params || {};
@@ -506,21 +449,30 @@ function createMaturationSimulator(opts) {
 
     validateNonNegative(day, 'day');
 
-    // O(1) cell density via closed-form logistic equation
-    const currentDensity = cellDensityOverride
-      || _cellDensityAtDay(target.preferredCell, initialDensity, day);
+    // Get cell density at this day
+    const growthResult = cellGrowth({
+      cellType: target.preferredCell,
+      initialDensity,
+      days: day,
+    });
+    const currentDensity = cellDensityOverride || growthResult.finalDensity;
 
-    // ECM score — lightweight total without building per-component curve arrays
-    const ecmTotal = _ecmTotalAtDay(target.preferredCell, day, currentDensity);
+    // ECM score
+    const ecmResult = ecmDeposition({
+      cellType: target.preferredCell,
+      days: day,
+      cellDensity: currentDensity,
+    });
+    const ecmTotal = Object.values(ecmResult.components)
+      .reduce((s, c) => s + c.totalDeposited, 0);
+    // Normalize to expected total at full maturation
     const ecmAtFull = Object.values(cell.ecmProfile)
       .reduce((s, c) => s + c.maxRate * target.maturationDays, 0);
     const ecmScore = Math.min(100, (ecmTotal / ecmAtFull) * 100);
 
-    // Mechanical score — O(1) sigmoid instead of full curve generation
-    const mechFraction = _mechFractionAtDay(tissueType, day);
-    const initialModulusKPa = 1;
-    const finalModulus = initialModulusKPa + (target.targetModulusKPa - initialModulusKPa) * mechFraction;
-    const mechScore = Math.min(100, (finalModulus / target.targetModulusKPa) * 100);
+    // Mechanical score
+    const mechResult = mechanicalEvolution({ tissueType, days: day });
+    const mechScore = Math.min(100, mechResult.percentOfTarget);
 
     // Cell density score
     const densityScore = Math.min(100, (currentDensity / target.targetCellDensity) * 100);

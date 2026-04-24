@@ -2,7 +2,7 @@
 # Lightweight container for running the bioprinting computation toolkit
 
 # ---- Build Stage ----
-FROM node:22-alpine AS build
+FROM node:20-alpine AS build
 WORKDIR /app
 
 # Copy package files first for layer caching
@@ -16,7 +16,7 @@ COPY index.js ./
 COPY docs/shared/ ./docs/shared/
 
 # ---- Runtime Stage ----
-FROM node:22-alpine AS runtime
+FROM node:20-alpine AS runtime
 WORKDIR /app
 
 # Add non-root user for security

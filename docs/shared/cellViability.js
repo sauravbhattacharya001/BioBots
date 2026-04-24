@@ -84,8 +84,12 @@ function createCellViabilityCalculator() {
         var corrTreated = opts.treated - blank;
         var corrControl = opts.control - blank;
         if (corrControl <= 0) throw new Error('Corrected control absorbance must be > 0');
+        // Clamp corrected treated to 0 — negative values from spectrophotometer
+        // noise (treated < blank) are physically meaningless.
+        var belowBlank = corrTreated < 0;
+        if (belowBlank) corrTreated = 0;
         var pct = round((corrTreated / corrControl) * 100);
-        return {
+        var result = {
             viabilityPct: pct,
             correctedTreated: round(corrTreated, 4),
             correctedControl: round(corrControl, 4),
@@ -93,6 +97,10 @@ function createCellViabilityCalculator() {
             method: 'absorbance-based',
             formula: 'viability = ((treated - blank) / (control - blank)) × 100'
         };
+        if (belowBlank) {
+            result.warning = 'Treated absorbance below blank — corrected treated clamped to 0 (viability set to 0%)';
+        }
+        return result;
     }
 
     /**
@@ -215,14 +223,8 @@ function createCellViabilityCalculator() {
             var curr = curve[j];
             if ((prev.viabilityPct >= 50 && curr.viabilityPct <= 50) ||
                 (prev.viabilityPct <= 50 && curr.viabilityPct >= 50)) {
-                var span = curr.viabilityPct - prev.viabilityPct;
-                if (span === 0) {
-                    // Both points are exactly at 50% — use midpoint concentration
-                    ic50 = round((prev.concentration + curr.concentration) / 2, 4);
-                } else {
-                    var frac = (50 - prev.viabilityPct) / span;
-                    ic50 = round(prev.concentration + frac * (curr.concentration - prev.concentration), 4);
-                }
+                var frac = (50 - prev.viabilityPct) / (curr.viabilityPct - prev.viabilityPct);
+                ic50 = round(prev.concentration + frac * (curr.concentration - prev.concentration), 4);
                 break;
             }
         }

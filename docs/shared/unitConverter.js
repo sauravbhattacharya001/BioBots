@@ -152,8 +152,11 @@ function findCategory(unit) {
     return null;
 }
 
-var _utilsRound = require('./utils').round;
-function round(val, decimals) { return _utilsRound(val, decimals !== undefined ? decimals : 6); }
+function round(val, decimals) {
+    if (decimals === undefined) decimals = 6;
+    var factor = Math.pow(10, decimals);
+    return Math.round(val * factor) / factor;
+}
 
 function createUnitConverter() {
     return {
