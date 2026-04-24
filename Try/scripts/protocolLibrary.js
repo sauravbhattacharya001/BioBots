@@ -10,7 +10,7 @@
 
 // ── Prototype Pollution Guard ───────────────────────────────────────────────
 
-const _DANGEROUS_KEYS = new Set(['__proto__', 'constructor', 'prototype']);
+const { stripDangerousKeys } = require('../../docs/shared/sanitize');
 
 /**
  * Return a shallow copy of `obj` with prototype-polluting keys removed.
@@ -18,12 +18,7 @@ const _DANGEROUS_KEYS = new Set(['__proto__', 'constructor', 'prototype']);
  * @returns {Object}
  */
 function _sanitize(obj) {
-    if (!obj || typeof obj !== 'object') return {};
-    const out = {};
-    for (const k of Object.keys(obj)) {
-        if (!_DANGEROUS_KEYS.has(k)) out[k] = obj[k];
-    }
-    return out;
+    return stripDangerousKeys(obj, { deep: false });
 }
 
 // ── Built-in Protocol Templates ─────────────────────────────────────────────

@@ -1,14 +1,10 @@
 'use strict';
 
-/** Strip prototype-polluting keys from a shallow object (CWE-1321). */
-const _DANGEROUS_KEYS = new Set(['__proto__', 'constructor', 'prototype']);
+const { stripDangerousKeys } = require('../../docs/shared/sanitize');
+
+/** Shallow-strip prototype-polluting keys (CWE-1321). */
 function _cleanObj(obj) {
-  if (!obj || typeof obj !== 'object') return {};
-  const out = Object.create(null);
-  for (const k of Object.keys(obj)) {
-    if (!_DANGEROUS_KEYS.has(k)) out[k] = obj[k];
-  }
-  return out;
+  return stripDangerousKeys(obj, { deep: false });
 }
 
 /**
