@@ -1,6 +1,7 @@
 'use strict';
 
 const { clamp } = require('./scriptUtils');
+const { stripDangerousKeys, isDangerousKey } = require('../../docs/shared/sanitize');
 
 /**
  * ML-Based Pattern Recognition for Print Failure Diagnostics
@@ -586,16 +587,24 @@ function createMLDiagnostic(options) {
     }
 
     if (Array.isArray(state.outcomes)) {
-      for (const o of state.outcomes) outcomes.push(o);
+      for (const o of state.outcomes) outcomes.push(stripDangerousKeys(o, { deep: false }));
     }
-    if (state.pairStats) {
-      Object.assign(pairStats, state.pairStats);
+    if (state.pairStats && typeof state.pairStats === 'object') {
+      // CWE-1321: Object.assign(pairStats, state.pairStats) allowed
+      // prototype-pollution keys (__proto__, constructor, prototype)
+      // from untrusted serialized state to pollute Object.prototype.
+      // Use explicit key iteration with isDangerousKey guard.
+      for (const key of Object.keys(state.pairStats)) {
+        if (!isDangerousKey(key)) {
+          pairStats[key] = stripDangerousKeys(state.pairStats[key], { deep: false });
+        }
+      }
     }
     if (Array.isArray(state.diagnosisVectors)) {
-      for (const d of state.diagnosisVectors) diagnosisVectors.push(d);
+      for (const d of state.diagnosisVectors) diagnosisVectors.push(stripDangerousKeys(d, { deep: false }));
     }
     if (Array.isArray(state.knownPatterns)) {
-      knownPatterns = state.knownPatterns;
+      knownPatterns = state.knownPatterns.map(p => stripDangerousKeys(p, { deep: false }));
     }
   }
 
