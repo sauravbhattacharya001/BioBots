@@ -313,20 +313,30 @@ function createShelfLifeManager() {
         withinDays = withinDays || 14;
         var alerts = [];
         var keys = Object.keys(bioinks);
+
+        // Single pass: check expiry, temperature, and light exposure
+        // together instead of iterating over all bioinks twice.
         for (var i = 0; i < keys.length; i++) {
             var entry = bioinks[keys[i]];
             _enforceExpiration(entry);
-            if (entry.status !== 'active' && entry.status !== 'expired') continue;
+
+            var isActive = entry.status === 'active';
+            var isExpired = entry.status === 'expired';
+            if (!isActive && !isExpired) continue;
+
             var daysLeft = getDaysRemaining(entry);
+
+            // Expiry / expiring-soon alerts
             if (daysLeft < 0) {
-                if (entry.status !== 'expired') continue; // should not happen after enforcement
-                alerts.push({
-                    bioinkId: entry.id,
-                    severity: 'critical',
-                    type: 'expired',
-                    message: entry.material + ' (' + entry.id + ') has expired ' + Math.abs(daysLeft) + ' days ago.',
-                    daysRemaining: daysLeft
-                });
+                if (isExpired) {
+                    alerts.push({
+                        bioinkId: entry.id,
+                        severity: 'critical',
+                        type: 'expired',
+                        message: entry.material + ' (' + entry.id + ') has expired ' + Math.abs(daysLeft) + ' days ago.',
+                        daysRemaining: daysLeft
+                    });
+                }
             } else if (daysLeft <= withinDays) {
                 var severity = daysLeft <= 3 ? 'high' : (daysLeft <= 7 ? 'medium' : 'low');
                 alerts.push({
@@ -337,36 +347,35 @@ function createShelfLifeManager() {
                     daysRemaining: daysLeft
                 });
             }
-        }
-        // Temperature warnings
-        for (var j = 0; j < keys.length; j++) {
-            var e = bioinks[keys[j]];
-            _enforceExpiration(e);
-            if (e.status !== 'active') continue;
-            var mk = e.material.toLowerCase().replace(/[\s-]/g, '_');
-            var defs = MATERIAL_DEFAULTS[mk];
-            if (defs && defs.idealTemp != null) {
-                var diff = Math.abs(e.storageTemp - defs.idealTemp);
-                if (diff > 15) {
+
+            // Temperature and light warnings (active bioinks only)
+            if (isActive) {
+                var mk = entry.material.toLowerCase().replace(/[\s-]/g, '_');
+                var defs = MATERIAL_DEFAULTS[mk];
+                if (defs && defs.idealTemp != null) {
+                    var diff = Math.abs(entry.storageTemp - defs.idealTemp);
+                    if (diff > 15) {
+                        alerts.push({
+                            bioinkId: entry.id,
+                            severity: 'high',
+                            type: 'temperature',
+                            message: entry.material + ' (' + entry.id + ') stored at ' + entry.storageTemp + '°C, ideal is ' + defs.idealTemp + '°C.',
+                            daysRemaining: daysLeft
+                        });
+                    }
+                }
+                if (entry.lightSensitive && entry.lightExposed) {
                     alerts.push({
-                        bioinkId: e.id,
-                        severity: 'high',
-                        type: 'temperature',
-                        message: e.material + ' (' + e.id + ') stored at ' + e.storageTemp + '°C, ideal is ' + defs.idealTemp + '°C.',
-                        daysRemaining: getDaysRemaining(e)
+                        bioinkId: entry.id,
+                        severity: 'medium',
+                        type: 'light_exposure',
+                        message: entry.material + ' (' + entry.id + ') is light-sensitive and currently exposed.',
+                        daysRemaining: daysLeft
                     });
                 }
             }
-            if (e.lightSensitive && e.lightExposed) {
-                alerts.push({
-                    bioinkId: e.id,
-                    severity: 'medium',
-                    type: 'light_exposure',
-                    message: e.material + ' (' + e.id + ') is light-sensitive and currently exposed.',
-                    daysRemaining: getDaysRemaining(e)
-                });
-            }
         }
+
         alerts.sort(function(a, b) {
             var sev = { critical: 0, high: 1, medium: 2, low: 3 };
             return (sev[a.severity] || 4) - (sev[b.severity] || 4);
@@ -412,9 +421,17 @@ function createShelfLifeManager() {
         }
 
         summary.avgStabilityScore = scoreCount > 0 ? Math.round(scoreSum / scoreCount) : 0;
-        summary.criticalAlerts = getExpiringAlerts(3).filter(function(a) {
-            return a.severity === 'critical' || a.severity === 'high';
-        }).length;
+
+        // Count critical/high alerts inline instead of calling
+        // getExpiringAlerts(3) (which scans all bioinks) then
+        // .filter().length (a second pass over the alert array).
+        var urgentAlerts = getExpiringAlerts(3);
+        var critCount = 0;
+        for (var ca = 0; ca < urgentAlerts.length; ca++) {
+            var sev = urgentAlerts[ca].severity;
+            if (sev === 'critical' || sev === 'high') critCount++;
+        }
+        summary.criticalAlerts = critCount;
 
         return summary;
     }
