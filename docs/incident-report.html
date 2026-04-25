@@ -1,0 +1,677 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>BioBots 1 — Lab Incident Report &amp; Pattern Analyzer</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧬</text></svg>">
+    <style>
+        :root {
+            --bg: #0f172a; --surface: #1e293b; --border: #334155; --text: #e2e8f0;
+            --muted: #94a3b8; --accent: #38bdf8; --accent-hover: #7dd3fc;
+            --success: #4ade80; --error: #f87171; --warning: #fbbf24; --purple: #a78bfa;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; padding: 2rem 1rem; }
+        nav { display: flex; gap: 0.5rem; margin-bottom: 2rem; flex-wrap: wrap; justify-content: center; }
+        nav a { color: var(--muted); padding: 0.5rem 1rem; border-radius: 8px; text-decoration: none; font-size: 0.9rem; transition: all 0.2s; }
+        nav a:hover { color: var(--accent); background: var(--surface); }
+        .container { max-width: 1200px; margin: 0 auto; }
+        header { text-align: center; margin-bottom: 2rem; }
+        header h1 { font-size: 2rem; font-weight: 700; background: linear-gradient(135deg, var(--error), var(--warning)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+        header p { color: var(--muted); margin-top: 0.5rem; }
+        .tabs { display: flex; gap: 0.5rem; margin-bottom: 1.5rem; flex-wrap: wrap; justify-content: center; }
+        .tab { padding: 0.6rem 1.2rem; border-radius: 8px; border: 1px solid var(--border); background: var(--surface); color: var(--muted); cursor: pointer; font-size: 0.9rem; transition: all 0.2s; }
+        .tab:hover { border-color: var(--accent); color: var(--text); }
+        .tab.active { border-color: var(--accent); color: var(--accent); background: rgba(56,189,248,0.1); }
+        .panel { display: none; }
+        .panel.active { display: block; }
+        .card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 1.5rem; margin-bottom: 1rem; }
+        .card h3 { font-size: 1rem; margin-bottom: 1rem; color: var(--accent); }
+        .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+        .grid3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1rem; }
+        .grid4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; }
+        @media (max-width: 768px) { .grid2, .grid3, .grid4 { grid-template-columns: 1fr; } }
+        .stat-card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 1rem; text-align: center; }
+        .stat-card .value { font-size: 2rem; font-weight: 700; }
+        .stat-card .label { font-size: 0.8rem; color: var(--muted); margin-top: 0.25rem; }
+        label { display: block; font-size: 0.85rem; color: var(--muted); margin-bottom: 0.3rem; }
+        input, select, textarea { width: 100%; padding: 0.6rem 0.8rem; border-radius: 8px; border: 1px solid var(--border); background: var(--bg); color: var(--text); font-size: 0.9rem; font-family: inherit; }
+        input:focus, select:focus, textarea:focus { outline: none; border-color: var(--accent); }
+        textarea { resize: vertical; min-height: 80px; }
+        .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem; }
+        .form-full { margin-bottom: 1rem; }
+        .btn { padding: 0.6rem 1.2rem; border-radius: 8px; border: none; cursor: pointer; font-size: 0.9rem; font-weight: 600; transition: all 0.2s; }
+        .btn-primary { background: var(--accent); color: var(--bg); }
+        .btn-primary:hover { background: var(--accent-hover); }
+        .btn-danger { background: var(--error); color: white; }
+        .btn-success { background: var(--success); color: var(--bg); }
+        .btn-outline { background: transparent; border: 1px solid var(--border); color: var(--muted); }
+        .btn-outline:hover { border-color: var(--accent); color: var(--accent); }
+        .btn-sm { padding: 0.4rem 0.8rem; font-size: 0.8rem; }
+        .severity-critical { color: var(--error); }
+        .severity-high { color: var(--warning); }
+        .severity-medium { color: var(--purple); }
+        .severity-low { color: var(--success); }
+        .badge { display: inline-block; padding: 0.15rem 0.6rem; border-radius: 20px; font-size: 0.75rem; font-weight: 600; }
+        .badge-critical { background: rgba(248,113,113,0.2); color: var(--error); }
+        .badge-high { background: rgba(251,191,36,0.2); color: var(--warning); }
+        .badge-medium { background: rgba(167,139,250,0.2); color: var(--purple); }
+        .badge-low { background: rgba(74,222,128,0.2); color: var(--success); }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { padding: 0.6rem 0.8rem; text-align: left; border-bottom: 1px solid var(--border); font-size: 0.85rem; }
+        th { color: var(--muted); font-weight: 600; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.05em; }
+        tr:hover { background: rgba(56,189,248,0.05); }
+        .pattern-alert { background: rgba(251,191,36,0.1); border: 1px solid rgba(251,191,36,0.3); border-radius: 10px; padding: 1rem; margin-bottom: 0.75rem; }
+        .pattern-alert .title { font-weight: 600; color: var(--warning); margin-bottom: 0.3rem; }
+        .pattern-alert .desc { font-size: 0.85rem; color: var(--muted); }
+        .pattern-alert .rca { font-size: 0.85rem; color: var(--accent); margin-top: 0.5rem; }
+        .monitor-bar { display: flex; align-items: center; gap: 1rem; margin-bottom: 1rem; padding: 0.75rem 1rem; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; }
+        .monitor-dot { width: 10px; height: 10px; border-radius: 50%; }
+        .monitor-dot.on { background: var(--success); box-shadow: 0 0 8px var(--success); animation: pulse 2s infinite; }
+        .monitor-dot.off { background: var(--muted); }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+        .empty { text-align: center; padding: 3rem; color: var(--muted); }
+        .actions { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-top: 1rem; }
+        canvas { border-radius: 8px; }
+        .incident-detail { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); display: flex; align-items: center; justify-content: center; z-index: 100; }
+        .incident-detail .detail-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 2rem; max-width: 600px; width: 90%; max-height: 80vh; overflow-y: auto; }
+        .incident-detail .detail-card h2 { margin-bottom: 1rem; }
+        .detail-row { margin-bottom: 0.75rem; }
+        .detail-row .dl { font-size: 0.8rem; color: var(--muted); }
+        .detail-row .dv { font-size: 0.95rem; }
+    </style>
+</head>
+<body>
+<nav>
+    <a href="index.html">📊 Dashboard</a>
+    <a href="hub.html">🔍 All Tools</a>
+    <a href="compliance.html">📋 Compliance</a>
+    <a href="risk-assessor.html">⚠️ Risk Assessor</a>
+    <a href="training.html">🎓 Training</a>
+</nav>
+
+<div class="container">
+    <header>
+        <h1>🚨 Lab Incident Report &amp; Pattern Analyzer</h1>
+        <p>Log incidents, detect patterns, get autonomous root cause analysis &amp; recommendations</p>
+    </header>
+
+    <div class="monitor-bar">
+        <div class="monitor-dot off" id="monitorDot"></div>
+        <span id="monitorLabel" style="font-size:0.85rem;color:var(--muted)">Auto-Monitor Off</span>
+        <button class="btn btn-sm btn-outline" id="monitorBtn" onclick="toggleMonitor()">Enable Auto-Monitor</button>
+        <span style="flex:1"></span>
+        <span id="monitorStatus" style="font-size:0.8rem;color:var(--muted)"></span>
+    </div>
+
+    <div class="tabs">
+        <div class="tab active" data-tab="dashboard" onclick="switchTab('dashboard')">📊 Dashboard</div>
+        <div class="tab" data-tab="report" onclick="switchTab('report')">📝 Report Incident</div>
+        <div class="tab" data-tab="log" onclick="switchTab('log')">📋 Incident Log</div>
+        <div class="tab" data-tab="timeline" onclick="switchTab('timeline')">📅 Timeline</div>
+        <div class="tab" data-tab="patterns" onclick="switchTab('patterns')">🔍 Pattern Analysis</div>
+        <div class="tab" data-tab="export" onclick="switchTab('export')">💾 Export</div>
+    </div>
+
+    <!-- DASHBOARD -->
+    <div class="panel active" id="panel-dashboard">
+        <div class="grid4" id="statCards"></div>
+        <div class="grid2" style="margin-top:1rem;">
+            <div class="card"><h3>Severity Breakdown</h3><canvas id="severityPie" width="300" height="300" style="display:block;margin:0 auto;"></canvas></div>
+            <div class="card"><h3>Category Distribution</h3><canvas id="categoryBar" width="400" height="300" style="display:block;margin:0 auto;width:100%;"></canvas></div>
+        </div>
+        <div class="card" style="margin-top:1rem;"><h3>Top Equipment Offenders</h3><div id="topEquipment"></div></div>
+        <div class="card" style="margin-top:1rem;"><h3>🤖 Autonomous Insights</h3><div id="dashInsights"></div></div>
+    </div>
+
+    <!-- REPORT -->
+    <div class="panel" id="panel-report">
+        <div class="card">
+            <h3>📝 New Incident Report</h3>
+            <div class="form-row">
+                <div><label>Date &amp; Time</label><input type="datetime-local" id="incDate"></div>
+                <div><label>Severity</label>
+                    <select id="incSeverity">
+                        <option value="Critical">🔴 Critical</option>
+                        <option value="High">🟠 High</option>
+                        <option value="Medium" selected>🟣 Medium</option>
+                        <option value="Low">🟢 Low</option>
+                    </select>
+                </div>
+            </div>
+            <div class="form-row">
+                <div><label>Category</label>
+                    <select id="incCategory">
+                        <option>Equipment Failure</option>
+                        <option>Contamination</option>
+                        <option>Chemical Spill</option>
+                        <option>Personnel Injury</option>
+                        <option>Protocol Deviation</option>
+                        <option>Environmental</option>
+                        <option>Near Miss</option>
+                        <option>Other</option>
+                    </select>
+                </div>
+                <div><label>Affected Equipment</label><input type="text" id="incEquipment" placeholder="e.g. BioBot Printer #3"></div>
+            </div>
+            <div class="form-full"><label>Description</label><textarea id="incDesc" placeholder="Describe what happened..."></textarea></div>
+            <div class="form-full"><label>Immediate Actions Taken</label><textarea id="incActions" placeholder="What was done in response..."></textarea></div>
+            <div class="form-row">
+                <div><label>Personnel Involved</label><input type="text" id="incPersonnel" placeholder="Names, comma-separated"></div>
+                <div><label>Location</label><input type="text" id="incLocation" placeholder="e.g. Clean Room B"></div>
+            </div>
+            <div class="actions">
+                <button class="btn btn-primary" onclick="submitIncident()">Submit Incident</button>
+                <button class="btn btn-outline" onclick="clearForm()">Clear</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- LOG -->
+    <div class="panel" id="panel-log">
+        <div class="card">
+            <h3>📋 All Incidents</h3>
+            <div class="form-row" style="margin-bottom:1rem;">
+                <div><input type="text" id="logSearch" placeholder="Search incidents..." oninput="renderLog()"></div>
+                <div><select id="logFilter" onchange="renderLog()">
+                    <option value="">All Severities</option>
+                    <option value="Critical">Critical</option>
+                    <option value="High">High</option>
+                    <option value="Medium">Medium</option>
+                    <option value="Low">Low</option>
+                </select></div>
+            </div>
+            <div style="overflow-x:auto;"><table><thead><tr><th>Date</th><th>Severity</th><th>Category</th><th>Equipment</th><th>Description</th><th></th></tr></thead><tbody id="logBody"></tbody></table></div>
+        </div>
+    </div>
+
+    <!-- TIMELINE -->
+    <div class="panel" id="panel-timeline">
+        <div class="card"><h3>📅 Incident Timeline</h3><canvas id="timelineCanvas" width="1100" height="350" style="width:100%;"></canvas></div>
+    </div>
+
+    <!-- PATTERNS -->
+    <div class="panel" id="panel-patterns">
+        <div class="card"><h3>🔍 Detected Patterns &amp; Root Cause Suggestions</h3><div id="patternsList"></div></div>
+    </div>
+
+    <!-- EXPORT -->
+    <div class="panel" id="panel-export">
+        <div class="card">
+            <h3>💾 Export Incidents</h3>
+            <p style="color:var(--muted);margin-bottom:1rem;">Download your incident data for external analysis or compliance reporting.</p>
+            <div class="actions">
+                <button class="btn btn-primary" onclick="exportJSON()">Export JSON</button>
+                <button class="btn btn-success" onclick="exportCSV()">Export CSV</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Detail overlay -->
+<div class="incident-detail" id="detailOverlay" style="display:none;" onclick="if(event.target===this)closeDetail()">
+    <div class="detail-card" id="detailCard"></div>
+</div>
+
+<script>
+const STORAGE_KEY = 'biobots_incidents';
+const CATEGORIES = ['Equipment Failure','Contamination','Chemical Spill','Personnel Injury','Protocol Deviation','Environmental','Near Miss','Other'];
+const SEVERITIES = ['Critical','High','Medium','Low'];
+const SEV_COLORS = { Critical:'#f87171', High:'#fbbf24', Medium:'#a78bfa', Low:'#4ade80' };
+const CAT_COLORS = ['#f87171','#fbbf24','#a78bfa','#4ade80','#38bdf8','#fb923c','#e879f9','#94a3b8'];
+
+let incidents = [];
+let monitorInterval = null;
+
+function load() {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw) { try { incidents = JSON.parse(raw); } catch(e) { incidents = []; } }
+    if (!incidents.length) seedData();
+}
+
+function save() { localStorage.setItem(STORAGE_KEY, JSON.stringify(incidents)); }
+
+function seedData() {
+    const now = Date.now();
+    const DAY = 86400000;
+    const seeds = [
+        { daysAgo: 2, severity:'Critical', category:'Equipment Failure', equipment:'BioBot Printer #2', desc:'Printhead clogged mid-print, causing scaffold collapse. Layer 14 of 28 failed.', actions:'Emergency stop, cleaned printhead, discarded scaffold.', personnel:'Dr. Kim, Tech Rivera', location:'Print Lab A' },
+        { daysAgo: 5, severity:'High', category:'Contamination', equipment:'Laminar Flow Hood #1', desc:'Fungal contamination detected in cell culture plates after 48h incubation.', actions:'Quarantined plates, UV sterilization cycle, swab samples sent for ID.', personnel:'Dr. Patel', location:'Cell Culture Room' },
+        { daysAgo: 8, severity:'Medium', category:'Protocol Deviation', equipment:'', desc:'Crosslinking step performed at 25°C instead of specified 37°C due to incubator error.', actions:'Documented deviation, extended crosslink time by 15min as compensation.', personnel:'Tech Chen', location:'Print Lab B' },
+        { daysAgo: 12, severity:'Low', category:'Near Miss', equipment:'Centrifuge #3', desc:'Centrifuge rotor imbalance warning triggered. Samples secured before any damage.', actions:'Rebalanced tubes, ran diagnostic. Rotor within spec.', personnel:'Tech Singh', location:'Processing Lab' },
+        { daysAgo: 18, severity:'High', category:'Equipment Failure', equipment:'BioBot Printer #2', desc:'Temperature controller showing erratic readings. Print paused automatically by safety system.', actions:'Recalibrated sensor, replaced thermal paste, verified with IR thermometer.', personnel:'Tech Rivera, Eng. Lopez', location:'Print Lab A' },
+        { daysAgo: 22, severity:'Medium', category:'Chemical Spill', equipment:'', desc:'50mL of GelMA solution spilled on workbench during transfer.', actions:'Neutralized with PBS, cleaned per SOP, no personnel exposure.', personnel:'Dr. Kim', location:'Bioink Prep Room' },
+        { daysAgo: 30, severity:'Critical', category:'Environmental', equipment:'HVAC System', desc:'Clean room particulate count exceeded Class 10000 limits for 45 minutes.', actions:'Evacuated room, sealed door, HVAC emergency maintenance. Particles returned to spec.', personnel:'Facilities Team', location:'Clean Room B' },
+        { daysAgo: 35, severity:'Low', category:'Near Miss', equipment:'BioBot Printer #2', desc:'Syringe not fully seated detected by pre-print check. Could have caused bioink leak.', actions:'Re-seated syringe, added to daily checklist.', personnel:'Tech Chen', location:'Print Lab A' },
+        { daysAgo: 41, severity:'Medium', category:'Contamination', equipment:'Incubator #2', desc:'Bacterial contamination in 2 of 12 plates. Cross-contamination suspected.', actions:'Disposed contaminated plates, deep-cleaned incubator, reviewed handling protocol.', personnel:'Dr. Patel, Tech Singh', location:'Cell Culture Room' },
+        { daysAgo: 55, severity:'High', category:'Personnel Injury', equipment:'Autoclave #1', desc:'Minor steam burn on forearm when opening autoclave door prematurely.', actions:'First aid applied, incident documented, autoclave timer lock discussed.', personnel:'Tech Rivera', location:'Sterilization Room' }
+    ];
+    incidents = seeds.map((s, i) => ({
+        id: 'INC-' + String(1001 + i),
+        date: new Date(now - s.daysAgo * DAY + Math.random() * DAY * 0.3).toISOString(),
+        severity: s.severity,
+        category: s.category,
+        equipment: s.equipment,
+        description: s.desc,
+        actionsTaken: s.actions,
+        personnel: s.personnel,
+        location: s.location
+    }));
+    save();
+}
+
+function switchTab(name) {
+    document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.tab === name));
+    document.querySelectorAll('.panel').forEach(p => p.classList.toggle('active', p.id === 'panel-' + name));
+    if (name === 'dashboard') renderDashboard();
+    if (name === 'log') renderLog();
+    if (name === 'timeline') renderTimeline();
+    if (name === 'patterns') renderPatterns();
+}
+
+/* DASHBOARD */
+function renderDashboard() {
+    const sorted = [...incidents].sort((a,b) => new Date(b.date) - new Date(a.date));
+    const total = sorted.length;
+    const sevCounts = {}; SEVERITIES.forEach(s => sevCounts[s] = 0);
+    sorted.forEach(i => sevCounts[i.severity]++);
+    // MTBI
+    let mtbi = '—';
+    if (sorted.length > 1) {
+        const dates = sorted.map(i => new Date(i.date).getTime()).sort((a,b)=>a-b);
+        let gaps = []; for (let i=1;i<dates.length;i++) gaps.push(dates[i]-dates[i-1]);
+        const avg = gaps.reduce((a,b)=>a+b,0)/gaps.length;
+        mtbi = (avg / 86400000).toFixed(1) + 'd';
+    }
+    // Trend
+    const last30 = sorted.filter(i => Date.now() - new Date(i.date).getTime() < 30*86400000).length;
+    const prev30 = sorted.filter(i => { const d = Date.now() - new Date(i.date).getTime(); return d >= 30*86400000 && d < 60*86400000; }).length;
+    const trend = last30 > prev30 ? '↑' : last30 < prev30 ? '↓' : '→';
+    const trendColor = last30 > prev30 ? 'var(--error)' : last30 < prev30 ? 'var(--success)' : 'var(--muted)';
+
+    document.getElementById('statCards').innerHTML = `
+        <div class="stat-card"><div class="value">${total}</div><div class="label">Total Incidents</div></div>
+        <div class="stat-card"><div class="value severity-critical">${sevCounts.Critical}</div><div class="label">Critical</div></div>
+        <div class="stat-card"><div class="value">${mtbi}</div><div class="label">Mean Time Between</div></div>
+        <div class="stat-card"><div class="value" style="color:${trendColor}">${trend} ${last30}</div><div class="label">Last 30d (vs prev ${prev30})</div></div>
+    `;
+
+    // Severity Pie
+    drawPie('severityPie', SEVERITIES.map(s => ({ label:s, value: sevCounts[s], color: SEV_COLORS[s] })));
+
+    // Category Bar
+    const catCounts = {}; CATEGORIES.forEach(c => catCounts[c]=0);
+    sorted.forEach(i => catCounts[i.category]++);
+    drawBar('categoryBar', CATEGORIES.map((c,i) => ({ label: c.split(' ')[0], value: catCounts[c], color: CAT_COLORS[i] })));
+
+    // Top equipment
+    const eqMap = {};
+    sorted.filter(i=>i.equipment).forEach(i => { eqMap[i.equipment] = (eqMap[i.equipment]||0)+1; });
+    const eqSorted = Object.entries(eqMap).sort((a,b)=>b[1]-a[1]).slice(0,5);
+    document.getElementById('topEquipment').innerHTML = eqSorted.length ? '<table><thead><tr><th>Equipment</th><th>Incidents</th></tr></thead><tbody>' +
+        eqSorted.map(([eq,c]) => `<tr><td>${esc(eq)}</td><td style="color:${c>=3?'var(--error)':c>=2?'var(--warning)':'var(--text)'}">${c}</td></tr>`).join('') +
+        '</tbody></table>' : '<p style="color:var(--muted)">No equipment incidents logged.</p>';
+
+    // Insights
+    const patterns = detectPatterns();
+    document.getElementById('dashInsights').innerHTML = patterns.length ?
+        patterns.slice(0,3).map(p => `<div class="pattern-alert"><div class="title">${p.icon} ${p.title}</div><div class="desc">${p.description}</div></div>`).join('') :
+        '<p style="color:var(--success)">✅ No concerning patterns detected. Keep up the good work!</p>';
+}
+
+function drawPie(canvasId, data) {
+    const canvas = document.getElementById(canvasId);
+    const ctx = canvas.getContext('2d');
+    const w = canvas.width, h = canvas.height, cx = w/2, cy = h/2, r = Math.min(w,h)/2 - 40;
+    ctx.clearRect(0,0,w,h);
+    const total = data.reduce((s,d) => s+d.value, 0);
+    if (!total) { ctx.fillStyle='#94a3b8'; ctx.font='14px sans-serif'; ctx.textAlign='center'; ctx.fillText('No data',cx,cy); return; }
+    let angle = -Math.PI/2;
+    data.forEach(d => {
+        if (!d.value) return;
+        const slice = (d.value/total) * Math.PI * 2;
+        ctx.beginPath(); ctx.moveTo(cx,cy); ctx.arc(cx,cy,r,angle,angle+slice); ctx.closePath();
+        ctx.fillStyle = d.color; ctx.fill();
+        const mid = angle + slice/2;
+        const lx = cx + Math.cos(mid)*(r+20), ly = cy + Math.sin(mid)*(r+20);
+        ctx.fillStyle = '#e2e8f0'; ctx.font = '12px sans-serif'; ctx.textAlign = 'center';
+        ctx.fillText(`${d.label} (${d.value})`, lx, ly);
+        angle += slice;
+    });
+}
+
+function drawBar(canvasId, data) {
+    const canvas = document.getElementById(canvasId);
+    const ctx = canvas.getContext('2d');
+    const w = canvas.width, h = canvas.height;
+    ctx.clearRect(0,0,w,h);
+    const max = Math.max(...data.map(d=>d.value), 1);
+    const barW = (w - 60) / data.length - 8;
+    const baseY = h - 40;
+    data.forEach((d, i) => {
+        const x = 40 + i * ((w-60)/data.length) + 4;
+        const barH = (d.value / max) * (baseY - 20);
+        ctx.fillStyle = d.color;
+        ctx.beginPath(); ctx.roundRect(x, baseY - barH, barW, barH, [4,4,0,0]); ctx.fill();
+        ctx.fillStyle = '#e2e8f0'; ctx.font = 'bold 12px sans-serif'; ctx.textAlign = 'center';
+        ctx.fillText(d.value, x + barW/2, baseY - barH - 6);
+        ctx.fillStyle = '#94a3b8'; ctx.font = '10px sans-serif';
+        ctx.fillText(d.label, x + barW/2, baseY + 14);
+    });
+}
+
+/* LOG */
+function renderLog() {
+    const search = (document.getElementById('logSearch').value || '').toLowerCase();
+    const filter = document.getElementById('logFilter').value;
+    const filtered = [...incidents]
+        .filter(i => (!filter || i.severity === filter) && (!search || JSON.stringify(i).toLowerCase().includes(search)))
+        .sort((a,b) => new Date(b.date) - new Date(a.date));
+    document.getElementById('logBody').innerHTML = filtered.length ? filtered.map(i => `
+        <tr style="cursor:pointer" onclick="showDetail('${i.id}')">
+            <td>${new Date(i.date).toLocaleDateString()}</td>
+            <td><span class="badge badge-${i.severity.toLowerCase()}">${i.severity}</span></td>
+            <td>${esc(i.category)}</td>
+            <td>${esc(i.equipment||'—')}</td>
+            <td>${esc(i.description.slice(0,60))}${i.description.length>60?'…':''}</td>
+            <td><button class="btn btn-sm btn-outline" onclick="event.stopPropagation();deleteIncident('${i.id}')">✕</button></td>
+        </tr>
+    `).join('') : '<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:2rem;">No incidents found.</td></tr>';
+}
+
+function showDetail(id) {
+    const i = incidents.find(x => x.id === id);
+    if (!i) return;
+    const rca = getRootCause(i);
+    document.getElementById('detailCard').innerHTML = `
+        <h2>${i.id} — ${esc(i.category)}</h2>
+        <div class="detail-row"><div class="dl">Date</div><div class="dv">${new Date(i.date).toLocaleString()}</div></div>
+        <div class="detail-row"><div class="dl">Severity</div><div class="dv"><span class="badge badge-${i.severity.toLowerCase()}">${i.severity}</span></div></div>
+        <div class="detail-row"><div class="dl">Category</div><div class="dv">${esc(i.category)}</div></div>
+        <div class="detail-row"><div class="dl">Equipment</div><div class="dv">${esc(i.equipment||'N/A')}</div></div>
+        <div class="detail-row"><div class="dl">Location</div><div class="dv">${esc(i.location||'N/A')}</div></div>
+        <div class="detail-row"><div class="dl">Description</div><div class="dv">${esc(i.description)}</div></div>
+        <div class="detail-row"><div class="dl">Actions Taken</div><div class="dv">${esc(i.actionsTaken)}</div></div>
+        <div class="detail-row"><div class="dl">Personnel</div><div class="dv">${esc(i.personnel)}</div></div>
+        <hr style="border-color:var(--border);margin:1rem 0;">
+        <h3 style="color:var(--accent);margin-bottom:0.5rem;">🤖 Root Cause Analysis</h3>
+        <p style="font-size:0.9rem;">${rca}</p>
+        <div class="actions" style="margin-top:1rem;"><button class="btn btn-outline" onclick="closeDetail()">Close</button></div>
+    `;
+    document.getElementById('detailOverlay').style.display = 'flex';
+}
+
+function closeDetail() { document.getElementById('detailOverlay').style.display = 'none'; }
+
+function deleteIncident(id) {
+    if (!confirm('Delete this incident?')) return;
+    incidents = incidents.filter(i => i.id !== id);
+    save(); renderLog();
+}
+
+/* TIMELINE */
+function renderTimeline() {
+    const canvas = document.getElementById('timelineCanvas');
+    const ctx = canvas.getContext('2d');
+    const w = canvas.width, h = canvas.height;
+    ctx.clearRect(0,0,w,h);
+    const sorted = [...incidents].sort((a,b) => new Date(a.date) - new Date(b.date));
+    if (!sorted.length) { ctx.fillStyle='#94a3b8'; ctx.font='14px sans-serif'; ctx.textAlign='center'; ctx.fillText('No incidents to display',w/2,h/2); return; }
+    const minT = new Date(sorted[0].date).getTime();
+    const maxT = new Date(sorted[sorted.length-1].date).getTime();
+    const range = Math.max(maxT - minT, 86400000);
+    const padL=80, padR=40, padT=40, padB=60;
+    const lineY = h - padB - 30;
+    // axis
+    ctx.strokeStyle = '#334155'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(padL, lineY); ctx.lineTo(w-padR, lineY); ctx.stroke();
+    // ticks
+    const days = range / 86400000;
+    const tickInterval = days > 50 ? 14 : days > 20 ? 7 : days > 10 ? 3 : 1;
+    ctx.fillStyle = '#94a3b8'; ctx.font = '10px sans-serif'; ctx.textAlign = 'center';
+    for (let d = 0; d <= days; d += tickInterval) {
+        const t = minT + d * 86400000;
+        const x = padL + ((t - minT) / range) * (w - padL - padR);
+        ctx.beginPath(); ctx.moveTo(x, lineY); ctx.lineTo(x, lineY+6); ctx.stroke();
+        ctx.fillText(new Date(t).toLocaleDateString('en',{month:'short',day:'numeric'}), x, lineY+20);
+    }
+    // severity lanes
+    const laneH = (lineY - padT) / 4;
+    SEVERITIES.forEach((s, i) => {
+        const y = padT + i * laneH + laneH/2;
+        ctx.fillStyle = '#1e293b'; ctx.fillRect(padL, padT + i*laneH, w-padL-padR, laneH);
+        if (i>0) { ctx.strokeStyle='#1e293b'; ctx.beginPath(); ctx.moveTo(padL, padT+i*laneH); ctx.lineTo(w-padR, padT+i*laneH); ctx.stroke(); }
+        ctx.fillStyle = SEV_COLORS[s]; ctx.font = '11px sans-serif'; ctx.textAlign = 'right';
+        ctx.fillText(s, padL-8, y+4);
+    });
+    // dots
+    sorted.forEach(inc => {
+        const t = new Date(inc.date).getTime();
+        const x = padL + ((t - minT) / range) * (w - padL - padR);
+        const si = SEVERITIES.indexOf(inc.severity);
+        const y = padT + si * laneH + laneH/2;
+        ctx.beginPath(); ctx.arc(x, y, 7, 0, Math.PI*2);
+        ctx.fillStyle = SEV_COLORS[inc.severity]; ctx.fill();
+        ctx.strokeStyle = '#0f172a'; ctx.lineWidth = 2; ctx.stroke();
+    });
+    ctx.fillStyle = '#94a3b8'; ctx.font = '11px sans-serif'; ctx.textAlign = 'center';
+    ctx.fillText('← Time →', w/2, h-8);
+}
+
+/* PATTERNS */
+function detectPatterns() {
+    const patterns = [];
+    const now = Date.now();
+    const DAY = 86400000;
+    const sorted = [...incidents].sort((a,b) => new Date(a.date) - new Date(b.date));
+
+    // 1. Recurring equipment failures
+    const eqRecent = {};
+    sorted.filter(i => i.equipment && now - new Date(i.date).getTime() < 30*DAY).forEach(i => {
+        if (!eqRecent[i.equipment]) eqRecent[i.equipment] = [];
+        eqRecent[i.equipment].push(i);
+    });
+    Object.entries(eqRecent).filter(([,v])=>v.length>=2).forEach(([eq,list]) => {
+        patterns.push({
+            icon:'⚙️', title:`Recurring: ${eq} (${list.length}× in 30d)`,
+            description: `${eq} has had ${list.length} incidents in the last 30 days. Categories: ${[...new Set(list.map(l=>l.category))].join(', ')}.`,
+            rca: getRootCauseForEquipment(eq, list)
+        });
+    });
+
+    // 2. Category clusters (>= 3 in same category in 30d)
+    const catRecent = {};
+    sorted.filter(i => now - new Date(i.date).getTime() < 30*DAY).forEach(i => {
+        catRecent[i.category] = (catRecent[i.category]||0)+1;
+    });
+    Object.entries(catRecent).filter(([,c])=>c>=3).forEach(([cat,c]) => {
+        patterns.push({
+            icon:'📊', title:`Category Spike: ${cat} (${c}× in 30d)`,
+            description: `${cat} incidents are elevated with ${c} occurrences in the last 30 days. This may indicate a systemic issue.`,
+            rca: `Investigate shared root causes for ${cat} incidents — check recent procedural changes, new personnel, or equipment maintenance schedules.`
+        });
+    });
+
+    // 3. Temporal clustering (multiple incidents on same day of week)
+    const dayMap = [0,0,0,0,0,0,0];
+    sorted.forEach(i => dayMap[new Date(i.date).getDay()]++);
+    const maxDay = Math.max(...dayMap);
+    if (maxDay >= 3) {
+        const dayNames = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+        const peakDay = dayNames[dayMap.indexOf(maxDay)];
+        patterns.push({
+            icon:'📅', title:`Temporal Pattern: ${peakDay} Peak (${maxDay} incidents)`,
+            description: `Most incidents occur on ${peakDay}s. Consider staffing, workload, or maintenance schedules on this day.`,
+            rca: 'Correlate with shift schedules, equipment maintenance windows, and workload peaks.'
+        });
+    }
+
+    // 4. Escalation trend
+    const recent = sorted.filter(i => now - new Date(i.date).getTime() < 30*DAY);
+    const older = sorted.filter(i => { const d=now-new Date(i.date).getTime(); return d>=30*DAY && d<60*DAY; });
+    const sevScore = s => ({Critical:4,High:3,Medium:2,Low:1}[s]||0);
+    const avgRecent = recent.length ? recent.reduce((s,i)=>s+sevScore(i.severity),0)/recent.length : 0;
+    const avgOlder = older.length ? older.reduce((s,i)=>s+sevScore(i.severity),0)/older.length : 0;
+    if (avgRecent > avgOlder + 0.5 && recent.length >= 2) {
+        patterns.push({
+            icon:'📈', title:'Severity Escalation Detected',
+            description: `Average severity increased from ${avgOlder.toFixed(1)} → ${avgRecent.toFixed(1)} (scale 1-4). Recent incidents are more severe than the previous period.`,
+            rca: 'Review whether new processes, equipment aging, or training gaps are contributing to higher-severity incidents.'
+        });
+    }
+
+    // 5. Location hotspot
+    const locMap = {};
+    sorted.filter(i=>i.location).forEach(i => { locMap[i.location]=(locMap[i.location]||0)+1; });
+    Object.entries(locMap).filter(([,c])=>c>=3).forEach(([loc,c]) => {
+        patterns.push({
+            icon:'📍', title:`Location Hotspot: ${loc} (${c} incidents)`,
+            description: `${loc} has accumulated ${c} incidents. Environmental or procedural factors at this location may need review.`,
+            rca: `Conduct a focused audit of ${loc} — check equipment condition, ventilation, cleanliness, and personnel training.`
+        });
+    });
+
+    return patterns;
+}
+
+function renderPatterns() {
+    const patterns = detectPatterns();
+    document.getElementById('patternsList').innerHTML = patterns.length ? patterns.map(p => `
+        <div class="pattern-alert">
+            <div class="title">${p.icon} ${p.title}</div>
+            <div class="desc">${p.description}</div>
+            <div class="rca">💡 Recommendation: ${p.rca}</div>
+        </div>
+    `).join('') : '<div class="empty">✅ No concerning patterns detected. The lab is operating within normal parameters.</div>';
+}
+
+/* ROOT CAUSE */
+function getRootCause(incident) {
+    const cat = incident.category;
+    const eq = incident.equipment;
+    const recurring = incidents.filter(i => i.equipment && i.equipment === eq).length;
+    let causes = [];
+    switch(cat) {
+        case 'Equipment Failure':
+            causes.push('Preventive maintenance may be overdue or insufficient.');
+            if (recurring > 1) causes.push(`This equipment has ${recurring} total incidents — consider replacement or major overhaul.`);
+            causes.push('Check calibration logs and last service date.');
+            break;
+        case 'Contamination':
+            causes.push('Possible sources: inadequate aseptic technique, contaminated reagents, or HEPA filter degradation.');
+            causes.push('Review recent hood certification dates and media sterility test results.');
+            break;
+        case 'Chemical Spill':
+            causes.push('Evaluate container integrity and transfer procedures.');
+            causes.push('Ensure proper PPE availability and spill kit proximity.');
+            break;
+        case 'Personnel Injury':
+            causes.push('Review safety training records for involved personnel.');
+            causes.push('Assess whether engineering controls (guards, interlocks) are adequate.');
+            break;
+        case 'Protocol Deviation':
+            causes.push('Possible causes: unclear SOP, training gap, or time pressure.');
+            causes.push('Review the protocol for ambiguity and consider additional checkpoints.');
+            break;
+        case 'Environmental':
+            causes.push('Check HVAC maintenance records and monitoring system calibration.');
+            causes.push('Review recent facility changes that may affect environmental controls.');
+            break;
+        case 'Near Miss':
+            causes.push('Near misses are valuable — they reveal latent failure modes before harm occurs.');
+            causes.push('Implement a barrier analysis to identify what prevented escalation.');
+            break;
+        default:
+            causes.push('Review contributing factors including human, equipment, and environmental dimensions.');
+    }
+    return causes.join(' ');
+}
+
+function getRootCauseForEquipment(eq, list) {
+    const cats = [...new Set(list.map(l=>l.category))];
+    if (cats.includes('Equipment Failure')) return `${eq} shows repeated failures. Recommend scheduling comprehensive maintenance or evaluating replacement. Check mean time between failures trend.`;
+    return `Multiple incident types on ${eq} suggest systemic reliability issues. Cross-reference with maintenance logs and usage frequency.`;
+}
+
+/* FORM */
+function submitIncident() {
+    const desc = document.getElementById('incDesc').value.trim();
+    if (!desc) { alert('Please enter a description.'); return; }
+    const id = 'INC-' + (1000 + incidents.length + Math.floor(Math.random()*100));
+    incidents.push({
+        id, date: document.getElementById('incDate').value ? new Date(document.getElementById('incDate').value).toISOString() : new Date().toISOString(),
+        severity: document.getElementById('incSeverity').value,
+        category: document.getElementById('incCategory').value,
+        equipment: document.getElementById('incEquipment').value.trim(),
+        description: desc,
+        actionsTaken: document.getElementById('incActions').value.trim(),
+        personnel: document.getElementById('incPersonnel').value.trim(),
+        location: document.getElementById('incLocation').value.trim()
+    });
+    save(); clearForm();
+    alert('Incident ' + id + ' logged successfully.');
+    switchTab('dashboard');
+}
+
+function clearForm() {
+    ['incDesc','incActions','incEquipment','incPersonnel','incLocation'].forEach(id => document.getElementById(id).value = '');
+    document.getElementById('incSeverity').value = 'Medium';
+    document.getElementById('incCategory').value = 'Equipment Failure';
+    document.getElementById('incDate').value = '';
+}
+
+/* EXPORT */
+function exportJSON() {
+    const blob = new Blob([JSON.stringify(incidents, null, 2)], {type:'application/json'});
+    dl(blob, 'biobots-incidents.json');
+}
+
+function exportCSV() {
+    const headers = ['ID','Date','Severity','Category','Equipment','Description','Actions Taken','Personnel','Location'];
+    const rows = incidents.map(i => [i.id, i.date, i.severity, i.category, i.equipment, i.description, i.actionsTaken, i.personnel, i.location].map(v => '"' + String(v||'').replace(/"/g,'""') + '"').join(','));
+    const csv = [headers.join(','), ...rows].join('\n');
+    dl(new Blob([csv],{type:'text/csv'}), 'biobots-incidents.csv');
+}
+
+function dl(blob, name) {
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+    a.download = name; a.click(); URL.revokeObjectURL(a.href);
+}
+
+/* MONITOR */
+function toggleMonitor() {
+    if (monitorInterval) {
+        clearInterval(monitorInterval); monitorInterval = null;
+        document.getElementById('monitorDot').className = 'monitor-dot off';
+        document.getElementById('monitorLabel').textContent = 'Auto-Monitor Off';
+        document.getElementById('monitorBtn').textContent = 'Enable Auto-Monitor';
+        document.getElementById('monitorStatus').textContent = '';
+    } else {
+        monitorInterval = setInterval(runMonitor, 15000);
+        document.getElementById('monitorDot').className = 'monitor-dot on';
+        document.getElementById('monitorLabel').textContent = 'Auto-Monitor Active';
+        document.getElementById('monitorBtn').textContent = 'Disable';
+        runMonitor();
+    }
+}
+
+function runMonitor() {
+    const patterns = detectPatterns();
+    const ts = new Date().toLocaleTimeString();
+    document.getElementById('monitorStatus').textContent = `Last scan: ${ts} — ${patterns.length} pattern(s) detected`;
+    if (document.querySelector('.tab.active').dataset.tab === 'dashboard') renderDashboard();
+    if (document.querySelector('.tab.active').dataset.tab === 'patterns') renderPatterns();
+}
+
+/* UTIL */
+function esc(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+
+/* INIT */
+load();
+document.getElementById('incDate').value = new Date().toISOString().slice(0,16);
+renderDashboard();
+</script>
+<script src="shared/commandPalette.js"></script>
+</body>
+</html>
