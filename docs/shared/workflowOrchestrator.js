@@ -7,9 +7,11 @@
  * propagation, anomaly detection, and auto-optimization.
  */
 
-/* ── Helpers ──────────────────────────────────────────────────────── */
+var _v = require('./validation');
+var clamp = _v.clamp;
+var round = _v.round;
 
-function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
+/* ── Helpers ──────────────────────────────────────────────────────── */
 function randNorm(mean, sd) {
     // Box-Muller
     var u1 = Math.random() || 1e-10;
@@ -32,7 +34,7 @@ var simulators = {
         var viscosity = concentration * 120 + mixing_time * 5 - (temperature - 25) * 8;
         viscosity = clamp(randNorm(viscosity, viscosity * 0.05), 50, 5000);
         var homogeneity = clamp(randNorm(0.7 + mixing_time * 0.015, 0.03), 0, 1);
-        return { viscosity: Math.round(viscosity * 10) / 10, homogeneity: Math.round(homogeneity * 1000) / 1000 };
+        return { viscosity: round(viscosity, 1), homogeneity: round(homogeneity, 3) };
     },
     'rheology-check': function (params, prev) {
         var viscosity = params.viscosity || (prev && prev.viscosity) || 400;
@@ -40,9 +42,9 @@ var simulators = {
         var ys = clamp(randNorm(viscosity * 0.15, viscosity * 0.02), 0, 2000);
         var ps = clamp(randNorm(0.5 + sti * 0.4, 0.05), 0, 1);
         return {
-            shear_thinning_index: Math.round(sti * 1000) / 1000,
-            yield_stress: Math.round(ys * 10) / 10,
-            printability_score: Math.round(ps * 1000) / 1000
+            shear_thinning_index: round(sti, 3),
+            yield_stress: round(ys, 1),
+            printability_score: round(ps, 3)
         };
     },
     'cell-seeding': function (params, _prev) {
@@ -50,7 +52,7 @@ var simulators = {
         var volume = params.volume || 1;
         var seeded = Math.round(randNorm(density * volume, density * volume * 0.08));
         var uniformity = clamp(randNorm(0.85, 0.05), 0, 1);
-        return { seeded_count: seeded, distribution_uniformity: Math.round(uniformity * 1000) / 1000 };
+        return { seeded_count: seeded, distribution_uniformity: round(uniformity, 3) };
     },
     'print-execution': function (params, _prev) {
         var layers = params.layers || 20;
@@ -61,7 +63,7 @@ var simulators = {
         return {
             layers_completed: completed,
             layers_target: layers,
-            dimensional_accuracy: Math.round(accuracy * 1000) / 1000
+            dimensional_accuracy: round(accuracy, 3)
         };
     },
     'crosslink': function (params, _prev) {
@@ -69,7 +71,7 @@ var simulators = {
         var duration = params.duration || 60;
         var cd = clamp(randNorm(0.4 + intensity * 0.03 + duration * 0.002, 0.05), 0, 1);
         var gs = clamp(randNorm(intensity * 5 + duration * 0.8, 8), 0, 500);
-        return { crosslink_density: Math.round(cd * 1000) / 1000, gel_strength: Math.round(gs * 10) / 10 };
+        return { crosslink_density: round(cd, 3), gel_strength: round(gs, 1) };
     },
     'viability-check': function (params, prev) {
         var base = 0.88;
@@ -78,8 +80,8 @@ var simulators = {
         var viability = clamp(randNorm(base, 0.04), 0, 1);
         var metabolic = clamp(randNorm(viability * 0.95, 0.03), 0, 1);
         return {
-            viability_pct: Math.round(viability * 1000) / 1000,
-            metabolic_activity: Math.round(metabolic * 1000) / 1000
+            viability_pct: round(viability, 3),
+            metabolic_activity: round(metabolic, 3)
         };
     },
     'quality-assessment': function (params, prev) {
@@ -95,7 +97,7 @@ var simulators = {
         if (prev && prev.viability_pct && prev.viability_pct < 0.8) defects.push('low-viability');
         if (prev && prev.homogeneity && prev.homogeneity < 0.75) defects.push('poor-mixing');
         return {
-            overall_score: Math.round(overall * 1000) / 1000,
+            overall_score: round(overall, 3),
             pass_fail: overall >= 0.7 ? 'PASS' : 'FAIL',
             defect_list: defects
         };
@@ -163,13 +165,7 @@ function executePipeline(pipeline, initialParams) {
         var sim = simulators[step.type];
         if (!sim) { status = 'error'; break; }
 
-        var merged = {};
-        var pk = Object.keys(prevOutput);
-        for (var j = 0; j < pk.length; j++) merged[pk[j]] = prevOutput[pk[j]];
-        if (step.params) {
-            var sk = Object.keys(step.params);
-            for (var j2 = 0; j2 < sk.length; j2++) merged[sk[j2]] = step.params[sk[j2]];
-        }
+        var merged = Object.assign({}, prevOutput, step.params);
 
         var output = sim(merged, prevOutput);
         var anomalies = detectAnomalies(output, step.expectedOutputRange);
@@ -190,8 +186,7 @@ function executePipeline(pipeline, initialParams) {
         results.push({ step: step, output: output, anomalies: anomalies, status: stepStatus });
 
         // Propagate outputs to next step
-        var ok = Object.keys(output);
-        for (var k = 0; k < ok.length; k++) prevOutput[ok[k]] = output[ok[k]];
+        Object.assign(prevOutput, output);
     }
 
     var duration = Date.now() - start;
