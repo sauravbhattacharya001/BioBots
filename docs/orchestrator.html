@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Lab Workflow Orchestrator — BioBots 1</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧬</text></svg>">
+    <style>
+        :root { --bg:#0f172a;--surface:#1e293b;--border:#334155;--text:#e2e8f0;--muted:#94a3b8;--accent:#38bdf8;--accent-hover:#7dd3fc;--success:#4ade80;--warning:#fbbf24;--error:#f87171;--purple:#a78bfa; }
+        *{margin:0;padding:0;box-sizing:border-box}
+        body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
+        header{text-align:center;padding:1.2rem 1rem .8rem;border-bottom:1px solid var(--border)}
+        header h1{font-size:1.5rem;background:linear-gradient(135deg,var(--accent),var(--success));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+        header p{color:var(--muted);margin-top:.2rem;font-size:.85rem}
+        .container{max-width:1200px;margin:0 auto;padding:1rem}
+        .grid{display:grid;grid-template-columns:1fr 1fr;gap:1rem}
+        @media(max-width:768px){.grid{grid-template-columns:1fr}}
+        .card{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:1rem}
+        .card h2{font-size:1rem;color:var(--accent);margin-bottom:.8rem;display:flex;align-items:center;gap:.4rem}
+        select,button,input{font-family:inherit;font-size:.85rem;border-radius:6px;border:1px solid var(--border);background:var(--bg);color:var(--text);padding:.4rem .6rem}
+        button{cursor:pointer;background:var(--accent);color:#0f172a;border:none;font-weight:600;padding:.5rem 1rem;transition:background .2s}
+        button:hover{background:var(--accent-hover)}
+        button.secondary{background:var(--surface);color:var(--text);border:1px solid var(--border)}
+        .btn-row{display:flex;gap:.5rem;flex-wrap:wrap;margin-bottom:.8rem}
+        .step-list{list-style:none;max-height:320px;overflow-y:auto}
+        .step-item{display:flex;align-items:center;gap:.5rem;padding:.5rem;border:1px solid var(--border);border-radius:6px;margin-bottom:.4rem;font-size:.82rem;transition:border-color .2s}
+        .step-item .idx{width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.7rem;font-weight:700;flex-shrink:0}
+        .step-item .idx.passed{background:var(--success);color:#000}
+        .step-item .idx.warning{background:var(--warning);color:#000}
+        .step-item .idx.failed{background:var(--error);color:#fff}
+        .step-item .idx.pending{background:var(--border);color:var(--muted)}
+        .step-item .info{flex:1;min-width:0}
+        .step-item .info .name{font-weight:600}
+        .step-item .info .type{color:var(--muted);font-size:.75rem}
+        .step-item .remove{cursor:pointer;color:var(--error);font-size:.9rem;opacity:.6;transition:opacity .2s}
+        .step-item .remove:hover{opacity:1}
+        .gauge-wrap{display:flex;justify-content:center;padding:.5rem 0}
+        canvas#gauge{width:160px;height:160px}
+        .anomaly{padding:.4rem .6rem;border-left:3px solid var(--warning);margin-bottom:.4rem;font-size:.8rem;border-radius:0 4px 4px 0;background:rgba(251,191,36,.08)}
+        .anomaly.critical{border-color:var(--error);background:rgba(248,113,113,.08)}
+        .metric{display:flex;justify-content:space-between;padding:.2rem 0;font-size:.82rem;border-bottom:1px solid var(--border)}
+        .metric:last-child{border-bottom:none}
+        .metric .val{color:var(--accent);font-weight:600}
+        .history-item{padding:.4rem .5rem;border:1px solid var(--border);border-radius:6px;margin-bottom:.3rem;font-size:.8rem;display:flex;justify-content:space-between;align-items:center;cursor:pointer;transition:background .2s}
+        .history-item:hover{background:rgba(56,189,248,.05)}
+        .opt-item{padding:.4rem .6rem;margin-bottom:.3rem;border-radius:6px;font-size:.8rem;background:rgba(167,139,250,.08);border:1px solid rgba(167,139,250,.2)}
+        .opt-item .priority{display:inline-block;padding:1px 6px;border-radius:3px;font-size:.7rem;font-weight:700;margin-right:.3rem}
+        .opt-item .priority.high{background:var(--error);color:#fff}
+        .opt-item .priority.medium{background:var(--warning);color:#000}
+        .progress-bar{height:4px;background:var(--border);border-radius:2px;margin:.5rem 0;overflow:hidden}
+        .progress-bar .fill{height:100%;background:var(--accent);transition:width .3s;width:0}
+        .empty{color:var(--muted);font-size:.82rem;text-align:center;padding:1.5rem}
+        .tag{display:inline-block;padding:1px 6px;border-radius:3px;font-size:.7rem;background:var(--border);color:var(--muted);margin-left:.3rem}
+        #add-step-row{display:flex;gap:.4rem;margin-bottom:.6rem}
+        #add-step-row select{flex:1}
+    </style>
+</head>
+<body>
+<header>
+    <h1>🔬 Lab Workflow Orchestrator</h1>
+    <p>Autonomous multi-step bioprinting pipelines with anomaly detection &amp; auto-optimization</p>
+</header>
+<div class="container">
+    <div class="grid">
+        <!-- Pipeline Builder -->
+        <div class="card">
+            <h2>🔧 Pipeline Builder</h2>
+            <div class="btn-row">
+                <select id="preset-select"><option value="">— Load Preset —</option></select>
+                <button onclick="loadPreset()">Load</button>
+                <button class="secondary" onclick="clearPipeline()">Clear</button>
+            </div>
+            <div id="add-step-row">
+                <select id="step-type">
+                    <option value="bioink-prep">Bioink Prep</option>
+                    <option value="rheology-check">Rheology Check</option>
+                    <option value="cell-seeding">Cell Seeding</option>
+                    <option value="print-execution">Print Execution</option>
+                    <option value="crosslink">Crosslink</option>
+                    <option value="viability-check">Viability Check</option>
+                    <option value="quality-assessment">Quality Assessment</option>
+                </select>
+                <button onclick="addStep()">+ Add</button>
+            </div>
+            <ul class="step-list" id="step-list"></ul>
+            <div class="progress-bar" id="exec-progress"><div class="fill" id="exec-fill"></div></div>
+            <div class="btn-row" style="margin-top:.6rem;margin-bottom:0">
+                <button onclick="runPipeline()" id="run-btn">▶ Execute Pipeline</button>
+                <button class="secondary" onclick="exportResults()">📥 Export JSON</button>
+            </div>
+        </div>
+
+        <!-- Results -->
+        <div class="card">
+            <h2>📊 Results</h2>
+            <div class="gauge-wrap"><canvas id="gauge" width="160" height="160"></canvas></div>
+            <div id="results-detail"><p class="empty">Run a pipeline to see results</p></div>
+        </div>
+
+        <!-- Anomalies & Recommendations -->
+        <div class="card">
+            <h2>⚠️ Anomalies &amp; Fixes</h2>
+            <div id="anomalies-list"><p class="empty">No anomalies detected</p></div>
+        </div>
+
+        <!-- History & Optimization -->
+        <div class="card">
+            <h2>🧠 History &amp; Auto-Optimize</h2>
+            <div class="btn-row">
+                <button onclick="runAutoOptimize()">🔮 Auto-Optimize</button>
+                <button class="secondary" onclick="clearHistory()">Clear History</button>
+            </div>
+            <div id="optimize-results"></div>
+            <div id="history-list"><p class="empty">No runs yet</p></div>
+        </div>
+    </div>
+</div>
+
+<script src="shared/workflowOrchestrator.js"></script>
+<script>
+(function(){
+    var orch = createWorkflowOrchestrator();
+    var presets = orch.getPresetPipelines();
+    var currentPipeline = [];
+    var lastResult = null;
+    var history = JSON.parse(localStorage.getItem('bb_orch_history') || '[]');
+
+    // Populate preset dropdown
+    var sel = document.getElementById('preset-select');
+    presets.forEach(function(p){ var o=document.createElement('option'); o.value=p.name; o.textContent=p.name; sel.appendChild(o); });
+
+    var stepNames = {
+        'bioink-prep':'Bioink Preparation','rheology-check':'Rheology Check','cell-seeding':'Cell Seeding',
+        'print-execution':'Print Execution','crosslink':'Crosslinking','viability-check':'Viability Check','quality-assessment':'Quality Assessment'
+    };
+    var defaultParams = {
+        'bioink-prep':{concentration:3,temperature:25,mixing_time:10},
+        'rheology-check':{},
+        'cell-seeding':{cell_density:1000000,volume:1},
+        'print-execution':{layers:20,speed:10,pressure:200},
+        'crosslink':{uv_intensity:10,duration:60},
+        'viability-check':{},
+        'quality-assessment':{}
+    };
+    var defaultRanges = {
+        'bioink-prep':{viscosity:{min:200,max:800},homogeneity:{min:0.8,max:1}},
+        'rheology-check':{printability_score:{min:0.6,max:1}},
+        'cell-seeding':{distribution_uniformity:{min:0.75,max:1}},
+        'print-execution':{dimensional_accuracy:{min:0.85,max:1}},
+        'crosslink':{crosslink_density:{min:0.5,max:0.9}},
+        'viability-check':{viability_pct:{min:0.8,max:1}},
+        'quality-assessment':{overall_score:{min:0.7,max:1}}
+    };
+
+    var sid = 0;
+
+    window.loadPreset = function() {
+        var name = sel.value;
+        var p = presets.find(function(x){return x.name===name});
+        if(!p) return;
+        currentPipeline = p.steps.map(function(s){return JSON.parse(JSON.stringify(s))});
+        renderSteps();
+    };
+
+    window.clearPipeline = function() { currentPipeline = []; lastResult = null; renderSteps(); renderResults(); };
+
+    window.addStep = function() {
+        var type = document.getElementById('step-type').value;
+        sid++;
+        currentPipeline.push({
+            id: 'u'+sid, name: stepNames[type]||type, type: type,
+            params: JSON.parse(JSON.stringify(defaultParams[type]||{})),
+            expectedOutputRange: JSON.parse(JSON.stringify(defaultRanges[type]||{}))
+        });
+        renderSteps();
+    };
+
+    function renderSteps() {
+        var ul = document.getElementById('step-list');
+        ul.innerHTML = '';
+        currentPipeline.forEach(function(s,i){
+            var li = document.createElement('li');
+            li.className = 'step-item';
+            var status = 'pending';
+            if(lastResult && lastResult.results[i]) status = lastResult.results[i].status;
+            li.innerHTML = '<div class="idx '+status+'">'+(i+1)+'</div><div class="info"><div class="name">'+s.name+'</div><div class="type">'+s.type+'</div></div><span class="remove" data-i="'+i+'">✕</span>';
+            ul.appendChild(li);
+        });
+        ul.querySelectorAll('.remove').forEach(function(btn){
+            btn.onclick = function(){ currentPipeline.splice(+this.dataset.i,1); lastResult=null; renderSteps(); renderResults(); };
+        });
+    }
+
+    window.runPipeline = function() {
+        if(!currentPipeline.length) return;
+        document.getElementById('run-btn').disabled = true;
+        var fill = document.getElementById('exec-fill');
+        fill.style.width = '0%';
+        var total = currentPipeline.length;
+        var step = 0;
+
+        function tick() {
+            step++;
+            fill.style.width = Math.round(step/total*100)+'%';
+            if(step < total) setTimeout(tick, 200);
+            else finish();
+        }
+
+        function finish() {
+            try {
+                var pipeline = orch.createPipeline('Custom Pipeline', currentPipeline);
+                lastResult = orch.executePipeline(pipeline);
+                history.unshift(lastResult);
+                if(history.length > 10) history = history.slice(0,10);
+                localStorage.setItem('bb_orch_history', JSON.stringify(history));
+                renderSteps();
+                renderResults();
+                renderHistory();
+            } catch(e) { alert('Error: '+e.message); }
+            document.getElementById('run-btn').disabled = false;
+        }
+
+        setTimeout(tick, 150);
+    };
+
+    function drawGauge(score) {
+        var c = document.getElementById('gauge');
+        var ctx = c.getContext('2d');
+        ctx.clearRect(0,0,160,160);
+        var cx=80,cy=90,r=60;
+        // Background arc
+        ctx.beginPath(); ctx.arc(cx,cy,r,Math.PI,2*Math.PI); ctx.lineWidth=14; ctx.strokeStyle='#334155'; ctx.stroke();
+        // Score arc
+        var color = score>=80?'#4ade80':score>=60?'#fbbf24':'#f87171';
+        var end = Math.PI + (score/100)*Math.PI;
+        ctx.beginPath(); ctx.arc(cx,cy,r,Math.PI,end); ctx.lineWidth=14; ctx.strokeStyle=color; ctx.lineCap='round'; ctx.stroke();
+        // Text
+        ctx.fillStyle = color; ctx.font = 'bold 28px sans-serif'; ctx.textAlign='center'; ctx.fillText(score,cx,cy+5);
+        ctx.fillStyle = '#94a3b8'; ctx.font = '11px sans-serif'; ctx.fillText('Health Score',cx,cy+22);
+    }
+
+    function renderResults() {
+        var el = document.getElementById('results-detail');
+        var al = document.getElementById('anomalies-list');
+        if(!lastResult) {
+            drawGauge(0);
+            el.innerHTML = '<p class="empty">Run a pipeline to see results</p>';
+            al.innerHTML = '<p class="empty">No anomalies detected</p>';
+            return;
+        }
+        drawGauge(lastResult.health.score);
+
+        var html = '<div style="font-size:.78rem;color:var(--muted);margin-bottom:.5rem">Status: <strong style="color:var(--text)">'+lastResult.status+'</strong> · '+lastResult.results.length+' steps · '+lastResult.duration+'ms</div>';
+        lastResult.results.forEach(function(r){
+            html += '<div style="margin-bottom:.5rem"><div style="font-weight:600;font-size:.82rem">'+r.step.name+' <span class="tag">'+r.status+'</span></div>';
+            var keys = Object.keys(r.output);
+            keys.forEach(function(k){
+                var v = r.output[k];
+                var display = typeof v === 'number' ? (v >= 1000 ? v.toLocaleString() : v) : (Array.isArray(v) ? v.join(', ')||'none' : v);
+                html += '<div class="metric"><span>'+k.replace(/_/g,' ')+'</span><span class="val">'+display+'</span></div>';
+            });
+            html += '</div>';
+        });
+        el.innerHTML = html;
+
+        if(lastResult.anomalies.length) {
+            al.innerHTML = '';
+            lastResult.anomalies.forEach(function(a){
+                al.innerHTML += '<div class="anomaly '+(a.severity==='critical'?'critical':'')+'"><strong>'+a.step+'</strong> — '+a.metric.replace(/_/g,' ')+': '+a.value+' (expected '+a.expected.min+'–'+a.expected.max+')<br><em>Fix: '+a.fix+'</em></div>';
+            });
+        } else {
+            al.innerHTML = '<p class="empty" style="color:var(--success)">✓ No anomalies — all steps within expected ranges</p>';
+        }
+    }
+
+    function renderHistory() {
+        var el = document.getElementById('history-list');
+        if(!history.length) { el.innerHTML = '<p class="empty">No runs yet</p>'; return; }
+        el.innerHTML = '';
+        history.forEach(function(h,i){
+            var color = h.health.score>=80?'var(--success)':h.health.score>=60?'var(--warning)':'var(--error)';
+            el.innerHTML += '<div class="history-item" onclick="viewHistory('+i+')"><span>'+h.pipeline+' <span class="tag">'+h.results.length+' steps</span></span><span style="color:'+color+';font-weight:700">'+h.health.score+'</span></div>';
+        });
+    }
+
+    window.viewHistory = function(i) {
+        lastResult = history[i];
+        currentPipeline = lastResult.results.map(function(r){return r.step});
+        renderSteps();
+        renderResults();
+    };
+
+    window.runAutoOptimize = function() {
+        var el = document.getElementById('optimize-results');
+        if(history.length < 2) { el.innerHTML = '<p class="empty">Need at least 2 runs to optimize</p>'; return; }
+        var pipeline = currentPipeline.length ? orch.createPipeline('Current',currentPipeline) : null;
+        var opt = orch.autoOptimize(pipeline, history);
+        if(!opt.suggestions.length) { el.innerHTML = '<p class="empty" style="color:var(--success)">✓ '+opt.message+'</p>'; return; }
+        var html = '';
+        opt.suggestions.forEach(function(s){
+            html += '<div class="opt-item"><span class="priority '+s.priority+'">'+s.priority.toUpperCase()+'</span><strong>'+s.step+'</strong> — '+s.metric.replace(/_/g,' ')+'<br><span style="color:var(--muted)">'+s.suggestion+' ('+s.frequency+')</span></div>';
+        });
+        el.innerHTML = html;
+    };
+
+    window.clearHistory = function() { history=[]; localStorage.removeItem('bb_orch_history'); renderHistory(); document.getElementById('optimize-results').innerHTML=''; };
+
+    window.exportResults = function() {
+        var data = { pipeline: currentPipeline, lastResult: lastResult, history: history };
+        var blob = new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
+        var a = document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='orchestrator-export.json'; a.click();
+    };
+
+    // Init
+    drawGauge(0);
+    renderHistory();
+})();
+</script>
+</body>
+</html>
