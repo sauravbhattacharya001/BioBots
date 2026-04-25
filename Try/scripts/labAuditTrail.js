@@ -78,35 +78,7 @@ var EVENT_TYPES = {
 var CATEGORIES = ['print', 'calibration', 'material', 'environment',
                   'protocol', 'maintenance', 'operator', 'quality', 'system'];
 
-/**
- * Escape a value for safe CSV inclusion.
- *
- * Defends against CSV formula injection (CWE-1236): if the string starts
- * with =, +, -, @, \t, or \r, a leading single-quote forces text mode in
- * spreadsheet applications.  The value is then RFC-4180 quoted if it
- * contains commas, double-quotes, or newlines.
- *
- * @param {*} value - Value to escape (coerced to string).
- * @returns {string} Safe, properly-quoted CSV cell value.
- */
-function csvSafe(value) {
-  if (value == null) return '';
-  var str = String(value);
-  var first = str.charAt(0);
-  if (first === '=' || first === '+' || first === '-' ||
-      first === '@' || first === '\t' || first === '\r') {
-    // Preserve legitimate negative/positive numbers
-    if (!((first === '-' || first === '+') && str.length > 1 && isFinite(Number(str)))) {
-      str = "'" + str;
-    }
-  }
-  if (str.indexOf(',') !== -1 || str.indexOf('"') !== -1 ||
-      str.indexOf('\n') !== -1 || str.indexOf('\r') !== -1 ||
-      str !== str.trim()) {
-    return '"' + str.replace(/"/g, '""') + '"';
-  }
-  return str;
-}
+var csvSafe = require('../../docs/shared/csvSafe').csvSafe;
 
 function fnv1aHash(str) {
   var hash = 0x811c9dc5;

@@ -45,6 +45,7 @@ var _stats = require('./scriptUtils');
 var _descriptiveStats = require('../../docs/shared/stats').descriptiveStats;
 var _stripDangerousKeys = require('../../docs/shared/sanitize').stripDangerousKeys;
 var _isDangerousKey = require('../../docs/shared/sanitize').isDangerousKey;
+var csvSafe = require('../../docs/shared/csvSafe').csvSafe;
 
 function createExperimentTracker(options) {
     options = options || {};
@@ -141,27 +142,6 @@ function createExperimentTracker(options) {
     // hand-rolled mean/stddev/min/max/cv that duplicated docs/shared/stats.
     var computeStats = _descriptiveStats;
 
-    /**
-     * Escape a value for CSV output.
-     */
-    function csvSafe(value) {
-        if (value == null) return '';
-        var str = String(value);
-        var first = str.charAt(0);
-        if (first === '=' || first === '+' || first === '-' ||
-            first === '@' || first === '\t' || first === '\r') {
-            // Don't corrupt legitimate numeric values (e.g. -3.14, +1.5)
-            if (!((first === '-' || first === '+') && str.length > 1 && isFinite(Number(str)))) {
-                str = "'" + str;
-            }
-        }
-        if (str.indexOf(',') !== -1 || str.indexOf('"') !== -1 ||
-            str.indexOf('\n') !== -1 || str.indexOf('\r') !== -1 ||
-            str !== str.trim()) {
-            return '"' + str.replace(/"/g, '""') + '"';
-        }
-        return str;
-    }
 
     // ── Experiment object ───────────────────────────────────────
 

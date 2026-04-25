@@ -12,37 +12,7 @@ function _cleanObj(obj) {
   return out;
 }
 
-/**
- * Escape a value for safe inclusion in a CSV cell.
- *
- * Defends against CSV formula injection (OWASP CWE-1236): if the string
- * starts with =, +, -, @, \t, or \r, a leading single-quote forces text
- * mode in Excel, Google Sheets, and LibreOffice Calc. The value is then
- * RFC-4180 quoted if it contains commas, double-quotes, or newlines.
- *
- * @param {*} value - Value to escape (coerced to string).
- * @returns {string} Safe, properly-quoted CSV cell value.
- */
-function csvSafe(value) {
-    if (value == null) return '';
-    var str = String(value);
-
-    // Formula injection defense (OWASP dangerous leader set)
-    var first = str.charAt(0);
-    if (first === '=' || first === '+' || first === '-' ||
-        first === '@' || first === '\t' || first === '\r') {
-        str = "'" + str;
-    }
-
-    // RFC-4180: quote if contains delimiter, double-quote, or newline
-    if (str.indexOf(',') !== -1 || str.indexOf('"') !== -1 ||
-        str.indexOf('\n') !== -1 || str.indexOf('\r') !== -1 ||
-        str !== str.trim()) {
-        return '"' + str.replace(/"/g, '""') + '"';
-    }
-
-    return str;
-}
+var csvSafe = require('../../docs/shared/csvSafe').csvSafe;
 
 /**
  * Print Session Logger for BioBots
