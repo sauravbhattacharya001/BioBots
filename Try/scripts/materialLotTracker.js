@@ -10,6 +10,20 @@ var stddev = _utils.stddev;
 var _DANGEROUS_KEYS = { '__proto__': 1, 'constructor': 1, 'prototype': 1 };
 function _isDangerousKey(k) { return _DANGEROUS_KEYS.hasOwnProperty(k); }
 
+/** Recursively strip __proto__, constructor, prototype keys from an object tree (CWE-1321). */
+function _stripNestedDangerousKeys(obj) {
+  if (obj === null || typeof obj !== 'object') return obj;
+  if (Array.isArray(obj)) return obj.map(_stripNestedDangerousKeys);
+  var clean = Object.create(null);
+  var keys = Object.keys(obj);
+  for (var i = 0; i < keys.length; i++) {
+    if (!_isDangerousKey(keys[i])) {
+      clean[keys[i]] = _stripNestedDangerousKeys(obj[keys[i]]);
+    }
+  }
+  return clean;
+}
+
 /**
  * Material Lot Tracker for BioBots
  *
@@ -760,7 +774,8 @@ function createMaterialLotTracker(opts) {
       Object.keys(data.lots).forEach(function (id) {
         if (_isDangerousKey(id)) return;
         if (mode === 'merge' && lots[id]) return;
-        lots[id] = data.lots[id];
+        // Deep-strip dangerous keys from imported lot objects (CWE-1321)
+        lots[id] = _stripNestedDangerousKeys(data.lots[id]);
       });
     }
     if (Array.isArray(data.usageLog)) {
@@ -773,7 +788,8 @@ function createMaterialLotTracker(opts) {
           });
           if (isDup) return;
         }
-        usageLog.push(u);
+        // Strip dangerous keys from imported usage log entries (CWE-1321)
+        usageLog.push(_stripNestedDangerousKeys(u));
       });
     }
     if (Array.isArray(data.recalls)) {
@@ -782,13 +798,15 @@ function createMaterialLotTracker(opts) {
           var exists = recalls.some(function (e) { return e.recallId === r.recallId; });
           if (exists) return;
         }
-        recalls.push(r);
+        // Strip dangerous keys from imported recall entries (CWE-1321)
+        recalls.push(_stripNestedDangerousKeys(r));
       });
     }
     if (data.customSpecs && typeof data.customSpecs === 'object') {
       Object.keys(data.customSpecs).forEach(function (cat) {
         if (_isDangerousKey(cat)) return;
-        customSpecs[cat] = data.customSpecs[cat];
+        // Strip dangerous keys from imported spec objects (CWE-1321)
+        customSpecs[cat] = _stripNestedDangerousKeys(data.customSpecs[cat]);
       });
     }
 
