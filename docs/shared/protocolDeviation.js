@@ -1,6 +1,8 @@
 'use strict';
 
 var round = require('./validation').round;
+var _sanitize = require('./sanitize');
+var _isDangerousKey = _sanitize.isDangerousKey;
 
 /**
  * Protocol Deviation Tracker
@@ -110,13 +112,19 @@ function createProtocolDeviationTracker() {
         if (!protocolId || typeof protocolId !== 'string') {
             throw new Error('protocolId must be a non-empty string');
         }
+        // CWE-1321: reject prototype-pollution keys in protocolId
+        if (_isDangerousKey(protocolId)) {
+            throw new Error('protocolId contains a disallowed key name');
+        }
         if (!spec || typeof spec !== 'object') {
             throw new Error('spec must be an object with parameter definitions');
         }
-        var params = {};
+        var params = Object.create(null);
         var keys = Object.keys(spec);
         for (var i = 0; i < keys.length; i++) {
             var k = keys[i];
+            // CWE-1321: skip prototype-pollution keys in parameter spec
+            if (_isDangerousKey(k)) continue;
             var s = spec[k];
             if (typeof s.target !== 'number' || typeof s.tolerance !== 'number') {
                 throw new Error('Parameter "' + k + '" must have numeric target and tolerance');
@@ -142,6 +150,10 @@ function createProtocolDeviationTracker() {
      * @returns {Object} Deviation report.
      */
     function checkReadings(protocolId, readings, meta) {
+        // CWE-1321: reject prototype-pollution keys in protocolId lookup
+        if (_isDangerousKey(protocolId)) {
+            throw new Error('protocolId contains a disallowed key name');
+        }
         var protocol = protocols[protocolId];
         if (!protocol) {
             throw new Error('Protocol "' + protocolId + '" not registered. Call registerProtocol first.');
@@ -235,11 +247,14 @@ function createProtocolDeviationTracker() {
             return { totalDeviations: 0, message: 'No deviations recorded yet.', insights: [] };
         }
 
-        // Count by category
-        var byCat = {};
-        var bySeverity = { MINOR: 0, MAJOR: 0, CRITICAL: 0 };
-        var byProtocol = {};
-        var byParam = {};
+        // Count by category — use null-prototype objects to prevent
+        // prototype-pollution when keys come from user-registered data
+        // (CWE-1321).
+        var byCat = Object.create(null);
+        var bySeverity = Object.create(null);
+        bySeverity.MINOR = 0; bySeverity.MAJOR = 0; bySeverity.CRITICAL = 0;
+        var byProtocol = Object.create(null);
+        var byParam = Object.create(null);
 
         for (var i = 0; i < deviations.length; i++) {
             var d = deviations[i];
