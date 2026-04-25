@@ -85,6 +85,7 @@ var manifest = [
     ['createExperimentReplicator',       './docs/shared/experimentReplicator',       'createExperimentReplicator'],
     ['createBatchGenealogyTracker',      './docs/shared/batchGenealogy',             'createBatchGenealogyTracker'],
     ['createWorkflowOrchestrator',       './docs/shared/workflowOrchestrator',       'createWorkflowOrchestrator'],
+    ['createDegradationPredictor',       './docs/shared/degradationPredictor',       'createDegradationPredictor'],
 ];
 
 // ── Pre-computed lookup structures ─────────────────────────────────
