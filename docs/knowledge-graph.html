@@ -1,0 +1,806 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>BioBots — Lab Knowledge Graph</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧬</text></svg>">
+    <style>
+        :root {
+            --bg: #0f172a;
+            --surface: #1e293b;
+            --border: #334155;
+            --text: #e2e8f0;
+            --muted: #94a3b8;
+            --accent: #38bdf8;
+            --accent-hover: #7dd3fc;
+            --success: #4ade80;
+            --warning: #fbbf24;
+            --error: #f87171;
+            --purple: #a78bfa;
+            --pink: #f472b6;
+            --orange: #fb923c;
+            --teal: #2dd4bf;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        header {
+            text-align: center;
+            padding: 1.5rem 1rem 1rem;
+        }
+        header h1 {
+            font-size: 1.8rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, var(--accent), var(--success));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        header p { color: var(--muted); margin-top: 0.3rem; font-size: 0.9rem; }
+        .toolbar {
+            display: flex;
+            gap: 0.5rem;
+            padding: 0.5rem 1rem;
+            flex-wrap: wrap;
+            justify-content: center;
+            align-items: center;
+        }
+        .toolbar button, .toolbar select {
+            background: var(--surface);
+            color: var(--text);
+            border: 1px solid var(--border);
+            padding: 0.4rem 0.8rem;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.85rem;
+        }
+        .toolbar button:hover { border-color: var(--accent); color: var(--accent); }
+        .toolbar button.active { background: var(--accent); color: var(--bg); border-color: var(--accent); }
+        .main-container {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+        }
+        #graph-canvas {
+            flex: 1;
+            cursor: grab;
+        }
+        #graph-canvas:active { cursor: grabbing; }
+        .sidebar {
+            width: 320px;
+            background: var(--surface);
+            border-left: 1px solid var(--border);
+            overflow-y: auto;
+            padding: 1rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+        .sidebar h3 {
+            font-size: 0.95rem;
+            color: var(--accent);
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 0.3rem;
+        }
+        .stat-row { display: flex; justify-content: space-between; font-size: 0.85rem; padding: 0.2rem 0; }
+        .stat-row .label { color: var(--muted); }
+        .entity-list { max-height: 200px; overflow-y: auto; }
+        .entity-item {
+            display: flex; align-items: center; gap: 0.5rem;
+            padding: 0.3rem 0.4rem; border-radius: 4px; cursor: pointer;
+            font-size: 0.82rem;
+        }
+        .entity-item:hover { background: rgba(56,189,248,0.1); }
+        .entity-dot {
+            width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0;
+        }
+        .insight-card {
+            background: rgba(56,189,248,0.08);
+            border: 1px solid rgba(56,189,248,0.2);
+            border-radius: 8px;
+            padding: 0.6rem;
+            font-size: 0.82rem;
+        }
+        .insight-card .title { color: var(--warning); font-weight: 600; margin-bottom: 0.3rem; }
+        .insight-card .desc { color: var(--muted); line-height: 1.4; }
+        .legend {
+            display: flex; flex-wrap: wrap; gap: 0.6rem; font-size: 0.78rem;
+        }
+        .legend-item { display: flex; align-items: center; gap: 0.3rem; }
+        .legend-dot { width: 10px; height: 10px; border-radius: 50%; }
+        .search-box {
+            background: var(--bg);
+            border: 1px solid var(--border);
+            color: var(--text);
+            padding: 0.4rem 0.6rem;
+            border-radius: 6px;
+            font-size: 0.85rem;
+            width: 100%;
+        }
+        .search-box:focus { outline: none; border-color: var(--accent); }
+        .tooltip {
+            position: absolute;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 0.6rem;
+            font-size: 0.8rem;
+            pointer-events: none;
+            z-index: 100;
+            max-width: 250px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+            display: none;
+        }
+        .tooltip .tt-name { font-weight: 600; color: var(--accent); }
+        .tooltip .tt-type { color: var(--muted); font-size: 0.75rem; }
+        .tooltip .tt-connections { margin-top: 0.3rem; color: var(--muted); }
+        .auto-badge {
+            display: inline-block;
+            background: rgba(74,222,128,0.15);
+            color: var(--success);
+            padding: 0.15rem 0.5rem;
+            border-radius: 10px;
+            font-size: 0.7rem;
+            font-weight: 600;
+        }
+        @media (max-width: 768px) {
+            .main-container { flex-direction: column; }
+            .sidebar { width: 100%; border-left: none; border-top: 1px solid var(--border); max-height: 300px; }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>🕸️ Lab Knowledge Graph</h1>
+        <p>Autonomous entity extraction & relationship discovery from lab data</p>
+    </header>
+    <div class="toolbar">
+        <button id="btn-extract" onclick="runExtraction()">🔍 Auto-Extract</button>
+        <button id="btn-discover" onclick="runDiscovery()">🧠 Discover Relationships</button>
+        <select id="layout-select" onchange="changeLayout(this.value)">
+            <option value="force">Force-Directed</option>
+            <option value="radial">Radial</option>
+            <option value="hierarchical">Hierarchical</option>
+        </select>
+        <select id="filter-type" onchange="filterByType(this.value)">
+            <option value="all">All Types</option>
+            <option value="equipment">Equipment</option>
+            <option value="material">Material</option>
+            <option value="protocol">Protocol</option>
+            <option value="cellLine">Cell Line</option>
+            <option value="parameter">Parameter</option>
+            <option value="output">Output</option>
+        </select>
+        <button onclick="runInsightEngine()">💡 Insights</button>
+        <button onclick="exportGraph()">📥 Export JSON</button>
+        <button onclick="loadSampleData()">📦 Sample Data</button>
+    </div>
+    <div class="main-container">
+        <canvas id="graph-canvas"></canvas>
+        <div class="sidebar">
+            <div>
+                <h3>📊 Graph Stats</h3>
+                <div id="stats-panel">
+                    <div class="stat-row"><span class="label">Entities</span><span id="stat-entities">0</span></div>
+                    <div class="stat-row"><span class="label">Relationships</span><span id="stat-edges">0</span></div>
+                    <div class="stat-row"><span class="label">Clusters</span><span id="stat-clusters">0</span></div>
+                    <div class="stat-row"><span class="label">Hub Entities</span><span id="stat-hubs">0</span></div>
+                    <div class="stat-row"><span class="label">Orphans</span><span id="stat-orphans">0</span></div>
+                </div>
+            </div>
+            <div>
+                <h3>🔎 Search</h3>
+                <input class="search-box" id="search-input" placeholder="Search entities..." oninput="searchEntities(this.value)" />
+            </div>
+            <div>
+                <h3>🏷️ Legend</h3>
+                <div class="legend" id="legend-panel"></div>
+            </div>
+            <div>
+                <h3>📋 Entities <span class="auto-badge">AUTO-EXTRACTED</span></h3>
+                <div class="entity-list" id="entity-list"></div>
+            </div>
+            <div>
+                <h3>💡 Proactive Insights</h3>
+                <div id="insights-panel"></div>
+            </div>
+        </div>
+    </div>
+    <div class="tooltip" id="tooltip"></div>
+
+    <script>
+    // ── Entity types & colors ──
+    const TYPE_COLORS = {
+        equipment:  '#38bdf8',
+        material:   '#4ade80',
+        protocol:   '#a78bfa',
+        cellLine:   '#f472b6',
+        parameter:  '#fbbf24',
+        output:     '#fb923c'
+    };
+    const TYPE_LABELS = {
+        equipment: 'Equipment', material: 'Material', protocol: 'Protocol',
+        cellLine: 'Cell Line', parameter: 'Parameter', output: 'Output'
+    };
+
+    // ── Graph state ──
+    let nodes = [], edges = [];
+    let dragNode = null, hoveredNode = null;
+    let offsetX = 0, offsetY = 0, scale = 1;
+    let panStart = null, isPanning = false;
+    let currentLayout = 'force';
+    let filterType = 'all';
+    let searchQuery = '';
+    let simulationRunning = false;
+
+    const canvas = document.getElementById('graph-canvas');
+    const ctx = canvas.getContext('2d');
+    const tooltip = document.getElementById('tooltip');
+
+    function resize() {
+        const rect = canvas.parentElement.getBoundingClientRect();
+        canvas.width = canvas.clientWidth * devicePixelRatio;
+        canvas.height = canvas.clientHeight * devicePixelRatio;
+        ctx.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0);
+    }
+    window.addEventListener('resize', resize);
+
+    // ── Autonomous Entity Extraction ──
+    const EQUIPMENT_TERMS = [
+        'bioprinter','printer','extruder','nozzle','syringe','pump','incubator','centrifuge',
+        'microscope','autoclave','laminar flow hood','biosafety cabinet','spectrophotometer',
+        'plate reader','flow cytometer','PCR machine','thermocycler','pipette','vortex mixer',
+        'water bath','shaker','lyophilizer','homogenizer','UV crosslinker','rheometer'
+    ];
+    const MATERIAL_TERMS = [
+        'alginate','gelatin','collagen','fibrin','hyaluronic acid','PEG','PEGDA','GelMA',
+        'agarose','chitosan','silk fibroin','matrigel','decellularized ECM','pluronic',
+        'bioink','hydrogel','scaffold','media','DMEM','RPMI','FBS','PBS','trypsin',
+        'penicillin','streptomycin','glutamine','calcium chloride','photoinitiator'
+    ];
+    const PROTOCOL_TERMS = [
+        'crosslinking','cell seeding','passage','thawing','cryopreservation','sterilization',
+        'cell counting','viability assay','western blot','ELISA','PCR','gel electrophoresis',
+        'transfection','centrifugation','filtration','coating','washing','staining',
+        'fixation','lysis','extraction','digestion','encapsulation','bioprinting'
+    ];
+    const CELL_TERMS = [
+        'HeLa','HEK293','CHO','NIH 3T3','HUVEC','MSC','iPSC','fibroblast','chondrocyte',
+        'osteoblast','keratinocyte','hepatocyte','cardiomyocyte','neuron','astrocyte',
+        'macrophage','T cell','B cell','stem cell','endothelial cell','epithelial cell'
+    ];
+    const PARAMETER_TERMS = [
+        'temperature','pressure','flow rate','speed','viscosity','pH','concentration',
+        'density','viability','confluence','passage number','print speed','layer height',
+        'nozzle diameter','crosslink time','UV intensity','shear stress','modulus'
+    ];
+    const OUTPUT_TERMS = [
+        'cell viability','print quality','scaffold integrity','mechanical strength',
+        'porosity','pore size','degradation rate','swelling ratio','cell adhesion',
+        'proliferation rate','gene expression','protein expression','tissue formation'
+    ];
+
+    function extractEntities(text) {
+        const found = [];
+        const lower = text.toLowerCase();
+        const check = (terms, type) => {
+            terms.forEach(term => {
+                if (lower.includes(term.toLowerCase())) {
+                    const name = term.charAt(0).toUpperCase() + term.slice(1);
+                    if (!found.find(f => f.name.toLowerCase() === name.toLowerCase())) {
+                        found.push({ id: `${type}_${name.replace(/\s+/g,'_')}`, name, type });
+                    }
+                }
+            });
+        };
+        check(EQUIPMENT_TERMS, 'equipment');
+        check(MATERIAL_TERMS, 'material');
+        check(PROTOCOL_TERMS, 'protocol');
+        check(CELL_TERMS, 'cellLine');
+        check(PARAMETER_TERMS, 'parameter');
+        check(OUTPUT_TERMS, 'output');
+        return found;
+    }
+
+    // ── Autonomous Relationship Discovery ──
+    const RELATIONSHIP_RULES = [
+        { from: 'equipment', to: 'material', rel: 'processes', weight: 0.8 },
+        { from: 'equipment', to: 'protocol', rel: 'used_in', weight: 0.7 },
+        { from: 'material', to: 'protocol', rel: 'required_by', weight: 0.9 },
+        { from: 'material', to: 'output', rel: 'produces', weight: 0.6 },
+        { from: 'cellLine', to: 'protocol', rel: 'undergoes', weight: 0.8 },
+        { from: 'cellLine', to: 'material', rel: 'cultured_in', weight: 0.7 },
+        { from: 'cellLine', to: 'output', rel: 'yields', weight: 0.5 },
+        { from: 'parameter', to: 'equipment', rel: 'configures', weight: 0.6 },
+        { from: 'parameter', to: 'protocol', rel: 'constrains', weight: 0.7 },
+        { from: 'parameter', to: 'output', rel: 'affects', weight: 0.8 },
+        { from: 'protocol', to: 'output', rel: 'generates', weight: 0.9 },
+        { from: 'equipment', to: 'cellLine', rel: 'handles', weight: 0.5 },
+    ];
+
+    // Contextual co-occurrence map for smarter relationship inference
+    const COOCCURRENCE = {
+        'bioprinter_alginate': 'extrudes', 'bioprinter_gelma': 'extrudes',
+        'bioprinter_collagen': 'extrudes', 'bioprinter_gelatin': 'extrudes',
+        'uv crosslinker_gelma': 'crosslinks', 'uv crosslinker_pegda': 'crosslinks',
+        'centrifuge_cell counting': 'prepares_for', 'incubator_cell seeding': 'supports',
+        'nozzle_flow rate': 'determines', 'nozzle_print speed': 'determines',
+        'autoclave_sterilization': 'performs', 'microscope_viability assay': 'used_in',
+    };
+
+    function discoverRelationships(entityList) {
+        const discovered = [];
+        for (let i = 0; i < entityList.length; i++) {
+            for (let j = i + 1; j < entityList.length; j++) {
+                const a = entityList[i], b = entityList[j];
+                // Check specific co-occurrence
+                const key1 = `${a.name.toLowerCase()}_${b.name.toLowerCase()}`;
+                const key2 = `${b.name.toLowerCase()}_${a.name.toLowerCase()}`;
+                if (COOCCURRENCE[key1]) {
+                    discovered.push({ source: a.id, target: b.id, rel: COOCCURRENCE[key1], weight: 0.95 });
+                    continue;
+                }
+                if (COOCCURRENCE[key2]) {
+                    discovered.push({ source: b.id, target: a.id, rel: COOCCURRENCE[key2], weight: 0.95 });
+                    continue;
+                }
+                // Check rule-based relationships
+                const rule = RELATIONSHIP_RULES.find(r =>
+                    (r.from === a.type && r.to === b.type) ||
+                    (r.from === b.type && r.to === a.type)
+                );
+                if (rule && Math.random() < rule.weight) {
+                    const src = rule.from === a.type ? a : b;
+                    const tgt = rule.from === a.type ? b : a;
+                    discovered.push({ source: src.id, target: tgt.id, rel: rule.rel, weight: rule.weight });
+                }
+            }
+        }
+        return discovered;
+    }
+
+    // ── Insight Engine ──
+    function generateInsights() {
+        const insights = [];
+        // Hub detection
+        const degree = {};
+        nodes.forEach(n => degree[n.id] = 0);
+        edges.forEach(e => { degree[e.source]++; degree[e.target]++; });
+        const hubs = nodes.filter(n => degree[n.id] >= 4).sort((a,b) => degree[b.id] - degree[a.id]);
+        if (hubs.length > 0) {
+            insights.push({
+                title: '🔗 Hub Entities Detected',
+                desc: `${hubs.map(h => h.name).join(', ')} are highly connected (${hubs.map(h => degree[h.id]).join(', ')} connections). These are critical lab components — disruption could cascade.`
+            });
+        }
+        // Orphan detection
+        const orphans = nodes.filter(n => degree[n.id] === 0);
+        if (orphans.length > 0) {
+            insights.push({
+                title: '⚠️ Isolated Entities',
+                desc: `${orphans.map(o => o.name).join(', ')} have no connections. Consider documenting their relationships or verifying they belong in this workflow.`
+            });
+        }
+        // Type balance
+        const typeCounts = {};
+        nodes.forEach(n => { typeCounts[n.type] = (typeCounts[n.type] || 0) + 1; });
+        const types = Object.keys(typeCounts);
+        const maxType = types.reduce((a, b) => typeCounts[a] > typeCounts[b] ? a : b, types[0]);
+        const minType = types.reduce((a, b) => typeCounts[a] < typeCounts[b] ? a : b, types[0]);
+        if (types.length >= 3 && typeCounts[maxType] > typeCounts[minType] * 3) {
+            insights.push({
+                title: '⚖️ Knowledge Imbalance',
+                desc: `Heavy on ${TYPE_LABELS[maxType]} (${typeCounts[maxType]}) but light on ${TYPE_LABELS[minType]} (${typeCounts[minType]}). Consider enriching ${TYPE_LABELS[minType]} documentation.`
+            });
+        }
+        // Cluster detection
+        const clusters = findClusters();
+        if (clusters.length > 1) {
+            insights.push({
+                title: '🏘️ Knowledge Clusters',
+                desc: `Found ${clusters.length} distinct clusters. Largest has ${Math.max(...clusters.map(c => c.length))} entities. Consider bridging isolated clusters for cross-domain insights.`
+            });
+        }
+        // Critical path suggestion
+        const protocolNodes = nodes.filter(n => n.type === 'protocol');
+        const outputNodes = nodes.filter(n => n.type === 'output');
+        if (protocolNodes.length > 0 && outputNodes.length > 0) {
+            insights.push({
+                title: '🎯 Workflow Coverage',
+                desc: `${protocolNodes.length} protocols mapped to ${outputNodes.length} outputs. Auto-monitoring could track protocol-output correlations for quality prediction.`
+            });
+        }
+        // Proactive recommendation
+        if (nodes.length > 5) {
+            const missingTypes = Object.keys(TYPE_LABELS).filter(t => !typeCounts[t]);
+            if (missingTypes.length > 0) {
+                insights.push({
+                    title: '🔮 Missing Dimensions',
+                    desc: `No ${missingTypes.map(t => TYPE_LABELS[t]).join(', ')} entities found. Adding these would create a more complete knowledge model.`
+                });
+            }
+        }
+        return insights;
+    }
+
+    function findClusters() {
+        const visited = new Set();
+        const clusters = [];
+        const adj = {};
+        nodes.forEach(n => adj[n.id] = []);
+        edges.forEach(e => { adj[e.source]?.push(e.target); adj[e.target]?.push(e.source); });
+        nodes.forEach(n => {
+            if (visited.has(n.id)) return;
+            const cluster = [];
+            const stack = [n.id];
+            while (stack.length) {
+                const id = stack.pop();
+                if (visited.has(id)) continue;
+                visited.add(id);
+                cluster.push(id);
+                (adj[id] || []).forEach(nb => { if (!visited.has(nb)) stack.push(nb); });
+            }
+            clusters.push(cluster);
+        });
+        return clusters;
+    }
+
+    // ── Layout engines ──
+    function applyForceLayout() {
+        simulationRunning = true;
+        const W = canvas.clientWidth, H = canvas.clientHeight;
+        nodes.forEach(n => {
+            if (n.x === undefined) { n.x = W/2 + (Math.random()-0.5)*W*0.6; n.y = H/2 + (Math.random()-0.5)*H*0.6; }
+            n.vx = 0; n.vy = 0;
+        });
+        let iterations = 0;
+        function step() {
+            if (!simulationRunning || iterations > 300) { simulationRunning = false; return; }
+            // Repulsion
+            for (let i = 0; i < nodes.length; i++) {
+                for (let j = i+1; j < nodes.length; j++) {
+                    let dx = nodes[j].x - nodes[i].x, dy = nodes[j].y - nodes[i].y;
+                    let d = Math.sqrt(dx*dx + dy*dy) || 1;
+                    let force = 8000 / (d * d);
+                    let fx = dx/d * force, fy = dy/d * force;
+                    nodes[i].vx -= fx; nodes[i].vy -= fy;
+                    nodes[j].vx += fx; nodes[j].vy += fy;
+                }
+            }
+            // Attraction
+            edges.forEach(e => {
+                const s = nodes.find(n => n.id === e.source);
+                const t = nodes.find(n => n.id === e.target);
+                if (!s || !t) return;
+                let dx = t.x - s.x, dy = t.y - s.y;
+                let d = Math.sqrt(dx*dx + dy*dy) || 1;
+                let force = (d - 120) * 0.01;
+                s.vx += dx/d * force; s.vy += dy/d * force;
+                t.vx -= dx/d * force; t.vy -= dy/d * force;
+            });
+            // Center gravity
+            nodes.forEach(n => {
+                n.vx += (W/2 - n.x) * 0.001;
+                n.vy += (H/2 - n.y) * 0.001;
+                n.vx *= 0.85; n.vy *= 0.85;
+                n.x += n.vx; n.y += n.vy;
+            });
+            iterations++;
+            draw();
+            requestAnimationFrame(step);
+        }
+        step();
+    }
+
+    function applyRadialLayout() {
+        simulationRunning = false;
+        const W = canvas.clientWidth, H = canvas.clientHeight;
+        const cx = W/2, cy = H/2;
+        const types = [...new Set(nodes.map(n => n.type))];
+        types.forEach((type, ti) => {
+            const typeNodes = nodes.filter(n => n.type === type);
+            const r = 100 + ti * 90;
+            typeNodes.forEach((n, ni) => {
+                const angle = (ni / typeNodes.length) * Math.PI * 2 - Math.PI/2;
+                n.x = cx + Math.cos(angle) * r;
+                n.y = cy + Math.sin(angle) * r;
+            });
+        });
+        draw();
+    }
+
+    function applyHierarchicalLayout() {
+        simulationRunning = false;
+        const W = canvas.clientWidth, H = canvas.clientHeight;
+        const typeOrder = ['equipment','material','cellLine','protocol','parameter','output'];
+        const layers = {};
+        typeOrder.forEach((t, i) => layers[t] = i);
+        const maxLayer = typeOrder.length;
+        const layerH = H / (maxLayer + 1);
+        const grouped = {};
+        nodes.forEach(n => {
+            const layer = layers[n.type] ?? 3;
+            if (!grouped[layer]) grouped[layer] = [];
+            grouped[layer].push(n);
+        });
+        Object.entries(grouped).forEach(([layer, gnodes]) => {
+            const y = (parseInt(layer) + 1) * layerH;
+            const gap = W / (gnodes.length + 1);
+            gnodes.forEach((n, i) => { n.x = (i+1) * gap; n.y = y; });
+        });
+        draw();
+    }
+
+    function changeLayout(layout) {
+        currentLayout = layout;
+        if (layout === 'force') applyForceLayout();
+        else if (layout === 'radial') applyRadialLayout();
+        else applyHierarchicalLayout();
+    }
+
+    // ── Drawing ──
+    function draw() {
+        const W = canvas.clientWidth, H = canvas.clientHeight;
+        ctx.clearRect(0, 0, W, H);
+        ctx.save();
+        ctx.translate(offsetX, offsetY);
+        ctx.scale(scale, scale);
+
+        const visibleNodes = nodes.filter(n => {
+            if (filterType !== 'all' && n.type !== filterType) return false;
+            if (searchQuery && !n.name.toLowerCase().includes(searchQuery.toLowerCase())) return false;
+            return true;
+        });
+        const visibleIds = new Set(visibleNodes.map(n => n.id));
+        const visibleEdges = edges.filter(e => visibleIds.has(e.source) && visibleIds.has(e.target));
+
+        // Draw edges
+        visibleEdges.forEach(e => {
+            const s = nodes.find(n => n.id === e.source);
+            const t = nodes.find(n => n.id === e.target);
+            if (!s || !t) return;
+            ctx.beginPath();
+            ctx.moveTo(s.x, s.y);
+            ctx.lineTo(t.x, t.y);
+            ctx.strokeStyle = hoveredNode && (e.source === hoveredNode.id || e.target === hoveredNode.id)
+                ? 'rgba(56,189,248,0.6)' : 'rgba(100,116,139,0.25)';
+            ctx.lineWidth = hoveredNode && (e.source === hoveredNode.id || e.target === hoveredNode.id) ? 2 : 1;
+            ctx.stroke();
+            // Arrow
+            const angle = Math.atan2(t.y - s.y, t.x - s.x);
+            const mx = (s.x + t.x)/2, my = (s.y + t.y)/2;
+            ctx.save();
+            ctx.translate(mx, my);
+            ctx.rotate(angle);
+            ctx.beginPath();
+            ctx.moveTo(6, 0);
+            ctx.lineTo(-3, -3);
+            ctx.lineTo(-3, 3);
+            ctx.closePath();
+            ctx.fillStyle = 'rgba(100,116,139,0.4)';
+            ctx.fill();
+            ctx.restore();
+            // Edge label
+            if (scale > 0.6) {
+                ctx.save();
+                ctx.font = '9px sans-serif';
+                ctx.fillStyle = 'rgba(148,163,184,0.6)';
+                ctx.textAlign = 'center';
+                ctx.fillText(e.rel, mx, my - 5);
+                ctx.restore();
+            }
+        });
+
+        // Draw nodes
+        visibleNodes.forEach(n => {
+            const r = n === hoveredNode ? 14 : (n === dragNode ? 13 : 10);
+            const color = TYPE_COLORS[n.type] || '#94a3b8';
+            // Glow
+            if (n === hoveredNode) {
+                ctx.beginPath();
+                ctx.arc(n.x, n.y, r + 6, 0, Math.PI*2);
+                ctx.fillStyle = color.replace(')', ',0.15)').replace('rgb', 'rgba');
+                ctx.fill();
+            }
+            ctx.beginPath();
+            ctx.arc(n.x, n.y, r, 0, Math.PI*2);
+            ctx.fillStyle = color;
+            ctx.fill();
+            ctx.strokeStyle = n === hoveredNode ? '#fff' : 'rgba(0,0,0,0.3)';
+            ctx.lineWidth = n === hoveredNode ? 2 : 1;
+            ctx.stroke();
+            // Label
+            if (scale > 0.4) {
+                ctx.font = `${n === hoveredNode ? 'bold ' : ''}11px sans-serif`;
+                ctx.fillStyle = '#e2e8f0';
+                ctx.textAlign = 'center';
+                ctx.fillText(n.name, n.x, n.y + r + 14);
+            }
+        });
+
+        ctx.restore();
+    }
+
+    // ── Interaction ──
+    function getMousePos(e) {
+        const rect = canvas.getBoundingClientRect();
+        return { x: (e.clientX - rect.left - offsetX) / scale, y: (e.clientY - rect.top - offsetY) / scale };
+    }
+
+    function findNodeAt(pos) {
+        return nodes.find(n => {
+            const dx = n.x - pos.x, dy = n.y - pos.y;
+            return dx*dx + dy*dy < 225;
+        });
+    }
+
+    canvas.addEventListener('mousedown', e => {
+        const pos = getMousePos(e);
+        const node = findNodeAt(pos);
+        if (node) { dragNode = node; simulationRunning = false; }
+        else { panStart = { x: e.clientX, y: e.clientY, ox: offsetX, oy: offsetY }; isPanning = true; }
+    });
+
+    canvas.addEventListener('mousemove', e => {
+        const pos = getMousePos(e);
+        if (dragNode) {
+            dragNode.x = pos.x; dragNode.y = pos.y; draw();
+        } else if (isPanning && panStart) {
+            offsetX = panStart.ox + (e.clientX - panStart.x);
+            offsetY = panStart.oy + (e.clientY - panStart.y);
+            draw();
+        } else {
+            const node = findNodeAt(pos);
+            if (node !== hoveredNode) {
+                hoveredNode = node;
+                if (node) {
+                    const degree = edges.filter(e2 => e2.source === node.id || e2.target === node.id).length;
+                    tooltip.style.display = 'block';
+                    tooltip.style.left = (e.clientX + 12) + 'px';
+                    tooltip.style.top = (e.clientY + 12) + 'px';
+                    tooltip.innerHTML = `<div class="tt-name">${node.name}</div><div class="tt-type">${TYPE_LABELS[node.type]}</div><div class="tt-connections">${degree} connection${degree !== 1 ? 's' : ''}</div>`;
+                } else {
+                    tooltip.style.display = 'none';
+                }
+                draw();
+            }
+        }
+    });
+
+    canvas.addEventListener('mouseup', () => { dragNode = null; isPanning = false; panStart = null; });
+    canvas.addEventListener('mouseleave', () => { dragNode = null; isPanning = false; hoveredNode = null; tooltip.style.display = 'none'; draw(); });
+
+    canvas.addEventListener('wheel', e => {
+        e.preventDefault();
+        const delta = e.deltaY > 0 ? 0.9 : 1.1;
+        const rect = canvas.getBoundingClientRect();
+        const mx = e.clientX - rect.left, my = e.clientY - rect.top;
+        offsetX = mx - (mx - offsetX) * delta;
+        offsetY = my - (my - offsetY) * delta;
+        scale *= delta;
+        scale = Math.max(0.1, Math.min(5, scale));
+        draw();
+    }, { passive: false });
+
+    // ── Actions ──
+    function runExtraction() {
+        const sampleText = getSampleCorpus();
+        const extracted = extractEntities(sampleText);
+        // Merge with existing, avoiding duplicates
+        extracted.forEach(e => {
+            if (!nodes.find(n => n.id === e.id)) {
+                nodes.push({ ...e, x: canvas.clientWidth/2 + (Math.random()-0.5)*300, y: canvas.clientHeight/2 + (Math.random()-0.5)*300 });
+            }
+        });
+        updateUI();
+        changeLayout(currentLayout);
+    }
+
+    function runDiscovery() {
+        const newEdges = discoverRelationships(nodes);
+        newEdges.forEach(e => {
+            if (!edges.find(ex => ex.source === e.source && ex.target === e.target)) {
+                edges.push(e);
+            }
+        });
+        updateUI();
+        draw();
+    }
+
+    function runInsightEngine() {
+        const insights = generateInsights();
+        const panel = document.getElementById('insights-panel');
+        if (insights.length === 0) {
+            panel.innerHTML = '<div style="color:var(--muted);font-size:0.82rem;">Extract entities and discover relationships first.</div>';
+            return;
+        }
+        panel.innerHTML = insights.map(i => `<div class="insight-card"><div class="title">${i.title}</div><div class="desc">${i.desc}</div></div>`).join('');
+    }
+
+    function filterByType(type) { filterType = type; draw(); }
+    function searchEntities(q) { searchQuery = q; draw(); }
+
+    function exportGraph() {
+        const data = { nodes: nodes.map(n => ({ id: n.id, name: n.name, type: n.type })), edges: edges.map(e => ({ source: e.source, target: e.target, rel: e.rel, weight: e.weight })) };
+        const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = 'lab-knowledge-graph.json';
+        a.click();
+    }
+
+    function updateUI() {
+        // Stats
+        const degree = {};
+        nodes.forEach(n => degree[n.id] = 0);
+        edges.forEach(e => { degree[e.source]++; degree[e.target]++; });
+        const clusters = findClusters();
+        const hubs = nodes.filter(n => degree[n.id] >= 4);
+        const orphans = nodes.filter(n => degree[n.id] === 0);
+        document.getElementById('stat-entities').textContent = nodes.length;
+        document.getElementById('stat-edges').textContent = edges.length;
+        document.getElementById('stat-clusters').textContent = clusters.length;
+        document.getElementById('stat-hubs').textContent = hubs.length;
+        document.getElementById('stat-orphans').textContent = orphans.length;
+        // Legend
+        const usedTypes = [...new Set(nodes.map(n => n.type))];
+        document.getElementById('legend-panel').innerHTML = usedTypes.map(t =>
+            `<div class="legend-item"><div class="legend-dot" style="background:${TYPE_COLORS[t]}"></div>${TYPE_LABELS[t]}</div>`
+        ).join('');
+        // Entity list
+        const sorted = [...nodes].sort((a,b) => (degree[b.id]||0) - (degree[a.id]||0));
+        document.getElementById('entity-list').innerHTML = sorted.map(n =>
+            `<div class="entity-item" onclick="focusNode('${n.id}')"><div class="entity-dot" style="background:${TYPE_COLORS[n.type]}"></div><span>${n.name}</span><span style="color:var(--muted);margin-left:auto;font-size:0.75rem">${degree[n.id]||0}</span></div>`
+        ).join('');
+    }
+
+    function focusNode(id) {
+        const n = nodes.find(nd => nd.id === id);
+        if (!n) return;
+        const W = canvas.clientWidth, H = canvas.clientHeight;
+        scale = 1.5;
+        offsetX = W/2 - n.x * scale;
+        offsetY = H/2 - n.y * scale;
+        hoveredNode = n;
+        draw();
+    }
+
+    // ── Sample data ──
+    function getSampleCorpus() {
+        return `Bioprinting protocol: Use the bioprinter with GelMA bioink at 37°C. Load the syringe with alginate-collagen hydrogel.
+Set nozzle diameter to 200μm, print speed 10mm/s, flow rate 5μL/min. UV crosslinker for photocrosslinking PEGDA.
+Cell preparation: Passage HeLa and HUVEC cells using trypsin. Count with hemocytometer, check viability with trypan blue.
+Culture MSC in DMEM supplemented with FBS, penicillin, streptomycin, and glutamine. Incubator at 37°C, 5% CO2.
+Sterilization: Autoclave all glassware. Use laminar flow hood for aseptic technique. PBS washing steps.
+Post-print: Assess cell viability, scaffold integrity, mechanical strength. Monitor porosity and degradation rate.
+Quality metrics: cell adhesion, proliferation rate, print quality scoring. Western blot for protein expression.
+Equipment: centrifuge for cell pelleting, microscope for imaging, spectrophotometer for OD readings, plate reader for ELISA.
+Parameters: temperature 37°C, pH 7.4, viscosity 50 Pa·s, UV intensity 10 mW/cm², shear stress considerations.
+Advanced: fibroblast and chondrocyte co-culture in matrigel scaffold. Gel electrophoresis for DNA analysis.
+Rheometer for viscosity profiling. Lyophilizer for scaffold drying. PCR machine for gene expression analysis.`;
+    }
+
+    function loadSampleData() {
+        nodes = []; edges = [];
+        runExtraction();
+        runDiscovery();
+        runInsightEngine();
+    }
+
+    // ── Init ──
+    resize();
+    draw();
+    // Build legend for all types
+    document.getElementById('legend-panel').innerHTML = Object.entries(TYPE_LABELS).map(([t, label]) =>
+        `<div class="legend-item"><div class="legend-dot" style="background:${TYPE_COLORS[t]}"></div>${label}</div>`
+    ).join('');
+    </script>
+</body>
+</html>
