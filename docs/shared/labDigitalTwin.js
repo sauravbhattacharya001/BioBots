@@ -63,6 +63,11 @@ function createLabDigitalTwin() {
     var envReadings = [];     // array of readings
     var equipUsageLog = [];   // { equipmentId, hours, notes, timestamp }
     var reagentUsageLog = []; // { reagentId, volumeMl, purpose, timestamp }
+    // Pre-indexed reagent usage entries keyed by reagentId.
+    // Eliminates O(total_log) .filter() in reagentDepletion() —
+    // simulate() and getTimeline() call it once per reagent, turning
+    // O(R × L) aggregate filtering into O(L) total lookups.
+    var _reagentUsageByReagent = {};  // reagentId -> [usage entries]
 
     function registerEquipment(eq) {
         if (!eq || !eq.id) throw new Error('Equipment must have an id');
@@ -128,6 +133,8 @@ function createLabDigitalTwin() {
             timestamp: new Date().toISOString()
         };
         reagentUsageLog.push(entry);
+        if (!_reagentUsageByReagent[reagentId]) _reagentUsageByReagent[reagentId] = [];
+        _reagentUsageByReagent[reagentId].push(entry);
         reagents[reagentId].currentVolumeMl = Math.max(0, reagents[reagentId].currentVolumeMl - volumeMl);
         return entry;
     }
@@ -164,8 +171,8 @@ function createLabDigitalTwin() {
     function reagentDepletion(rId, daysAhead) {
         var r = reagents[rId];
         if (!r) return null;
-        // Calculate consumption rate from usage log
-        var usages = reagentUsageLog.filter(function(e) { return e.reagentId === rId; });
+        // Look up pre-indexed usage entries — O(1) vs O(L) full-log scan
+        var usages = _reagentUsageByReagent[rId] || [];
         var dailyRate;
         if (usages.length >= 2) {
             var days = [];
