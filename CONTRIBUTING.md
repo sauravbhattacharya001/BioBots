@@ -13,6 +13,9 @@ Thanks for considering contributing to BioBots Tool! Whether it's a bug fix, new
 - [Testing](#testing)
 - [Commit Messages](#commit-messages)
 - [Pull Request Process](#pull-request-process)
+- [Docker Development](#docker-development)
+- [npm Package Development](#npm-package-development)
+- [Reproducing CI Locally](#reproducing-ci-locally)
 
 ## Getting Started
 
@@ -391,6 +394,100 @@ BioBots processes biomedical/bioprinting data. Contributors should:
 - **Keep dependencies minimal** — every new npm/NuGet dependency increases the attack surface
 - **Review Dependabot PRs carefully** — don't auto-merge major version bumps without checking changelogs for breaking changes
 - **Report vulnerabilities privately** — email the maintainer rather than opening a public issue
+
+## Docker Development
+
+The project ships two Dockerfiles — use them for isolated testing or to match the CI environment exactly.
+
+### .NET Backend Container
+
+```bash
+# Build the backend image
+docker build -t biobots:dev .
+
+# Run with the dataset mounted (avoids baking 8MB into the image)
+docker run -p 5000:80 -v "$(pwd)/bioprint-data.json:/app/bioprint-data.json:ro" biobots:dev
+
+# Test the API
+curl http://localhost:5000/api/prints/layer_height/greaterThan/0.1
+```
+
+### Node.js Test Container
+
+```bash
+# Build the test runner image
+docker build -f Dockerfile.node -t biobots-test:dev .
+
+# Run the test suite inside the container
+docker run --rm biobots-test:dev npm test
+
+# Run with coverage report mounted back to host
+docker run --rm -v "$(pwd)/coverage:/app/coverage" biobots-test:dev npm run coverage
+```
+
+This is useful when your local Node.js version differs from CI or you want a clean-room test run.
+
+## npm Package Development
+
+BioBots is published as `@sauravbhattacharya001/biobots` on npm. When working on the SDK surface (`index.js` + `docs/shared/*.js`):
+
+### Testing Your Changes Locally
+
+```bash
+# Link the package globally
+npm link
+
+# In a consuming project:
+npm link @sauravbhattacharya001/biobots
+
+# Verify the lazy-load manifest works
+node -e "const bb = require('@sauravbhattacharya001/biobots'); console.log(Object.keys(bb));"
+```
+
+### Pre-publish Checklist
+
+1. Run `npm test` — all tests pass, coverage thresholds met
+2. Verify `"files"` in `package.json` includes any new modules
+3. Bump version in `package.json` following [semver](https://semver.org/):
+   - Patch: bug fixes, internal refactors
+   - Minor: new modules, new exported functions
+   - Major: breaking changes to existing exports
+4. Update CHANGELOG.md with the new version entry
+5. The `npm-publish.yml` workflow handles publishing on tagged releases
+
+## Reproducing CI Locally
+
+If CI fails and you want to debug locally:
+
+```bash
+# 1. Match the CI Node.js version (check ci.yml for the exact version)
+nvm use 18  # or whatever version CI uses
+
+# 2. Clean install (matches CI's npm ci behavior)
+rm -rf node_modules
+npm ci
+
+# 3. Run the exact CI test command
+npm run test:ci
+
+# 4. Check coverage thresholds
+npm run coverage:check
+
+# 5. For CodeQL issues, install the CLI:
+#    https://github.com/github/codeql-cli-binaries
+codeql database create biobots-db --language=javascript
+codeql database analyze biobots-db --format=sarif-latest --output=results.sarif
+```
+
+### Common CI Failures
+
+| Failure | Likely Cause | Fix |
+|---------|-------------|-----|
+| Coverage threshold | New code without tests | Add tests for uncovered branches |
+| CodeQL alert | Potential security issue in JS | Check the SARIF output for the exact query that flagged |
+| Docker build fails | Missing file in `.dockerignore` or changed paths | Verify `COPY` instructions match current file layout |
+| npm publish fails | Version already exists on registry | Bump the version number |
+| NuGet publish fails | Package version collision | Update version in `.nuspec` |
 
 ## Questions?
 
