@@ -144,6 +144,47 @@ function createHealthDashboard(options) {
     throw new Error('Dimension weights must sum to 1.0, got ' + round(weightSum, 3));
   }
 
+  // ── Shared Scoring Helpers ──────────────────────────────────
+
+  /**
+   * Compute a 0–100 score from a value using a 3-tier threshold system.
+   * When the value is "better" below thresholds (e.g. waste rate, drift%):
+   *   value <= okThreshold        → 80–100
+   *   okThreshold < value <= crit → 20–80
+   *   value > crit                → 0–20
+   * @param {number} value     - The metric being scored.
+   * @param {number} okThresh  - Below this is "ok" range.
+   * @param {number} critThresh - Above this is "critical" range.
+   * @returns {number} Score 0–100.
+   */
+  function _tieredScore(value, okThresh, critThresh) {
+    if (value <= okThresh) {
+      return 100 - (okThresh > 0 ? value / okThresh * 20 : 0);
+    } else if (value <= critThresh) {
+      return 80 - (value - okThresh) / (critThresh - okThresh) * 60;
+    } else {
+      return Math.max(0, 20 - (value - critThresh));
+    }
+  }
+
+  /**
+   * Push a warning or critical alert if the value exceeds thresholds.
+   * @param {Array} alerts      - Alert array to push into.
+   * @param {number} value      - Metric value.
+   * @param {number} warnThresh - Warning threshold.
+   * @param {number} critThresh - Critical threshold.
+   * @param {string} dimension  - Dimension name.
+   * @param {string} warnMsg    - Warning message.
+   * @param {string} critMsg    - Critical message.
+   */
+  function _pushThresholdAlert(alerts, value, warnThresh, critThresh, dimension, warnMsg, critMsg) {
+    if (value > critThresh) {
+      alerts.push({ severity: 'critical', message: critMsg, dimension: dimension });
+    } else if (value > warnThresh) {
+      alerts.push({ severity: 'warning', message: warnMsg, dimension: dimension });
+    }
+  }
+
   // ── State ───────────────────────────────────────────────────
   var prints = [];
   var _lastSuccessCount = null;  // cached by _scorePrintSuccess for getHealth reuse
@@ -366,21 +407,11 @@ function createHealthDashboard(options) {
       var variance = values.reduce(function(sum, v) { return sum + Math.pow(v - avg, 2); }, 0) / values.length;
       var cv = Math.sqrt(variance) / Math.abs(avg) * 100;
 
-      var paramScore;
-      if (cv <= thresholds.maxDriftPercent) {
-        paramScore = 100 - cv / thresholds.maxDriftPercent * 20;
-      } else if (cv <= thresholds.criticalDriftPercent) {
-        paramScore = 80 - (cv - thresholds.maxDriftPercent) / (thresholds.criticalDriftPercent - thresholds.maxDriftPercent) * 60;
-      } else {
-        paramScore = Math.max(0, 20 - (cv - thresholds.criticalDriftPercent));
-      }
-      driftScores.push(paramScore);
-
-      if (cv > thresholds.criticalDriftPercent) {
-        alerts.push({ severity: 'critical', message: 'Critical parameter drift: ' + param + ' (CV=' + round(cv, 1) + '%)', dimension: 'parameterDrift' });
-      } else if (cv > thresholds.maxDriftPercent) {
-        alerts.push({ severity: 'warning', message: 'Parameter drift detected: ' + param + ' (CV=' + round(cv, 1) + '%)', dimension: 'parameterDrift' });
-      }
+      driftScores.push(_tieredScore(cv, thresholds.maxDriftPercent, thresholds.criticalDriftPercent));
+      _pushThresholdAlert(alerts, cv, thresholds.maxDriftPercent, thresholds.criticalDriftPercent,
+        'parameterDrift',
+        'Parameter drift detected: ' + param + ' (CV=' + round(cv, 1) + '%)',
+        'Critical parameter drift: ' + param + ' (CV=' + round(cv, 1) + '%)');
     });
 
     var score = driftScores.length > 0 ? mean(driftScores) : 100;
@@ -460,19 +491,11 @@ function createHealthDashboard(options) {
     var total = totalUsed + totalWasted;
     var wasteRate = total > 0 ? totalWasted / total : 0;
 
-    if (wasteRate <= thresholds.maxWasteRate) {
-      scores.push(100 - wasteRate / thresholds.maxWasteRate * 20);
-    } else if (wasteRate <= thresholds.criticalWasteRate) {
-      scores.push(80 - (wasteRate - thresholds.maxWasteRate) / (thresholds.criticalWasteRate - thresholds.maxWasteRate) * 50);
-    } else {
-      scores.push(Math.max(0, 30 - (wasteRate - thresholds.criticalWasteRate) * 100));
-    }
-
-    if (wasteRate > thresholds.criticalWasteRate) {
-      alerts.push({ severity: 'critical', message: 'Material waste rate critically high: ' + round(wasteRate * 100, 1) + '%', dimension: 'materialHealth' });
-    } else if (wasteRate > thresholds.maxWasteRate) {
-      alerts.push({ severity: 'warning', message: 'Material waste rate elevated: ' + round(wasteRate * 100, 1) + '%', dimension: 'materialHealth' });
-    }
+    scores.push(_tieredScore(wasteRate, thresholds.maxWasteRate, thresholds.criticalWasteRate));
+    _pushThresholdAlert(alerts, wasteRate, thresholds.maxWasteRate, thresholds.criticalWasteRate,
+      'materialHealth',
+      'Material waste rate elevated: ' + round(wasteRate * 100, 1) + '%',
+      'Material waste rate critically high: ' + round(wasteRate * 100, 1) + '%');
 
     // Stock level scoring
     var stockMaterials = Object.keys(materialStock);
@@ -505,22 +528,11 @@ function createHealthDashboard(options) {
     var recentCount = recentEvents.length;
     var monthlyRate = recentCount * (30 / thresholds.contaminationWindowDays);
 
-    var score;
-    if (monthlyRate === 0) {
-      score = 100;
-    } else if (monthlyRate <= thresholds.maxEventsPerMonth) {
-      score = 100 - monthlyRate / thresholds.maxEventsPerMonth * 30;
-    } else if (monthlyRate <= thresholds.criticalEventsPerMonth) {
-      score = 70 - (monthlyRate - thresholds.maxEventsPerMonth) / (thresholds.criticalEventsPerMonth - thresholds.maxEventsPerMonth) * 40;
-    } else {
-      score = Math.max(0, 30 - (monthlyRate - thresholds.criticalEventsPerMonth) * 5);
-    }
-
-    if (monthlyRate > thresholds.criticalEventsPerMonth) {
-      alerts.push({ severity: 'critical', message: 'High contamination rate: ~' + round(monthlyRate, 1) + ' events/month', dimension: 'contamination' });
-    } else if (monthlyRate > thresholds.maxEventsPerMonth) {
-      alerts.push({ severity: 'warning', message: 'Elevated contamination rate: ~' + round(monthlyRate, 1) + ' events/month', dimension: 'contamination' });
-    }
+    var score = _tieredScore(monthlyRate, thresholds.maxEventsPerMonth, thresholds.criticalEventsPerMonth);
+    _pushThresholdAlert(alerts, monthlyRate, thresholds.maxEventsPerMonth, thresholds.criticalEventsPerMonth,
+      'contamination',
+      'Elevated contamination rate: ~' + round(monthlyRate, 1) + ' events/month',
+      'High contamination rate: ~' + round(monthlyRate, 1) + ' events/month');
 
     // Active quarantines
     var activeQuarantines = contaminationEvents.filter(function(e) { return e.quarantineActive; }).length;
