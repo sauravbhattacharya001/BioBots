@@ -1,0 +1,525 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>BioBots 1 — Lab Capacity Planner</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧬</text></svg>">
+    <style>
+        :root {
+            --bg: #0f172a; --surface: #1e293b; --border: #334155;
+            --text: #e2e8f0; --muted: #94a3b8; --accent: #38bdf8;
+            --accent-hover: #7dd3fc; --success: #4ade80; --error: #f87171;
+            --warning: #fbbf24; --purple: #a78bfa; --info: #60a5fa;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; padding: 2rem 1rem; }
+        nav { display: flex; gap: 0.5rem; margin-bottom: 2rem; flex-wrap: wrap; justify-content: center; }
+        nav a { color: var(--muted); padding: 0.5rem 1rem; border-radius: 8px; text-decoration: none; font-size: 0.9rem; transition: all 0.2s; }
+        nav a:hover { color: var(--accent); background: var(--surface); }
+        nav a.active { color: var(--accent); background: var(--surface); border: 1px solid var(--border); }
+        header { text-align: center; margin-bottom: 2rem; }
+        header h1 { font-size: 2rem; font-weight: 700; background: linear-gradient(135deg, var(--accent), var(--purple)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+        header p { color: var(--muted); margin-top: 0.5rem; }
+        .container { max-width: 1200px; margin: 0 auto; }
+        .card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 1.5rem; margin-bottom: 1.5rem; }
+        .card h2 { font-size: 1.1rem; margin-bottom: 1rem; display: flex; align-items: center; gap: 0.5rem; }
+        .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; }
+        .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1.5rem; }
+        @media (max-width: 900px) { .grid-2, .grid-3 { grid-template-columns: 1fr; } }
+        table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+        th, td { padding: 0.5rem 0.75rem; text-align: left; border-bottom: 1px solid var(--border); }
+        th { color: var(--muted); font-weight: 600; font-size: 0.75rem; text-transform: uppercase; }
+        input, select { background: var(--bg); border: 1px solid var(--border); color: var(--text); padding: 0.4rem 0.6rem; border-radius: 6px; font-size: 0.85rem; }
+        input:focus, select:focus { outline: none; border-color: var(--accent); }
+        input[type="number"] { width: 70px; }
+        input[type="date"] { width: 130px; }
+        input[type="text"] { width: 140px; }
+        button { background: var(--accent); color: var(--bg); border: none; padding: 0.5rem 1rem; border-radius: 8px; cursor: pointer; font-size: 0.85rem; font-weight: 600; transition: all 0.2s; }
+        button:hover { background: var(--accent-hover); }
+        .btn-sm { padding: 0.3rem 0.6rem; font-size: 0.75rem; }
+        .btn-danger { background: var(--error); }
+        .btn-danger:hover { background: #ef4444; }
+        .btn-success { background: var(--success); color: var(--bg); }
+        .btn-purple { background: var(--purple); color: var(--bg); }
+        .btn-purple:hover { background: #c4b5fd; }
+        .btn-row { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-top: 0.75rem; }
+        canvas { width: 100%; border-radius: 8px; background: var(--bg); }
+        .alert-card { padding: 1rem; border-radius: 8px; margin-bottom: 0.75rem; border-left: 4px solid; }
+        .alert-critical { background: rgba(248,113,113,0.1); border-color: var(--error); }
+        .alert-warning { background: rgba(251,191,36,0.1); border-color: var(--warning); }
+        .alert-info { background: rgba(96,165,250,0.1); border-color: var(--info); }
+        .alert-card h3 { font-size: 0.9rem; margin-bottom: 0.3rem; }
+        .alert-card p { font-size: 0.8rem; color: var(--muted); }
+        .severity { font-size: 0.7rem; font-weight: 700; text-transform: uppercase; padding: 0.15rem 0.5rem; border-radius: 4px; }
+        .sev-critical { background: var(--error); color: #1e293b; }
+        .sev-warning { background: var(--warning); color: #1e293b; }
+        .sev-info { background: var(--info); color: #1e293b; }
+        .legend { display: flex; gap: 1rem; flex-wrap: wrap; margin-top: 0.75rem; font-size: 0.8rem; }
+        .legend-item { display: flex; align-items: center; gap: 0.3rem; }
+        .legend-dot { width: 12px; height: 12px; border-radius: 3px; }
+        .rec-card { padding: 0.75rem 1rem; border-radius: 8px; background: rgba(167,139,250,0.1); border: 1px solid rgba(167,139,250,0.3); margin-bottom: 0.5rem; }
+        .rec-card h4 { font-size: 0.85rem; color: var(--purple); margin-bottom: 0.25rem; }
+        .rec-card p { font-size: 0.8rem; color: var(--muted); }
+        .summary-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 1rem; margin-bottom: 1rem; }
+        .summary-stat { text-align: center; padding: 1rem; border-radius: 8px; background: var(--bg); }
+        .summary-stat .val { font-size: 1.8rem; font-weight: 700; }
+        .summary-stat .lbl { font-size: 0.75rem; color: var(--muted); margin-top: 0.25rem; }
+    </style>
+</head>
+<body>
+<nav>
+    <a href="index.html">🏠 Home</a>
+    <a href="stats.html">📊 Stats</a>
+    <a href="calculator.html">🧮 Calculator</a>
+    <a href="hub.html">🔬 Hub</a>
+    <a href="glossary.html">📖 Glossary</a>
+    <a href="capacity-planner.html" class="active">📐 Capacity Planner</a>
+</nav>
+<header>
+    <h1>🧬 BioBots 1 — Lab Capacity Planner</h1>
+    <p>Forecast bottlenecks, optimize lab throughput, and plan capacity proactively</p>
+</header>
+<div class="container">
+    <!-- Summary -->
+    <div class="summary-grid" id="summaryGrid"></div>
+
+    <!-- Resources -->
+    <div class="grid-3">
+        <div class="card">
+            <h2>🖨️ Equipment</h2>
+            <table id="equipTable"><thead><tr><th>Name</th><th>Qty</th><th>Hrs/Day</th><th></th></tr></thead><tbody></tbody></table>
+            <div class="btn-row"><button class="btn-sm" onclick="addEquip()">+ Add</button></div>
+        </div>
+        <div class="card">
+            <h2>👥 Personnel</h2>
+            <table id="persTable"><thead><tr><th>Role</th><th>Count</th><th>Hrs/Day</th><th></th></tr></thead><tbody></tbody></table>
+            <div class="btn-row"><button class="btn-sm" onclick="addPers()">+ Add</button></div>
+        </div>
+        <div class="card">
+            <h2>🧪 Consumables</h2>
+            <table id="consTable"><thead><tr><th>Name</th><th>Stock</th><th>Burn/Day</th><th>Lead</th><th></th></tr></thead><tbody></tbody></table>
+            <div class="btn-row"><button class="btn-sm" onclick="addCons()">+ Add</button></div>
+        </div>
+    </div>
+
+    <!-- Experiment Pipeline -->
+    <div class="card">
+        <h2>🔬 Experiment Pipeline</h2>
+        <div style="overflow-x:auto">
+        <table id="expTable"><thead><tr><th>Name</th><th>Equipment</th><th>Personnel#</th><th>Duration(h)</th><th>Consumable</th><th>Priority</th><th>Start Date</th><th></th></tr></thead><tbody></tbody></table>
+        </div>
+        <div class="btn-row">
+            <button class="btn-sm" onclick="addExp()">+ Add Experiment</button>
+            <button class="btn-sm btn-purple" onclick="autoSchedule()">🤖 Auto-Schedule</button>
+            <button class="btn-sm" onclick="analyze()" style="background:var(--success);color:var(--bg)">▶ Analyze</button>
+        </div>
+    </div>
+
+    <!-- Forecast Chart -->
+    <div class="card">
+        <h2>📈 30-Day Capacity Forecast</h2>
+        <canvas id="forecastChart" height="300"></canvas>
+        <div class="legend" id="chartLegend"></div>
+    </div>
+
+    <!-- Bottlenecks -->
+    <div class="grid-2">
+        <div class="card">
+            <h2>⚠️ Bottleneck Detection</h2>
+            <div id="bottlenecks"><p style="color:var(--muted);font-size:0.85rem">Click "Analyze" to detect bottlenecks</p></div>
+        </div>
+        <div class="card">
+            <h2>🧠 AI Advisor — Smart Recommendations</h2>
+            <div id="recommendations"><p style="color:var(--muted);font-size:0.85rem">Click "Analyze" for proactive insights</p></div>
+        </div>
+    </div>
+
+    <!-- Export -->
+    <div class="card">
+        <h2>💾 Export</h2>
+        <div class="btn-row">
+            <button onclick="exportJSON()">📋 Export JSON</button>
+            <button onclick="exportCSV()">📄 Export CSV Schedule</button>
+        </div>
+    </div>
+</div>
+
+<script>
+/* ---- State ---- */
+const today = new Date(); today.setHours(0,0,0,0);
+function dateStr(d) { return d.toISOString().slice(0,10); }
+function addDays(d, n) { const r = new Date(d); r.setDate(r.getDate()+n); return r; }
+
+let equipment = [
+    { name: 'BioBot 1 Printer', qty: 2, hrsPerDay: 8 },
+    { name: 'Incubator', qty: 4, hrsPerDay: 24 },
+    { name: 'Biosafety Cabinet', qty: 3, hrsPerDay: 10 }
+];
+let personnel = [
+    { role: 'Lab Technician', count: 3, hrsPerDay: 8 },
+    { role: 'Researcher', count: 2, hrsPerDay: 8 }
+];
+let consumables = [
+    { name: 'Bioink Cartridge', stock: 20, burnPerDay: 2, leadDays: 7 },
+    { name: 'Culture Media (L)', stock: 50, burnPerDay: 3, leadDays: 5 },
+    { name: 'Petri Dishes', stock: 200, burnPerDay: 15, leadDays: 3 }
+];
+let experiments = [
+    { name: 'Scaffold Print A', equip: 'BioBot 1 Printer', pers: 1, duration: 6, cons: 'Bioink Cartridge', priority: 1, start: dateStr(addDays(today,1)) },
+    { name: 'Cell Seeding B', equip: 'Biosafety Cabinet', pers: 2, duration: 4, cons: 'Culture Media (L)', priority: 2, start: dateStr(addDays(today,2)) },
+    { name: 'Incubation Run C', equip: 'Incubator', pers: 1, duration: 48, cons: 'Petri Dishes', priority: 3, start: dateStr(addDays(today,2)) },
+    { name: 'Print Batch D', equip: 'BioBot 1 Printer', pers: 2, duration: 12, cons: 'Bioink Cartridge', priority: 1, start: dateStr(addDays(today,3)) },
+    { name: 'Viability Assay E', equip: 'Biosafety Cabinet', pers: 1, duration: 3, cons: 'Culture Media (L)', priority: 4, start: dateStr(addDays(today,5)) }
+];
+
+/* ---- Renderers ---- */
+function renderEquip() {
+    const tb = document.querySelector('#equipTable tbody');
+    tb.innerHTML = equipment.map((e,i) => `<tr>
+        <td><input type="text" value="${e.name}" onchange="equipment[${i}].name=this.value"></td>
+        <td><input type="number" min="1" value="${e.qty}" onchange="equipment[${i}].qty=+this.value"></td>
+        <td><input type="number" min="1" value="${e.hrsPerDay}" onchange="equipment[${i}].hrsPerDay=+this.value"></td>
+        <td><button class="btn-sm btn-danger" onclick="equipment.splice(${i},1);renderAll()">✕</button></td>
+    </tr>`).join('');
+}
+function renderPers() {
+    const tb = document.querySelector('#persTable tbody');
+    tb.innerHTML = personnel.map((p,i) => `<tr>
+        <td><input type="text" value="${p.role}" onchange="personnel[${i}].role=this.value"></td>
+        <td><input type="number" min="1" value="${p.count}" onchange="personnel[${i}].count=+this.value"></td>
+        <td><input type="number" min="1" value="${p.hrsPerDay}" onchange="personnel[${i}].hrsPerDay=+this.value"></td>
+        <td><button class="btn-sm btn-danger" onclick="personnel.splice(${i},1);renderAll()">✕</button></td>
+    </tr>`).join('');
+}
+function renderCons() {
+    const tb = document.querySelector('#consTable tbody');
+    tb.innerHTML = consumables.map((c,i) => `<tr>
+        <td><input type="text" value="${c.name}" onchange="consumables[${i}].name=this.value" style="width:110px"></td>
+        <td><input type="number" min="0" value="${c.stock}" onchange="consumables[${i}].stock=+this.value" style="width:60px"></td>
+        <td><input type="number" min="0" step="0.5" value="${c.burnPerDay}" onchange="consumables[${i}].burnPerDay=+this.value" style="width:60px"></td>
+        <td><input type="number" min="1" value="${c.leadDays}" onchange="consumables[${i}].leadDays=+this.value" style="width:50px"></td>
+        <td><button class="btn-sm btn-danger" onclick="consumables.splice(${i},1);renderAll()">✕</button></td>
+    </tr>`).join('');
+}
+function equipOpts() { return equipment.map(e => `<option value="${e.name}">${e.name}</option>`).join(''); }
+function consOpts() { return consumables.map(c => `<option value="${c.name}">${c.name}</option>`).join(''); }
+function renderExp() {
+    const tb = document.querySelector('#expTable tbody');
+    tb.innerHTML = experiments.map((x,i) => `<tr>
+        <td><input type="text" value="${x.name}" onchange="experiments[${i}].name=this.value"></td>
+        <td><select onchange="experiments[${i}].equip=this.value">${equipOpts().replace(`value="${x.equip}"`,`value="${x.equip}" selected`)}</select></td>
+        <td><input type="number" min="1" value="${x.pers}" onchange="experiments[${i}].pers=+this.value" style="width:50px"></td>
+        <td><input type="number" min="1" value="${x.duration}" onchange="experiments[${i}].duration=+this.value" style="width:60px"></td>
+        <td><select onchange="experiments[${i}].cons=this.value">${consOpts().replace(`value="${x.cons}"`,`value="${x.cons}" selected`)}</select></td>
+        <td><select onchange="experiments[${i}].priority=+this.value">${[1,2,3,4,5].map(p=>`<option value="${p}"${p===x.priority?' selected':''}>${p}</option>`).join('')}</select></td>
+        <td><input type="date" value="${x.start}" onchange="experiments[${i}].start=this.value"></td>
+        <td><button class="btn-sm btn-danger" onclick="experiments.splice(${i},1);renderAll()">✕</button></td>
+    </tr>`).join('');
+}
+function addEquip() { equipment.push({name:'New Equipment',qty:1,hrsPerDay:8}); renderAll(); }
+function addPers() { personnel.push({role:'New Role',count:1,hrsPerDay:8}); renderAll(); }
+function addCons() { consumables.push({name:'New Item',stock:50,burnPerDay:1,leadDays:5}); renderAll(); }
+function addExp() { experiments.push({name:'New Experiment',equip:equipment[0]?.name||'',pers:1,duration:4,cons:consumables[0]?.name||'',priority:3,start:dateStr(addDays(today,1))}); renderAll(); }
+
+function renderAll() { renderEquip(); renderPers(); renderCons(); renderExp(); updateSummary(); }
+
+function updateSummary() {
+    const totalEquipHrs = equipment.reduce((s,e)=>s+e.qty*e.hrsPerDay,0);
+    const totalPersHrs = personnel.reduce((s,p)=>s+p.count*p.hrsPerDay,0);
+    const totalExpHrs = experiments.reduce((s,x)=>s+x.duration,0);
+    const avgPriority = experiments.length ? (experiments.reduce((s,x)=>s+x.priority,0)/experiments.length).toFixed(1) : '-';
+    const html = [
+        {val:equipment.length, lbl:'Equipment Types', color:'var(--accent)'},
+        {val:totalEquipHrs+'h', lbl:'Equip Capacity/Day', color:'var(--accent)'},
+        {val:totalPersHrs+'h', lbl:'Personnel Hrs/Day', color:'var(--purple)'},
+        {val:experiments.length, lbl:'Experiments Queued', color:'var(--success)'},
+        {val:totalExpHrs+'h', lbl:'Total Experiment Hrs', color:'var(--warning)'},
+        {val:avgPriority, lbl:'Avg Priority', color:'var(--info)'}
+    ].map(s=>`<div class="summary-stat"><div class="val" style="color:${s.color}">${s.val}</div><div class="lbl">${s.lbl}</div></div>`).join('');
+    document.getElementById('summaryGrid').innerHTML = html;
+}
+
+/* ---- Analysis Engine ---- */
+function analyze() {
+    const days = 30;
+    const equipMap = {}; equipment.forEach(e => { equipMap[e.name] = e; });
+    const consMap = {}; consumables.forEach(c => { consMap[c.name] = c; });
+    const totalPersHrs = personnel.reduce((s,p) => s + p.count * p.hrsPerDay, 0);
+
+    // Build daily utilization
+    const dailyEquip = {}; // equipName -> [day0..day29] hours used
+    const dailyPers = new Array(days).fill(0); // personnel hours used per day
+    const dailyCons = {}; // consName -> total consumed by day
+
+    equipment.forEach(e => { dailyEquip[e.name] = new Array(days).fill(0); });
+    consumables.forEach(c => { dailyCons[c.name] = new Array(days).fill(0); });
+
+    experiments.forEach(exp => {
+        const startDate = new Date(exp.start + 'T00:00:00');
+        const dayOffset = Math.round((startDate - today) / 86400000);
+        const eq = equipMap[exp.equip];
+        if (!eq) return;
+        const hrsPerDay = eq.hrsPerDay;
+        let remaining = exp.duration;
+        let d = dayOffset;
+        while (remaining > 0 && d < days) {
+            if (d >= 0) {
+                const used = Math.min(remaining, hrsPerDay);
+                if (dailyEquip[exp.equip]) dailyEquip[exp.equip][d] += used;
+                dailyPers[d] += exp.pers * (used / hrsPerDay) * (personnel.reduce((s,p)=>s+p.hrsPerDay,0)/personnel.reduce((s,p)=>s+p.count,0) || 8);
+                // consumable: 1 unit per full day of experiment
+                if (dailyCons[exp.cons]) dailyCons[exp.cons][d] += 1;
+                remaining -= used;
+            }
+            d++;
+        }
+    });
+
+    // Utilization percentages
+    const equipUtil = {}; // equipName -> [%]
+    equipment.forEach(e => {
+        const cap = e.qty * e.hrsPerDay;
+        equipUtil[e.name] = dailyEquip[e.name].map(h => cap > 0 ? (h / cap) * 100 : 0);
+    });
+    const persUtil = dailyPers.map(h => totalPersHrs > 0 ? (h / totalPersHrs) * 100 : 0);
+
+    // Consumable stockout
+    const stockouts = [];
+    consumables.forEach(c => {
+        let stock = c.stock;
+        const arr = dailyCons[c.name] || new Array(days).fill(0);
+        for (let d = 0; d < days; d++) {
+            stock -= (arr[d] + c.burnPerDay);
+            if (stock <= 0) {
+                stockouts.push({ name: c.name, day: d, reorderBy: Math.max(0, d - c.leadDays) });
+                break;
+            }
+        }
+    });
+
+    // Detect bottlenecks
+    const bottlenecks = [];
+    equipment.forEach(e => {
+        equipUtil[e.name].forEach((pct, d) => {
+            if (pct > 100) bottlenecks.push({ severity: 'critical', title: `${e.name} over capacity on Day ${d+1}`, desc: `Utilization at ${pct.toFixed(0)}% — exceeds available capacity. Consider adding units or rescheduling.`, day: d });
+            else if (pct > 80) bottlenecks.push({ severity: 'warning', title: `${e.name} near capacity on Day ${d+1}`, desc: `Utilization at ${pct.toFixed(0)}% — limited slack for unexpected work.`, day: d });
+        });
+    });
+    persUtil.forEach((pct, d) => {
+        if (pct > 100) bottlenecks.push({ severity: 'critical', title: `Personnel overloaded on Day ${d+1}`, desc: `Personnel utilization at ${pct.toFixed(0)}%. Experiments exceed available staff hours.`, day: d });
+        else if (pct > 85) bottlenecks.push({ severity: 'warning', title: `Personnel stretched on Day ${d+1}`, desc: `Utilization at ${pct.toFixed(0)}%. Minimal buffer for delays.`, day: d });
+    });
+    stockouts.forEach(s => {
+        bottlenecks.push({ severity: 'critical', title: `${s.name} stockout on Day ${s.day+1}`, desc: `Current stock will be depleted. Reorder by Day ${s.reorderBy+1} to avoid disruption.`, day: s.day });
+    });
+
+    // Deduplicate: keep worst per equipment per severity
+    const seen = new Set();
+    const deduped = bottlenecks.filter(b => {
+        const key = b.title;
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+    }).sort((a,b) => {
+        const sev = {critical:0,warning:1,info:2};
+        return (sev[a.severity]||2) - (sev[b.severity]||2) || a.day - b.day;
+    }).slice(0, 15);
+
+    renderBottlenecks(deduped);
+    renderRecommendations(deduped, stockouts, equipUtil, persUtil);
+    renderChart(equipUtil, persUtil, days);
+}
+
+function renderBottlenecks(list) {
+    const el = document.getElementById('bottlenecks');
+    if (!list.length) { el.innerHTML = '<div class="alert-card alert-info"><h3>✅ No Bottlenecks Detected</h3><p>Your lab has sufficient capacity for all planned experiments.</p></div>'; return; }
+    el.innerHTML = list.map(b => `<div class="alert-card alert-${b.severity}">
+        <h3><span class="severity sev-${b.severity}">${b.severity}</span> ${b.title}</h3>
+        <p>${b.desc}</p>
+    </div>`).join('');
+}
+
+function renderRecommendations(bottlenecks, stockouts, equipUtil, persUtil) {
+    const el = document.getElementById('recommendations');
+    const recs = [];
+
+    // Stockout reorder recommendations
+    stockouts.forEach(s => {
+        const c = consumables.find(c => c.name === s.name);
+        recs.push({ icon: '📦', title: `Reorder ${s.name} by Day ${s.reorderBy+1}`, desc: `Current stock (${c?.stock}) will run out on Day ${s.day+1}. Lead time is ${c?.leadDays} days. Place order ASAP to avoid experiment delays.` });
+    });
+
+    // Over-capacity equipment
+    equipment.forEach(e => {
+        const maxUtil = Math.max(...(equipUtil[e.name]||[0]));
+        if (maxUtil > 100) {
+            recs.push({ icon: '🔧', title: `Add capacity for ${e.name}`, desc: `Peak utilization reaches ${maxUtil.toFixed(0)}%. Consider adding ${Math.ceil((maxUtil-100)/100 * e.qty)} more units or staggering experiments.` });
+        }
+    });
+
+    // Personnel overload
+    const maxPers = Math.max(...persUtil);
+    if (maxPers > 100) {
+        recs.push({ icon: '👥', title: 'Hire additional staff or adjust shifts', desc: `Peak personnel utilization is ${maxPers.toFixed(0)}%. Consider overtime, temporary staff, or rescheduling lower-priority experiments.` });
+    }
+
+    // Suggest spreading experiments
+    const expPerDay = new Array(30).fill(0);
+    experiments.forEach(exp => {
+        const d = Math.round((new Date(exp.start+'T00:00:00') - today)/86400000);
+        if (d >= 0 && d < 30) expPerDay[d]++;
+    });
+    const maxPerDay = Math.max(...expPerDay);
+    if (maxPerDay > 2) {
+        const peakDay = expPerDay.indexOf(maxPerDay);
+        recs.push({ icon: '📅', title: `Spread experiments from Day ${peakDay+1}`, desc: `${maxPerDay} experiments start on the same day. Staggering by 1-2 days would reduce peak load and contention.` });
+    }
+
+    // Equipment sharing suggestion
+    const underused = equipment.filter(e => Math.max(...(equipUtil[e.name]||[0])) < 30);
+    if (underused.length) {
+        recs.push({ icon: '🔄', title: 'Underutilized equipment available', desc: `${underused.map(e=>e.name).join(', ')} are below 30% utilization. Consider scheduling compatible experiments on these resources.` });
+    }
+
+    if (!recs.length) {
+        recs.push({ icon: '✅', title: 'Lab capacity looks healthy', desc: 'No immediate action needed. All resources are within safe utilization limits.' });
+    }
+
+    el.innerHTML = recs.map(r => `<div class="rec-card"><h4>${r.icon} ${r.title}</h4><p>${r.desc}</p></div>`).join('');
+}
+
+/* ---- Chart ---- */
+function renderChart(equipUtil, persUtil, days) {
+    const canvas = document.getElementById('forecastChart');
+    const ctx = canvas.getContext('2d');
+    const dpr = window.devicePixelRatio || 1;
+    const W = canvas.clientWidth; const H = 300;
+    canvas.width = W * dpr; canvas.height = H * dpr;
+    ctx.scale(dpr, dpr);
+    ctx.clearRect(0, 0, W, H);
+
+    const pad = { top: 30, right: 20, bottom: 40, left: 50 };
+    const cw = W - pad.left - pad.right;
+    const ch = H - pad.top - pad.bottom;
+
+    // Grid
+    ctx.strokeStyle = '#334155'; ctx.lineWidth = 0.5;
+    for (let i = 0; i <= 5; i++) {
+        const y = pad.top + ch * (1 - i/5);
+        ctx.beginPath(); ctx.moveTo(pad.left, y); ctx.lineTo(pad.left+cw, y); ctx.stroke();
+        ctx.fillStyle = '#94a3b8'; ctx.font = '11px sans-serif'; ctx.textAlign = 'right';
+        ctx.fillText((i*20)+'%', pad.left-8, y+4);
+    }
+
+    // X labels
+    ctx.textAlign = 'center'; ctx.fillStyle = '#94a3b8';
+    for (let d = 0; d < days; d += 5) {
+        const x = pad.left + (d / (days-1)) * cw;
+        ctx.fillText('D'+(d+1), x, H - pad.bottom + 18);
+    }
+
+    // Capacity ceiling
+    const y100 = pad.top + ch * (1 - 100/100);
+    ctx.strokeStyle = 'rgba(248,113,113,0.6)'; ctx.lineWidth = 2; ctx.setLineDash([6,4]);
+    ctx.beginPath(); ctx.moveTo(pad.left, y100); ctx.lineTo(pad.left+cw, y100); ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle = 'rgba(248,113,113,0.8)'; ctx.font = '10px sans-serif'; ctx.textAlign = 'left';
+    ctx.fillText('100% Capacity', pad.left + 4, y100 - 6);
+
+    // Colors for equipment
+    const colors = ['#38bdf8','#a78bfa','#4ade80','#fbbf24','#f87171','#fb923c'];
+    const names = Object.keys(equipUtil);
+    const legendEl = document.getElementById('chartLegend');
+    let legendHtml = '';
+
+    names.forEach((name, idx) => {
+        const color = colors[idx % colors.length];
+        const data = equipUtil[name];
+        ctx.strokeStyle = color; ctx.lineWidth = 2;
+        ctx.beginPath();
+        data.forEach((pct, d) => {
+            const x = pad.left + (d/(days-1)) * cw;
+            const y = pad.top + ch * (1 - Math.min(pct, 120)/120);
+            d === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+        });
+        ctx.stroke();
+
+        // Fill area
+        ctx.globalAlpha = 0.1; ctx.fillStyle = color;
+        ctx.beginPath();
+        data.forEach((pct, d) => {
+            const x = pad.left + (d/(days-1)) * cw;
+            const y = pad.top + ch * (1 - Math.min(pct, 120)/120);
+            d === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+        });
+        ctx.lineTo(pad.left + cw, pad.top + ch);
+        ctx.lineTo(pad.left, pad.top + ch);
+        ctx.closePath(); ctx.fill();
+        ctx.globalAlpha = 1;
+
+        legendHtml += `<div class="legend-item"><div class="legend-dot" style="background:${color}"></div>${name}</div>`;
+    });
+
+    // Personnel overlay (dashed)
+    ctx.strokeStyle = '#e879f9'; ctx.lineWidth = 2; ctx.setLineDash([4,3]);
+    ctx.beginPath();
+    persUtil.forEach((pct, d) => {
+        const x = pad.left + (d/(days-1)) * cw;
+        const y = pad.top + ch * (1 - Math.min(pct, 120)/120);
+        d === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+    });
+    ctx.stroke(); ctx.setLineDash([]);
+    legendHtml += `<div class="legend-item"><div class="legend-dot" style="background:#e879f9;border:1px dashed #e879f9"></div>Personnel</div>`;
+    legendHtml += `<div class="legend-item"><div class="legend-dot" style="background:var(--error);opacity:0.6"></div>Capacity Ceiling</div>`;
+
+    legendEl.innerHTML = legendHtml;
+
+    // Highlight bottleneck days
+    for (let d = 0; d < days; d++) {
+        const anyOver = names.some(n => equipUtil[n][d] > 100) || persUtil[d] > 100;
+        if (anyOver) {
+            const x = pad.left + (d/(days-1)) * cw;
+            ctx.fillStyle = 'rgba(248,113,113,0.15)';
+            ctx.fillRect(x - cw/(days*2), pad.top, cw/days, ch);
+        }
+    }
+}
+
+/* ---- Auto-Schedule ---- */
+function autoSchedule() {
+    // Sort by priority (lower = higher priority), then spread start dates
+    experiments.sort((a,b) => a.priority - b.priority);
+    let nextDate = addDays(today, 1);
+    const equipSlots = {};
+    experiments.forEach(exp => {
+        const eq = equipSlots[exp.equip] || new Date(nextDate);
+        exp.start = dateStr(eq);
+        const dur = Math.ceil(exp.duration / (equipment.find(e=>e.name===exp.equip)?.hrsPerDay || 8));
+        equipSlots[exp.equip] = addDays(eq, Math.max(dur, 1));
+    });
+    renderAll();
+    analyze();
+}
+
+/* ---- Export ---- */
+function exportJSON() {
+    const data = { exportDate: new Date().toISOString(), equipment, personnel, consumables, experiments };
+    const blob = new Blob([JSON.stringify(data, null, 2)], {type:'application/json'});
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+    a.download = 'capacity-plan.json'; a.click();
+}
+function exportCSV() {
+    const rows = [['Name','Equipment','Personnel','Duration(h)','Consumable','Priority','Start Date']];
+    experiments.forEach(x => rows.push([x.name, x.equip, x.pers, x.duration, x.cons, x.priority, x.start]));
+    const csv = rows.map(r => r.map(c => `"${c}"`).join(',')).join('\n');
+    const blob = new Blob([csv], {type:'text/csv'});
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+    a.download = 'experiment-schedule.csv'; a.click();
+}
+
+/* ---- Init ---- */
+renderAll();
+</script>
+</body>
+</html>
