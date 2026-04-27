@@ -21,6 +21,7 @@
  */
 
 // ── Helpers ────────────────────────────────────────────────────────
+var round = require('./validation').round;
 
 function validateNumber(v, name) {
     if (typeof v !== 'number' || !isFinite(v)) {
@@ -32,11 +33,6 @@ function validateString(v, name) {
     if (typeof v !== 'string' || v.trim().length === 0) {
         throw new Error('degradationPredictor: ' + name + ' must be a non-empty string');
     }
-}
-
-function round(v, d) {
-    var f = Math.pow(10, d || 2);
-    return Math.round(v * f) / f;
 }
 
 // ── Kinetic Models ─────────────────────────────────────────────────

@@ -66,8 +66,7 @@ var PARAM_UNITS = {
 };
 
 var _stats = require('./stats');
-
-function round(v, d) { var f = Math.pow(10, d || 2); return Math.round(v * f) / f; }
+var round = require('./validation').round;
 
 var mean = _stats.mean;
 
