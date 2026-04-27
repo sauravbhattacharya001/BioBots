@@ -130,7 +130,8 @@ function createSampleLabelGenerator() {
         var str = String(value);
         var first = str.charAt(0);
         if (first === '=' || first === '+' || first === '-' ||
-            first === '@' || first === '\t' || first === '\r') {
+            first === '@' || first === '\t' || first === '\r' ||
+            first === '|') {
             if (!((first === '-' || first === '+') && str.length > 1 && isFinite(Number(str)))) {
                 str = "'" + str;
             }

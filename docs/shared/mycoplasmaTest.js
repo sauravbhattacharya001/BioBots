@@ -217,11 +217,15 @@ function createMycoplasmaTestLogger(options) {
         str = String(str);
         if (str.length === 0) return '';
 
-        // CSV formula injection defense (OWASP)
+        // CSV formula injection defense (OWASP / CWE-1236)
         var firstChar = str.charAt(0);
         if (firstChar === '=' || firstChar === '+' || firstChar === '-' ||
-            firstChar === '@' || firstChar === '\t' || firstChar === '\r') {
-            str = "'" + str;
+            firstChar === '@' || firstChar === '\t' || firstChar === '\r' ||
+            firstChar === '|') {
+            // Preserve legitimate negative/positive numbers (e.g. -3.14, +1.5)
+            if (!((firstChar === '-' || firstChar === '+') && str.length > 1 && isFinite(Number(str)))) {
+                str = "'" + str;
+            }
         }
 
         // Quote if contains comma, double-quote, or newline

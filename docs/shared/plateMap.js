@@ -36,6 +36,8 @@ var PLATE_FORMATS = {
     384: { rows: 16, cols: 24 }
 };
 
+var csvSafe = require('./csvSafe').csvSafe;
+
 var ROW_LABELS = 'ABCDEFGHIJKLMNOP'.split('');
 
 /**
@@ -266,7 +268,7 @@ function createPlateMapGenerator() {
                 var cell = map.grid[r][c];
                 if (cell) {
                     lines.push(cell.well + ',' + ROW_LABELS[r] + ',' + (c + 1) + ',' +
-                        cell.type + ',' + csvEscape(cell.name) + ',' + (cell.replicate || 0));
+                        cell.type + ',' + csvSafe(cell.name) + ',' + (cell.replicate || 0));
                 }
             }
         }
@@ -395,12 +397,6 @@ function truncate(str, max) {
     return str.substring(0, max - 1) + '…';
 }
 
-function csvEscape(str) {
-    if (!str) return '';
-    if (str.indexOf(',') >= 0 || str.indexOf('"') >= 0) {
-        return '"' + str.replace(/"/g, '""') + '"';
-    }
-    return str;
-}
+// csvEscape replaced by shared csvSafe (CWE-1236 formula injection defense)
 
 module.exports = { createPlateMapGenerator: createPlateMapGenerator };
