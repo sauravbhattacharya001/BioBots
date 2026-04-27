@@ -27,6 +27,11 @@ updates:
         update-types:
           - "minor"
           - "patch"
+      major-bumps:
+        update-types:
+          - "major"
+    # Auto-rebase stale PRs to keep them mergeable
+    rebase-strategy: "auto"
 
   # GitHub Actions
   - package-ecosystem: "github-actions"
@@ -41,8 +46,14 @@ updates:
     commit-message:
       prefix: "ci"
       include: "scope"
+    # Group all action version bumps together
+    groups:
+      actions:
+        patterns:
+          - "*"
+    rebase-strategy: "auto"
 
-  # Docker base image updates
+  # Docker base image updates (Dockerfile)
   - package-ecosystem: "docker"
     directory: "/"
     schedule:
@@ -55,3 +66,10 @@ updates:
     commit-message:
       prefix: "docker"
       include: "scope"
+    # Ignore major base-image bumps (e.g. node 18→22) that need manual migration
+    ignore:
+      - dependency-name: "node"
+        update-types:
+          - "version-update:semver-major"
+    rebase-strategy: "auto"
+
