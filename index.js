@@ -87,6 +87,7 @@ var manifest = [
     ['createWorkflowOrchestrator',       './docs/shared/workflowOrchestrator',       'createWorkflowOrchestrator'],
     ['createDegradationPredictor',       './docs/shared/degradationPredictor',       'createDegradationPredictor'],
     ['createPrintParameterRecommender',  './docs/shared/parameterRecommender',       'createPrintParameterRecommender'],
+    ['createDriftDetector',              './docs/shared/driftDetector',              'createDriftDetector'],
 ];
 
 // ── Pre-computed lookup structures ─────────────────────────────────

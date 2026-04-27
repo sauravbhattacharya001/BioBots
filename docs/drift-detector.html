@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Parameter Drift Detector — BioBots</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:#0f172a;color:#e2e8f0;min-height:100vh;padding:1.5rem}
+h1{font-size:1.5rem;margin-bottom:.25rem;color:#f8fafc}
+.subtitle{color:#94a3b8;margin-bottom:1.5rem;font-size:.9rem}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:1rem;margin-bottom:1.5rem}
+.card{background:#1e293b;border-radius:12px;padding:1.25rem;border:1px solid #334155}
+.card h3{font-size:1rem;margin-bottom:.75rem;display:flex;align-items:center;gap:.5rem}
+.badge{display:inline-block;padding:2px 10px;border-radius:999px;font-size:.75rem;font-weight:600;text-transform:uppercase}
+.badge-stable{background:#166534;color:#bbf7d0}
+.badge-drifting{background:#854d0e;color:#fef08a}
+.badge-diverging{background:#9a3412;color:#fed7aa}
+.badge-critical{background:#991b1b;color:#fecaca}
+.badge-nodata{background:#475569;color:#cbd5e1}
+.stat-row{display:flex;justify-content:space-between;padding:4px 0;font-size:.85rem;border-bottom:1px solid #334155}
+.stat-row:last-child{border-bottom:none}
+.stat-label{color:#94a3b8}.stat-val{color:#f1f5f9;font-weight:500}
+.detector{display:inline-flex;align-items:center;gap:4px;font-size:.78rem;padding:2px 8px;border-radius:6px;margin:2px}
+.det-on{background:#7f1d1d;color:#fca5a5}.det-off{background:#1e3a2f;color:#6ee7b7}
+.cause-list{margin:.5rem 0;padding-left:1.2rem;font-size:.82rem;color:#cbd5e1}
+.cause-list li{margin:2px 0}
+.rec{background:#172554;border:1px solid #1e40af;border-radius:8px;padding:.75rem;margin:.5rem 0;font-size:.85rem}
+.rec-urgency{font-weight:700;color:#f59e0b}
+.corr{background:#1a1a2e;border:1px solid #4338ca;border-radius:8px;padding:.75rem;margin:.5rem 0;font-size:.85rem}
+.overall-bar{background:#1e293b;border-radius:12px;padding:1rem 1.5rem;margin-bottom:1.5rem;display:flex;align-items:center;gap:1rem;border:1px solid #334155}
+.overall-dot{width:16px;height:16px;border-radius:50%;flex-shrink:0}
+.controls{margin-bottom:1.5rem;display:flex;flex-wrap:wrap;gap:.75rem;align-items:center}
+button{background:#3b82f6;color:#fff;border:none;padding:.5rem 1rem;border-radius:8px;cursor:pointer;font-size:.85rem;font-weight:500}
+button:hover{background:#2563eb}
+button.secondary{background:#475569}button.secondary:hover{background:#64748b}
+select,input{background:#1e293b;color:#e2e8f0;border:1px solid #475569;padding:.4rem .6rem;border-radius:6px;font-size:.85rem}
+.forecast{background:#1e1b4b;border:1px solid #6366f1;border-radius:6px;padding:.5rem;margin-top:.5rem;font-size:.82rem;color:#a5b4fc}
+#log{background:#0f172a;border:1px solid #334155;border-radius:8px;padding:.75rem;max-height:150px;overflow-y:auto;font-family:monospace;font-size:.78rem;color:#94a3b8;margin-top:1rem}
+</style>
+</head>
+<body>
+<h1>🔬 Parameter Drift Detector</h1>
+<p class="subtitle">Autonomous statistical drift monitoring for bioprinting process parameters</p>
+
+<div class="controls">
+    <button id="btnSim" onclick="startSimulation()">▶ Start Simulation</button>
+    <button class="secondary" id="btnStop" onclick="stopSimulation()" disabled>⏹ Stop</button>
+    <button class="secondary" onclick="resetAll()">↺ Reset</button>
+    <label>Scenario:
+        <select id="scenario">
+            <option value="stable">Stable Process</option>
+            <option value="temp-drift">Temperature Drift</option>
+            <option value="pressure-spike">Pressure Creep</option>
+            <option value="multi-drift" selected>Multi-Parameter Drift</option>
+            <option value="variance">High Variance</option>
+        </select>
+    </label>
+    <label>Speed:
+        <select id="speed">
+            <option value="500">Fast (500ms)</option>
+            <option value="1000" selected>Normal (1s)</option>
+            <option value="2000">Slow (2s)</option>
+        </select>
+    </label>
+</div>
+
+<div id="overallBar" class="overall-bar">
+    <div class="overall-dot" id="overallDot" style="background:#22c55e"></div>
+    <div><strong id="overallLabel">STABLE</strong> — <span id="overallMeta">No data yet. Start a simulation.</span></div>
+</div>
+
+<div class="grid" id="paramGrid"></div>
+
+<div id="corrSection" style="display:none">
+    <h2 style="font-size:1.1rem;margin-bottom:.5rem">🔗 Correlated Drift</h2>
+    <div id="corrList"></div>
+</div>
+
+<div id="recSection" style="display:none;margin-top:1rem">
+    <h2 style="font-size:1.1rem;margin-bottom:.5rem">🩺 Recommendations</h2>
+    <div id="recList"></div>
+</div>
+
+<div id="log"></div>
+
+<script src="shared/driftDetector.js"></script>
+<script>
+(function(){
+var dd = createDriftDetector({ windowSize: 50, baselineSize: 15 });
+var simInterval = null;
+var step = 0;
+
+function log(msg) {
+    var el = document.getElementById('log');
+    var t = new Date().toLocaleTimeString();
+    el.innerHTML += '<div>[' + t + '] ' + msg + '</div>';
+    el.scrollTop = el.scrollHeight;
+}
+
+function badgeClass(status) {
+    switch(status) {
+        case 'STABLE': return 'badge-stable';
+        case 'DRIFTING': return 'badge-drifting';
+        case 'DIVERGING': return 'badge-diverging';
+        case 'CRITICAL': return 'badge-critical';
+        default: return 'badge-nodata';
+    }
+}
+
+function generateReading(scenario, step) {
+    var r = {};
+    var noise = function(amp) { return (Math.random() - 0.5) * amp; };
+    switch(scenario) {
+        case 'stable':
+            r.temperature = 23.0 + noise(0.3);
+            r.pressure = 101.0 + noise(0.5);
+            r.flowRate = 5.0 + noise(0.1);
+            r.humidity = 45 + noise(1);
+            break;
+        case 'temp-drift':
+            r.temperature = 23.0 + noise(0.2) + Math.max(0, (step - 10) * 0.08);
+            r.pressure = 101.0 + noise(0.5);
+            r.flowRate = 5.0 + noise(0.1);
+            break;
+        case 'pressure-spike':
+            r.temperature = 23.0 + noise(0.2);
+            r.pressure = 101.0 + noise(0.3) + Math.max(0, (step - 8) * 0.15);
+            r.flowRate = 5.0 + noise(0.1) - Math.max(0, (step - 12) * 0.03);
+            break;
+        case 'multi-drift':
+            r.temperature = 23.0 + noise(0.2) + Math.max(0, (step - 10) * 0.06);
+            r.pressure = 101.0 + noise(0.3) + Math.max(0, (step - 12) * 0.12);
+            r.flowRate = 5.0 + noise(0.08) - Math.max(0, (step - 15) * 0.04);
+            r.viscosity = 10.0 + noise(0.3) + Math.max(0, (step - 10) * 0.1);
+            break;
+        case 'variance':
+            var amp = 0.3 + Math.max(0, (step - 8) * 0.15);
+            r.temperature = 23.0 + noise(amp);
+            r.pressure = 101.0 + noise(amp * 2);
+            r.flowRate = 5.0 + noise(amp * 0.3);
+            break;
+    }
+    return r;
+}
+
+function renderReport(report) {
+    // Overall
+    document.getElementById('overallDot').style.background = report.overallColor;
+    document.getElementById('overallLabel').textContent = report.overall;
+    document.getElementById('overallMeta').textContent =
+        report.parametersTracked + ' params tracked · ' +
+        report.totalReadings + ' readings · ' +
+        report.driftCount + ' drifting';
+
+    // Parameter cards
+    var grid = document.getElementById('paramGrid');
+    grid.innerHTML = '';
+    var pkeys = Object.keys(report.parameters);
+    for (var i = 0; i < pkeys.length; i++) {
+        var name = pkeys[i];
+        var p = report.parameters[name];
+        var card = document.createElement('div');
+        card.className = 'card';
+        var html = '<h3>' + name + ' <span class="badge ' + badgeClass(p.status) + '">' + p.status + '</span></h3>';
+        if (p.status === 'INSUFFICIENT_DATA') {
+            html += '<div style="color:#94a3b8;font-size:.85rem">Need more readings (' + p.readings + '/3)</div>';
+            card.innerHTML = html;
+            grid.appendChild(card);
+            continue;
+        }
+        html += '<div class="stat-row"><span class="stat-label">Direction</span><span class="stat-val">' + (p.direction||'—') + '</span></div>';
+        html += '<div class="stat-row"><span class="stat-label">Baseline μ / σ</span><span class="stat-val">' + p.baseline.mean + ' / ' + p.baseline.stddev + '</span></div>';
+        html += '<div class="stat-row"><span class="stat-label">Recent μ / σ</span><span class="stat-val">' + p.recent.mean + ' / ' + p.recent.stddev + '</span></div>';
+        html += '<div class="stat-row"><span class="stat-label">Trend slope</span><span class="stat-val">' + p.detectors.trend.slope + ' (R²=' + p.detectors.trend.r2 + ')</span></div>';
+        html += '<div class="stat-row"><span class="stat-label">Mean shift z</span><span class="stat-val">' + p.detectors.meanShift.zScore + '</span></div>';
+        // Detectors
+        html += '<div style="margin-top:.5rem">';
+        var dets = [
+            { label: 'CUSUM', on: p.detectors.cusum.triggered },
+            { label: 'Variance', on: p.detectors.variance.triggered },
+            { label: 'Trend', on: p.detectors.trend.triggered },
+            { label: 'Mean Shift', on: p.detectors.meanShift.triggered }
+        ];
+        for (var d = 0; d < dets.length; d++) {
+            html += '<span class="detector ' + (dets[d].on ? 'det-on' : 'det-off') + '">' +
+                    (dets[d].on ? '⚠' : '✓') + ' ' + dets[d].label + '</span>';
+        }
+        html += '</div>';
+        if (p.probableCauses && p.probableCauses.length > 0 && p.status !== 'STABLE') {
+            html += '<ul class="cause-list">';
+            for (var c = 0; c < p.probableCauses.length; c++) {
+                html += '<li>' + p.probableCauses[c] + '</li>';
+            }
+            html += '</ul>';
+        }
+        if (p.forecast) {
+            html += '<div class="forecast">⏳ Forecast: ~' + p.forecast.readingsUntilLimit +
+                    ' readings until ' + p.forecast.limitValue + ' limit (' + p.forecast.direction + ')</div>';
+        }
+        card.innerHTML = html;
+        grid.appendChild(card);
+    }
+
+    // Correlations
+    var corrSection = document.getElementById('corrSection');
+    var corrList = document.getElementById('corrList');
+    if (report.correlations.length > 0) {
+        corrSection.style.display = '';
+        corrList.innerHTML = '';
+        for (var cr = 0; cr < report.correlations.length; cr++) {
+            var corr = report.correlations[cr];
+            corrList.innerHTML += '<div class="corr">🔗 ' + corr.insight + '</div>';
+        }
+    } else {
+        corrSection.style.display = 'none';
+    }
+
+    // Recommendations
+    var recSection = document.getElementById('recSection');
+    var recListEl = document.getElementById('recList');
+    if (report.recommendations.length > 0) {
+        recSection.style.display = '';
+        recListEl.innerHTML = '';
+        for (var rr = 0; rr < report.recommendations.length; rr++) {
+            var rec = report.recommendations[rr];
+            recListEl.innerHTML += '<div class="rec"><span class="rec-urgency">Urgency ' + rec.urgency + '/10</span> — <strong>' +
+                rec.parameter + '</strong>: ' + rec.action + '</div>';
+        }
+    } else {
+        recSection.style.display = 'none';
+    }
+}
+
+window.startSimulation = function() {
+    if (simInterval) return;
+    var scenario = document.getElementById('scenario').value;
+    var speed = parseInt(document.getElementById('speed').value);
+    document.getElementById('btnSim').disabled = true;
+    document.getElementById('btnStop').disabled = false;
+    step = 0;
+    log('Simulation started: ' + scenario);
+
+    simInterval = setInterval(function() {
+        var reading = generateReading(scenario, step);
+        dd.ingest(reading);
+        step++;
+        var report = dd.analyze();
+        renderReport(report);
+        if (report.driftCount > 0 && step % 5 === 0) {
+            log('Drift detected in ' + report.driftCount + ' parameter(s) — overall: ' + report.overall);
+        }
+    }, speed);
+};
+
+window.stopSimulation = function() {
+    if (simInterval) { clearInterval(simInterval); simInterval = null; }
+    document.getElementById('btnSim').disabled = false;
+    document.getElementById('btnStop').disabled = true;
+    log('Simulation stopped at step ' + step);
+};
+
+window.resetAll = function() {
+    stopSimulation();
+    dd.reset();
+    step = 0;
+    document.getElementById('paramGrid').innerHTML = '';
+    document.getElementById('overallDot').style.background = '#22c55e';
+    document.getElementById('overallLabel').textContent = 'STABLE';
+    document.getElementById('overallMeta').textContent = 'No data yet. Start a simulation.';
+    document.getElementById('corrSection').style.display = 'none';
+    document.getElementById('recSection').style.display = 'none';
+    document.getElementById('log').innerHTML = '';
+    log('Reset complete');
+};
+
+})();
+</script>
+</body>
+</html>
