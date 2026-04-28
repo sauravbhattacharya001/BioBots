@@ -90,6 +90,7 @@ var manifest = [
     ['createDriftDetector',              './docs/shared/driftDetector',              'createDriftDetector'],
     ['createResourceForecaster',          './docs/shared/resourceForecaster',         'createResourceForecaster'],
     ['createExperimentPlanner',              './docs/shared/experimentPlanner',           'createExperimentPlanner'],
+    ['createSituationAwareness',              './docs/shared/situationAwareness',          'createSituationAwareness'],
 ];
 
 // ── Pre-computed lookup structures ─────────────────────────────────
