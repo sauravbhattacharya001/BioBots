@@ -88,6 +88,7 @@ var manifest = [
     ['createDegradationPredictor',       './docs/shared/degradationPredictor',       'createDegradationPredictor'],
     ['createPrintParameterRecommender',  './docs/shared/parameterRecommender',       'createPrintParameterRecommender'],
     ['createDriftDetector',              './docs/shared/driftDetector',              'createDriftDetector'],
+    ['createResourceForecaster',          './docs/shared/resourceForecaster',         'createResourceForecaster'],
 ];
 
 // ── Pre-computed lookup structures ─────────────────────────────────
