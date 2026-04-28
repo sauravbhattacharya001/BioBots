@@ -53,6 +53,26 @@ updates:
           - "*"
     rebase-strategy: "auto"
 
+  # NuGet dependencies (.NET / .csproj)
+  - package-ecosystem: "nuget"
+    directory: "/Try"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "nuget"
+    commit-message:
+      prefix: "deps(nuget)"
+      include: "scope"
+    groups:
+      nuget-minor-patch:
+        update-types:
+          - "minor"
+          - "patch"
+    rebase-strategy: "auto"
+
   # Docker base image updates (Dockerfile)
   - package-ecosystem: "docker"
     directory: "/"
