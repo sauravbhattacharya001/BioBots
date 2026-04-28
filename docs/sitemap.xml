@@ -17,12 +17,14 @@
   <url><loc>https://sauravbhattacharya001.github.io/BioBots/cost.html</loc></url>
   <url><loc>https://sauravbhattacharya001.github.io/BioBots/coverage.html</loc></url>
   <url><loc>https://sauravbhattacharya001.github.io/BioBots/doe.html</loc></url>
+  <url><loc>https://sauravbhattacharya001.github.io/BioBots/electroporation.html</loc></url>
   <url><loc>https://sauravbhattacharya001.github.io/BioBots/environment.html</loc></url>
   <url><loc>https://sauravbhattacharya001.github.io/BioBots/expiry-watchdog.html</loc></url>
   <url><loc>https://sauravbhattacharya001.github.io/BioBots/evolution.html</loc></url>
   <url><loc>https://sauravbhattacharya001.github.io/BioBots/explorer.html</loc></url>
   <url><loc>https://sauravbhattacharya001.github.io/BioBots/failure.html</loc></url>
   <url><loc>https://sauravbhattacharya001.github.io/BioBots/fingerprint.html</loc></url>
+  <url><loc>https://sauravbhattacharya001.github.io/BioBots/flow-cytometry.html</loc></url>
   <url><loc>https://sauravbhattacharya001.github.io/BioBots/glossary.html</loc></url>
   <url><loc>https://sauravbhattacharya001.github.io/BioBots/growth.html</loc></url>
   <url><loc>https://sauravbhattacharya001.github.io/BioBots/guide.html</loc></url>
@@ -81,5 +83,6 @@
   <url><loc>https://sauravbhattacharya001.github.io/BioBots/training.html</loc></url>
   <url><loc>https://sauravbhattacharya001.github.io/BioBots/autopilot.html</loc></url>
   <url><loc>https://sauravbhattacharya001.github.io/BioBots/orchestrator.html</loc></url>
-  <url><loc>knowledge-graph.html</loc></url>
+  <url><loc>https://sauravbhattacharya001.github.io/BioBots/knowledge-graph.html</loc></url>
+  <url><loc>https://sauravbhattacharya001.github.io/BioBots/western-blot.html</loc></url>
 </urlset>

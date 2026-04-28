@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Electroporation Protocol Calculator — BioBots</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧬</text></svg>">
+<style>
+:root{--bg:#0f172a;--surface:#1e293b;--border:#334155;--text:#e2e8f0;--muted:#94a3b8;--accent:#38bdf8;--accent-hover:#7dd3fc;--success:#4ade80;--warn:#fbbf24;--error:#f87171}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;padding:1.5rem}
+.container{max-width:1100px;margin:0 auto}
+a.back{color:var(--accent);text-decoration:none;font-size:.9rem;display:inline-block;margin-bottom:1rem}
+a.back:hover{text-decoration:underline}
+h1{font-size:1.6rem;margin-bottom:.25rem;background:linear-gradient(135deg,var(--accent),var(--success));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.subtitle{color:var(--muted);margin-bottom:1.5rem;font-size:.9rem}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:1.25rem;margin-bottom:1.5rem}
+@media(max-width:768px){.grid{grid-template-columns:1fr}}
+.card{background:var(--surface);border-radius:12px;padding:1.25rem;border:1px solid var(--border)}
+.card h2{font-size:1rem;margin-bottom:1rem;color:var(--muted);font-weight:500}
+.form-row{display:flex;gap:.75rem;margin-bottom:.75rem;align-items:end;flex-wrap:wrap}
+.form-group{display:flex;flex-direction:column;gap:.3rem;flex:1;min-width:140px}
+label{font-size:.8rem;color:var(--muted);font-weight:500}
+select,input{background:var(--bg);color:var(--text);border:1px solid var(--border);padding:.5rem .7rem;border-radius:8px;font-size:.9rem;outline:none}
+select:focus,input:focus{border-color:var(--accent)}
+button{background:var(--accent);color:var(--bg);border:none;padding:.55rem 1.2rem;border-radius:8px;font-size:.9rem;font-weight:600;cursor:pointer;transition:.2s}
+button:hover{background:var(--accent-hover)}
+button.secondary{background:transparent;color:var(--accent);border:1px solid var(--accent)}
+button.secondary:hover{background:rgba(56,189,248,.1)}
+.result-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:.5rem;margin-top:1rem}
+.metric{background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:.6rem .8rem}
+.metric .val{font-size:1.2rem;font-weight:700;color:var(--accent)}
+.metric .lbl{font-size:.75rem;color:var(--muted);margin-top:.15rem}
+.gauge{height:8px;border-radius:4px;background:var(--border);margin-top:.3rem;overflow:hidden}
+.gauge-fill{height:100%;border-radius:4px;transition:width .4s}
+.warn-box{background:#422006;border:1px solid #854d0e;color:#fef08a;border-radius:8px;padding:.6rem;margin-top:.75rem;font-size:.85rem}
+.warn-box:empty{display:none}
+table{width:100%;border-collapse:collapse;margin-top:.75rem;font-size:.85rem}
+th{text-align:left;color:var(--muted);font-weight:500;padding:.4rem .5rem;border-bottom:1px solid var(--border)}
+td{padding:.4rem .5rem;border-bottom:1px solid rgba(51,65,85,.5)}
+tr:hover td{background:rgba(56,189,248,.05)}
+.badge{display:inline-block;padding:2px 8px;border-radius:999px;font-size:.72rem;font-weight:600}
+.badge-good{background:#166534;color:#bbf7d0}
+.badge-ok{background:#854d0e;color:#fef08a}
+.badge-bad{background:#991b1b;color:#fecaca}
+#comparisonResults{margin-top:1rem}
+footer{margin-top:2rem;text-align:center;color:var(--muted);font-size:.8rem;padding:1rem}
+footer a{color:var(--accent);text-decoration:none}
+footer a:hover{text-decoration:underline}
+</style>
+</head>
+<body>
+<div class="container">
+<a class="back" href="hub.html">← All Tools</a>
+<h1>⚡ Electroporation Protocol Calculator</h1>
+<p class="subtitle">Compute voltage, pulse parameters, survival &amp; transfection estimates for cell electroporation experiments</p>
+
+<div class="grid">
+  <div class="card">
+    <h2>Protocol Parameters</h2>
+    <div class="form-row">
+      <div class="form-group">
+        <label for="cellType">Cell Type</label>
+        <select id="cellType"></select>
+      </div>
+      <div class="form-group">
+        <label for="cuvette">Cuvette</label>
+        <select id="cuvette">
+          <option value="1mm">1 mm (50 µL)</option>
+          <option value="2mm" selected>2 mm (200 µL)</option>
+          <option value="4mm">4 mm (800 µL)</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label for="fieldStrength">Field Strength (V/cm) <small>— blank = optimal</small></label>
+        <input type="number" id="fieldStrength" placeholder="auto">
+      </div>
+      <div class="form-group">
+        <label for="numPulses">Pulses</label>
+        <input type="number" id="numPulses" value="1" min="1" max="20">
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label for="cellCount">Cells (×10⁶)</label>
+        <input type="number" id="cellCount" value="1" min="0.1" step="0.1">
+      </div>
+      <div class="form-group">
+        <label for="dnaMicrograms">DNA (µg)</label>
+        <input type="number" id="dnaMicrograms" value="10" min="0.1" step="0.5">
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label for="capacitance">Capacitance (µF)</label>
+        <input type="number" id="capacitance" value="25" min="1">
+      </div>
+      <div class="form-group">
+        <label for="resistance">Resistance (Ω)</label>
+        <input type="number" id="resistance" value="200" min="1">
+      </div>
+    </div>
+    <div style="margin-top:1rem;display:flex;gap:.5rem">
+      <button onclick="generate()">⚡ Generate Protocol</button>
+      <button class="secondary" onclick="addComparison()">+ Compare</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Protocol Output</h2>
+    <div id="output"><p style="color:var(--muted)">Configure parameters and click Generate.</p></div>
+    <div id="warnings" class="warn-box"></div>
+  </div>
+</div>
+
+<div class="card" id="compCard" style="display:none">
+  <h2>⚖️ Protocol Comparison</h2>
+  <p style="font-size:.85rem;color:var(--muted);margin-bottom:.5rem">Side-by-side comparison of parameter variations</p>
+  <div id="comparisonResults"></div>
+  <button class="secondary" onclick="clearComparison()" style="margin-top:.75rem">Clear</button>
+</div>
+
+<div class="card">
+  <h2>📋 Cell Type Reference</h2>
+  <table>
+    <thead><tr><th>Cell Type</th><th>Optimal V/cm</th><th>Pulse (ms)</th><th>Survival Baseline</th><th>Notes</th></tr></thead>
+    <tbody id="refTable"></tbody>
+  </table>
+</div>
+
+<footer>
+  <p>Built with 🧬 by <a href="https://github.com/sauravbhattacharya001">Saurav Bhattacharya</a></p>
+  <p><a href="https://github.com/sauravbhattacharya001/BioBots">View Source</a></p>
+</footer>
+</div>
+
+<script src="shared/electroporation.js"></script>
+<script src="shared/commandPalette.js"></script>
+<script>
+'use strict';
+var calc = exports.createElectroporationCalculator();
+var comparisons = [];
+
+// Populate cell type dropdown & reference table
+(function init() {
+  var presets = calc.listCellPresets();
+  var sel = document.getElementById('cellType');
+  var tbody = document.getElementById('refTable');
+  var notes = {
+    'HEK293':'Easy to transfect, gold standard',
+    'CHO':'Industrial workhorse',
+    'Jurkat':'T-cell lymphoma, suspension',
+    'HeLa':'Cervical carcinoma, adherent',
+    'NIH3T3':'Mouse fibroblast',
+    'K562':'CML, suspension',
+    'primary-T':'Primary T-cells, fragile',
+    'MSC':'Mesenchymal stem cells',
+    'iPSC':'Induced pluripotent, very fragile',
+    'E.coli':'Bacterial, high voltage'
+  };
+  presets.forEach(function(p) {
+    var opt = document.createElement('option');
+    opt.value = p.cellType; opt.textContent = p.cellType;
+    sel.appendChild(opt);
+    var tr = document.createElement('tr');
+    var badge = p.survivalBaseline >= 0.8 ? 'good' : p.survivalBaseline >= 0.65 ? 'ok' : 'bad';
+    tr.innerHTML = '<td><strong>' + esc(p.cellType) + '</strong></td><td>' + p.optimalFieldStrengthVcm +
+      '</td><td>' + p.optimalPulseMs + '</td><td><span class="badge badge-' + badge + '">' +
+      (p.survivalBaseline * 100) + '%</span></td><td style="color:var(--muted);font-size:.82rem">' +
+      esc(notes[p.cellType] || '') + '</td>';
+    tbody.appendChild(tr);
+  });
+})();
+
+function esc(s) { var d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+
+function getOpts() {
+  var fs = document.getElementById('fieldStrength').value;
+  return {
+    cellType: document.getElementById('cellType').value,
+    cuvette: document.getElementById('cuvette').value,
+    fieldStrengthVcm: fs ? parseFloat(fs) : undefined,
+    numPulses: parseInt(document.getElementById('numPulses').value) || 1,
+    cellCountMillion: parseFloat(document.getElementById('cellCount').value) || 1,
+    dnaMicrograms: parseFloat(document.getElementById('dnaMicrograms').value) || 10,
+    capacitanceUf: parseFloat(document.getElementById('capacitance').value) || 25,
+    resistanceOhm: parseFloat(document.getElementById('resistance').value) || 200
+  };
+}
+
+function renderProtocol(p, container) {
+  var survColor = p.estimatedSurvival >= 0.7 ? '#4ade80' : p.estimatedSurvival >= 0.4 ? '#fbbf24' : '#f87171';
+  var txColor = p.estimatedTransfection >= 0.6 ? '#4ade80' : p.estimatedTransfection >= 0.3 ? '#fbbf24' : '#f87171';
+  container.innerHTML =
+    '<div class="result-grid">' +
+    metric(p.voltageV + ' V', 'Voltage') +
+    metric(p.fieldStrengthVcm + ' V/cm', 'Field Strength') +
+    metric(p.numPulses, 'Pulses') +
+    metric(p.pulseDurationMs + ' ms', 'Pulse Duration') +
+    metric(p.pulseEnergyJ + ' J', 'Pulse Energy') +
+    metric(p.timeConstantMs + ' ms', 'Time Constant (τ)') +
+    metric(p.dnaPerCellPg + ' pg', 'DNA per Cell') +
+    '</div>' +
+    '<div style="margin-top:1rem;display:grid;grid-template-columns:1fr 1fr;gap:.75rem">' +
+    gaugeCard('Estimated Survival', p.estimatedSurvival, survColor) +
+    gaugeCard('Estimated Transfection', p.estimatedTransfection, txColor) +
+    '</div>';
+}
+
+function metric(val, lbl) {
+  return '<div class="metric"><div class="val">' + esc(String(val)) + '</div><div class="lbl">' + esc(lbl) + '</div></div>';
+}
+
+function gaugeCard(label, value, color) {
+  var pct = Math.round(value * 100);
+  return '<div style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:.7rem">' +
+    '<div style="display:flex;justify-content:space-between;font-size:.85rem"><span>' + esc(label) + '</span><span style="font-weight:700;color:' + color + '">' + pct + '%</span></div>' +
+    '<div class="gauge"><div class="gauge-fill" style="width:' + pct + '%;background:' + color + '"></div></div></div>';
+}
+
+function generate() {
+  try {
+    var opts = getOpts();
+    var p = calc.generateProtocol(opts);
+    renderProtocol(p, document.getElementById('output'));
+    document.getElementById('warnings').innerHTML = p.warnings.length
+      ? '⚠️ ' + p.warnings.map(esc).join('<br>⚠️ ')
+      : '';
+  } catch (e) {
+    document.getElementById('output').innerHTML = '<p style="color:var(--error)">' + esc(e.message) + '</p>';
+  }
+}
+
+function addComparison() {
+  try {
+    var opts = getOpts();
+    var p = calc.generateProtocol(opts);
+    comparisons.push(p);
+    renderComparison();
+  } catch (e) {
+    alert(e.message);
+  }
+}
+
+function renderComparison() {
+  if (comparisons.length === 0) { document.getElementById('compCard').style.display = 'none'; return; }
+  document.getElementById('compCard').style.display = '';
+  var html = '<table><thead><tr><th>#</th><th>Cell Type</th><th>Cuvette</th><th>V/cm</th><th>Voltage</th><th>Pulses</th><th>Survival</th><th>Transfection</th></tr></thead><tbody>';
+  comparisons.forEach(function(p, i) {
+    var sBadge = p.estimatedSurvival >= 0.7 ? 'good' : p.estimatedSurvival >= 0.4 ? 'ok' : 'bad';
+    var tBadge = p.estimatedTransfection >= 0.6 ? 'good' : p.estimatedTransfection >= 0.3 ? 'ok' : 'bad';
+    html += '<tr><td>' + (i+1) + '</td><td>' + esc(p.cellType) + '</td><td>' + esc(p.cuvette) +
+      '</td><td>' + p.fieldStrengthVcm + '</td><td>' + p.voltageV + ' V</td><td>' + p.numPulses +
+      '</td><td><span class="badge badge-' + sBadge + '">' + Math.round(p.estimatedSurvival*100) + '%</span></td>' +
+      '<td><span class="badge badge-' + tBadge + '">' + Math.round(p.estimatedTransfection*100) + '%</span></td></tr>';
+  });
+  html += '</tbody></table>';
+  document.getElementById('comparisonResults').innerHTML = html;
+}
+
+function clearComparison() { comparisons = []; renderComparison(); }
+</script>
+</body>
+</html>

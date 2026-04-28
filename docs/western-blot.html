@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Western Blot Analyzer — BioBots</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧬</text></svg>">
+<style>
+:root{--bg:#0f172a;--surface:#1e293b;--border:#334155;--text:#e2e8f0;--muted:#94a3b8;--accent:#38bdf8;--accent-hover:#7dd3fc;--success:#4ade80;--warn:#fbbf24;--error:#f87171}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;padding:1.5rem}
+.container{max-width:1100px;margin:0 auto}
+a.back{color:var(--accent);text-decoration:none;font-size:.9rem;display:inline-block;margin-bottom:1rem}
+a.back:hover{text-decoration:underline}
+h1{font-size:1.6rem;margin-bottom:.25rem;background:linear-gradient(135deg,var(--accent),var(--success));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.subtitle{color:var(--muted);margin-bottom:1.5rem;font-size:.9rem}
+.tabs{display:flex;gap:.25rem;margin-bottom:1.25rem;flex-wrap:wrap}
+.tab{padding:.5rem 1rem;border-radius:8px;font-size:.85rem;cursor:pointer;border:1px solid var(--border);background:transparent;color:var(--muted);transition:.2s}
+.tab:hover{background:var(--surface);color:var(--text)}
+.tab.active{background:var(--accent);color:var(--bg);border-color:var(--accent);font-weight:600}
+.panel{display:none}.panel.active{display:block}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:1.25rem;margin-bottom:1.5rem}
+@media(max-width:768px){.grid{grid-template-columns:1fr}}
+.card{background:var(--surface);border-radius:12px;padding:1.25rem;border:1px solid var(--border)}
+.card h2{font-size:1rem;margin-bottom:.75rem;color:var(--muted);font-weight:500}
+.form-row{display:flex;gap:.75rem;margin-bottom:.75rem;align-items:end;flex-wrap:wrap}
+.form-group{display:flex;flex-direction:column;gap:.3rem;flex:1;min-width:140px}
+label{font-size:.8rem;color:var(--muted);font-weight:500}
+select,input,textarea{background:var(--bg);color:var(--text);border:1px solid var(--border);padding:.5rem .7rem;border-radius:8px;font-size:.9rem;outline:none;font-family:inherit}
+select:focus,input:focus,textarea:focus{border-color:var(--accent)}
+textarea{resize:vertical;min-height:60px;font-family:'Consolas',monospace;font-size:.82rem}
+button{background:var(--accent);color:var(--bg);border:none;padding:.55rem 1.2rem;border-radius:8px;font-size:.9rem;font-weight:600;cursor:pointer;transition:.2s}
+button:hover{background:var(--accent-hover)}
+button.secondary{background:transparent;color:var(--accent);border:1px solid var(--accent)}
+button.secondary:hover{background:rgba(56,189,248,.1)}
+.metric{background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:.6rem .8rem;text-align:center}
+.metric .val{font-size:1.15rem;font-weight:700;color:var(--accent)}
+.metric .lbl{font-size:.72rem;color:var(--muted);margin-top:.15rem}
+.result-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:.5rem;margin-top:.75rem}
+table{width:100%;border-collapse:collapse;font-size:.85rem;margin-top:.5rem}
+th{text-align:left;color:var(--muted);font-weight:500;padding:.4rem .5rem;border-bottom:1px solid var(--border)}
+td{padding:.4rem .5rem;border-bottom:1px solid rgba(51,65,85,.5)}
+.badge{display:inline-block;padding:2px 8px;border-radius:999px;font-size:.72rem;font-weight:600}
+.badge-good{background:#166534;color:#bbf7d0}.badge-warn{background:#854d0e;color:#fef08a}.badge-bad{background:#991b1b;color:#fecaca}
+.warn-box{background:#422006;border:1px solid #854d0e;color:#fef08a;border-radius:8px;padding:.6rem;margin-top:.75rem;font-size:.85rem}
+.warn-box:empty{display:none}
+.bar-chart{display:flex;align-items:end;gap:6px;height:140px;margin:1rem 0;padding:0 .5rem}
+.bar-col{display:flex;flex-direction:column;align-items:center;flex:1;gap:4px}
+.bar{width:100%;border-radius:4px 4px 0 0;transition:height .4s;min-height:2px}
+.bar-label{font-size:.7rem;color:var(--muted);text-align:center;max-width:60px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.bar-val{font-size:.72rem;font-weight:600;color:var(--accent)}
+footer{margin-top:2rem;text-align:center;color:var(--muted);font-size:.8rem;padding:1rem}
+footer a{color:var(--accent);text-decoration:none}
+footer a:hover{text-decoration:underline}
+</style>
+</head>
+<body>
+<div class="container">
+<a class="back" href="hub.html">← All Tools</a>
+<h1>🧫 Western Blot Band Analyzer</h1>
+<p class="subtitle">Normalize, quantify &amp; compare Western blot band intensities from densitometry data</p>
+
+<div class="tabs">
+  <div class="tab active" data-tab="normalize" onclick="switchTab('normalize')">📏 Normalize</div>
+  <div class="tab" data-tab="foldchange" onclick="switchTab('foldchange')">📊 Fold Change</div>
+  <div class="tab" data-tab="compare" onclick="switchTab('compare')">⚖️ Compare Groups</div>
+  <div class="tab" data-tab="saturation" onclick="switchTab('saturation')">⚠️ Saturation Check</div>
+  <div class="tab" data-tab="mw" onclick="switchTab('mw')">🔬 MW Estimation</div>
+  <div class="tab" data-tab="reference" onclick="switchTab('reference')">📋 Reference</div>
+</div>
+
+<!-- Normalize -->
+<div class="panel active" id="panel-normalize">
+<div class="grid">
+  <div class="card">
+    <h2>Band Intensities</h2>
+    <div class="form-group" style="margin-bottom:.75rem">
+      <label for="nTarget">Target Protein Intensities <small>(comma-separated)</small></label>
+      <textarea id="nTarget" placeholder="12000, 24000, 36000, 8000">12000, 24000, 36000, 8000</textarea>
+    </div>
+    <div class="form-group" style="margin-bottom:.75rem">
+      <label for="nControl">Loading Control Intensities</label>
+      <textarea id="nControl" placeholder="10000, 11000, 12000, 9500">10000, 11000, 12000, 9500</textarea>
+    </div>
+    <div class="form-group" style="margin-bottom:.75rem">
+      <label for="nLanes">Lane Labels <small>(optional, comma-separated)</small></label>
+      <input type="text" id="nLanes" placeholder="Ctrl, Drug 1x, Drug 2x, KO" value="Ctrl, Drug 1x, Drug 2x, KO">
+    </div>
+    <button onclick="runNormalize()">📏 Normalize</button>
+  </div>
+  <div class="card">
+    <h2>Normalized Results</h2>
+    <div id="normResults"><p style="color:var(--muted)">Enter target &amp; control intensities.</p></div>
+  </div>
+</div>
+</div>
+
+<!-- Fold Change -->
+<div class="panel" id="panel-foldchange">
+<div class="grid">
+  <div class="card">
+    <h2>Fold Change</h2>
+    <div class="form-group" style="margin-bottom:.75rem">
+      <label for="fcTarget">Target Intensities</label>
+      <textarea id="fcTarget">12000, 24000, 36000, 8000</textarea>
+    </div>
+    <div class="form-group" style="margin-bottom:.75rem">
+      <label for="fcControl">Loading Control Intensities</label>
+      <textarea id="fcControl">10000, 11000, 12000, 9500</textarea>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label for="fcRef">Reference Lane (0-based)</label>
+        <input type="number" id="fcRef" value="0" min="0">
+      </div>
+      <div class="form-group">
+        <label for="fcLanes">Lane Labels</label>
+        <input type="text" id="fcLanes" value="Ctrl, Drug 1x, Drug 2x, KO">
+      </div>
+    </div>
+    <button onclick="runFoldChange()">📊 Calculate</button>
+  </div>
+  <div class="card">
+    <h2>Fold Change Results</h2>
+    <div id="fcResults"><p style="color:var(--muted)">Enter data and calculate fold change.</p></div>
+  </div>
+</div>
+</div>
+
+<!-- Compare Groups -->
+<div class="panel" id="panel-compare">
+<div class="grid">
+  <div class="card">
+    <h2>Group A (Control)</h2>
+    <div class="form-group" style="margin-bottom:.5rem"><label for="cmpATarget">Target Intensities</label><textarea id="cmpATarget">12000, 11500, 13000</textarea></div>
+    <div class="form-group" style="margin-bottom:.5rem"><label for="cmpAControl">Loading Control</label><textarea id="cmpAControl">10000, 10500, 9800</textarea></div>
+    <div class="form-group"><label for="cmpALabel">Label</label><input type="text" id="cmpALabel" value="Control"></div>
+  </div>
+  <div class="card">
+    <h2>Group B (Treatment)</h2>
+    <div class="form-group" style="margin-bottom:.5rem"><label for="cmpBTarget">Target Intensities</label><textarea id="cmpBTarget">28000, 32000, 26000</textarea></div>
+    <div class="form-group" style="margin-bottom:.5rem"><label for="cmpBControl">Loading Control</label><textarea id="cmpBControl">11000, 10000, 10500</textarea></div>
+    <div class="form-group"><label for="cmpBLabel">Label</label><input type="text" id="cmpBLabel" value="Treatment"></div>
+  </div>
+</div>
+<button onclick="runCompare()">⚖️ Compare Groups</button>
+<div class="card" style="margin-top:1rem">
+  <div id="cmpResults"><p style="color:var(--muted)">Enter data for both groups and compare.</p></div>
+</div>
+</div>
+
+<!-- Saturation Check -->
+<div class="panel" id="panel-saturation">
+<div class="grid">
+  <div class="card">
+    <h2>Saturation Check</h2>
+    <div class="form-group" style="margin-bottom:.75rem">
+      <label for="satInts">Band Intensities <small>(comma-separated)</small></label>
+      <textarea id="satInts">45000, 62000, 58500, 12000, 64000</textarea>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label for="satMax">Max Intensity (bit depth)</label>
+        <select id="satMax"><option value="65535">16-bit (65535)</option><option value="4095">12-bit (4095)</option><option value="255">8-bit (255)</option></select>
+      </div>
+      <div class="form-group"><label for="satThresh">Threshold (%)</label><input type="number" id="satThresh" value="90" min="50" max="100"></div>
+    </div>
+    <div class="form-group" style="margin-bottom:.75rem">
+      <label for="satLanes">Lane Labels</label>
+      <input type="text" id="satLanes" placeholder="Lane 1, Lane 2, ...">
+    </div>
+    <button onclick="runSaturation()">⚠️ Check Saturation</button>
+  </div>
+  <div class="card">
+    <h2>Results</h2>
+    <div id="satResults"><p style="color:var(--muted)">Enter intensities and check.</p></div>
+  </div>
+</div>
+</div>
+
+<!-- MW Estimation -->
+<div class="panel" id="panel-mw">
+<div class="grid">
+  <div class="card">
+    <h2>Molecular Weight Estimation</h2>
+    <div class="form-group" style="margin-bottom:.75rem">
+      <label for="mwLadder">Marker Ladder</label>
+      <select id="mwLadder"></select>
+    </div>
+    <div class="form-group" style="margin-bottom:.75rem">
+      <label for="mwRfs">Marker Rf Values <small>(comma-separated, 0–1, top to bottom)</small></label>
+      <textarea id="mwRfs" placeholder="0.05, 0.12, 0.20, 0.30, 0.42, 0.55, 0.68, 0.80, 0.90, 0.97"></textarea>
+    </div>
+    <div class="form-group" style="margin-bottom:.75rem">
+      <label for="mwSamples">Sample Band Rf Values</label>
+      <textarea id="mwSamples" placeholder="0.35, 0.62">0.35, 0.62</textarea>
+    </div>
+    <button onclick="runMW()">🔬 Estimate MW</button>
+  </div>
+  <div class="card">
+    <h2>MW Estimation Results</h2>
+    <div id="mwResults"><p style="color:var(--muted)">Select a ladder and enter Rf values.</p></div>
+  </div>
+</div>
+</div>
+
+<!-- Reference -->
+<div class="panel" id="panel-reference">
+<div class="grid">
+  <div class="card">
+    <h2>🧪 Marker Ladders</h2>
+    <div id="ladderRef"></div>
+  </div>
+  <div class="card">
+    <h2>📋 Loading Controls</h2>
+    <table>
+      <thead><tr><th>Control</th><th>Expected kDa</th><th>Notes</th></tr></thead>
+      <tbody id="lcRef"></tbody>
+    </table>
+  </div>
+</div>
+</div>
+
+<footer>
+  <p>Built with 🧬 by <a href="https://github.com/sauravbhattacharya001">Saurav Bhattacharya</a></p>
+  <p><a href="https://github.com/sauravbhattacharya001/BioBots">View Source</a></p>
+</footer>
+</div>
+
+<script src="shared/validation.js"></script>
+<script src="shared/stats.js"></script>
+<script src="shared/sanitize.js"></script>
+<script src="shared/westernBlot.js"></script>
+<script src="shared/commandPalette.js"></script>
+<script>
+'use strict';
+var wb = exports.createWesternBlotAnalyzer();
+
+function esc(s){var d=document.createElement('div');d.textContent=s;return d.innerHTML;}
+function parseNums(str){return str.replace(/[\r\n\t]+/g,',').split(',').map(function(s){return parseFloat(s.trim())}).filter(function(n){return !isNaN(n)});}
+function parseLanes(str){return str?str.split(',').map(function(s){return s.trim()}).filter(Boolean):null;}
+function metric(v,l){return '<div class="metric"><div class="val">'+esc(String(v))+'</div><div class="lbl">'+esc(l)+'</div></div>';}
+
+function switchTab(name){
+  document.querySelectorAll('.tab').forEach(function(t){t.classList.toggle('active',t.dataset.tab===name)});
+  document.querySelectorAll('.panel').forEach(function(p){p.classList.toggle('active',p.id==='panel-'+name)});
+}
+
+function barChart(labels,values,maxVal,color){
+  if(!maxVal)maxVal=Math.max.apply(null,values)||1;
+  var html='<div class="bar-chart">';
+  for(var i=0;i<values.length;i++){
+    var h=Math.round(values[i]/maxVal*100);
+    html+='<div class="bar-col"><div class="bar-val">'+values[i]+'</div><div class="bar" style="height:'+h+'%;background:'+(color||'var(--accent)')+'"></div><div class="bar-label" title="'+esc(labels[i])+'">'+esc(labels[i])+'</div></div>';
+  }
+  return html+'</div>';
+}
+
+// --- Normalize ---
+function runNormalize(){
+  try{
+    var r=wb.normalize({target:parseNums(document.getElementById('nTarget').value),control:parseNums(document.getElementById('nControl').value),lanes:parseLanes(document.getElementById('nLanes').value)});
+    document.getElementById('normResults').innerHTML=
+      '<div class="result-grid">'+metric(r.mean,'Mean')+metric(r.sd,'Std Dev')+metric(r.method,'Method')+'</div>'+
+      barChart(r.lanes,r.normalized,Math.max.apply(null,r.normalized)*1.2)+
+      '<table><thead><tr><th>Lane</th><th>Normalized Ratio</th></tr></thead><tbody>'+
+      r.lanes.map(function(l,i){return '<tr><td>'+esc(l)+'</td><td><strong>'+r.normalized[i]+'</strong></td></tr>';}).join('')+
+      '</tbody></table>';
+  }catch(e){document.getElementById('normResults').innerHTML='<p style="color:var(--error)">'+esc(e.message)+'</p>';}
+}
+
+// --- Fold Change ---
+function runFoldChange(){
+  try{
+    var r=wb.foldChange({target:parseNums(document.getElementById('fcTarget').value),control:parseNums(document.getElementById('fcControl').value),
+      referenceLane:parseInt(document.getElementById('fcRef').value)||0,lanes:parseLanes(document.getElementById('fcLanes').value)});
+    var maxFC=Math.max.apply(null,r.foldChanges);
+    document.getElementById('fcResults').innerHTML=
+      '<p style="font-size:.85rem;margin-bottom:.5rem">Reference: <strong>'+esc(r.referenceLabel)+'</strong> (Lane '+r.referenceLane+')</p>'+
+      barChart(r.lanes,r.foldChanges,maxFC*1.2,'#a78bfa')+
+      '<table><thead><tr><th>Lane</th><th>Fold Change</th><th>Direction</th></tr></thead><tbody>'+
+      r.foldChanges.map(function(fc,i){
+        var dir=fc>1.5?'↑ Up':fc<0.67?'↓ Down':'→ No change';
+        var badge=fc>1.5?'warn':fc<0.67?'bad':'good';
+        return '<tr><td>'+esc(r.lanes[i])+'</td><td><strong>'+fc+'×</strong></td><td><span class="badge badge-'+badge+'">'+dir+'</span></td></tr>';
+      }).join('')+
+      '</tbody></table>';
+  }catch(e){document.getElementById('fcResults').innerHTML='<p style="color:var(--error)">'+esc(e.message)+'</p>';}
+}
+
+// --- Compare ---
+function runCompare(){
+  try{
+    var r=wb.compare({
+      groupA:{target:parseNums(document.getElementById('cmpATarget').value),control:parseNums(document.getElementById('cmpAControl').value),label:document.getElementById('cmpALabel').value},
+      groupB:{target:parseNums(document.getElementById('cmpBTarget').value),control:parseNums(document.getElementById('cmpBControl').value),label:document.getElementById('cmpBLabel').value}
+    });
+    var fcBadge=r.foldChange>1.5?'warn':r.foldChange<0.67?'bad':'good';
+    document.getElementById('cmpResults').innerHTML=
+      '<div class="result-grid">'+metric(r.foldChange+'×','Fold Change')+metric(r.tStatistic,'t-Statistic')+metric(r.degreesOfFreedom,'df')+'</div>'+
+      '<div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-top:1rem">'+
+      '<div style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:.75rem"><strong>'+esc(r.groupA.label)+'</strong><br>Mean: '+r.groupA.mean+' ± '+r.groupA.sd+' (n='+r.groupA.n+')</div>'+
+      '<div style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:.75rem"><strong>'+esc(r.groupB.label)+'</strong><br>Mean: '+r.groupB.mean+' ± '+r.groupB.sd+' (n='+r.groupB.n+')</div></div>'+
+      '<p style="margin-top:.75rem;font-size:.82rem;color:var(--muted)">'+esc(r.note)+'</p>';
+  }catch(e){document.getElementById('cmpResults').innerHTML='<p style="color:var(--error)">'+esc(e.message)+'</p>';}
+}
+
+// --- Saturation ---
+function runSaturation(){
+  try{
+    var ints=parseNums(document.getElementById('satInts').value);
+    var r=wb.saturationCheck({intensities:ints,maxIntensity:parseInt(document.getElementById('satMax').value),
+      threshold:parseInt(document.getElementById('satThresh').value)/100,lanes:parseLanes(document.getElementById('satLanes').value)});
+    var html='<div class="result-grid" style="margin-bottom:.75rem">'+metric(r.totalLanes,'Total Lanes')+metric(r.saturatedCount,'Saturated')+'</div>';
+    html+='<table><thead><tr><th>Lane</th><th>Intensity</th><th>% of Max</th><th>Status</th></tr></thead><tbody>';
+    r.results.forEach(function(row){
+      var badge=row.saturated?'bad':'good';
+      html+='<tr><td>'+esc(row.lane)+'</td><td>'+row.intensity+'</td><td>'+row.percentOfMax+'%</td><td><span class="badge badge-'+badge+'">'+(row.saturated?'SATURATED':'OK')+'</span></td></tr>';
+    });
+    html+='</tbody></table>';
+    html+='<div style="margin-top:.75rem;padding:.6rem;background:var(--bg);border-radius:8px;font-size:.85rem;border:1px solid var(--border)">'+(r.saturatedCount>0?'⚠️ ':'✅ ')+esc(r.recommendation)+'</div>';
+    document.getElementById('satResults').innerHTML=html;
+  }catch(e){document.getElementById('satResults').innerHTML='<p style="color:var(--error)">'+esc(e.message)+'</p>';}
+}
+
+// --- MW ---
+(function initMW(){
+  var ladders=wb.listLadders();
+  var sel=document.getElementById('mwLadder');
+  Object.keys(ladders).forEach(function(name){
+    var opt=document.createElement('option');opt.value=name;opt.textContent=name+' ('+ladders[name].length+' bands)';sel.appendChild(opt);
+  });
+  sel.addEventListener('change',function(){
+    var l=ladders[sel.value];
+    if(l){
+      // Generate evenly spaced Rf values for the selected ladder
+      var rfs=l.map(function(_,i){return (0.05+i*(0.92/(l.length-1))).toFixed(2);});
+      document.getElementById('mwRfs').value=rfs.join(', ');
+    }
+  });
+  sel.dispatchEvent(new Event('change'));
+  // Ladder reference
+  var ref=document.getElementById('ladderRef');
+  Object.keys(ladders).forEach(function(name){
+    ref.innerHTML+='<div style="margin-bottom:.75rem"><strong>'+esc(name)+'</strong><div style="font-size:.85rem;color:var(--muted)">'+ladders[name].join(', ')+' kDa</div></div>';
+  });
+  // Loading controls
+  var lcs=wb.listLoadingControls();
+  var tbody=document.getElementById('lcRef');
+  lcs.forEach(function(c){
+    tbody.innerHTML+='<tr><td><strong>'+esc(c.name)+'</strong></td><td>'+(c.expectedKda||'—')+' kDa</td><td style="color:var(--muted);font-size:.82rem">'+esc(c.note)+'</td></tr>';
+  });
+})();
+
+function runMW(){
+  try{
+    var ladders=wb.listLadders();
+    var ladderName=document.getElementById('mwLadder').value;
+    var kdas=ladders[ladderName];
+    var rfs=parseNums(document.getElementById('mwRfs').value);
+    var samples=parseNums(document.getElementById('mwSamples').value);
+    if(rfs.length!==kdas.length)throw new Error('Rf values ('+rfs.length+') must match ladder bands ('+kdas.length+')');
+    var r=wb.estimateMW({markerRfs:rfs,markerKdas:kdas,sampleRfs:samples});
+    var html='<div class="result-grid" style="margin-bottom:.75rem">'+metric(r.standardCurve.r2,'R²')+metric(r.standardCurve.slope,'Slope')+metric(r.standardCurve.intercept,'Intercept')+'</div>';
+    html+='<table><thead><tr><th>Band</th><th>Rf</th><th>Estimated MW</th></tr></thead><tbody>';
+    r.estimates.forEach(function(e,i){
+      html+='<tr><td>Sample '+(i+1)+'</td><td>'+e.rf+'</td><td><strong>'+e.estimatedKda+' kDa</strong></td></tr>';
+    });
+    html+='</tbody></table><p style="margin-top:.5rem;font-size:.82rem;color:var(--muted)">'+esc(r.method)+'</p>';
+    document.getElementById('mwResults').innerHTML=html;
+  }catch(e){document.getElementById('mwResults').innerHTML='<p style="color:var(--error)">'+esc(e.message)+'</p>';}
+}
+</script>
+</body>
+</html>
