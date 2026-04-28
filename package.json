@@ -1,14 +1,31 @@
 {
   "name": "@sauravbhattacharya001/biobots",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "Bioprinting computation toolkit — material calculation, rheology modeling, GCode analysis, cell viability estimation, and cross-linking kinetics",
   "main": "index.js",
+  "types": "index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./index.d.ts",
+      "require": "./index.js",
+      "default": "./index.js"
+    }
+  },
   "files": [
     "index.js",
+    "index.d.ts",
     "docs/shared/*.js",
     "README.md",
-    "LICENSE"
+    "LICENSE",
+    "CHANGELOG.md"
   ],
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "engines": {
+    "node": ">=16.0.0"
+  },
   "keywords": [
     "bioprinting",
     "biobots",
@@ -23,7 +40,10 @@
     "test": "jest --verbose --coverage",
     "test:ci": "jest --verbose --coverage --coverageReporters=text --coverageReporters=lcov --coverageReporters=json-summary",
     "coverage": "jest --coverage --coverageReporters=text --coverageReporters=lcov --coverageReporters=json-summary --coverageReporters=html",
-    "coverage:check": "jest --coverage --coverageReporters=text-summary"
+    "coverage:check": "jest --coverage --coverageReporters=text-summary",
+    "prepublishOnly": "npm test",
+    "preversion": "npm test",
+    "postversion": "git push && git push --tags"
   },
   "jest": {
     "testEnvironment": "jsdom",
