@@ -100,6 +100,10 @@ var ROOT_CAUSES = {
 
 // ── Corrective actions ─────────────────────────────────────────────
 
+// ── Prototype Pollution Guard (CWE-1321) ──────────────────────────
+var _sanitize = require('./sanitize');
+var _isDangerousKey = _sanitize.isDangerousKey;
+
 var CORRECTIVE_ACTIONS = {
     temperature:   { action: 'Check HVAC setpoints, verify room seals, inspect heat sources', urgencyBase: 6 },
     pressure:      { action: 'Inspect nozzle for clogs, check pressure lines and seals, verify bioink consistency', urgencyBase: 8 },
@@ -195,6 +199,7 @@ function createDriftDetector(options) {
     if (options.profiles) {
         var userKeys = Object.keys(options.profiles);
         for (var u = 0; u < userKeys.length; u++) {
+            if (_isDangerousKey(userKeys[u])) continue;
             profiles[userKeys[u]] = Object.assign({}, DEFAULT_PROFILES[userKeys[u]] || {}, options.profiles[userKeys[u]]);
         }
     }
@@ -206,6 +211,7 @@ function createDriftDetector(options) {
         if (!newProfiles || typeof newProfiles !== 'object') return;
         var pkeys = Object.keys(newProfiles);
         for (var i = 0; i < pkeys.length; i++) {
+            if (_isDangerousKey(pkeys[i])) continue;
             profiles[pkeys[i]] = Object.assign({}, profiles[pkeys[i]] || {}, newProfiles[pkeys[i]]);
         }
     }
@@ -223,6 +229,7 @@ function createDriftDetector(options) {
         var rkeys = Object.keys(reading);
         for (var i = 0; i < rkeys.length; i++) {
             var name = rkeys[i];
+            if (_isDangerousKey(name)) continue;
             var val = reading[name];
             if (typeof val !== 'number' || isNaN(val)) continue;
             if (!series[name]) series[name] = [];
