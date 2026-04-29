@@ -1,0 +1,111 @@
+---
+name: 🏗️ CI / Build Failure
+description: Report failures in GitHub Actions CI, local builds, or Docker builds that block development
+title: "[CI]: "
+labels: ["ci/cd", "bug"]
+assignees: []
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use this template when the CI pipeline or local build is failing. Include the workflow run link and relevant logs so we can diagnose quickly.
+
+  - type: dropdown
+    id: failure-location
+    attributes:
+      label: Where is the failure?
+      description: Which build system is failing?
+      options:
+        - GitHub Actions (CI workflow)
+        - GitHub Actions (CodeQL)
+        - GitHub Actions (Docker build/push)
+        - GitHub Actions (Pages deploy)
+        - Local build (dotnet build / MSBuild)
+        - Local build (npm install / npm test)
+        - Docker build (local)
+        - Other
+    validations:
+      required: true
+
+  - type: dropdown
+    id: failure-stage
+    attributes:
+      label: Failure Stage
+      description: At which step does the build fail?
+      options:
+        - Checkout / setup
+        - Dependency install (npm install / dotnet restore)
+        - Compilation (dotnet build / tsc)
+        - Linting (eslint / dotnet format)
+        - Unit tests (jest / dotnet test)
+        - Integration tests
+        - Docker image build
+        - Docker image push
+        - Deployment (Pages / release)
+        - Other
+    validations:
+      required: true
+
+  - type: input
+    id: workflow-run
+    attributes:
+      label: Workflow Run URL
+      description: Link to the failed GitHub Actions run (if applicable)
+      placeholder: "https://github.com/sauravbhattacharya001/BioBots/actions/runs/..."
+
+  - type: input
+    id: branch
+    attributes:
+      label: Branch
+      description: Which branch triggered the failure?
+      placeholder: "main"
+
+  - type: input
+    id: commit
+    attributes:
+      label: Commit SHA
+      description: The commit that triggered the failure (first 7-8 chars is fine)
+      placeholder: "abc1234"
+
+  - type: dropdown
+    id: flaky
+    attributes:
+      label: Is this intermittent?
+      description: Does re-running sometimes fix it?
+      options:
+        - "No — fails consistently"
+        - "Yes — flaky / intermittent"
+        - "Not sure (first occurrence)"
+    validations:
+      required: true
+
+  - type: textarea
+    id: error-log
+    attributes:
+      label: Error Log
+      description: Paste the relevant portion of the build/test output. Trim to the important part.
+      render: shell
+    validations:
+      required: true
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional Context
+      description: What changed recently? New dependency? OS update? Anything that might have caused this.
+      placeholder: |
+        This started failing after merging the Dependabot PR for actions/checkout v5.
+        The previous run on the same branch passed 2 hours ago.
+
+  - type: dropdown
+    id: blocking
+    attributes:
+      label: Impact
+      description: How much does this block development?
+      options:
+        - Blocks all PRs (main branch CI broken)
+        - Blocks specific feature branch
+        - Non-blocking (secondary workflow)
+        - Informational (CodeQL / optional check)
+    validations:
+      required: true

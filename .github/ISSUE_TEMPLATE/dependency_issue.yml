@@ -1,0 +1,108 @@
+---
+name: 🔄 Dependency / Compatibility Issue
+description: Report issues with package versions, runtime compatibility, or breaking upstream changes
+title: "[Dependency]: "
+labels: ["dependencies", "bug"]
+assignees: []
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use this template when you encounter issues caused by dependency conflicts, version incompatibilities, or breaking changes from upstream packages.
+
+  - type: dropdown
+    id: ecosystem
+    attributes:
+      label: Package Ecosystem
+      description: Which dependency system is affected?
+      options:
+        - npm (JavaScript / Node.js)
+        - NuGet (.NET / C#)
+        - pip (Python)
+        - Docker base image
+        - GitHub Actions
+        - System-level (OS, runtime)
+        - Other
+    validations:
+      required: true
+
+  - type: input
+    id: package-name
+    attributes:
+      label: Package Name
+      description: The name of the problematic dependency
+      placeholder: "e.g., jest, Newtonsoft.Json, numpy"
+    validations:
+      required: true
+
+  - type: input
+    id: current-version
+    attributes:
+      label: Current Version
+      description: The version currently in use (from package.json / .csproj / requirements.txt)
+      placeholder: "e.g., 29.7.0"
+
+  - type: input
+    id: target-version
+    attributes:
+      label: Target / Conflicting Version
+      description: The version causing problems or that you're trying to upgrade to
+      placeholder: "e.g., 30.0.0"
+
+  - type: dropdown
+    id: issue-type
+    attributes:
+      label: Issue Type
+      description: What kind of dependency problem are you seeing?
+      options:
+        - Breaking API change after upgrade
+        - Version conflict between packages
+        - Deprecated / removed API usage
+        - Security vulnerability in current version
+        - Build failure after Dependabot update
+        - Runtime compatibility issue (Node.js / .NET version)
+        - Peer dependency conflict
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Problem Description
+      description: Describe what's broken and how the dependency is involved.
+      placeholder: |
+        After upgrading jest from 29.x to 30.x, the test runner fails with:
+        "TypeError: jest.fn is not a function" in compliance-tracker.test.js
+    validations:
+      required: true
+
+  - type: textarea
+    id: error-output
+    attributes:
+      label: Error Output
+      description: Paste the relevant error messages, build logs, or stack traces.
+      render: shell
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps to Reproduce
+      description: How to trigger the issue.
+      placeholder: |
+        1. Run `npm install`
+        2. Run `npm test`
+        3. See error in compliance-tracker.test.js
+
+  - type: textarea
+    id: workaround
+    attributes:
+      label: Known Workaround
+      description: If you've found a temporary fix or pinned version, describe it here.
+      placeholder: "Pinning jest to 29.7.0 in package.json resolves the issue."
+
+  - type: textarea
+    id: additional
+    attributes:
+      label: Additional Context
+      description: Related issues, Dependabot PR links, or migration guides you've found.
