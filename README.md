@@ -15,9 +15,9 @@ Analyze 3D bioprinting run data — cell viability, print resolution, crosslinki
 [![NuGet Publish](https://github.com/sauravbhattacharya001/BioBots/actions/workflows/nuget-publish.yml/badge.svg)](https://github.com/sauravbhattacharya001/BioBots/actions/workflows/nuget-publish.yml)
 [![npm Publish](https://github.com/sauravbhattacharya001/BioBots/actions/workflows/npm-publish.yml/badge.svg)](https://github.com/sauravbhattacharya001/BioBots/actions/workflows/npm-publish.yml)
 [![GitHub Pages](https://github.com/sauravbhattacharya001/BioBots/actions/workflows/pages.yml/badge.svg)](https://sauravbhattacharya001.github.io/BioBots/)
-![Tests](https://img.shields.io/badge/tests-3664%20passed-brightgreen)
-![Test Suites](https://img.shields.io/badge/test%20suites-71-blue)
-![Scripts](https://img.shields.io/badge/scripts-45%20modules-informational)
+![Tests](https://img.shields.io/badge/tests-5315%20passed-brightgreen)
+![Test Suites](https://img.shields.io/badge/test%20suites-142-blue)
+![Scripts](https://img.shields.io/badge/scripts-111%20modules-informational)
 ![C#](https://img.shields.io/badge/C%23-ASP.NET%20Web%20API-purple)
 ![.NET Framework](https://img.shields.io/badge/.NET%20Framework-4.x-blue)
 [![Visual Studio](https://img.shields.io/badge/IDE-Visual%20Studio%202015+-blueviolet)](https://visualstudio.microsoft.com/)
@@ -47,7 +47,7 @@ Analyze 3D bioprinting run data — cell viability, print resolution, crosslinki
 
 ### ⚡ Quick Start — No Setup Required
 
-The 66  run entirely in your browser — no backend, no install, no dependencies:
+The 85 analysis tools run entirely in your browser — no backend, no install, no dependencies:
 
 **→ [Open the Dashboard](https://sauravbhattacharya001.github.io/BioBots/)**
 
@@ -68,11 +68,11 @@ The tool supports:
 - **Aggregation functions** — Maximum, Minimum, Average across all records
 - **11 queryable metrics** — From cell viability to extruder pressure
 - **File-watch caching** — Data reloads automatically when the JSON file changes (no restart needed)
-- **66  tools** — From Data Explorer and Quality Control to Scaffold Designer, Environment Monitor, and Failure Diagnostics — all running client-side with zero dependencies
+- **85 analysis tools** — From Data Explorer and Quality Control to Scaffold Designer, Environment Monitor, and Failure Diagnostics — all running client-side with zero dependencies
 
 ### 🌐 Live Demo
 
-All 66  are deployed on GitHub Pages:
+All 85 analysis tools are deployed on GitHub Pages:
 
 | Tool | Description |
 |------|-------------|
@@ -145,6 +145,24 @@ All 66  are deployed on GitHub Pages:
 | [🔌 API Explorer](https://sauravbhattacharya001.github.io/BioBots/api.html) | Interactive REST API documentation and testing |
 | [📚 Developer Guide](https://sauravbhattacharya001.github.io/BioBots/guide.html) | Setup, testing, and contributing reference |
 | [🏛️ Architecture](https://sauravbhattacharya001.github.io/BioBots/architecture.html) | System architecture diagram |
+| [🤖 Print Quality Autopilot](https://sauravbhattacharya001.github.io/BioBots/autopilot.html) | Autonomous print quality monitoring and adjustment |
+| [🏭 Capacity Planner](https://sauravbhattacharya001.github.io/BioBots/capacity-planner.html) | Lab capacity planning and resource forecasting |
+| [📉 Drift Detector](https://sauravbhattacharya001.github.io/BioBots/drift-detector.html) | Parameter drift detection across print runs |
+| [⚡ Electroporation Calculator](https://sauravbhattacharya001.github.io/BioBots/electroporation.html) | Electroporation protocol parameter calculator |
+| [⏰ Expiry Watchdog](https://sauravbhattacharya001.github.io/BioBots/expiry-watchdog.html) | Reagent expiry tracking and alerting |
+| [🚀 Fleet Commander](https://sauravbhattacharya001.github.io/BioBots/fleet-commander.html) | Multi-printer fleet management dashboard |
+| [🧪 Flow Cytometry](https://sauravbhattacharya001.github.io/BioBots/flow-cytometry.html) | Flow cytometry data analysis and gating |
+| [🔍 Search Hub](https://sauravbhattacharya001.github.io/BioBots/hub.html) | Unified search and navigation across all tools |
+| [🚨 Incident Report](https://sauravbhattacharya001.github.io/BioBots/incident-report.html) | Lab incident reporting and pattern analysis |
+| [🧠 Knowledge Graph](https://sauravbhattacharya001.github.io/BioBots/knowledge-graph.html) | Lab knowledge graph for experiment insights |
+| [🔄 Workflow Orchestrator](https://sauravbhattacharya001.github.io/BioBots/orchestrator.html) | Lab workflow orchestration and automation |
+| [⚖️ Protocol Compare](https://sauravbhattacharya001.github.io/BioBots/protocol-compare.html) | Side-by-side protocol comparison engine |
+| [🔬 Experiment Replicator](https://sauravbhattacharya001.github.io/BioBots/replicator.html) | Experiment replication planning and tracking |
+| [⚠️ Risk Assessor](https://sauravbhattacharya001.github.io/BioBots/risk-assessor.html) | Experiment risk assessment and mitigation |
+| [📅 Smart Scheduler](https://sauravbhattacharya001.github.io/BioBots/scheduler.html) | Intelligent experiment scheduling |
+| [🧫 Material Substitution](https://sauravbhattacharya001.github.io/BioBots/substitution.html) | Smart material substitution recommendations |
+| [🎓 Training Tracker](https://sauravbhattacharya001.github.io/BioBots/training.html) | Lab personnel training and certification tracking |
+| [🧬 Western Blot](https://sauravbhattacharya001.github.io/BioBots/western-blot.html) | Western blot analysis and quantification |
 
 ### 🏗️ Architecture
 
@@ -275,7 +293,7 @@ The bundled `index.html` provides an interactive query builder:
 ### 🔬 Analysis Tools Deep Dive
 
 <details>
-<summary><strong>Click to expand detailed descriptions of all 66 </strong></summary>
+<summary><strong>Click to expand detailed descriptions of all 85 analysis tools</strong></summary>
 
 ### 📊 Data Explorer
 
@@ -447,7 +465,7 @@ npx http-server docs -p 8000
 
 ### npm Package — Bioprinting Computation Toolkit
 
-The npm package (`@sauravbhattacharya001/biobots`) ships **57 factory functions** covering material calculations, rheology modeling, cell viability estimation, GCode analysis, and more — all usable from Node.js with zero native dependencies.
+The npm package (`@sauravbhattacharya001/biobots`) ships **57+ factory functions** covering material calculations, rheology modeling, cell viability estimation, GCode analysis, and more — all usable from Node.js with zero native dependencies.
 
 ```bash
 npm install @sauravbhattacharya001/biobots
