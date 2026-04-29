@@ -31,8 +31,11 @@ var EQUIPMENT_TYPES = {
 
 var PRIORITY_LEVELS = { critical: 4, high: 3, normal: 2, low: 1 };
 
+// ── Prototype Pollution Guard (CWE-1321) ────────────────────
+var _isDangerousKey = require('./sanitize').isDangerousKey;
+
 function createLabEquipmentScheduler() {
-    var equipment = {};    // id → { name, type, location, bookings[] }
+    var equipment = Object.create(null);    // id → { name, type, location, bookings[] }
     var bookings = [];     // all bookings across equipment
     var nextBookingId = 1;
     var alerts = [];
@@ -42,6 +45,9 @@ function createLabEquipmentScheduler() {
     function registerEquipment(opts) {
         if (!opts || !opts.id || !opts.name || !opts.type) {
             return { success: false, error: 'id, name, and type are required' };
+        }
+        if (_isDangerousKey(opts.id)) {
+            return { success: false, error: 'Invalid equipment id' };
         }
         if (!EQUIPMENT_TYPES[opts.type]) {
             return { success: false, error: 'Unknown type: ' + opts.type + '. Valid: ' + Object.keys(EQUIPMENT_TYPES).join(', ') };
@@ -280,8 +286,8 @@ function createLabEquipmentScheduler() {
 
         var totalMs = periodEnd - periodStart;
         var usedMs = 0;
-        var userMap = {};
-        var projectMap = {};
+        var userMap = Object.create(null);
+        var projectMap = Object.create(null);
         // Count overlapping bookings inline instead of a separate
         // .filter() pass that re-scans all bookings.
         var bookingCount = 0;

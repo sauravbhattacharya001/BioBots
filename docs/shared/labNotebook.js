@@ -32,6 +32,7 @@
 // ── imports ────────────────────────────────────────────────────────
 
 var escapeHtml = require('./validation').escapeHtml;
+var _isDangerousKey = require('./sanitize').isDangerousKey;
 
 // ── helpers ────────────────────────────────────────────────────────
 
@@ -102,6 +103,7 @@ function formatPlainText(entry) {
         lines.push('RESULTS');
         lines.push('───────');
         Object.keys(entry.results).forEach(function (k) {
+            if (_isDangerousKey(k)) return;
             lines.push('  ' + k + ': ' + entry.results[k]);
         });
         lines.push('');
@@ -171,6 +173,7 @@ function formatMarkdown(entry) {
         lines.push('| Metric | Value |');
         lines.push('|--------|-------|');
         Object.keys(entry.results).forEach(function (k) {
+            if (_isDangerousKey(k)) return;
             lines.push('| ' + k + ' | ' + entry.results[k] + ' |');
         });
         lines.push('');
@@ -235,6 +238,7 @@ function formatHtml(entry) {
     if (entry.results) {
         h.push('<h2>Results</h2><table><tr><th>Metric</th><th>Value</th></tr>');
         Object.keys(entry.results).forEach(function (k) {
+            if (_isDangerousKey(k)) return;
             h.push('<tr><td>' + escapeHtml(k) + '</td><td>' + escapeHtml(entry.results[k]) + '</td></tr>');
         });
         h.push('</table>');
