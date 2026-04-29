@@ -60,6 +60,7 @@ var MITIGATIONS = {
 // ── Helpers ────────────────────────────────────────────────────────
 
 var clamp = require('./validation').clamp;
+var _isDangerousKey = require('./sanitize').isDangerousKey;
 
 function classifyValue(value, param) {
     var p = PARAMS[param];
@@ -128,6 +129,8 @@ function createContaminationEarlyWarning(options) {
         var signals = [];
 
         for (var p in reading) {
+            if (!Object.prototype.hasOwnProperty.call(reading, p)) continue;
+            if (_isDangerousKey(p)) continue;
             if (!PARAMS[p]) continue;
             var val = Number(reading[p]);
             if (isNaN(val)) continue;

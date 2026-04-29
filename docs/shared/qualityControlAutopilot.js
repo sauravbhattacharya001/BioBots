@@ -1,6 +1,7 @@
 'use strict';
 
 var round = require('./validation').round;
+var _isDangerousKey = require('./sanitize').isDangerousKey;
 
 /**
  * Quality Control Autopilot
@@ -399,6 +400,7 @@ function createQualityControlAutopilot() {
                     if (m.target < m.lsl || m.target > m.usl) {
                         throw new Error('target must be between lsl and usl for "' + keys[i] + '"');
                     }
+                    if (_isDangerousKey(keys[i])) continue;
                     metrics[keys[i]] = {
                         target: m.target,
                         lsl: m.lsl,

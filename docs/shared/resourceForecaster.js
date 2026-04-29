@@ -102,6 +102,8 @@ function stddev(arr) {
     return Math.sqrt(s / (arr.length - 1));
 }
 
+var _isDangerousKey = require('./sanitize').isDangerousKey;
+
 // ── Factory ────────────────────────────────────────────────────────
 
 function createResourceForecaster(config) {
@@ -146,6 +148,9 @@ function createResourceForecaster(config) {
     function registerResource(opts) {
         if (!opts || typeof opts !== 'object') throw new Error('Options object required');
         requireString(opts.id, 'id');
+        if (_isDangerousKey(opts.id)) {
+            throw new Error('Invalid resource id');
+        }
         requireString(opts.name, 'name');
         requireString(opts.unit, 'unit');
         if (VALID_CATEGORIES.indexOf(opts.category) === -1) {
