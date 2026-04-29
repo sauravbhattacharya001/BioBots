@@ -93,6 +93,7 @@ var manifest = [
     ['createSituationAwareness',              './docs/shared/situationAwareness',          'createSituationAwareness'],
     ['createQualityControlAutopilot',        './docs/shared/qualityControlAutopilot',     'createQualityControlAutopilot'],
     ['createIncidentReplay',                 './docs/shared/incidentReplay',              'createIncidentReplay'],
+    ['createCrossExperimentLearner',          './docs/shared/crossExperimentLearner',      'createCrossExperimentLearner'],
 ];
 
 // ── Pre-computed lookup structures ─────────────────────────────────
