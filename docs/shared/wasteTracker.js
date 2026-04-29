@@ -1,6 +1,8 @@
 'use strict';
 
 var round = require('./validation').round;
+var _sanitize = require('./sanitize');
+var _isDangerousKey = _sanitize.isDangerousKey;
 
 /**
  * Waste Tracker — Track, analyze, and reduce bioprinting material waste.
@@ -64,6 +66,12 @@ function createWasteTracker() {
         if (!opts || !opts.material) {
             throw new Error('material is required');
         }
+        if (typeof opts.material !== 'string' || _isDangerousKey(opts.material)) {
+            throw new Error('material contains a disallowed value');
+        }
+        if (opts.jobId != null && (typeof opts.jobId !== 'string' || _isDangerousKey(opts.jobId))) {
+            throw new Error('jobId contains a disallowed value');
+        }
         if (typeof opts.volumeMl !== 'number' || opts.volumeMl < 0) {
             throw new Error('volumeMl must be a non-negative number');
         }
@@ -113,8 +121,8 @@ function createWasteTracker() {
         }
         var totalVolumeMl = 0;
         var totalCost = 0;
-        var byType = {};
-        var byMaterial = {};
+        var byType = Object.create(null);
+        var byMaterial = Object.create(null);
 
         for (var i = 0; i < data.length; i++) {
             var e = data[i];
