@@ -92,6 +92,7 @@ var manifest = [
     ['createExperimentPlanner',              './docs/shared/experimentPlanner',           'createExperimentPlanner'],
     ['createSituationAwareness',              './docs/shared/situationAwareness',          'createSituationAwareness'],
     ['createQualityControlAutopilot',        './docs/shared/qualityControlAutopilot',     'createQualityControlAutopilot'],
+    ['createIncidentReplay',                 './docs/shared/incidentReplay',              'createIncidentReplay'],
 ];
 
 // ── Pre-computed lookup structures ─────────────────────────────────
