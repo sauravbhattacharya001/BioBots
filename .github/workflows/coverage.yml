@@ -8,6 +8,7 @@ on:
 
 permissions:
   contents: read
+  pull-requests: write
 
 jobs:
   coverage:
@@ -38,32 +39,72 @@ jobs:
           fail_ci_if_error: false
           verbose: true
 
-      - name: Generate coverage badge
+      - name: Coverage analysis
+        id: coverage
         run: |
-          # Extract coverage percentage from json-summary
-          COVERAGE=$(node -e "
+          node -e "
+            const fs = require('fs');
             const summary = require('./coverage/coverage-summary.json');
-            const pct = summary.total.lines.pct;
-            console.log(pct);
-          ")
-          echo "Coverage: ${COVERAGE}%"
+            const total = summary.total;
 
-          # Determine badge color based on coverage
-          COLOR="red"
-          if (( $(echo "$COVERAGE >= 90" | bc -l) )); then
-            COLOR="brightgreen"
-          elif (( $(echo "$COVERAGE >= 80" | bc -l) )); then
-            COLOR="green"
-          elif (( $(echo "$COVERAGE >= 70" | bc -l) )); then
-            COLOR="yellowgreen"
-          elif (( $(echo "$COVERAGE >= 60" | bc -l) )); then
-            COLOR="yellow"
-          elif (( $(echo "$COVERAGE >= 50" | bc -l) )); then
-            COLOR="orange"
-          fi
+            // Overall metrics
+            const metrics = {
+              statements: total.statements.pct,
+              branches: total.branches.pct,
+              functions: total.functions.pct,
+              lines: total.lines.pct
+            };
 
-          echo "COVERAGE_PCT=${COVERAGE}" >> $GITHUB_ENV
-          echo "BADGE_COLOR=${COLOR}" >> $GITHUB_ENV
+            // Badge color
+            const pct = metrics.lines;
+            let color = 'red';
+            if (pct >= 90) color = 'brightgreen';
+            else if (pct >= 80) color = 'green';
+            else if (pct >= 70) color = 'yellowgreen';
+            else if (pct >= 60) color = 'yellow';
+            else if (pct >= 50) color = 'orange';
+
+            // Find files with low coverage (< 50% lines)
+            const lowCovFiles = [];
+            for (const [file, data] of Object.entries(summary)) {
+              if (file === 'total') continue;
+              if (data.lines.pct < 50 && data.lines.total > 0) {
+                lowCovFiles.push({
+                  file: file.replace(process.cwd() + '/', ''),
+                  lines: data.lines.pct,
+                  branches: data.branches.pct,
+                  functions: data.functions.pct,
+                  uncovered: data.lines.total - data.lines.covered
+                });
+              }
+            }
+            lowCovFiles.sort((a, b) => a.lines - b.lines);
+
+            // Find files with zero coverage
+            const zeroCovFiles = lowCovFiles.filter(f => f.lines === 0);
+            const partialCovFiles = lowCovFiles.filter(f => f.lines > 0);
+
+            // Write outputs
+            const append = (k, v) => fs.appendFileSync(process.env.GITHUB_OUTPUT, k + '=' + v + '\n');
+            append('lines_pct', pct);
+            append('badge_color', color);
+            append('statements_pct', metrics.statements);
+            append('branches_pct', metrics.branches);
+            append('functions_pct', metrics.functions);
+            append('low_cov_count', lowCovFiles.length);
+
+            // Write detailed report for step summary
+            const report = {
+              metrics,
+              lowCovFiles: lowCovFiles.slice(0, 20),
+              zeroCovCount: zeroCovFiles.length,
+              partialCovCount: partialCovFiles.length,
+              totalFiles: Object.keys(summary).length - 1,
+              coveredAbove80: Object.entries(summary)
+                .filter(([k, v]) => k !== 'total' && v.lines.total > 0 && v.lines.pct >= 80).length
+            };
+            fs.writeFileSync('/tmp/coverage-report.json', JSON.stringify(report, null, 2));
+          "
 
       - name: Upload coverage artifacts
         uses: actions/upload-artifact@v7
@@ -74,14 +115,88 @@ jobs:
 
       - name: Coverage summary
         run: |
-          echo "## 📊 Code Coverage Report" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "| Metric | Coverage |" >> $GITHUB_STEP_SUMMARY
-          echo "|--------|----------|" >> $GITHUB_STEP_SUMMARY
           node -e "
-            const s = require('./coverage/coverage-summary.json').total;
-            console.log('| Statements | ' + s.statements.pct + '% (' + s.statements.covered + '/' + s.statements.total + ') |');
-            console.log('| Branches | ' + s.branches.pct + '% (' + s.branches.covered + '/' + s.branches.total + ') |');
-            console.log('| Functions | ' + s.functions.pct + '% (' + s.functions.covered + '/' + s.functions.total + ') |');
-            console.log('| Lines | ' + s.lines.pct + '% (' + s.lines.covered + '/' + s.lines.total + ') |');
-          " >> $GITHUB_STEP_SUMMARY
+            const report = require('/tmp/coverage-report.json');
+            const m = report.metrics;
+            const lines = [];
+
+            lines.push('## 📊 Code Coverage Report');
+            lines.push('');
+            lines.push('| Metric | Coverage |');
+            lines.push('|--------|----------|');
+            lines.push('| Statements | ' + m.statements + '% |');
+            lines.push('| Branches | ' + m.branches + '% |');
+            lines.push('| Functions | ' + m.functions + '% |');
+            lines.push('| Lines | ' + m.lines + '% |');
+            lines.push('');
+            lines.push('**Files:** ' + report.totalFiles + ' tracked · ' + report.coveredAbove80 + ' above 80% · ' + report.zeroCovCount + ' with zero coverage');
+
+            if (report.lowCovFiles.length > 0) {
+              lines.push('');
+              lines.push('<details>');
+              lines.push('<summary>⚠️ ' + report.lowCovFiles.length + ' files below 50% line coverage</summary>');
+              lines.push('');
+              lines.push('| File | Lines | Branches | Functions | Uncovered Lines |');
+              lines.push('|------|-------|----------|-----------|-----------------|');
+              for (const f of report.lowCovFiles) {
+                lines.push('| \`' + f.file + '\` | ' + f.lines + '% | ' + f.branches + '% | ' + f.functions + '% | ' + f.uncovered + ' |');
+              }
+              lines.push('');
+              lines.push('</details>');
+            }
+
+            require('fs').appendFileSync(process.env.GITHUB_STEP_SUMMARY, lines.join('\n') + '\n');
+          "
+
+      - name: PR coverage comment
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const report = JSON.parse(fs.readFileSync('/tmp/coverage-report.json', 'utf8'));
+            const m = report.metrics;
+
+            let body = `## 📊 Coverage Report\n\n`;
+            body += `| Metric | Coverage |\n|--------|----------|\n`;
+            body += `| Statements | ${m.statements}% |\n`;
+            body += `| Branches | ${m.branches}% |\n`;
+            body += `| Functions | ${m.functions}% |\n`;
+            body += `| Lines | ${m.lines}% |\n\n`;
+            body += `**${report.totalFiles}** files tracked · **${report.coveredAbove80}** above 80%`;
+
+            if (report.lowCovFiles.length > 0) {
+              body += `\n\n<details><summary>⚠️ ${report.lowCovFiles.length} files below 50% coverage</summary>\n\n`;
+              body += `| File | Lines | Uncovered |\n|------|-------|-----------|\n`;
+              for (const f of report.lowCovFiles.slice(0, 15)) {
+                body += `| \`${f.file}\` | ${f.lines}% | ${f.uncovered} |\n`;
+              }
+              body += `\n</details>`;
+            }
+
+            // Upsert: find existing bot comment and update, or create new
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              per_page: 50
+            });
+            const botComment = comments.find(c =>
+              c.user.type === 'Bot' && c.body.includes('📊 Coverage Report')
+            );
+
+            if (botComment) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: botComment.id,
+                body
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body
+              });
+            }
