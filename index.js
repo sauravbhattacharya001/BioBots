@@ -91,6 +91,7 @@ var manifest = [
     ['createResourceForecaster',          './docs/shared/resourceForecaster',         'createResourceForecaster'],
     ['createExperimentPlanner',              './docs/shared/experimentPlanner',           'createExperimentPlanner'],
     ['createSituationAwareness',              './docs/shared/situationAwareness',          'createSituationAwareness'],
+    ['createQualityControlAutopilot',        './docs/shared/qualityControlAutopilot',     'createQualityControlAutopilot'],
 ];
 
 // ── Pre-computed lookup structures ─────────────────────────────────
