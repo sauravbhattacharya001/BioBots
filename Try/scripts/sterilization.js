@@ -1033,6 +1033,9 @@ function createSterilizationAnalyzer(userConfig) {
         if (!name || typeof name !== 'string') {
             throw new Error('Pathogen name must be a non-empty string');
         }
+        if (_isDangerousKey(name)) {
+            throw new Error('Invalid pathogen name: ' + name);
+        }
         if (!data || typeof data !== 'object') {
             throw new Error('Pathogen data must be an object');
         }
@@ -1043,6 +1046,9 @@ function createSterilizationAnalyzer(userConfig) {
     function addMaterial(name, data) {
         if (!name || typeof name !== 'string') {
             throw new Error('Material name must be a non-empty string');
+        }
+        if (_isDangerousKey(name)) {
+            throw new Error('Invalid material name: ' + name);
         }
         if (!data || typeof data !== 'object') {
             throw new Error('Material data must be an object');
@@ -1192,12 +1198,21 @@ function createSterilizationAnalyzer(userConfig) {
     }
 
 
+    /** CWE-1321: Reject prototype-pollution keys. */
+    function _isDangerousKey(key) {
+        return key === '__proto__' || key === 'constructor' || key === 'prototype';
+    }
+
     function _merge(target, source) {
         var result = {};
         var keys = Object.keys(target);
-        for (var i = 0; i < keys.length; i++) result[keys[i]] = target[keys[i]];
+        for (var i = 0; i < keys.length; i++) {
+            if (!_isDangerousKey(keys[i])) result[keys[i]] = target[keys[i]];
+        }
         keys = Object.keys(source);
-        for (var j = 0; j < keys.length; j++) result[keys[j]] = source[keys[j]];
+        for (var j = 0; j < keys.length; j++) {
+            if (!_isDangerousKey(keys[j])) result[keys[j]] = source[keys[j]];
+        }
         return result;
     }
 
