@@ -339,21 +339,30 @@ function createDriftDetector(options) {
             var probableCauses = (causeMap[dirKey] || causeMap.variance || []).slice(0, 3);
 
             // Forecast: when will it exit safe range at current trend?
+            // Use recent-window regression slope (not full-buffer) so the forecast
+            // reflects the *current* rate of drift rather than being diluted by
+            // the stable baseline period (fixes #155).
             var forecast = null;
-            if (trendSignificant && profile.safeMin !== undefined && profile.safeMax !== undefined && reg.slope !== 0) {
-                var currentVal = values[values.length - 1];
-                var stepsToLimit;
-                if (reg.slope > 0) {
-                    stepsToLimit = (profile.safeMax - currentVal) / reg.slope;
-                } else {
-                    stepsToLimit = (profile.safeMin - currentVal) / reg.slope;
-                }
-                if (stepsToLimit > 0 && stepsToLimit < windowSize * 5) {
-                    forecast = {
-                        readingsUntilLimit: Math.round(stepsToLimit),
-                        limitValue: reg.slope > 0 ? profile.safeMax : profile.safeMin,
-                        direction: direction
-                    };
+            if (trendSignificant && profile.safeMin !== undefined && profile.safeMax !== undefined) {
+                var recentN = Math.min(baselineSize, values.length);
+                var recentValues = values.slice(-recentN);
+                var recentReg = linearRegression(recentValues);
+                var forecastSlope = recentReg.slope;
+                if (forecastSlope !== 0) {
+                    var currentVal = values[values.length - 1];
+                    var stepsToLimit;
+                    if (forecastSlope > 0) {
+                        stepsToLimit = (profile.safeMax - currentVal) / forecastSlope;
+                    } else {
+                        stepsToLimit = (profile.safeMin - currentVal) / forecastSlope;
+                    }
+                    if (stepsToLimit > 0 && stepsToLimit < windowSize * 5) {
+                        forecast = {
+                            readingsUntilLimit: Math.round(stepsToLimit),
+                            limitValue: forecastSlope > 0 ? profile.safeMax : profile.safeMin,
+                            direction: direction
+                        };
+                    }
                 }
             }
 
