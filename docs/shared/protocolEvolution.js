@@ -81,11 +81,19 @@ function gaussianRandom() {
     return Math.sqrt(-2 * Math.log(u1)) * Math.cos(2 * Math.PI * u2);
 }
 
+var DANGEROUS_KEYS = { '__proto__': true, 'constructor': true, 'prototype': true };
+
+function _isDangerousKey(key) {
+    return DANGEROUS_KEYS[key] === true;
+}
+
 function deepClone(obj) {
     if (obj === null || typeof obj !== 'object') return obj;
-    var copy = Array.isArray(obj) ? [] : {};
+    var copy = Array.isArray(obj) ? [] : Object.create(null);
+    if (Array.isArray(obj)) copy = [];
     var keys = Object.keys(obj);
     for (var i = 0; i < keys.length; i++) {
+        if (_isDangerousKey(keys[i])) continue;
         copy[keys[i]] = deepClone(obj[keys[i]]);
     }
     return copy;
@@ -109,10 +117,10 @@ function createProtocolEvolution(options) {
     var selectionStrategy = opts.selectionStrategy || 'tournament';
     var parameterBounds = opts.parameterBounds || {}; // { paramName: { min, max } }
 
-    // Storage
+    // Storage — use null-prototype objects to prevent prototype pollution
     var protocols = [];        // all ingested protocols
-    var generations = {};      // generation number → array of protocol indices
-    var lineage = {};          // id → { parentIds: [], childIds: [] }
+    var generations = Object.create(null); // generation number → array of protocol indices
+    var lineage = Object.create(null);     // id → { parentIds: [], childIds: [] }
     var mutations = [];        // detected mutations log
 
     // ── Ingest ─────────────────────────────────────────────────────
@@ -122,6 +130,9 @@ function createProtocolEvolution(options) {
             throw new Error('Protocol record must be an object');
         }
         if (!record.id) throw new Error('Protocol record must have an id');
+        if (_isDangerousKey(record.id)) {
+            throw new Error('Protocol id is not allowed: ' + record.id);
+        }
         if (record.fitness === undefined || record.fitness === null) {
             throw new Error('Protocol record must have a fitness score');
         }
@@ -147,10 +158,11 @@ function createProtocolEvolution(options) {
         if (!generations[gen]) generations[gen] = [];
         generations[gen].push(idx);
 
-        // Track lineage
+        // Track lineage — reject dangerous IDs to prevent prototype pollution
         lineage[entry.id] = { parentIds: entry.parentIds, childIds: [] };
         for (var p = 0; p < entry.parentIds.length; p++) {
             var pid = entry.parentIds[p];
+            if (_isDangerousKey(pid)) continue;
             if (lineage[pid]) {
                 lineage[pid].childIds.push(entry.id);
             }
@@ -630,7 +642,7 @@ function createProtocolEvolution(options) {
         if (!lineage[id]) return null;
         var ancestors = [];
         var queue = [id];
-        var visited = {};
+        var visited = Object.create(null);
         visited[id] = true;
 
         while (queue.length > 0) {
@@ -667,6 +679,7 @@ function createProtocolEvolution(options) {
         if (config.parameterBounds !== undefined) {
             var keys = Object.keys(config.parameterBounds);
             for (var i = 0; i < keys.length; i++) {
+                if (_isDangerousKey(keys[i])) continue;
                 parameterBounds[keys[i]] = config.parameterBounds[keys[i]];
             }
         }
