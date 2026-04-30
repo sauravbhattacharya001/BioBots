@@ -250,13 +250,24 @@ function dominates(a, b) {
 }
 
 function extractParetoFront(scored) {
+    // Incremental Pareto front: maintain a running front and test each
+    // candidate against it.  This is O(n × f) where f = front size
+    // (typically 10-50), vs the naïve O(n²) all-pairs check.
     var front = [];
     for (var i = 0; i < scored.length; i++) {
         var dominated = false;
-        for (var j = 0; j < scored.length; j++) {
-            if (i !== j && dominates(scored[j], scored[i])) {
+        var j = 0;
+        while (j < front.length) {
+            if (dominates(front[j], scored[i])) {
                 dominated = true;
                 break;
+            }
+            if (dominates(scored[i], front[j])) {
+                // New point dominates an existing front member — remove it
+                front[j] = front[front.length - 1];
+                front.length--;
+            } else {
+                j++;
             }
         }
         if (!dominated) {
@@ -328,6 +339,13 @@ function createPrintParameterRecommender() {
         // Generate candidate parameter grid
         var candidates = generateGrid(profile.parameters, 5000);
 
+        // Pre-filter feedback for this material once — avoids repeated
+        // O(feedbackHistory) filter inside computeFeedbackBonus() for
+        // every candidate (up to 5000× the full scan).
+        var materialFeedback = feedbackHistory.filter(function (f) {
+            return f.material === materialKey;
+        });
+
         // Score each candidate
         var scored = [];
         for (var i = 0; i < candidates.length; i++) {
@@ -350,8 +368,8 @@ function createPrintParameterRecommender() {
                 wI * (1 - Math.abs(iScore - integrityGoal))
             ) / wTotal;
 
-            // Apply feedback learning bonus
-            var feedbackBonus = computeFeedbackBonus(materialKey, c);
+            // Apply feedback learning bonus (uses pre-filtered list)
+            var feedbackBonus = computeFeedbackBonusFromList(materialFeedback, c);
 
             scored.push({
                 parameters: c,
@@ -396,9 +414,7 @@ function createPrintParameterRecommender() {
             paretoFront: paretoFront.slice(0, 10),
             warnings: warnings,
             insights: insights,
-            feedbackRecordsUsed: feedbackHistory.filter(function (f) {
-                return f.material === materialKey;
-            }).length
+            feedbackRecordsUsed: materialFeedback.length
         };
     }
 
@@ -438,11 +454,20 @@ function createPrintParameterRecommender() {
 
     /**
      * Compute a small bonus/penalty based on prior feedback for similar parameters.
+     * @deprecated Use computeFeedbackBonusFromList with pre-filtered list.
      */
     function computeFeedbackBonus(materialKey, params) {
         var relevant = feedbackHistory.filter(function (f) {
             return f.material === materialKey;
         });
+        return computeFeedbackBonusFromList(relevant, params);
+    }
+
+    /**
+     * Compute feedback bonus from a pre-filtered list of relevant feedback.
+     * Avoids redundant O(history) filtering when called per-candidate.
+     */
+    function computeFeedbackBonusFromList(relevant, params) {
         if (relevant.length === 0) return 0;
 
         var bonus = 0;
