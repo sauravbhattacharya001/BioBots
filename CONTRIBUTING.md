@@ -113,10 +113,14 @@ docs/                               # GitHub Pages documentation site
 ├── guide.html                      # Developer guide
 └── bioprint-data.json              # Data copy for client-side processing
 
-__tests__/                          # Jest test suite (170+ tests)
+__tests__/                          # Jest test suite (148 test files, 2500+ tests)
 ├── runMethod.test.js               # Frontend query client tests
 ├── compare.test.js                 # Comparison tool tests
-└── quality.test.js                 # Quality dashboard tests
+├── quality.test.js                 # Quality dashboard tests
+├── predictiveMaintenance.test.js   # Equipment failure prediction tests
+├── experimentRiskAssessor.test.js  # Biosafety/resource risk tests
+├── driftDetector.test.js           # Process drift detection tests
+└── ...                             # One test file per shared module
 
 .github/
 ├── workflows/                      # CI/CD (build, test, coverage, CodeQL, Docker, Pages)
@@ -258,11 +262,15 @@ npx jest --watch
 
 ### Test Suite Overview
 
+The project has **148 test files** across `__tests__/` and `tests/` covering 88 shared modules. Key suites include:
+
 | File | Tests | Coverage |
 |------|-------|----------|
 | `runMethod.test.js` | ~87 | `isNumeric()`, `setButtonsEnabled()`, `runMethod()` — URL construction, validation, button states, response handling, jQuery mock integration |
 | `compare.test.js` | ~40+ | `METRICS` constant, `formatNum()`, selection manager, search filtering, radar normalization, table highlighting, insight generation (viability, elasticity, crosslinking, pressure) |
 | `quality.test.js` | ~100+ | Quality scoring, normalization, grade assignment, color functions, Pearson correlation, heatmap colors, optimal ranges, weight customization, performer ranking, edge cases |
+
+Autonomous module test files (e.g., `predictiveMaintenance.test.js`, `experimentRiskAssessor.test.js`, `driftDetector.test.js`) follow the same pattern — each module in `docs/shared/` should have a corresponding `__tests__/<moduleName>.test.js`.
 
 ### Coverage Thresholds
 
@@ -354,6 +362,44 @@ if (typeof module !== 'undefined') {
 }
 ```
 
+### Autonomous Module Pattern
+
+For modules that perform autonomous analysis (like `predictiveMaintenance.js`, `experimentRiskAssessor.js`, `driftDetector.js`), follow the established factory pattern:
+
+```javascript
+'use strict';
+
+function createAutonomousModule(config) {
+  const _config = Object.assign({ threshold: 0.5, windowSize: 10 }, config);
+  const _history = [];
+
+  function ingest(record) {
+    // Validate and store
+    _history.push(record);
+  }
+
+  function analyze() {
+    // Return structured report with severity, recommendations, evidence
+    return { score: 0, alerts: [], recommendations: [] };
+  }
+
+  function reset() { _history.length = 0; }
+
+  return { ingest, analyze, reset };
+}
+
+if (typeof module !== 'undefined') {
+  module.exports = { createAutonomousModule };
+}
+```
+
+Key conventions for autonomous modules:
+- **Factory function** — no classes, returns a plain object with methods
+- **Defensive config** — `Object.assign` with sane defaults
+- **Immutable external state** — internal arrays/maps, never mutate inputs
+- **Structured reports** — always return `{ score, alerts, recommendations }` or similar
+- **Guard against prototype pollution** — use `Object.create(null)` for lookup maps built from external keys; validate keys with `isDangerousKey()` from `sanitize.js`
+
 ### Step 2: Register in the manifest
 
 Add one line to the `manifest` array in `index.js`:
@@ -366,7 +412,14 @@ The module is now lazy-loaded on first access — no startup cost for consumers 
 
 ### Step 3: Add tests
 
-Create `__tests__/yourModule.test.js`. Follow the existing pattern — use `@jest-environment jsdom` if the module touches DOM APIs, plain Node otherwise. The project has 130+ test files; match the style of a similar module.
+Create `__tests__/yourModule.test.js`. Follow the existing pattern — use `@jest-environment jsdom` if the module touches DOM APIs, plain Node otherwise. The project has **148 test files** covering all shared modules; match the style of a similar module.
+
+Minimum test coverage for a new module:
+- Construction / factory defaults
+- Input validation (missing fields, bad types, boundary values)
+- Core computation logic (happy path + edge cases)
+- State management (reset, re-use after reset)
+- Integration with shared utilities (`sanitize.js`, `stats.js`, `utils.js`)
 
 ### Step 4: Update docs
 
@@ -391,6 +444,7 @@ BioBots processes biomedical/bioprinting data. Contributors should:
 - **Never commit real patient or lab data** — use synthetic data in tests and examples
 - **Sanitize all user inputs** rendered in HTML — use `escapeHtml()` (see existing pattern in docs pages)
 - **Avoid `eval()`, `Function()`, or `innerHTML` with untrusted data** in frontend code
+- **Guard against prototype pollution** — when building objects from external keys (config, user input, serialized data), use `Object.create(null)` for lookup maps and filter keys through `isDangerousKey()` from `docs/shared/sanitize.js`. Several modules have been patched for CWE-1321; don't regress.
 - **Keep dependencies minimal** — every new npm/NuGet dependency increases the attack surface
 - **Review Dependabot PRs carefully** — don't auto-merge major version bumps without checking changelogs for breaking changes
 - **Report vulnerabilities privately** — email the maintainer rather than opening a public issue
@@ -488,6 +542,45 @@ codeql database analyze biobots-db --format=sarif-latest --output=results.sarif
 | Docker build fails | Missing file in `.dockerignore` or changed paths | Verify `COPY` instructions match current file layout |
 | npm publish fails | Version already exists on registry | Bump the version number |
 | NuGet publish fails | Package version collision | Update version in `.nuspec` |
+
+## Module Catalog (88 shared modules)
+
+All computation modules live in `docs/shared/`. They are grouped by domain:
+
+### Core Lab Calculations
+`calculator.js` • `constants.js` • `dilutionCalculator.js` • `molarity.js` • `osmolality.js` • `phAdjustment.js` • `serialDilution.js` • `stats.js` • `unitConverter.js` • `utils.js`
+
+### Cell Biology
+`cellCounter.js` • `cellSeeding.js` • `cellViability.js` • `growthCurve.js` • `passage.js` • `viability.js` • `flowCytometry.js`
+
+### Bioprinting & Materials
+`crosslink.js` • `gcode.js` • `materials.js` • `mixer.js` • `nozzleAdvisor.js` • `printQualityScorer.js` • `printResolution.js` • `rheology.js` • `scaffold.js` • `yieldAnalyzer.js`
+
+### Equipment & Protocols
+`autoclave.js` • `centrifuge.js` • `electroporation.js` • `freezeThaw.js` • `pipetteCalibration.js` • `spectrophotometer.js` • `washProtocol.js` • `predictiveMaintenance.js` • `equipmentScheduler.js`
+
+### Molecular Biology
+`gelElectrophoresis.js` • `mycoplasmaTest.js` • `pcrMasterMix.js` • `standardCurve.js` • `westernBlot.js`
+
+### Media & Buffer
+`bufferPrep.js` • `mediaOptimizer.js` • `mediaPrep.js` • `recipeBuilder.js`
+
+### Quality Control & Monitoring
+`contaminationEarlyWarning.js` • `contaminationRisk.js` • `degradationPredictor.js` • `driftDetector.js` • `environmentalMonitor.js` • `qualityControlAutopilot.js` • `sterilityAssurance.js` • `shelfLife.js`
+
+### Experiment Management
+`experimentPlanner.js` • `experimentRandomizer.js` • `experimentReplicator.js` • `experimentRiskAssessor.js` • `labNotebook.js` • `labSafetyChecklist.js` • `plateMap.js` • `protocolDeviation.js` • `protocolEvolution.js` • `protocolGenerator.js` • `protocolTemplates.js`
+
+### Autonomous Intelligence
+`anomalyCorrelator.js` • `crossExperimentLearner.js` • `labDigitalTwin.js` • `outcomePredictor.js` • `parameterRecommender.js` • `resourceForecaster.js` • `situationAwareness.js` • `workflowOrchestrator.js`
+
+### Inventory & Tracking
+`batchGenealogy.js` • `labInventory.js` • `sampleLabel.js` • `sampleTracker.js` • `printSessionLogger.js` • `wasteTracker.js` • `jobEstimator.js`
+
+### Utilities & Infrastructure
+`capability.js` • `commandPalette.js` • `compatibilityMatrix.js` • `csvSafe.js` • `data-loader.js` • `export.js` • `incidentReplay.js` • `sanitize.js` • `validation.js`
+
+---
 
 ## Questions?
 
