@@ -286,16 +286,20 @@ function createCrossExperimentLearner(options) {
         return Math.round(raw * 100) / 100;
     }
 
-    // ── Golden Combination Detection ───────────────────────────────
+    // ── Shared Outcome Partitioning ─────────────────────────────────
 
-    function findGoldenCombinations(targetOutcome, options) {
-        var filterOpts = options || {};
-        var subset = filterExperiments(filterOpts);
-        if (subset.length < MIN_SAMPLES_FOR_CORRELATION) {
-            return { combinations: [], insufficient: true };
-        }
-
-        // Get outcome values and find threshold
+    /**
+     * Extract experiments with a valid numeric target outcome and partition
+     * them by a percentile threshold. Eliminates duplicated filter/sort/partition
+     * logic between findGoldenCombinations and detectFailurePatterns.
+     *
+     * @param {Array} subset - Pre-filtered experiments.
+     * @param {string} targetOutcome - Outcome key to partition on.
+     * @param {number} pct - Percentile threshold (0-1).
+     * @param {string} side - 'above' (>=threshold) or 'below' (<=threshold).
+     * @returns {{validExps, outcomeValues, sorted, threshold, selected}|null}
+     */
+    function _partitionByOutcomePercentile(subset, targetOutcome, pct, side) {
         var outcomeValues = [];
         var validExps = [];
         for (var i = 0; i < subset.length; i++) {
@@ -305,21 +309,39 @@ function createCrossExperimentLearner(options) {
                 validExps.push(subset[i]);
             }
         }
+        if (validExps.length < MIN_SAMPLES_FOR_CORRELATION) return null;
 
-        if (validExps.length < MIN_SAMPLES_FOR_CORRELATION) {
+        var sorted = outcomeValues.slice().sort(function(a, b) { return a - b; });
+        var threshold = percentile(sorted, pct);
+
+        var selected = [];
+        for (var i = 0; i < validExps.length; i++) {
+            var v = validExps[i].outcomes[targetOutcome];
+            if (side === 'above' ? v >= threshold : v <= threshold) {
+                selected.push(validExps[i]);
+            }
+        }
+
+        return { validExps: validExps, outcomeValues: outcomeValues, sorted: sorted, threshold: threshold, selected: selected };
+    }
+
+    // ── Golden Combination Detection ───────────────────────────────
+
+    function findGoldenCombinations(targetOutcome, options) {
+        var filterOpts = options || {};
+        var subset = filterExperiments(filterOpts);
+        if (subset.length < MIN_SAMPLES_FOR_CORRELATION) {
             return { combinations: [], insufficient: true };
         }
 
-        var sorted = outcomeValues.slice().sort(function(a, b) { return a - b; });
-        var goldenThreshold = percentile(sorted, GOLDEN_PERCENTILE);
-
-        // Identify golden experiments
-        var goldenExps = [];
-        for (var i = 0; i < validExps.length; i++) {
-            if (validExps[i].outcomes[targetOutcome] >= goldenThreshold) {
-                goldenExps.push(validExps[i]);
-            }
+        var partition = _partitionByOutcomePercentile(subset, targetOutcome, GOLDEN_PERCENTILE, 'above');
+        if (!partition) {
+            return { combinations: [], insufficient: true };
         }
+
+        var validExps = partition.validExps;
+        var goldenThreshold = partition.threshold;
+        var goldenExps = partition.selected;
 
         // Find common parameter ranges in golden experiments
         var params = Object.keys(parameterNames);
@@ -392,25 +414,14 @@ function createCrossExperimentLearner(options) {
             return { patterns: [], insufficient: true };
         }
 
-        var outcomeValues = [];
-        var validExps = [];
-        for (var i = 0; i < subset.length; i++) {
-            var val = subset[i].outcomes[targetOutcome];
-            if (typeof val === 'number' && isFinite(val)) {
-                outcomeValues.push(val);
-                validExps.push(subset[i]);
-            }
+        var partition = _partitionByOutcomePercentile(subset, targetOutcome, FAILURE_PERCENTILE, 'below');
+        if (!partition) {
+            return { patterns: [], insufficient: true };
         }
 
-        var sorted = outcomeValues.slice().sort(function(a, b) { return a - b; });
-        var failureThreshold = percentile(sorted, FAILURE_PERCENTILE);
-
-        var failedExps = [];
-        for (var i = 0; i < validExps.length; i++) {
-            if (validExps[i].outcomes[targetOutcome] <= failureThreshold) {
-                failedExps.push(validExps[i]);
-            }
-        }
+        var validExps = partition.validExps;
+        var failureThreshold = partition.threshold;
+        var failedExps = partition.selected;
 
         // Identify parameter patterns in failures
         var params = Object.keys(parameterNames);
