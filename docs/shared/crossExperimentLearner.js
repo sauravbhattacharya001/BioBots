@@ -208,16 +208,54 @@ function createCrossExperimentLearner(options) {
         var outcomes = Object.keys(outcomeNames);
         var correlations = [];
 
-        for (var pi = 0; pi < params.length; pi++) {
+        // Pre-extract all numeric column vectors in a single pass over experiments
+        // instead of re-scanning for every (param, outcome) pair — O(E) once vs O(P*O*E)
+        var paramCols = {};  // paramName -> [{ idx, value }]
+        var outcomeCols = {}; // outcomeName -> [{ idx, value }]
+        for (var pi = 0; pi < params.length; pi++) paramCols[params[pi]] = [];
+        for (var oi = 0; oi < outcomes.length; oi++) outcomeCols[outcomes[oi]] = [];
+
+        for (var ei = 0; ei < subset.length; ei++) {
+            var exp = subset[ei];
+            for (var pi = 0; pi < params.length; pi++) {
+                var pv = exp.parameters[params[pi]];
+                if (typeof pv === 'number' && isFinite(pv)) {
+                    paramCols[params[pi]].push({ idx: ei, value: pv });
+                }
+            }
             for (var oi = 0; oi < outcomes.length; oi++) {
+                var ov = exp.outcomes[outcomes[oi]];
+                if (typeof ov === 'number' && isFinite(ov)) {
+                    outcomeCols[outcomes[oi]].push({ idx: ei, value: ov });
+                }
+            }
+        }
+
+        // Build outcome lookup arrays indexed by experiment position for O(1) access
+        var outcomeLookups = {};
+        for (var oi = 0; oi < outcomes.length; oi++) {
+            var lookup = new Array(subset.length);
+            var col = outcomeCols[outcomes[oi]];
+            for (var c = 0; c < col.length; c++) {
+                lookup[col[c].idx] = col[c].value;
+            }
+            outcomeLookups[outcomes[oi]] = lookup;
+        }
+
+        // Compute correlations using pre-extracted columns
+        for (var pi = 0; pi < params.length; pi++) {
+            var pCol = paramCols[params[pi]];
+            if (pCol.length < MIN_SAMPLES_FOR_CORRELATION) continue;
+
+            for (var oi = 0; oi < outcomes.length; oi++) {
+                var oLookup = outcomeLookups[outcomes[oi]];
                 var xs = [], ys = [];
-                for (var ei = 0; ei < subset.length; ei++) {
-                    var exp = subset[ei];
-                    var pv = exp.parameters[params[pi]];
-                    var ov = exp.outcomes[outcomes[oi]];
-                    if (typeof pv === 'number' && typeof ov === 'number' && isFinite(pv) && isFinite(ov)) {
-                        xs.push(pv);
-                        ys.push(ov);
+                // Only iterate param column entries, check outcome existence via lookup
+                for (var c = 0; c < pCol.length; c++) {
+                    var oVal = oLookup[pCol[c].idx];
+                    if (oVal !== undefined) {
+                        xs.push(pCol[c].value);
+                        ys.push(oVal);
                     }
                 }
                 var r = pearsonCorrelation(xs, ys);
@@ -430,8 +468,8 @@ function createCrossExperimentLearner(options) {
 
     // ── Parameter Sensitivity Ranking ──────────────────────────────
 
-    function rankParameterSensitivity(targetOutcome, options) {
-        var corr = discoverCorrelations(options);
+    function rankParameterSensitivity(targetOutcome, options, precomputedCorrelations) {
+        var corr = precomputedCorrelations || discoverCorrelations(options);
         if (corr.insufficient) return { rankings: [], insufficient: true };
 
         var rankings = corr.correlations
@@ -611,12 +649,16 @@ function createCrossExperimentLearner(options) {
         var outcomes = Object.keys(outcomeNames);
         var filterOpts = options || {};
 
+        // Compute correlations once and reuse for all per-outcome sensitivity rankings
+        // Previously recomputed O(outcomes) additional times via rankParameterSensitivity
+        var correlations = discoverCorrelations(filterOpts);
+
         var result = {
             experimentCount: experiments.length,
             parameterCount: Object.keys(parameterNames).length,
             outcomeCount: outcomes.length,
             tags: Object.keys(tagIndex),
-            correlations: discoverCorrelations(filterOpts),
+            correlations: correlations,
             outcomeAnalyses: {}
         };
 
@@ -625,7 +667,7 @@ function createCrossExperimentLearner(options) {
             result.outcomeAnalyses[oc] = {
                 golden: findGoldenCombinations(oc, filterOpts),
                 failures: detectFailurePatterns(oc, filterOpts),
-                sensitivity: rankParameterSensitivity(oc, filterOpts),
+                sensitivity: rankParameterSensitivity(oc, filterOpts, correlations),
                 learningCurve: getLearningCurve(oc, filterOpts)
             };
         }
