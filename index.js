@@ -94,6 +94,7 @@ var manifest = [
     ['createQualityControlAutopilot',        './docs/shared/qualityControlAutopilot',     'createQualityControlAutopilot'],
     ['createIncidentReplay',                 './docs/shared/incidentReplay',              'createIncidentReplay'],
     ['createCrossExperimentLearner',          './docs/shared/crossExperimentLearner',      'createCrossExperimentLearner'],
+    ['createProtocolEvolution',               './docs/shared/protocolEvolution',            'createProtocolEvolution'],
 ];
 
 // ── Pre-computed lookup structures ─────────────────────────────────
