@@ -107,6 +107,7 @@ export function createProtocolDeviationTracker(options?: Record<string, unknown>
 export function createBatchGenealogyTracker(options?: Record<string, unknown>): Record<string, unknown>;
 export function createWorkflowOrchestrator(options?: Record<string, unknown>): Record<string, unknown>;
 export function createPrintParameterRecommender(options?: Record<string, unknown>): Record<string, unknown>;
+export function createExperimentRiskAssessor(options?: Record<string, unknown>): Record<string, unknown>;
 
 // --- Utility ---
 
