@@ -126,6 +126,9 @@ var EQUIPMENT_PROFILES = {
 
 // ── Certification Requirements ─────────────────────────────────────
 
+// Precomputed O(1) lookup for human-derived cell types (used in assessRegulatory)
+var HUMAN_CELLS = { ipsc: true, mscs: true, fibroblasts: true, hepatocytes: true, chondrocytes: true };
+
 var BSL_CERTIFICATIONS = {
     1: ['lab_safety'],
     2: ['lab_safety', 'BSL2'],
@@ -152,14 +155,22 @@ function assessBiosafety(experiment) {
     var materials = experiment.materials || [];
     var bsl = experiment.biosafety_level || 1;
 
-    // Check material BSL requirements
+    // Single-pass material analysis — replaces 4 separate iterations
     var maxRequiredBsl = 1;
+    var hasUvMaterial = false;
+    var biohazardCount = 0;
+    var unknownMats = [];
+
     for (var i = 0; i < materials.length; i++) {
         var mat = materials[i].toLowerCase();
         var info = MATERIAL_HAZARDS[mat];
-        if (info && info.bsl > maxRequiredBsl) {
-            maxRequiredBsl = info.bsl;
+        if (!info) {
+            unknownMats.push(materials[i]);
+            continue;
         }
+        if (info.bsl > maxRequiredBsl) maxRequiredBsl = info.bsl;
+        if (info.uvRequired) hasUvMaterial = true;
+        if (info.handling === 'biohazard') biohazardCount++;
     }
 
     if (bsl < maxRequiredBsl) {
@@ -167,13 +178,6 @@ function assessBiosafety(experiment) {
         findings.push('Materials require BSL' + maxRequiredBsl + ' but experiment specifies BSL' + bsl);
     }
 
-    // UV handling
-    var hasUvMaterial = false;
-    for (var j = 0; j < materials.length; j++) {
-        var mat2 = materials[j].toLowerCase();
-        var info2 = MATERIAL_HAZARDS[mat2];
-        if (info2 && info2.uvRequired) { hasUvMaterial = true; break; }
-    }
     if (hasUvMaterial) {
         var hasUv = (experiment.equipment || []).indexOf('uv_crosslinker') >= 0;
         if (!hasUv) {
@@ -182,13 +186,6 @@ function assessBiosafety(experiment) {
         }
     }
 
-    // Biohazard materials count
-    var biohazardCount = 0;
-    for (var k = 0; k < materials.length; k++) {
-        var mat3 = materials[k].toLowerCase();
-        var info3 = MATERIAL_HAZARDS[mat3];
-        if (info3 && info3.handling === 'biohazard') { biohazardCount++; }
-    }
     if (biohazardCount > 2) {
         score += 15;
         findings.push('Multiple biohazard materials (' + biohazardCount + ') increase handling complexity');
@@ -197,13 +194,6 @@ function assessBiosafety(experiment) {
         findings.push(biohazardCount + ' biohazard material(s) require enhanced handling');
     }
 
-    // Unknown materials
-    var unknownMats = [];
-    for (var m = 0; m < materials.length; m++) {
-        if (!MATERIAL_HAZARDS[materials[m].toLowerCase()]) {
-            unknownMats.push(materials[m]);
-        }
-    }
     if (unknownMats.length > 0) {
         score += 10 * unknownMats.length;
         findings.push('Unknown materials lack hazard data: ' + unknownMats.join(', '));
@@ -218,26 +208,20 @@ function assessResource(experiment) {
     var materials = experiment.materials || [];
     var inventory = experiment.inventory || {};
 
-    // Check material availability
+    // Single-pass inventory check — replaces 2 separate loops
     var unavailable = [];
+    var lowStock = [];
     for (var i = 0; i < materials.length; i++) {
         var mat = materials[i].toLowerCase();
-        if (inventory[mat] !== undefined && inventory[mat] <= 0) {
-            unavailable.push(materials[i]);
+        var qty = inventory[mat];
+        if (qty !== undefined) {
+            if (qty <= 0) unavailable.push(materials[i]);
+            else if (qty < 2) lowStock.push(materials[i]);
         }
     }
     if (unavailable.length > 0) {
         score += 20 * unavailable.length;
         findings.push('Materials not in stock: ' + unavailable.join(', '));
-    }
-
-    // Low stock warnings
-    var lowStock = [];
-    for (var j = 0; j < materials.length; j++) {
-        var mat2 = materials[j].toLowerCase();
-        if (inventory[mat2] !== undefined && inventory[mat2] > 0 && inventory[mat2] < 2) {
-            lowStock.push(materials[j]);
-        }
     }
     if (lowStock.length > 0) {
         score += 10 * lowStock.length;
@@ -352,9 +336,8 @@ function assessRegulatory(experiment) {
     // Ethics approval for human/animal cells
     var materials = experiment.materials || [];
     var needsEthics = false;
-    var humanCells = ['ipsc', 'mscs', 'fibroblasts', 'hepatocytes', 'chondrocytes'];
     for (var i = 0; i < materials.length; i++) {
-        if (humanCells.indexOf(materials[i].toLowerCase()) >= 0) {
+        if (HUMAN_CELLS[materials[i].toLowerCase()]) {
             needsEthics = true; break;
         }
     }
