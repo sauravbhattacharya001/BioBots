@@ -49,25 +49,11 @@ var FITNESS_TIERS = [
     { label: 'EXCELLENT',  min: 0.85, max: 1.0, color: '#059669' }
 ];
 
-// ── Statistical helpers ────────────────────────────────────────────
+// ── Statistical helpers (delegated to shared stats module) ──────────
 
-function mean(arr) {
-    if (!arr || arr.length === 0) return 0;
-    var s = 0;
-    for (var i = 0; i < arr.length; i++) s += arr[i];
-    return s / arr.length;
-}
-
-function stddev(arr) {
-    if (!arr || arr.length < 2) return 0;
-    var m = mean(arr);
-    var ss = 0;
-    for (var i = 0; i < arr.length; i++) {
-        var d = arr[i] - m;
-        ss += d * d;
-    }
-    return Math.sqrt(ss / (arr.length - 1));
-}
+var _stats = require('./stats');
+var mean = _stats.mean;
+var stddev = _stats.stddev;
 
 function clamp(val, lo, hi) {
     return val < lo ? lo : val > hi ? hi : val;

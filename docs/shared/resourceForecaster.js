@@ -37,6 +37,13 @@
 
 var VALID_CATEGORIES = ['bioink', 'reagent', 'consumable', 'media', 'disposable'];
 
+// ── Shared stats ──────────────────────────────────────────────────
+
+var _stats = require('./stats');
+var mean = _stats.mean;
+var stddev = _stats.stddev;
+var linearRegression = _stats.linearRegression;
+
 // ── Helpers ────────────────────────────────────────────────────────
 
 function toEpoch(ts) {
@@ -61,47 +68,6 @@ function startOfDay(epoch) {
 function isoDate(epoch) {
     return new Date(epoch).toISOString().slice(0, 10);
 }
-
-/** Simple linear regression: returns { slope, intercept, r2 } */
-function linearRegression(xs, ys) {
-    var n = xs.length;
-    if (n < 2) return { slope: 0, intercept: ys[0] || 0, r2: 0 };
-    var sumX = 0, sumY = 0, sumXY = 0, sumX2 = 0, sumY2 = 0;
-    for (var i = 0; i < n; i++) {
-        sumX += xs[i]; sumY += ys[i];
-        sumXY += xs[i] * ys[i];
-        sumX2 += xs[i] * xs[i];
-        sumY2 += ys[i] * ys[i];
-    }
-    var denom = n * sumX2 - sumX * sumX;
-    if (denom === 0) return { slope: 0, intercept: sumY / n, r2: 0 };
-    var slope = (n * sumXY - sumX * sumY) / denom;
-    var intercept = (sumY - slope * sumX) / n;
-    var ssTot = sumY2 - (sumY * sumY) / n;
-    var ssRes = 0;
-    for (var j = 0; j < n; j++) {
-        var residual = ys[j] - (slope * xs[j] + intercept);
-        ssRes += residual * residual;
-    }
-    var r2 = ssTot === 0 ? 0 : 1 - ssRes / ssTot;
-    return { slope: slope, intercept: intercept, r2: r2 };
-}
-
-function mean(arr) {
-    if (!arr.length) return 0;
-    var s = 0;
-    for (var i = 0; i < arr.length; i++) s += arr[i];
-    return s / arr.length;
-}
-
-function stddev(arr) {
-    if (arr.length < 2) return 0;
-    var m = mean(arr);
-    var s = 0;
-    for (var i = 0; i < arr.length; i++) s += (arr[i] - m) * (arr[i] - m);
-    return Math.sqrt(s / (arr.length - 1));
-}
-
 var _isDangerousKey = require('./sanitize').isDangerousKey;
 
 // ── Factory ────────────────────────────────────────────────────────

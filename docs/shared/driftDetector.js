@@ -118,50 +118,23 @@ var CORRECTIVE_ACTIONS = {
     _default:      { action: 'Investigate parameter source and recent process changes', urgencyBase: 5 }
 };
 
-// ── Math helpers ───────────────────────────────────────────────────
+// ── Math helpers (delegated to shared stats module) ───────────────
 
-function mean(arr) {
-    if (!arr || arr.length === 0) return 0;
-    var sum = 0;
-    for (var i = 0; i < arr.length; i++) sum += arr[i];
-    return sum / arr.length;
-}
+var _stats = require('./stats');
+var mean = _stats.mean;
+var stddev = _stats.stddev;
 
-function stddev(arr) {
-    if (!arr || arr.length < 2) return 0;
-    var m = mean(arr);
-    var sumSq = 0;
-    for (var i = 0; i < arr.length; i++) {
-        var d = arr[i] - m;
-        sumSq += d * d;
-    }
-    return Math.sqrt(sumSq / (arr.length - 1));
-}
-
+/**
+ * Index-based linear regression: treats array indices as x-values.
+ * Delegates heavy lifting to shared stats.linearRegression.
+ */
 function linearRegression(values) {
     var n = values.length;
     if (n < 2) return { slope: 0, intercept: values[0] || 0, r2: 0 };
-    var sumX = 0, sumY = 0, sumXY = 0, sumX2 = 0, sumY2 = 0;
-    for (var i = 0; i < n; i++) {
-        sumX += i;
-        sumY += values[i];
-        sumXY += i * values[i];
-        sumX2 += i * i;
-        sumY2 += values[i] * values[i];
-    }
-    var denom = n * sumX2 - sumX * sumX;
-    if (denom === 0) return { slope: 0, intercept: values[0], r2: 0 };
-    var slope = (n * sumXY - sumX * sumY) / denom;
-    var intercept = (sumY - slope * sumX) / n;
-    var ssTot = sumY2 - (sumY * sumY) / n;
-    var ssRes = 0;
-    for (var j = 0; j < n; j++) {
-        var predicted = intercept + slope * j;
-        var residual = values[j] - predicted;
-        ssRes += residual * residual;
-    }
-    var r2 = ssTot === 0 ? 0 : 1 - ssRes / ssTot;
-    return { slope: slope, intercept: intercept, r2: Math.max(0, r2) };
+    var xs = new Array(n);
+    for (var i = 0; i < n; i++) xs[i] = i;
+    var result = _stats.linearRegression(xs, values);
+    return { slope: result.slope, intercept: result.intercept, r2: Math.max(0, result.r2) };
 }
 
 // ── CUSUM calculation ──────────────────────────────────────────────
