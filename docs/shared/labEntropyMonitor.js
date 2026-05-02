@@ -221,9 +221,9 @@ function createLabEntropyMonitor() {
 
     // ── _computeTrend ──────────────────────────────────────────
 
-    function _computeTrend(dimension) {
+    function _computeTrend(dimension, refTs) {
         // Compare recent 7 days vs previous 7 days
-        var now = _now();
+        var now = refTs || _now();
         var oneWeek = 604800000;
         var recentScore = 0, olderScore = 0;
         for (var i = 0; i < events.length; i++) {
@@ -255,11 +255,13 @@ function createLabEntropyMonitor() {
                 trend: _computeTrend(dimension)
             };
         }
-        // Composite
+        // Composite — use a single reference timestamp so all dimensions
+        // are scored against the same point in time.
+        var refTs = _now();
         var composite = 0;
         var totalEvents = 0;
         for (var d = 0; d < DIMENSIONS.length; d++) {
-            var dimScore = _computeDimensionScore(DIMENSIONS[d]);
+            var dimScore = _computeDimensionScore(DIMENSIONS[d], refTs);
             composite += dimScore.score * DIMENSION_WEIGHTS[DIMENSIONS[d]];
             totalEvents += dimScore.eventCount;
         }
@@ -268,7 +270,7 @@ function createLabEntropyMonitor() {
         // Composite trend: weighted average of dimension trends
         var trendNum = 0;
         for (var d2 = 0; d2 < DIMENSIONS.length; d2++) {
-            var t = _computeTrend(DIMENSIONS[d2]);
+            var t = _computeTrend(DIMENSIONS[d2], refTs);
             trendNum += (t === 'increasing' ? 1 : t === 'decreasing' ? -1 : 0) * DIMENSION_WEIGHTS[DIMENSIONS[d2]];
         }
         var compositeTrend = trendNum > 0.1 ? 'increasing' : trendNum < -0.1 ? 'decreasing' : 'stable';
@@ -338,6 +340,8 @@ function createLabEntropyMonitor() {
         var limit = opts.limit || 10;
         var filterDim = opts.dimension || null;
 
+        var hotspotsNow = _now();
+        var oneWeek = 604800000;
         var sourceMap = Object.create(null);
         for (var i = 0; i < events.length; i++) {
             var ev = events[i];
@@ -358,10 +362,8 @@ function createLabEntropyMonitor() {
             sourceMap[key].totalSeverityWeight += SEVERITY_WEIGHTS[ev.severity] || 1;
             if (ev.timestamp > sourceMap[key].lastSeen) sourceMap[key].lastSeen = ev.timestamp;
 
-            var now = _now();
-            var oneWeek = 604800000;
-            if (now - ev.timestamp <= oneWeek) sourceMap[key].recentCount++;
-            else if (now - ev.timestamp <= 2 * oneWeek) sourceMap[key].olderCount++;
+            if (hotspotsNow - ev.timestamp <= oneWeek) sourceMap[key].recentCount++;
+            else if (hotspotsNow - ev.timestamp <= 2 * oneWeek) sourceMap[key].olderCount++;
         }
 
         var hotspots = [];
