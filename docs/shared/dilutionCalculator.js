@@ -122,10 +122,27 @@ function createDilutionCalculator() {
             return { error: 'Provide { stockConcentration, dilutionFactor, steps, transferVolume, finalVolume }.' };
         }
         var stock = opts.stockConcentration;
-        var factor = opts.dilutionFactor || 10;
         var steps = opts.steps || 6;
-        var transferVol = opts.transferVolume || 100; // µL
         var finalVol = opts.finalVolume || 1000; // µL
+
+        // Determine dilution factor and transfer volume consistently.
+        // The physical dilution per tube is finalVol / transferVol, so these
+        // two parameters are coupled.  If the user provides dilutionFactor,
+        // derive transferVolume from it; otherwise derive the factor from the
+        // volumes.  This prevents a bug where an independently-specified
+        // factor could disagree with the physical volumes, producing
+        // concentrations that do not match the described protocol.
+        var factor, transferVol;
+        if (opts.dilutionFactor != null) {
+            factor = opts.dilutionFactor;
+            transferVol = _round(finalVol / factor);
+        } else if (opts.transferVolume != null) {
+            transferVol = opts.transferVolume;
+            factor = _round(finalVol / transferVol);
+        } else {
+            factor = 10;
+            transferVol = _round(finalVol / factor);
+        }
 
         if (stock <= 0 || factor <= 1 || steps < 1 || transferVol <= 0 || finalVol <= 0) {
             return { error: 'All values must be positive; dilutionFactor must be > 1.' };
@@ -136,10 +153,6 @@ function createDilutionCalculator() {
 
         var diluentPerTube = _round(finalVol - transferVol);
         var tubes = [];
-        // The first tube receives transferVol of stock into finalVol total,
-        // so its concentration is stock * (transferVol / finalVol) = stock / factor.
-        // Each subsequent tube transfers from the previous tube, diluting by
-        // the same factor again.
         var conc = stock;
 
         for (var i = 0; i < steps; i++) {

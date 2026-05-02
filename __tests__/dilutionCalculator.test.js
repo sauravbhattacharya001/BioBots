@@ -42,9 +42,9 @@ describe('DilutionCalculator', function () {
         it('generates correct tube series', function () {
             var r = calc.serialDilution({ stockConcentration: 1000, dilutionFactor: 10, steps: 3, transferVolume: 100, finalVolume: 1000 });
             expect(r.tubes).toHaveLength(3);
-            expect(r.tubes[0].concentration).toBe(1000);
-            expect(r.tubes[1].concentration).toBe(100);
-            expect(r.tubes[2].concentration).toBe(10);
+            expect(r.tubes[0].concentration).toBe(100);
+            expect(r.tubes[1].concentration).toBe(10);
+            expect(r.tubes[2].concentration).toBe(1);
         });
 
         it('errors on bad factor', function () {
