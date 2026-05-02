@@ -41,7 +41,6 @@
  *   const verdict = exp.evaluate('supported', 'All viability thresholds met');
  */
 
-var _stats = require('./scriptUtils');
 var _descriptiveStats = require('../../docs/shared/stats').descriptiveStats;
 var _stripDangerousKeys = require('../../docs/shared/sanitize').stripDangerousKeys;
 var _isDangerousKey = require('../../docs/shared/sanitize').isDangerousKey;

@@ -128,6 +128,21 @@ function createPredictiveMaintenance() {
     var equipment = {};     // id → equipment record
     var usageHistory = {};  // id → [usage events]
 
+    /**
+     * Validate an equipment id and verify it exists.
+     * Returns null on success, or a { success: false, error } object on failure.
+     * @private
+     */
+    function _guardEquipment(eqId) {
+        if (!eqId || typeof eqId !== 'string' || _isDangerousKey(eqId)) {
+            return { success: false, error: 'Invalid equipmentId' };
+        }
+        if (!equipment[eqId]) {
+            return { success: false, error: 'Equipment not found: ' + eqId };
+        }
+        return null;
+    }
+
     // ── Equipment Registration ─────────────────────────────────────
 
     function registerEquipment(opts) {
@@ -188,12 +203,8 @@ function createPredictiveMaintenance() {
         if (!eqId || typeof eqId !== 'string') {
             return { success: false, error: 'equipmentId is required' };
         }
-        if (_isDangerousKey(eqId)) {
-            return { success: false, error: 'Invalid equipmentId' };
-        }
-        if (!equipment[eqId]) {
-            return { success: false, error: 'Equipment not found: ' + eqId };
-        }
+        var err = _guardEquipment(eqId);
+        if (err) return err;
         var hours = Number(opts.hours);
         if (!hours || hours <= 0) {
             return { success: false, error: 'hours must be a positive number' };
@@ -222,12 +233,8 @@ function createPredictiveMaintenance() {
     // ── Record Maintenance ─────────────────────────────────────────
 
     function recordMaintenance(equipmentId) {
-        if (!equipmentId || _isDangerousKey(equipmentId)) {
-            return { success: false, error: 'Invalid equipmentId' };
-        }
-        if (!equipment[equipmentId]) {
-            return { success: false, error: 'Equipment not found: ' + equipmentId };
-        }
+        var err = _guardEquipment(equipmentId);
+        if (err) return err;
         equipment[equipmentId].hoursSinceLastMaintenance = 0;
         equipment[equipmentId].lastMaintenanceDate = new Date().toISOString().slice(0, 10);
         return { success: true };
@@ -236,12 +243,8 @@ function createPredictiveMaintenance() {
     // ── Wear Analysis ──────────────────────────────────────────────
 
     function analyzeWear(equipmentId) {
-        if (!equipmentId || _isDangerousKey(equipmentId)) {
-            return { success: false, error: 'Invalid equipmentId' };
-        }
-        if (!equipment[equipmentId]) {
-            return { success: false, error: 'Equipment not found: ' + equipmentId };
-        }
+        var err = _guardEquipment(equipmentId);
+        if (err) return err;
         var eq = equipment[equipmentId];
         var history = usageHistory[equipmentId];
 
@@ -306,12 +309,8 @@ function createPredictiveMaintenance() {
     // ── Failure Prediction ─────────────────────────────────────────
 
     function predictFailure(equipmentId) {
-        if (!equipmentId || _isDangerousKey(equipmentId)) {
-            return { success: false, error: 'Invalid equipmentId' };
-        }
-        if (!equipment[equipmentId]) {
-            return { success: false, error: 'Equipment not found: ' + equipmentId };
-        }
+        var err = _guardEquipment(equipmentId);
+        if (err) return err;
         var eq = equipment[equipmentId];
         var eta = eq.expectedLifeHours;
         var t = eq.totalOperatingHours;
@@ -419,12 +418,8 @@ function createPredictiveMaintenance() {
     // ── Anomaly Detection ──────────────────────────────────────────
 
     function detectAnomalies(equipmentId) {
-        if (!equipmentId || _isDangerousKey(equipmentId)) {
-            return { success: false, error: 'Invalid equipmentId' };
-        }
-        if (!equipment[equipmentId]) {
-            return { success: false, error: 'Equipment not found: ' + equipmentId };
-        }
+        var err = _guardEquipment(equipmentId);
+        if (err) return err;
         var history = usageHistory[equipmentId];
         if (history.length < 3) {
             return { success: true, equipmentId: equipmentId, anomalies: [], message: 'Insufficient data (need at least 3 readings)' };
@@ -605,12 +600,8 @@ function createPredictiveMaintenance() {
     // ── Get Equipment Info ─────────────────────────────────────────
 
     function getEquipment(equipmentId) {
-        if (!equipmentId || _isDangerousKey(equipmentId)) {
-            return { success: false, error: 'Invalid equipmentId' };
-        }
-        if (!equipment[equipmentId]) {
-            return { success: false, error: 'Equipment not found: ' + equipmentId };
-        }
+        var err = _guardEquipment(equipmentId);
+        if (err) return err;
         return { success: true, equipment: equipment[equipmentId] };
     }
 

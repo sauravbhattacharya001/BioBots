@@ -22,6 +22,12 @@ function createPassageTracker() {
     var passages = {};
     var alerts = [];
 
+    /** @private Look up a cell line or throw a consistent error. */
+    function _requireCellLine(id) {
+        if (!cellLines[id]) throw new Error('Cell line not found: ' + id);
+        return cellLines[id];
+    }
+
     // --- Cell Line Management ---
 
     function addCellLine(opts) {
@@ -45,8 +51,7 @@ function createPassageTracker() {
     }
 
     function getCellLine(id) {
-        if (!cellLines[id]) throw new Error('Cell line not found: ' + id);
-        return Object.assign({}, cellLines[id]);
+        return Object.assign({}, _requireCellLine(id));
     }
 
     function listCellLines() {
@@ -67,7 +72,7 @@ function createPassageTracker() {
     }
 
     function removeCellLine(id) {
-        if (!cellLines[id]) throw new Error('Cell line not found: ' + id);
+        _requireCellLine(id);
         delete cellLines[id];
         delete passages[id];
         return true;
@@ -76,7 +81,7 @@ function createPassageTracker() {
     // --- Passage Recording ---
 
     function recordPassage(cellLineId, data) {
-        if (!cellLines[cellLineId]) throw new Error('Cell line not found: ' + cellLineId);
+        _requireCellLine(cellLineId);
         if (!data || typeof data.passage !== 'number') throw new Error('Passage number is required');
         if (data.passage < 1) throw new Error('Passage must be >= 1');
         if (data.viability !== undefined && (data.viability < 0 || data.viability > 100))
@@ -107,7 +112,7 @@ function createPassageTracker() {
     }
 
     function getPassageHistory(cellLineId, opts) {
-        if (!cellLines[cellLineId]) throw new Error('Cell line not found: ' + cellLineId);
+        _requireCellLine(cellLineId);
         var ps = passages[cellLineId].slice();
         if (opts && opts.fromPassage) ps = ps.filter(function (p) { return p.passage >= opts.fromPassage; });
         if (opts && opts.toPassage) ps = ps.filter(function (p) { return p.passage <= opts.toPassage; });
@@ -118,7 +123,7 @@ function createPassageTracker() {
     // --- Analysis ---
 
     function getViabilityTrend(cellLineId) {
-        if (!cellLines[cellLineId]) throw new Error('Cell line not found: ' + cellLineId);
+        _requireCellLine(cellLineId);
         var ps = passages[cellLineId].filter(function (p) { return p.viability !== null; });
         if (ps.length < 2) return { trend: 'insufficient_data', points: ps.length, slope: 0 };
 
@@ -171,7 +176,7 @@ function createPassageTracker() {
     }
 
     function getConfluenceProfile(cellLineId) {
-        if (!cellLines[cellLineId]) throw new Error('Cell line not found: ' + cellLineId);
+        _requireCellLine(cellLineId);
         var ps = passages[cellLineId].filter(function (p) { return p.confluence !== null; });
         if (ps.length === 0) return { profile: 'no_data', points: 0 };
 
@@ -204,7 +209,7 @@ function createPassageTracker() {
     }
 
     function getOptimalPassageWindow(cellLineId) {
-        if (!cellLines[cellLineId]) throw new Error('Cell line not found: ' + cellLineId);
+        _requireCellLine(cellLineId);
         var cl = cellLines[cellLineId];
         var ps = passages[cellLineId].filter(function (p) {
             return p.viability !== null;
@@ -266,7 +271,7 @@ function createPassageTracker() {
      * @returns {Object} Risk assessment with action recommendation
      */
     function getSenescenceRisk(cellLineId, precomputedTrend) {
-        if (!cellLines[cellLineId]) throw new Error('Cell line not found: ' + cellLineId);
+        _requireCellLine(cellLineId);
         var cl = cellLines[cellLineId];
         var ps = passages[cellLineId];
         if (ps.length === 0) return { risk: 'unknown', currentPassage: 0, maxPassage: cl.maxPassage };
@@ -294,7 +299,7 @@ function createPassageTracker() {
     // --- Reporting ---
 
     function getCellLineReport(cellLineId) {
-        if (!cellLines[cellLineId]) throw new Error('Cell line not found: ' + cellLineId);
+        _requireCellLine(cellLineId);
         // Compute viability trend once and share with getSenescenceRisk
         // to avoid the redundant linear regression (was computed twice).
         var viabilityTrend = getViabilityTrend(cellLineId);
@@ -349,7 +354,7 @@ function createPassageTracker() {
     // --- Export ---
 
     function exportPassageData(cellLineId, format) {
-        if (!cellLines[cellLineId]) throw new Error('Cell line not found: ' + cellLineId);
+        _requireCellLine(cellLineId);
         var ps = passages[cellLineId];
         format = format || 'json';
 

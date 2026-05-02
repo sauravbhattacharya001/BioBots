@@ -1,6 +1,6 @@
 'use strict';
 
-const { clamp, validatePositive, validateNonNegative } = require('./scriptUtils');
+const { clamp, validatePositive } = require('./scriptUtils');
 
 /**
  * Scaffold Degradation Predictor

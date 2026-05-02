@@ -13,6 +13,7 @@ var _sanitizeMetadata = require('./sanitize').stripDangerousKeys;
 
 var STAGES = ['Queued', 'Printing', 'Crosslinking', 'Incubation', 'Testing', 'Complete'];
 var PRIORITIES = ['low', 'medium', 'high', 'urgent'];
+var ERR_SAMPLE_NOT_FOUND = 'Sample not found: ';
 
 function createSampleTracker() {
     var samples = [];
@@ -55,7 +56,7 @@ function createSampleTracker() {
 
     function advanceSample(id) {
         var s = _findSample(id);
-        if (!s) throw new Error('Sample not found: ' + id);
+        if (!s) throw new Error(ERR_SAMPLE_NOT_FOUND + id);
         var idx = STAGES.indexOf(s.stage);
         if (idx >= STAGES.length - 1) throw new Error('Sample already at final stage');
         var prev = s.stage;
@@ -68,7 +69,7 @@ function createSampleTracker() {
 
     function moveSample(id, targetStage) {
         var s = _findSample(id);
-        if (!s) throw new Error('Sample not found: ' + id);
+        if (!s) throw new Error(ERR_SAMPLE_NOT_FOUND + id);
         if (STAGES.indexOf(targetStage) < 0) throw new Error('Invalid stage: ' + targetStage);
         var prev = s.stage;
         s.stage = targetStage;
@@ -80,7 +81,7 @@ function createSampleTracker() {
 
     function addNote(id, text) {
         var s = _findSample(id);
-        if (!s) throw new Error('Sample not found: ' + id);
+        if (!s) throw new Error(ERR_SAMPLE_NOT_FOUND + id);
         if (!text || typeof text !== 'string' || !text.trim()) throw new Error('Note text is required');
         var note = { text: text.trim(), timestamp: _now() };
         s.notes.push(note);
@@ -90,7 +91,7 @@ function createSampleTracker() {
 
     function setPriority(id, priority) {
         var s = _findSample(id);
-        if (!s) throw new Error('Sample not found: ' + id);
+        if (!s) throw new Error(ERR_SAMPLE_NOT_FOUND + id);
         if (PRIORITIES.indexOf(priority) < 0) throw new Error('Invalid priority: ' + priority);
         s.priority = priority;
         _emit('priority', { sample: s, priority: priority });
@@ -99,14 +100,14 @@ function createSampleTracker() {
 
     function setAssignee(id, assignee) {
         var s = _findSample(id);
-        if (!s) throw new Error('Sample not found: ' + id);
+        if (!s) throw new Error(ERR_SAMPLE_NOT_FOUND + id);
         s.assignee = assignee ? assignee.trim() : null;
         return s;
     }
 
     function removeSample(id) {
         var s = _findSample(id);
-        if (!s) throw new Error('Sample not found: ' + id);
+        if (!s) throw new Error(ERR_SAMPLE_NOT_FOUND + id);
         var idx = samples.indexOf(s);
         if (idx >= 0) samples.splice(idx, 1);
         delete sampleIndex[id];
@@ -116,7 +117,7 @@ function createSampleTracker() {
 
     function getSample(id) {
         var s = _findSample(id);
-        if (!s) throw new Error('Sample not found: ' + id);
+        if (!s) throw new Error(ERR_SAMPLE_NOT_FOUND + id);
         return s;
     }
 
@@ -187,7 +188,7 @@ function createSampleTracker() {
 
     function getDwellTime(id) {
         var s = _findSample(id);
-        if (!s) throw new Error('Sample not found: ' + id);
+        if (!s) throw new Error(ERR_SAMPLE_NOT_FOUND + id);
         var times = {};
         for (var i = 0; i < s.history.length - 1; i++) {
             var curr = s.history[i];
@@ -256,7 +257,7 @@ function createSampleTracker() {
         if (!Array.isArray(data)) throw new Error('Expected array of samples');
         var imported = 0;
         data.forEach(function(d) {
-            try { addSample(d); imported++; } catch(e) {}
+            try { addSample(d); imported++; } catch(e) { /* skip invalid entries */ }
         });
         return imported;
     }
