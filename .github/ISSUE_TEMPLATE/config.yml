@@ -6,6 +6,9 @@ contact_links:
   - name: 🧬 Protocol Library Docs
     url: https://sauravbhattacharya001.github.io/BioBots/api.html
     about: View existing protocols and API documentation before submitting a new one
+  - name: 📦 npm Package
+    url: https://www.npmjs.com/package/@sauravbhattacharya001/biobots
+    about: Check the npm package page for version history and known issues
   - name: 🔐 Report Critical Security Issue (Private)
     url: https://github.com/sauravbhattacharya001/BioBots/security/advisories/new
     about: For critical vulnerabilities that should not be publicly disclosed

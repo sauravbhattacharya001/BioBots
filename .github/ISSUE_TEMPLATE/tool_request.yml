@@ -1,0 +1,113 @@
+name: "🔧 New Tool Request"
+description: Request a new browser-based analysis tool for the BioBots dashboard
+title: "[Tool Request]: "
+labels: ["enhancement", "tool-request"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use this form to propose a new interactive analysis tool for the BioBots dashboard.
+        For SDK factory requests, use the Feature Request template instead.
+
+  - type: input
+    id: tool-name
+    attributes:
+      label: Proposed Tool Name
+      description: A short descriptive name for the tool
+      placeholder: "e.g., Shear Thinning Analyzer"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: category
+    attributes:
+      label: Tool Category
+      description: Which dashboard section should this tool belong to?
+      options:
+        - Core Analysis
+        - Visualization & Charts
+        - Lab Management
+        - Prediction & Modeling
+        - Quality Control
+        - Protocol & Workflow
+        - Data Import/Export
+        - Comparison & Benchmarking
+        - New Category (describe below)
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Tool Description
+      description: What does this tool do? What problem does it solve?
+      placeholder: |
+        Describe the tool's purpose, what inputs it takes, and what outputs/visualizations it produces.
+    validations:
+      required: true
+
+  - type: textarea
+    id: scientific-basis
+    attributes:
+      label: Scientific Basis
+      description: What bioprinting concepts, equations, or models does this tool implement?
+      placeholder: |
+        Reference papers, equations, or standards the tool should follow.
+        e.g., "Implements the Herschel-Bulkley model for yield stress fluids"
+
+  - type: textarea
+    id: inputs-outputs
+    attributes:
+      label: Inputs & Expected Outputs
+      description: Define the parameters the user provides and what the tool returns
+      placeholder: |
+        **Inputs:**
+        - Shear rate range (1/s)
+        - Viscosity measurements (Pa·s)
+
+        **Outputs:**
+        - Flow behavior index (n)
+        - Consistency coefficient (K)
+        - Fitted curve visualization
+    validations:
+      required: true
+
+  - type: dropdown
+    id: visualization
+    attributes:
+      label: Primary Visualization Type
+      description: What kind of chart or display does this tool need?
+      options:
+        - Line Chart
+        - Scatter Plot
+        - Bar Chart
+        - Heatmap
+        - 3D Surface
+        - Table / Grid
+        - Gauge / Indicator
+        - Multi-panel Dashboard
+        - No visualization (computation only)
+        - Other (describe in description)
+    validations:
+      required: true
+
+  - type: textarea
+    id: test-data
+    attributes:
+      label: Sample Test Data
+      description: Provide example input data and expected output so the tool can be validated
+      placeholder: |
+        Input: shear_rates = [1, 10, 100, 1000], viscosities = [50, 12, 3.2, 0.9]
+        Expected: n ≈ 0.55, K ≈ 48.7
+
+  - type: dropdown
+    id: priority
+    attributes:
+      label: Priority
+      description: How important is this tool for your workflow?
+      options:
+        - Nice to have
+        - Would improve my workflow
+        - Blocking my research
+    validations:
+      required: true

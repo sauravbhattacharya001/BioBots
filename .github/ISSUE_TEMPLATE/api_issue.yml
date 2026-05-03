@@ -1,0 +1,131 @@
+name: "🌐 REST API Issue"
+description: Report a bug or unexpected behavior in the BioBots REST API endpoints
+title: "[API]: "
+labels: ["bug", "api"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use this form for issues with the ASP.NET Web API endpoints.
+        For browser tool issues, use the Bug Report template.
+        For SDK/npm issues, use the Bug Report template with the SDK label.
+
+  - type: input
+    id: endpoint
+    attributes:
+      label: API Endpoint
+      description: The full endpoint path that has the issue
+      placeholder: "e.g., GET /api/bioprints/statistics?metric=viability&comparison=gt&value=80"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: http-method
+    attributes:
+      label: HTTP Method
+      options:
+        - GET
+        - POST
+        - PUT
+        - PATCH
+        - DELETE
+    validations:
+      required: true
+
+  - type: dropdown
+    id: issue-type
+    attributes:
+      label: Issue Type
+      options:
+        - Incorrect response data
+        - 500 Internal Server Error
+        - 400 Bad Request (unexpected)
+        - 404 Not Found (endpoint should exist)
+        - Slow response / timeout
+        - CORS / authentication error
+        - Response schema mismatch
+        - Missing or wrong aggregation
+    validations:
+      required: true
+
+  - type: textarea
+    id: request
+    attributes:
+      label: Request Details
+      description: Include headers, query parameters, and request body if applicable
+      render: http
+      placeholder: |
+        GET /api/bioprints/statistics?metric=viability&comparison=gt&value=80
+        Accept: application/json
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual-response
+    attributes:
+      label: Actual Response
+      description: The response you received (status code + body)
+      render: json
+      placeholder: |
+        HTTP 500
+        {
+          "error": "NullReferenceException",
+          "message": "Object reference not set..."
+        }
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected-response
+    attributes:
+      label: Expected Response
+      description: What you expected the API to return
+      render: json
+      placeholder: |
+        HTTP 200
+        {
+          "metric": "viability",
+          "comparison": "gt",
+          "value": 80,
+          "count": 42,
+          "aggregation": "count"
+        }
+    validations:
+      required: true
+
+  - type: input
+    id: dotnet-version
+    attributes:
+      label: .NET Runtime Version
+      description: Output of `dotnet --version`
+      placeholder: "e.g., 8.0.5"
+
+  - type: dropdown
+    id: environment
+    attributes:
+      label: Environment
+      options:
+        - Local development
+        - Docker container
+        - Production / deployed
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps to Reproduce
+      description: Minimal steps to trigger the issue
+      placeholder: |
+        1. Start the API with `dotnet run`
+        2. Send GET request to /api/bioprints/statistics?metric=viability
+        3. Observe 500 error
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant Logs
+      description: Server logs, stack traces, or console output
+      render: text
