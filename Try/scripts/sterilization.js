@@ -1,6 +1,7 @@
 'use strict';
 
 const { validatePositive, validateNonNegative, round: _round } = require('./scriptUtils');
+const { isDangerousKey: _isDangerousKey } = require('../../docs/shared/sanitize');
 
 /**
  * Sterilization Protocol Analyzer for BioBots
@@ -1197,11 +1198,6 @@ function createSterilizationAnalyzer(userConfig) {
         return recs;
     }
 
-
-    /** CWE-1321: Reject prototype-pollution keys. */
-    function _isDangerousKey(key) {
-        return key === '__proto__' || key === 'constructor' || key === 'prototype';
-    }
 
     function _merge(target, source) {
         var result = {};

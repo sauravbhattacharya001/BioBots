@@ -1,15 +1,10 @@
 'use strict';
 
-/** Strip prototype-polluting keys from a shallow object (CWE-1321). */
-var _DANGEROUS_KEYS = { '__proto__': 1, 'constructor': 1, 'prototype': 1 };
+var stripDangerousKeys = require('../../docs/shared/sanitize').stripDangerousKeys;
+
+/** Shallow-strip prototype-polluting keys (CWE-1321). Delegates to shared sanitize module. */
 function _cleanObj(obj) {
-  if (!obj || typeof obj !== 'object') return {};
-  var out = {};
-  var keys = Object.keys(obj);
-  for (var i = 0; i < keys.length; i++) {
-    if (!_DANGEROUS_KEYS[keys[i]]) out[keys[i]] = obj[keys[i]];
-  }
-  return out;
+  return stripDangerousKeys(obj, { deep: false });
 }
 
 var csvSafe = require('../../docs/shared/csvSafe').csvSafe;

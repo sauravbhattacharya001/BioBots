@@ -2,9 +2,7 @@
 
 const { clamp } = require('./scriptUtils');
 
-/** Keys that must never be used as property names from external input. */
-var _DANGEROUS_KEYS = { '__proto__': 1, 'constructor': 1, 'prototype': 1 };
-function _isDangerousKey(k) { return _DANGEROUS_KEYS[k] === 1; }
+var _isDangerousKey = require('../../docs/shared/sanitize').isDangerousKey;
 
 /**
  * Bioink Shelf Life Tracker for BioBots

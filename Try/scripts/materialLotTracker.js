@@ -6,22 +6,12 @@ var round = _utils.round;
 var mean = _utils.mean;
 var stddev = _utils.stddev;
 
-/** Block prototype-pollution keys in imported data. */
-var _DANGEROUS_KEYS = { '__proto__': 1, 'constructor': 1, 'prototype': 1 };
-function _isDangerousKey(k) { return _DANGEROUS_KEYS.hasOwnProperty(k); }
+var _sanitize = require('../../docs/shared/sanitize');
+var _isDangerousKey = _sanitize.isDangerousKey;
 
 /** Recursively strip __proto__, constructor, prototype keys from an object tree (CWE-1321). */
 function _stripNestedDangerousKeys(obj) {
-  if (obj === null || typeof obj !== 'object') return obj;
-  if (Array.isArray(obj)) return obj.map(_stripNestedDangerousKeys);
-  var clean = Object.create(null);
-  var keys = Object.keys(obj);
-  for (var i = 0; i < keys.length; i++) {
-    if (!_isDangerousKey(keys[i])) {
-      clean[keys[i]] = _stripNestedDangerousKeys(obj[keys[i]]);
-    }
-  }
-  return clean;
+  return _sanitize.stripDangerousKeys(obj, { deep: true });
 }
 
 /**
