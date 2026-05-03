@@ -84,8 +84,12 @@ var SOURCE_CATEGORIES = {
 };
 
 var ALL_SOURCES = [];
+var SOURCE_TO_CATEGORY = Object.create(null);
 Object.keys(SOURCE_CATEGORIES).forEach(function (cat) {
-  SOURCE_CATEGORIES[cat].forEach(function (s) { ALL_SOURCES.push(s); });
+  SOURCE_CATEGORIES[cat].forEach(function (s) {
+    ALL_SOURCES.push(s);
+    SOURCE_TO_CATEGORY[s] = cat;
+  });
 });
 
 var QUARANTINE_STATES = ['active', 'cleared', 'disposed'];
@@ -392,6 +396,16 @@ function createContaminationTracker() {
     var heuristics = ROOT_CAUSE_HEURISTICS[evt.type] || {};
     var causes = [];
 
+    // Pre-compute historical counts for this event type in a single pass
+    // instead of re-scanning all events per source (O(N) vs O(sources×N)).
+    var historicalCounts = Object.create(null);
+    for (var ei = 0; ei < events.length; ei++) {
+      var e = events[ei];
+      if (e.type === evt.type && e.source && e.id !== evt.id) {
+        historicalCounts[e.source] = (historicalCounts[e.source] || 0) + 1;
+      }
+    }
+
     Object.keys(heuristics).forEach(function (source) {
       if (source === '_other') return;
       var base = heuristics[source];
@@ -400,9 +414,7 @@ function createContaminationTracker() {
         base = Math.min(base * 2.0, 0.95);
       }
 
-      var historicalCount = events.filter(function (e) {
-        return e.type === evt.type && e.source === source && e.id !== evt.id;
-      }).length;
+      var historicalCount = historicalCounts[source] || 0;
       if (historicalCount > 0) {
         base = Math.min(base + historicalCount * 0.03, 0.95);
       }
@@ -422,7 +434,7 @@ function createContaminationTracker() {
       causes.push({
         source: source,
         probability: round(base, 3),
-        category: _sourceCategory(source),
+        category: SOURCE_TO_CATEGORY[source] || 'unknown',
         historicalOccurrences: historicalCount
       });
     });
@@ -674,13 +686,7 @@ function createContaminationTracker() {
   // ── Helpers ─────────────────────────────────────────────────
 
   function _sourceCategory(source) {
-    var cats = Object.keys(SOURCE_CATEGORIES);
-    for (var i = 0; i < cats.length; i++) {
-      if (SOURCE_CATEGORIES[cats[i]].indexOf(source) !== -1) {
-        return cats[i];
-      }
-    }
-    return 'unknown';
+    return SOURCE_TO_CATEGORY[source] || 'unknown';
   }
 
   function _mostCommon(arr, field) {
