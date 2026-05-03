@@ -543,7 +543,7 @@ codeql database analyze biobots-db --format=sarif-latest --output=results.sarif
 | npm publish fails | Version already exists on registry | Bump the version number |
 | NuGet publish fails | Package version collision | Update version in `.nuspec` |
 
-## Module Catalog (88 shared modules)
+## Module Catalog (94 shared modules)
 
 All computation modules live in `docs/shared/`. They are grouped by domain:
 
@@ -551,13 +551,13 @@ All computation modules live in `docs/shared/`. They are grouped by domain:
 `calculator.js` • `constants.js` • `dilutionCalculator.js` • `molarity.js` • `osmolality.js` • `phAdjustment.js` • `serialDilution.js` • `stats.js` • `unitConverter.js` • `utils.js`
 
 ### Cell Biology
-`cellCounter.js` • `cellSeeding.js` • `cellViability.js` • `growthCurve.js` • `passage.js` • `viability.js` • `flowCytometry.js`
+`cellCounter.js` • `cellSeeding.js` • `cellViability.js` • `flowCytometry.js` • `growthCurve.js` • `passage.js` • `viability.js`
 
 ### Bioprinting & Materials
 `crosslink.js` • `gcode.js` • `materials.js` • `mixer.js` • `nozzleAdvisor.js` • `printQualityScorer.js` • `printResolution.js` • `rheology.js` • `scaffold.js` • `yieldAnalyzer.js`
 
 ### Equipment & Protocols
-`autoclave.js` • `centrifuge.js` • `electroporation.js` • `freezeThaw.js` • `pipetteCalibration.js` • `spectrophotometer.js` • `washProtocol.js` • `predictiveMaintenance.js` • `equipmentScheduler.js`
+`autoclave.js` • `centrifuge.js` • `electroporation.js` • `equipmentScheduler.js` • `freezeThaw.js` • `pipetteCalibration.js` • `predictiveMaintenance.js` • `spectrophotometer.js` • `washProtocol.js`
 
 ### Molecular Biology
 `gelElectrophoresis.js` • `mycoplasmaTest.js` • `pcrMasterMix.js` • `standardCurve.js` • `westernBlot.js`
@@ -566,16 +566,19 @@ All computation modules live in `docs/shared/`. They are grouped by domain:
 `bufferPrep.js` • `mediaOptimizer.js` • `mediaPrep.js` • `recipeBuilder.js`
 
 ### Quality Control & Monitoring
-`contaminationEarlyWarning.js` • `contaminationRisk.js` • `degradationPredictor.js` • `driftDetector.js` • `environmentalMonitor.js` • `qualityControlAutopilot.js` • `sterilityAssurance.js` • `shelfLife.js`
+`contaminationEarlyWarning.js` • `contaminationRisk.js` • `degradationPredictor.js` • `driftDetector.js` • `environmentalMonitor.js` • `labEntropyMonitor.js` • `qualityControlAutopilot.js` • `shelfLife.js` • `sterilityAssurance.js`
 
 ### Experiment Management
 `experimentPlanner.js` • `experimentRandomizer.js` • `experimentReplicator.js` • `experimentRiskAssessor.js` • `labNotebook.js` • `labSafetyChecklist.js` • `plateMap.js` • `protocolDeviation.js` • `protocolEvolution.js` • `protocolGenerator.js` • `protocolTemplates.js`
 
 ### Autonomous Intelligence
-`anomalyCorrelator.js` • `crossExperimentLearner.js` • `labDigitalTwin.js` • `outcomePredictor.js` • `parameterRecommender.js` • `resourceForecaster.js` • `situationAwareness.js` • `workflowOrchestrator.js`
+`anomalyCorrelator.js` • `crossExperimentLearner.js` • `failureAutopsy.js` • `labDigitalTwin.js` • `outcomeOracle.js` • `outcomePredictor.js` • `parameterRecommender.js` • `resourceForecaster.js` • `situationAwareness.js` • `workflowOptimizer.js` • `workflowOrchestrator.js`
+
+### Regulatory & Compliance
+`complianceAuditor.js` • `supplyChainResilience.js`
 
 ### Inventory & Tracking
-`batchGenealogy.js` • `labInventory.js` • `sampleLabel.js` • `sampleTracker.js` • `printSessionLogger.js` • `wasteTracker.js` • `jobEstimator.js`
+`batchGenealogy.js` • `jobEstimator.js` • `labInventory.js` • `printSessionLogger.js` • `sampleLabel.js` • `sampleTracker.js` • `wasteTracker.js`
 
 ### Utilities & Infrastructure
 `capability.js` • `commandPalette.js` • `compatibilityMatrix.js` • `csvSafe.js` • `data-loader.js` • `export.js` • `incidentReplay.js` • `sanitize.js` • `validation.js`
