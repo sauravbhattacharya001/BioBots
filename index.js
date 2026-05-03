@@ -100,6 +100,7 @@ var manifest = [
     ['createExperimentRiskAssessor',          './docs/shared/experimentRiskAssessor',       'createExperimentRiskAssessor'],
     ['createFailureAutopsy',                   './docs/shared/failureAutopsy',               'createFailureAutopsy'],
     ['createWorkflowOptimizer',                  './docs/shared/workflowOptimizer',            'createWorkflowOptimizer'],
+    ['createSupplyChainResilience',              './docs/shared/supplyChainResilience',        'createSupplyChainResilience'],
 ];
 
 // ── Pre-computed lookup structures ─────────────────────────────────
