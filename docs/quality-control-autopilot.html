@@ -1,0 +1,495 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quality Control Autopilot — BioBots</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📊</text></svg>">
+    <style>
+        :root {
+            --bg: #0f172a; --surface: #1e293b; --border: #334155;
+            --text: #e2e8f0; --muted: #94a3b8; --accent: #3b82f6;
+            --accent-hover: #2563eb; --green: #22c55e; --red: #ef4444;
+            --yellow: #eab308; --orange: #f97316; --purple: #a855f7;
+            --cyan: #06b6d4; --radius: 8px;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+        .header { background: var(--surface); border-bottom: 1px solid var(--border); padding: 20px 32px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
+        .header h1 { font-size: 24px; font-weight: 700; }
+        .header h1 span { color: var(--accent); }
+        .header p { color: var(--muted); font-size: 14px; }
+        .header-left { display: flex; flex-direction: column; }
+        .header-right { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+        .container { max-width: 1400px; margin: 0 auto; padding: 24px; display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        @media (max-width: 900px) { .container { grid-template-columns: 1fr; padding: 16px; } }
+        .full-width { grid-column: 1 / -1; }
+        .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; }
+        .card h2 { font-size: 16px; font-weight: 600; margin-bottom: 14px; display: flex; align-items: center; gap: 8px; }
+        .btn { display: inline-flex; align-items: center; gap: 6px; padding: 8px 18px; background: var(--accent); color: #fff; border: none; border-radius: 6px; font-size: 13px; font-weight: 600; cursor: pointer; transition: background .2s; }
+        .btn:hover { background: var(--accent-hover); }
+        .btn-sm { padding: 5px 12px; font-size: 12px; }
+        .btn-green { background: var(--green); }
+        .btn-green:hover { background: #16a34a; }
+        .btn-red { background: var(--red); }
+        .btn-red:hover { background: #dc2626; }
+        .stats-row { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 16px; }
+        .stat { background: var(--bg); border: 1px solid var(--border); border-radius: 6px; padding: 12px 16px; flex: 1; min-width: 100px; text-align: center; }
+        .stat .val { font-size: 22px; font-weight: 700; }
+        .stat .lbl { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .5px; margin-top: 2px; }
+        .badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 600; }
+        .badge-green { background: rgba(34,197,94,.15); color: var(--green); }
+        .badge-yellow { background: rgba(234,179,8,.15); color: var(--yellow); }
+        .badge-red { background: rgba(239,68,68,.15); color: var(--red); }
+        .badge-blue { background: rgba(59,130,246,.15); color: var(--accent); }
+        table { width: 100%; border-collapse: collapse; font-size: 12px; }
+        th, td { padding: 8px 10px; text-align: left; border-bottom: 1px solid var(--border); }
+        th { color: var(--muted); font-weight: 600; text-transform: uppercase; font-size: 11px; letter-spacing: .5px; }
+        td { font-variant-numeric: tabular-nums; }
+        .alert { padding: 10px 14px; border-radius: 6px; margin-bottom: 8px; font-size: 13px; display: flex; align-items: flex-start; gap: 8px; }
+        .alert-ok { background: rgba(34,197,94,.1); border: 1px solid rgba(34,197,94,.3); color: var(--green); }
+        .alert-warn { background: rgba(234,179,8,.1); border: 1px solid rgba(234,179,8,.3); color: var(--yellow); }
+        .alert-crit { background: rgba(239,68,68,.1); border: 1px solid rgba(239,68,68,.3); color: var(--red); }
+        .chart-area { position: relative; width: 100%; height: 200px; background: var(--bg); border: 1px solid var(--border); border-radius: 6px; overflow: hidden; }
+        .chart-line { position: absolute; left: 0; right: 0; border-top: 1px dashed; }
+        .chart-point { position: absolute; width: 6px; height: 6px; border-radius: 50%; transform: translate(-50%, -50%); }
+        .metric-config { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 8px; margin-bottom: 12px; }
+        .metric-config label { font-size: 12px; color: var(--muted); display: block; margin-bottom: 2px; }
+        .metric-config input { width: 100%; padding: 6px 8px; background: var(--bg); border: 1px solid var(--border); border-radius: 4px; color: var(--text); font-size: 12px; }
+        .verdict-box { text-align: center; padding: 24px; border-radius: 8px; }
+        .verdict-pass { background: rgba(34,197,94,.1); border: 2px solid var(--green); }
+        .verdict-hold { background: rgba(234,179,8,.1); border: 2px solid var(--yellow); }
+        .verdict-fail { background: rgba(239,68,68,.1); border: 2px solid var(--red); }
+        .verdict-box .verdict-label { font-size: 32px; font-weight: 800; }
+        .verdict-box .verdict-reason { font-size: 13px; color: var(--muted); margin-top: 8px; }
+        .action-item { background: var(--bg); border: 1px solid var(--border); border-radius: 6px; padding: 10px 14px; margin-bottom: 6px; }
+        .action-item .action-text { font-size: 13px; }
+        .action-item .action-meta { font-size: 11px; color: var(--muted); margin-top: 4px; }
+        .pulse { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; animation: pulse 2s infinite; }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: .3; } }
+        select { padding: 6px 10px; background: var(--bg); border: 1px solid var(--border); border-radius: 4px; color: var(--text); font-size: 13px; }
+        .progress-bar { height: 6px; background: var(--border); border-radius: 3px; overflow: hidden; }
+        .progress-fill { height: 100%; border-radius: 3px; transition: width .3s; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="header-left">
+            <h1>📊 Quality Control <span>Autopilot</span></h1>
+            <p>Statistical Process Control · Western Electric Rules · Cp/Cpk Capability · Autonomous Verdicts</p>
+        </div>
+        <div class="header-right">
+            <select id="presetSelect" onchange="loadPreset()">
+                <option value="">Load Scenario...</option>
+                <option value="stable">Stable Process</option>
+                <option value="drifting">Drifting Process</option>
+                <option value="unstable">Unstable Process</option>
+                <option value="capable">High Capability</option>
+                <option value="incapable">Low Capability</option>
+            </select>
+            <button class="btn" onclick="ingestRandom()">➕ Add Sample</button>
+            <button class="btn btn-green" onclick="runEvaluation()">▶ Evaluate</button>
+            <button class="btn btn-red btn-sm" onclick="resetAll()">↺ Reset</button>
+        </div>
+    </div>
+
+    <div class="container">
+        <!-- Verdict Card -->
+        <div class="card" id="verdictCard">
+            <h2>🏷️ Verdict</h2>
+            <div class="verdict-box" id="verdictBox" style="background:var(--bg);border:2px solid var(--border);">
+                <div class="verdict-label" id="verdictLabel" style="color:var(--muted);">AWAITING DATA</div>
+                <div class="verdict-reason" id="verdictReason">Ingest samples and run evaluation</div>
+                <div style="margin-top:12px;font-size:12px;color:var(--muted);">
+                    Health Score: <strong id="healthScore">—</strong> · Confidence: <strong id="confidence">—</strong>
+                </div>
+            </div>
+        </div>
+
+        <!-- Summary Stats -->
+        <div class="card">
+            <h2>📈 Process Summary</h2>
+            <div class="stats-row">
+                <div class="stat"><div class="val" id="sampleCount">0</div><div class="lbl">Samples</div></div>
+                <div class="stat"><div class="val" id="metricsCount">6</div><div class="lbl">Metrics</div></div>
+                <div class="stat"><div class="val" id="violationCount">0</div><div class="lbl">Violations</div></div>
+                <div class="stat"><div class="val" id="evalCount">0</div><div class="lbl">Evaluations</div></div>
+            </div>
+            <div id="statusBreakdown">
+                <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                    <span class="badge badge-green" id="inControlBadge">In Control: —</span>
+                    <span class="badge badge-yellow" id="warningBadge">Warning: —</span>
+                    <span class="badge badge-red" id="oocBadge">Out of Control: —</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Control Chart -->
+        <div class="card full-width">
+            <h2>📉 Control Chart
+                <select id="chartMetric" onchange="drawChart()" style="margin-left:auto;font-weight:400;">
+                    <option value="lineWidth">Line Width</option>
+                    <option value="layerHeight">Layer Height</option>
+                    <option value="cellViability">Cell Viability</option>
+                    <option value="porosity">Porosity</option>
+                    <option value="filamentDiameter">Filament Diameter</option>
+                    <option value="printAccuracy">Print Accuracy</option>
+                </select>
+            </h2>
+            <div class="chart-area" id="controlChart">
+                <div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--muted);font-size:13px;">
+                    Add samples to see the control chart
+                </div>
+            </div>
+            <div style="margin-top:8px;display:flex;gap:16px;font-size:11px;color:var(--muted);">
+                <span>🔴 UCL (Upper Control Limit)</span>
+                <span>🔵 Center Line (Mean)</span>
+                <span>🔴 LCL (Lower Control Limit)</span>
+                <span>⚪ Data Points</span>
+                <span>🔴 Out-of-Control Points</span>
+            </div>
+        </div>
+
+        <!-- Metric Details -->
+        <div class="card">
+            <h2>🔬 Metric Analysis</h2>
+            <div id="metricDetails" style="max-height:400px;overflow-y:auto;">
+                <div style="text-align:center;color:var(--muted);padding:40px;font-size:13px;">
+                    Run an evaluation to see metric details
+                </div>
+            </div>
+        </div>
+
+        <!-- Capability -->
+        <div class="card">
+            <h2>🎯 Process Capability (Cp/Cpk)</h2>
+            <div id="capabilityTable">
+                <table>
+                    <thead><tr><th>Metric</th><th>Cp</th><th>Cpk</th><th>Rating</th></tr></thead>
+                    <tbody id="capBody">
+                        <tr><td colspan="4" style="text-align:center;color:var(--muted);">Run evaluation first</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Corrective Actions -->
+        <div class="card">
+            <h2>🛠️ Corrective Actions</h2>
+            <div id="actionsList">
+                <div style="text-align:center;color:var(--muted);padding:40px;font-size:13px;">
+                    No actions yet — run evaluation
+                </div>
+            </div>
+        </div>
+
+        <!-- Violation History -->
+        <div class="card">
+            <h2>⚠️ Violation History</h2>
+            <div id="violationList" style="max-height:300px;overflow-y:auto;">
+                <div style="text-align:center;color:var(--muted);padding:40px;font-size:13px;">
+                    No violations detected
+                </div>
+            </div>
+        </div>
+
+        <!-- Western Electric Rules Reference -->
+        <div class="card full-width">
+            <h2>📖 Western Electric Rules Reference</h2>
+            <table>
+                <thead><tr><th>Rule</th><th>Condition</th><th>Severity</th><th>Indicates</th></tr></thead>
+                <tbody>
+                    <tr><td><span class="badge badge-red">WE1</span></td><td>1 point beyond 3σ</td><td>Out of Control</td><td>Special cause — outlier event</td></tr>
+                    <tr><td><span class="badge badge-red">WE2</span></td><td>9 consecutive points same side of center</td><td>Out of Control</td><td>Process mean shift</td></tr>
+                    <tr><td><span class="badge badge-yellow">WE3</span></td><td>6 consecutive points steadily increasing/decreasing</td><td>Warning</td><td>Progressive trend or drift</td></tr>
+                    <tr><td><span class="badge badge-yellow">WE4</span></td><td>2 of 3 consecutive points beyond 2σ (same side)</td><td>Warning</td><td>Increased variability</td></tr>
+                    <tr><td><span class="badge badge-yellow">WE5</span></td><td>14 consecutive points alternating up/down</td><td>Warning</td><td>Stratification / mixing</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script src="shared/validation.js"></script>
+    <script src="shared/sanitize.js"></script>
+    <script src="shared/qualityControlAutopilot.js"></script>
+    <script>
+        // ── State ──────────────────────────────────────────────────
+        var qc = createQualityControlAutopilot();
+        var sampleCounter = 0;
+        var evalCounter = 0;
+        var lastReport = null;
+
+        // ── Defaults ───────────────────────────────────────────────
+        var DEFAULTS = {
+            lineWidth: { target: 0.4, range: 0.08 },
+            layerHeight: { target: 0.2, range: 0.08 },
+            cellViability: { target: 95, range: 12 },
+            porosity: { target: 60, range: 16 },
+            filamentDiameter: { target: 0.4, range: 0.12 },
+            printAccuracy: { target: 95, range: 10 }
+        };
+
+        function gaussRandom(mean, stddev) {
+            var u1 = Math.random(), u2 = Math.random();
+            return mean + stddev * Math.sqrt(-2 * Math.log(u1)) * Math.cos(2 * Math.PI * u2);
+        }
+
+        // ── Presets ────────────────────────────────────────────────
+        function loadPreset() {
+            var preset = document.getElementById('presetSelect').value;
+            if (!preset) return;
+            resetAll();
+            var configs = {
+                stable: { samples: 30, noise: 0.3, drift: 0 },
+                drifting: { samples: 30, noise: 0.3, drift: 0.015 },
+                unstable: { samples: 25, noise: 1.2, drift: 0 },
+                capable: { samples: 40, noise: 0.15, drift: 0 },
+                incapable: { samples: 30, noise: 0.8, drift: 0 }
+            };
+            var cfg = configs[preset];
+            for (var i = 0; i < cfg.samples; i++) {
+                var sample = {};
+                var keys = Object.keys(DEFAULTS);
+                for (var k = 0; k < keys.length; k++) {
+                    var d = DEFAULTS[keys[k]];
+                    var sigma = d.range / 6 * cfg.noise;
+                    var driftVal = cfg.drift * i * d.range;
+                    sample[keys[k]] = gaussRandom(d.target + driftVal, sigma);
+                }
+                qc.ingest(sample);
+                sampleCounter++;
+            }
+            document.getElementById('sampleCount').textContent = sampleCounter;
+            drawChart();
+            runEvaluation();
+            document.getElementById('presetSelect').value = '';
+        }
+
+        // ── Ingest Random ──────────────────────────────────────────
+        function ingestRandom() {
+            var sample = {};
+            var keys = Object.keys(DEFAULTS);
+            for (var i = 0; i < keys.length; i++) {
+                var d = DEFAULTS[keys[i]];
+                sample[keys[i]] = gaussRandom(d.target, d.range / 6);
+            }
+            qc.ingest(sample);
+            sampleCounter++;
+            document.getElementById('sampleCount').textContent = sampleCounter;
+            drawChart();
+        }
+
+        // ── Evaluate ───────────────────────────────────────────────
+        function runEvaluation() {
+            if (sampleCounter < 2) {
+                alert('Need at least 2 samples to evaluate');
+                return;
+            }
+            lastReport = qc.evaluate();
+            evalCounter++;
+            updateVerdict(lastReport);
+            updateStats(lastReport);
+            updateCapability(lastReport);
+            updateActions(lastReport);
+            updateMetricDetails(lastReport);
+            updateViolations(lastReport);
+            drawChart();
+        }
+
+        function updateVerdict(report) {
+            var box = document.getElementById('verdictBox');
+            var label = document.getElementById('verdictLabel');
+            var reason = document.getElementById('verdictReason');
+            box.className = 'verdict-box verdict-' + report.verdict.verdict.toLowerCase();
+            var colors = { PASS: 'var(--green)', HOLD: 'var(--yellow)', FAIL: 'var(--red)' };
+            label.style.color = colors[report.verdict.verdict];
+            label.textContent = report.verdict.verdict;
+            reason.textContent = report.verdict.reason;
+            document.getElementById('healthScore').textContent = report.healthScore + '%';
+            document.getElementById('confidence').textContent = (report.verdict.confidence * 100).toFixed(0) + '%';
+        }
+
+        function updateStats(report) {
+            document.getElementById('evalCount').textContent = evalCounter;
+            document.getElementById('violationCount').textContent = report.totalViolations;
+            document.getElementById('inControlBadge').textContent = 'In Control: ' + report.summary.inControl;
+            document.getElementById('warningBadge').textContent = 'Warning: ' + report.summary.warning;
+            document.getElementById('oocBadge').textContent = 'Out of Control: ' + report.summary.outOfControl;
+        }
+
+        function updateCapability(report) {
+            var body = document.getElementById('capBody');
+            var html = '';
+            var keys = Object.keys(report.metrics);
+            for (var i = 0; i < keys.length; i++) {
+                var m = report.metrics[keys[i]];
+                if (!m.capability) continue;
+                var ratingColors = { EXCELLENT: 'green', GOOD: 'green', ADEQUATE: 'yellow', POOR: 'yellow', INADEQUATE: 'red' };
+                html += '<tr><td>' + m.label + '</td><td>' + m.capability.cp + '</td><td>' + m.capability.cpk + '</td>' +
+                    '<td><span class="badge badge-' + (ratingColors[m.capability.rating] || 'blue') + '">' + m.capability.rating + '</span></td></tr>';
+            }
+            body.innerHTML = html || '<tr><td colspan="4" style="text-align:center;color:var(--muted);">No capability data</td></tr>';
+        }
+
+        function updateActions(report) {
+            var el = document.getElementById('actionsList');
+            if (!report.actions || report.actions.length === 0) {
+                el.innerHTML = '<div class="alert alert-ok">✅ No corrective actions needed — process is in control</div>';
+                return;
+            }
+            var html = '';
+            var priorityColors = { CRITICAL: 'red', HIGH: 'orange', MEDIUM: 'yellow', LOW: 'blue' };
+            for (var i = 0; i < report.actions.length; i++) {
+                var a = report.actions[i];
+                html += '<div class="action-item"><div class="action-text"><span class="badge badge-' +
+                    (priorityColors[a.priority] === 'orange' ? 'yellow' : priorityColors[a.priority] || 'blue') + '">' +
+                    a.priority + '</span> ' + a.action + '</div>' +
+                    '<div class="action-meta">Trigger: ' + a.trigger + ' · Category: ' + a.category + '</div></div>';
+            }
+            el.innerHTML = html;
+        }
+
+        function updateMetricDetails(report) {
+            var el = document.getElementById('metricDetails');
+            var html = '';
+            var keys = Object.keys(report.metrics);
+            for (var i = 0; i < keys.length; i++) {
+                var m = report.metrics[keys[i]];
+                var statusColors = { IN_CONTROL: 'green', WARNING: 'yellow', OUT_OF_CONTROL: 'red' };
+                html += '<div style="background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:12px;margin-bottom:8px;">' +
+                    '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">' +
+                    '<strong>' + m.label + '</strong>' +
+                    '<span class="badge badge-' + (statusColors[m.controlStatus] || 'blue') + '">' + m.controlStatus.replace(/_/g, ' ') + '</span></div>';
+                if (m.mean !== undefined) {
+                    html += '<div style="font-size:12px;color:var(--muted);display:grid;grid-template-columns:1fr 1fr 1fr;gap:4px;">' +
+                        '<span>Mean: ' + m.mean + (m.unit ? ' ' + m.unit : '') + '</span>' +
+                        '<span>σ: ' + m.stdDev + '</span>' +
+                        '<span>N: ' + m.sampleCount + '</span>' +
+                        '<span>Min: ' + m.min + '</span><span>Max: ' + m.max + '</span>' +
+                        '<span>Violations: ' + m.violations.length + '</span></div>';
+                    if (m.trend) {
+                        html += '<div style="font-size:11px;margin-top:4px;color:var(--muted);">Trend: ' +
+                            m.trend.direction + ' (slope=' + m.trend.slope + ', R²=' + m.trend.strength + ')</div>';
+                    }
+                } else {
+                    html += '<div style="font-size:12px;color:var(--muted);">' + (m.message || 'No data') + '</div>';
+                }
+                html += '</div>';
+            }
+            el.innerHTML = html;
+        }
+
+        function updateViolations(report) {
+            var history = qc.getViolationHistory({ limit: 50 });
+            var el = document.getElementById('violationList');
+            if (history.length === 0) {
+                el.innerHTML = '<div style="text-align:center;color:var(--muted);padding:40px;font-size:13px;">No violations detected</div>';
+                return;
+            }
+            var html = '<table><thead><tr><th>Eval</th><th>Rule</th><th>Severity</th><th>Description</th><th>Value</th></tr></thead><tbody>';
+            for (var i = history.length - 1; i >= 0; i--) {
+                var v = history[i];
+                var sevColor = v.violation.severity === 'OUT_OF_CONTROL' ? 'red' : 'yellow';
+                html += '<tr><td>#' + v.evaluationId + '</td><td><span class="badge badge-' + sevColor + '">' + v.violation.rule + '</span></td>' +
+                    '<td>' + v.violation.severity.replace(/_/g, ' ') + '</td><td style="font-size:11px;">' + v.violation.description + '</td>' +
+                    '<td>' + (v.violation.value !== undefined ? v.violation.value.toFixed(4) : '—') + '</td></tr>';
+            }
+            html += '</tbody></table>';
+            el.innerHTML = html;
+        }
+
+        // ── Control Chart Drawing ──────────────────────────────────
+        function drawChart() {
+            var metricName = document.getElementById('chartMetric').value;
+            var chartEl = document.getElementById('controlChart');
+            try {
+                var metricData = qc.getData(metricName);
+            } catch (e) {
+                chartEl.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--muted);font-size:13px;">No data for this metric</div>';
+                return;
+            }
+            var values = metricData.values;
+            if (values.length < 2) {
+                chartEl.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--muted);font-size:13px;">Need at least 2 samples</div>';
+                return;
+            }
+
+            var mean = 0;
+            for (var s = 0; s < values.length; s++) mean += values[s];
+            mean /= values.length;
+            var sumSq = 0;
+            for (var q = 0; q < values.length; q++) sumSq += (values[q] - mean) * (values[q] - mean);
+            var sigma = Math.sqrt(sumSq / (values.length - 1));
+            var ucl = mean + 3 * sigma;
+            var lcl = mean - 3 * sigma;
+            var chartMin = Math.min(lcl, Math.min.apply(null, values)) - sigma * 0.5;
+            var chartMax = Math.max(ucl, Math.max.apply(null, values)) + sigma * 0.5;
+            var range = chartMax - chartMin || 1;
+            var height = 200;
+            var width = chartEl.offsetWidth;
+
+            var html = '';
+            // UCL line
+            var uclY = height - ((ucl - chartMin) / range * height);
+            html += '<div class="chart-line" style="top:' + uclY + 'px;border-color:rgba(239,68,68,.5);"></div>';
+            html += '<div style="position:absolute;top:' + (uclY - 14) + 'px;right:4px;font-size:10px;color:var(--red);">UCL ' + ucl.toFixed(3) + '</div>';
+            // Center line
+            var clY = height - ((mean - chartMin) / range * height);
+            html += '<div class="chart-line" style="top:' + clY + 'px;border-color:rgba(59,130,246,.5);"></div>';
+            html += '<div style="position:absolute;top:' + (clY - 14) + 'px;right:4px;font-size:10px;color:var(--accent);">CL ' + mean.toFixed(3) + '</div>';
+            // LCL line
+            var lclY = height - ((lcl - chartMin) / range * height);
+            html += '<div class="chart-line" style="top:' + lclY + 'px;border-color:rgba(239,68,68,.5);"></div>';
+            html += '<div style="position:absolute;top:' + (lclY + 2) + 'px;right:4px;font-size:10px;color:var(--red);">LCL ' + lcl.toFixed(3) + '</div>';
+
+            // Data points
+            var step = width / Math.max(values.length - 1, 1);
+            for (var i = 0; i < values.length; i++) {
+                var x = i * step;
+                var y = height - ((values[i] - chartMin) / range * height);
+                var ooc = values[i] > ucl || values[i] < lcl;
+                var color = ooc ? 'var(--red)' : 'var(--text)';
+                var size = ooc ? 8 : 6;
+                html += '<div class="chart-point" style="left:' + x + 'px;top:' + y + 'px;width:' + size + 'px;height:' + size + 'px;background:' + color + ';" title="' + values[i].toFixed(4) + '"></div>';
+            }
+
+            // Connect points with SVG path
+            var pathD = 'M';
+            for (var j = 0; j < values.length; j++) {
+                var px = j * step;
+                var py = height - ((values[j] - chartMin) / range * height);
+                pathD += (j === 0 ? '' : 'L') + px + ',' + py;
+            }
+            html = '<svg style="position:absolute;width:100%;height:100%;pointer-events:none;"><path d="' + pathD + '" fill="none" stroke="rgba(59,130,246,.3)" stroke-width="1.5"/></svg>' + html;
+
+            chartEl.innerHTML = html;
+        }
+
+        // ── Reset ──────────────────────────────────────────────────
+        function resetAll() {
+            qc = createQualityControlAutopilot();
+            sampleCounter = 0;
+            evalCounter = 0;
+            lastReport = null;
+            document.getElementById('sampleCount').textContent = '0';
+            document.getElementById('evalCount').textContent = '0';
+            document.getElementById('violationCount').textContent = '0';
+            document.getElementById('verdictLabel').textContent = 'AWAITING DATA';
+            document.getElementById('verdictLabel').style.color = 'var(--muted)';
+            document.getElementById('verdictReason').textContent = 'Ingest samples and run evaluation';
+            document.getElementById('verdictBox').className = 'verdict-box';
+            document.getElementById('verdictBox').style = 'background:var(--bg);border:2px solid var(--border);';
+            document.getElementById('healthScore').textContent = '—';
+            document.getElementById('confidence').textContent = '—';
+            document.getElementById('inControlBadge').textContent = 'In Control: —';
+            document.getElementById('warningBadge').textContent = 'Warning: —';
+            document.getElementById('oocBadge').textContent = 'Out of Control: —';
+            document.getElementById('capBody').innerHTML = '<tr><td colspan="4" style="text-align:center;color:var(--muted);">Run evaluation first</td></tr>';
+            document.getElementById('actionsList').innerHTML = '<div style="text-align:center;color:var(--muted);padding:40px;font-size:13px;">No actions yet — run evaluation</div>';
+            document.getElementById('metricDetails').innerHTML = '<div style="text-align:center;color:var(--muted);padding:40px;font-size:13px;">Run evaluation to see metric details</div>';
+            document.getElementById('violationList').innerHTML = '<div style="text-align:center;color:var(--muted);padding:40px;font-size:13px;">No violations detected</div>';
+            document.getElementById('controlChart').innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--muted);font-size:13px;">Add samples to see the control chart</div>';
+        }
+    </script>
+</body>
+</html>

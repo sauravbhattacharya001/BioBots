@@ -1,0 +1,493 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Predictive Maintenance — BioBots</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🔧</text></svg>">
+    <style>
+        :root {
+            --bg: #0f172a; --surface: #1e293b; --border: #334155;
+            --text: #e2e8f0; --muted: #94a3b8; --accent: #3b82f6;
+            --accent-hover: #2563eb; --green: #22c55e; --red: #ef4444;
+            --yellow: #eab308; --orange: #f97316; --purple: #a855f7;
+            --cyan: #06b6d4; --radius: 8px;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+        .header { background: var(--surface); border-bottom: 1px solid var(--border); padding: 20px 32px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
+        .header h1 { font-size: 24px; font-weight: 700; }
+        .header h1 span { color: var(--accent); }
+        .header p { color: var(--muted); font-size: 14px; }
+        .header-left { display: flex; flex-direction: column; }
+        .header-right { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+        .container { max-width: 1400px; margin: 0 auto; padding: 24px; display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        @media (max-width: 900px) { .container { grid-template-columns: 1fr; padding: 16px; } }
+        .full-width { grid-column: 1 / -1; }
+        .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; }
+        .card h2 { font-size: 16px; font-weight: 600; margin-bottom: 14px; display: flex; align-items: center; gap: 8px; }
+        .btn { display: inline-flex; align-items: center; gap: 6px; padding: 8px 18px; background: var(--accent); color: #fff; border: none; border-radius: 6px; font-size: 13px; font-weight: 600; cursor: pointer; transition: background .2s; }
+        .btn:hover { background: var(--accent-hover); }
+        .btn-sm { padding: 5px 12px; font-size: 12px; }
+        .btn-green { background: var(--green); }
+        .btn-green:hover { background: #16a34a; }
+        .btn-red { background: var(--red); }
+        .btn-red:hover { background: #dc2626; }
+        .btn-yellow { background: var(--yellow); color: #000; }
+        .stats-row { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 16px; }
+        .stat { background: var(--bg); border: 1px solid var(--border); border-radius: 6px; padding: 12px 16px; flex: 1; min-width: 100px; text-align: center; }
+        .stat .val { font-size: 22px; font-weight: 700; }
+        .stat .lbl { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .5px; margin-top: 2px; }
+        .badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 600; }
+        .badge-green { background: rgba(34,197,94,.15); color: var(--green); }
+        .badge-yellow { background: rgba(234,179,8,.15); color: var(--yellow); }
+        .badge-red { background: rgba(239,68,68,.15); color: var(--red); }
+        .badge-blue { background: rgba(59,130,246,.15); color: var(--accent); }
+        .badge-orange { background: rgba(249,115,22,.15); color: var(--orange); }
+        .badge-purple { background: rgba(168,85,247,.15); color: var(--purple); }
+        table { width: 100%; border-collapse: collapse; font-size: 12px; }
+        th, td { padding: 8px 10px; text-align: left; border-bottom: 1px solid var(--border); }
+        th { color: var(--muted); font-weight: 600; text-transform: uppercase; font-size: 11px; letter-spacing: .5px; }
+        td { font-variant-numeric: tabular-nums; }
+        .alert { padding: 10px 14px; border-radius: 6px; margin-bottom: 8px; font-size: 13px; display: flex; align-items: flex-start; gap: 8px; }
+        .alert-ok { background: rgba(34,197,94,.1); border: 1px solid rgba(34,197,94,.3); color: var(--green); }
+        .alert-warn { background: rgba(234,179,8,.1); border: 1px solid rgba(234,179,8,.3); color: var(--yellow); }
+        .alert-crit { background: rgba(239,68,68,.1); border: 1px solid rgba(239,68,68,.3); color: var(--red); }
+        .alert-info { background: rgba(59,130,246,.1); border: 1px solid rgba(59,130,246,.3); color: var(--accent); }
+        .progress-bar { height: 8px; background: var(--border); border-radius: 4px; overflow: hidden; margin-top: 4px; }
+        .progress-fill { height: 100%; border-radius: 4px; transition: width .3s; }
+        .eq-card { background: var(--bg); border: 1px solid var(--border); border-radius: 6px; padding: 14px; margin-bottom: 10px; }
+        .eq-card .eq-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+        .eq-card .eq-name { font-weight: 600; font-size: 14px; }
+        .eq-card .eq-meta { font-size: 11px; color: var(--muted); display: grid; grid-template-columns: 1fr 1fr; gap: 4px; }
+        .gauge { width: 120px; height: 120px; position: relative; margin: 0 auto; }
+        .gauge-bg { fill: none; stroke: var(--border); stroke-width: 10; }
+        .gauge-fill { fill: none; stroke-width: 10; stroke-linecap: round; transition: stroke-dashoffset .5s, stroke .3s; }
+        .gauge-text { font-size: 24px; font-weight: 700; text-anchor: middle; fill: var(--text); }
+        .gauge-label { font-size: 10px; text-anchor: middle; fill: var(--muted); }
+        select { padding: 6px 10px; background: var(--bg); border: 1px solid var(--border); border-radius: 4px; color: var(--text); font-size: 13px; }
+        input[type="text"], input[type="number"] { padding: 6px 8px; background: var(--bg); border: 1px solid var(--border); border-radius: 4px; color: var(--text); font-size: 12px; width: 100%; }
+        .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+        .form-grid label { font-size: 12px; color: var(--muted); display: block; margin-bottom: 2px; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="header-left">
+            <h1>🔧 Predictive <span>Maintenance</span></h1>
+            <p>Weibull Reliability · Anomaly Detection · Fleet Health · Maintenance Scheduling</p>
+        </div>
+        <div class="header-right">
+            <button class="btn" onclick="loadDemoFleet()">🏭 Load Demo Fleet</button>
+            <button class="btn btn-green" onclick="simulateUsageCycle()">⏩ Simulate Usage</button>
+            <button class="btn btn-red btn-sm" onclick="resetAll()">↺ Reset</button>
+        </div>
+    </div>
+
+    <div class="container">
+        <!-- Fleet Health Gauge -->
+        <div class="card">
+            <h2>🏥 Fleet Health</h2>
+            <div style="text-align:center;">
+                <svg class="gauge" viewBox="0 0 120 120" width="160" height="160">
+                    <circle class="gauge-bg" cx="60" cy="60" r="50" stroke-dasharray="235.6" stroke-dashoffset="0" transform="rotate(-90 60 60)"/>
+                    <circle id="healthGauge" class="gauge-fill" cx="60" cy="60" r="50" stroke-dasharray="235.6" stroke-dashoffset="235.6" stroke="var(--green)" transform="rotate(-90 60 60)"/>
+                    <text class="gauge-text" x="60" y="58" id="healthText">—</text>
+                    <text class="gauge-label" x="60" y="74">FLEET HEALTH</text>
+                </svg>
+            </div>
+            <div class="stats-row" style="margin-top:16px;">
+                <div class="stat"><div class="val" id="eqCount">0</div><div class="lbl">Equipment</div></div>
+                <div class="stat"><div class="val" style="color:var(--green);" id="healthyCount">0</div><div class="lbl">Healthy</div></div>
+                <div class="stat"><div class="val" style="color:var(--yellow);" id="degradingCount">0</div><div class="lbl">Degrading</div></div>
+                <div class="stat"><div class="val" style="color:var(--red);" id="criticalCount">0</div><div class="lbl">Critical</div></div>
+            </div>
+        </div>
+
+        <!-- Recommendations -->
+        <div class="card">
+            <h2>💡 Autonomous Recommendations</h2>
+            <div id="recommendations">
+                <div style="text-align:center;color:var(--muted);padding:40px;font-size:13px;">
+                    Register equipment to get recommendations
+                </div>
+            </div>
+        </div>
+
+        <!-- Register Equipment -->
+        <div class="card">
+            <h2>➕ Register Equipment</h2>
+            <div class="form-grid">
+                <div><label>Equipment ID</label><input type="text" id="eqId" placeholder="e.g., ph-01"></div>
+                <div><label>Name</label><input type="text" id="eqName" placeholder="e.g., Printhead Alpha"></div>
+                <div><label>Category</label>
+                    <select id="eqCategory" style="width:100%;">
+                        <option value="printhead">Printhead</option>
+                        <option value="pump">Pump</option>
+                        <option value="stage">Stage</option>
+                        <option value="uv_source">UV Source</option>
+                        <option value="temperature_controller">Temp Controller</option>
+                        <option value="pressure_system">Pressure System</option>
+                    </select>
+                </div>
+                <div><label>Criticality</label>
+                    <select id="eqCriticality" style="width:100%;">
+                        <option value="critical">Critical</option>
+                        <option value="high">High</option>
+                        <option value="medium" selected>Medium</option>
+                        <option value="low">Low</option>
+                    </select>
+                </div>
+                <div><label>Expected Life (hours)</label><input type="number" id="eqLife" value="5000"></div>
+                <div><label>Maintenance Interval (hours)</label><input type="number" id="eqInterval" value="500"></div>
+            </div>
+            <button class="btn" style="margin-top:12px;width:100%;" onclick="registerEq()">Register Equipment</button>
+        </div>
+
+        <!-- Record Usage -->
+        <div class="card">
+            <h2>📝 Record Usage</h2>
+            <div class="form-grid">
+                <div><label>Equipment</label><select id="usageEq" style="width:100%;"><option value="">Select...</option></select></div>
+                <div><label>Hours</label><input type="number" id="usageHours" value="8" step="0.5"></div>
+                <div><label>Temperature (°C)</label><input type="number" id="usageTemp" value="37.0" step="0.1"></div>
+                <div><label>Vibration</label><input type="number" id="usageVib" value="0.12" step="0.01"></div>
+                <div><label>Error Count</label><input type="number" id="usageErrors" value="0" min="0"></div>
+                <div style="display:flex;align-items:flex-end;gap:8px;">
+                    <button class="btn" style="flex:1;" onclick="recordUsage()">Record</button>
+                    <button class="btn-yellow btn btn-sm" onclick="recordMaint()">🔧 Maint</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Equipment Fleet -->
+        <div class="card full-width">
+            <h2>🏭 Equipment Fleet</h2>
+            <div id="fleetList">
+                <div style="text-align:center;color:var(--muted);padding:40px;font-size:13px;">
+                    No equipment registered
+                </div>
+            </div>
+        </div>
+
+        <!-- Maintenance Schedule -->
+        <div class="card full-width">
+            <h2>📅 Optimized Maintenance Schedule</h2>
+            <table>
+                <thead><tr><th>Equipment</th><th>Category</th><th>Criticality</th><th>Urgency</th><th>Action</th><th>Priority</th><th>Hours Until Due</th><th>Failure Risk</th></tr></thead>
+                <tbody id="scheduleBody">
+                    <tr><td colspan="8" style="text-align:center;color:var(--muted);">Register equipment to see schedule</td></tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Anomaly Detection -->
+        <div class="card">
+            <h2>🔍 Anomaly Detection</h2>
+            <div style="margin-bottom:12px;">
+                <select id="anomalyEq" style="width:100%;"><option value="">Select equipment...</option></select>
+                <button class="btn btn-sm" style="margin-top:8px;" onclick="checkAnomalies()">Scan for Anomalies</button>
+            </div>
+            <div id="anomalyResults">
+                <div style="text-align:center;color:var(--muted);padding:20px;font-size:13px;">
+                    Select equipment and scan
+                </div>
+            </div>
+        </div>
+
+        <!-- Failure Prediction -->
+        <div class="card">
+            <h2>⚡ Failure Prediction (Weibull)</h2>
+            <div style="margin-bottom:12px;">
+                <select id="predictionEq" style="width:100%;"><option value="">Select equipment...</option></select>
+                <button class="btn btn-sm" style="margin-top:8px;" onclick="showPrediction()">Predict</button>
+            </div>
+            <div id="predictionResults">
+                <div style="text-align:center;color:var(--muted);padding:20px;font-size:13px;">
+                    Select equipment to see failure prediction
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="shared/validation.js"></script>
+    <script src="shared/sanitize.js"></script>
+    <script src="shared/predictiveMaintenance.js"></script>
+    <script>
+        var pm = createPredictiveMaintenance();
+        var registeredIds = [];
+
+        // ── Demo Fleet ─────────────────────────────────────────────
+        function loadDemoFleet() {
+            resetAll();
+            var fleet = [
+                { id: 'ph-01', name: 'Printhead Alpha', category: 'printhead', criticality: 'critical', expectedLifeHours: 5000, maintenanceIntervalHours: 500 },
+                { id: 'ph-02', name: 'Printhead Beta', category: 'printhead', criticality: 'critical', expectedLifeHours: 5000, maintenanceIntervalHours: 500 },
+                { id: 'pump-01', name: 'Bioink Pump A', category: 'pump', criticality: 'high', expectedLifeHours: 8000, maintenanceIntervalHours: 1000 },
+                { id: 'stage-01', name: 'XY Stage', category: 'stage', criticality: 'high', expectedLifeHours: 10000, maintenanceIntervalHours: 2000 },
+                { id: 'uv-01', name: 'UV Crosslinker', category: 'uv_source', criticality: 'medium', expectedLifeHours: 3000, maintenanceIntervalHours: 300 },
+                { id: 'tc-01', name: 'Nozzle Heater', category: 'temperature_controller', criticality: 'medium', expectedLifeHours: 6000, maintenanceIntervalHours: 1000 },
+                { id: 'ps-01', name: 'Pressure Regulator', category: 'pressure_system', criticality: 'high', expectedLifeHours: 7000, maintenanceIntervalHours: 800 }
+            ];
+            for (var i = 0; i < fleet.length; i++) {
+                pm.registerEquipment(fleet[i]);
+                registeredIds.push(fleet[i].id);
+            }
+            // Simulate some usage history
+            var ages = [2400, 800, 3200, 5500, 1800, 2000, 4200];
+            for (var j = 0; j < fleet.length; j++) {
+                var totalH = ages[j];
+                var sessions = Math.floor(totalH / 8);
+                for (var s = 0; s < Math.min(sessions, 40); s++) {
+                    var wear = j === 0 ? 1 + s * 0.02 : 1; // ph-01 is degrading
+                    pm.recordUsage({
+                        equipmentId: fleet[j].id,
+                        hours: 8,
+                        temperature: 37 + (Math.random() - 0.5) * 2 * wear,
+                        vibration: 0.1 + Math.random() * 0.05 * wear + (j === 4 ? s * 0.003 : 0),
+                        errorCount: Math.floor(Math.random() * 2 * wear)
+                    });
+                }
+            }
+            updateUI();
+        }
+
+        // ── Register Equipment ─────────────────────────────────────
+        function registerEq() {
+            var id = document.getElementById('eqId').value.trim();
+            if (!id) { alert('Equipment ID is required'); return; }
+            var result = pm.registerEquipment({
+                id: id,
+                name: document.getElementById('eqName').value.trim() || id,
+                category: document.getElementById('eqCategory').value,
+                criticality: document.getElementById('eqCriticality').value,
+                expectedLifeHours: Number(document.getElementById('eqLife').value),
+                maintenanceIntervalHours: Number(document.getElementById('eqInterval').value)
+            });
+            if (!result.success) { alert(result.error); return; }
+            registeredIds.push(id);
+            document.getElementById('eqId').value = '';
+            document.getElementById('eqName').value = '';
+            updateUI();
+        }
+
+        // ── Record Usage ───────────────────────────────────────────
+        function recordUsage() {
+            var eqId = document.getElementById('usageEq').value;
+            if (!eqId) { alert('Select equipment'); return; }
+            var result = pm.recordUsage({
+                equipmentId: eqId,
+                hours: Number(document.getElementById('usageHours').value),
+                temperature: Number(document.getElementById('usageTemp').value),
+                vibration: Number(document.getElementById('usageVib').value),
+                errorCount: Number(document.getElementById('usageErrors').value)
+            });
+            if (!result.success) { alert(result.error); return; }
+            updateUI();
+        }
+
+        function recordMaint() {
+            var eqId = document.getElementById('usageEq').value;
+            if (!eqId) { alert('Select equipment'); return; }
+            var result = pm.recordMaintenance(eqId);
+            if (!result.success) { alert(result.error); return; }
+            updateUI();
+        }
+
+        // ── Simulate Usage Cycle ───────────────────────────────────
+        function simulateUsageCycle() {
+            if (registeredIds.length === 0) { alert('Register equipment first'); return; }
+            for (var i = 0; i < registeredIds.length; i++) {
+                pm.recordUsage({
+                    equipmentId: registeredIds[i],
+                    hours: 4 + Math.random() * 8,
+                    temperature: 36 + Math.random() * 3,
+                    vibration: 0.08 + Math.random() * 0.1,
+                    errorCount: Math.floor(Math.random() * 3)
+                });
+            }
+            updateUI();
+        }
+
+        // ── Check Anomalies ────────────────────────────────────────
+        function checkAnomalies() {
+            var eqId = document.getElementById('anomalyEq').value;
+            if (!eqId) { alert('Select equipment'); return; }
+            var result = pm.detectAnomalies(eqId);
+            var el = document.getElementById('anomalyResults');
+            if (!result.success) { el.innerHTML = '<div class="alert alert-crit">❌ ' + result.error + '</div>'; return; }
+            if (result.anomalies.length === 0) {
+                el.innerHTML = '<div class="alert alert-ok">✅ No anomalies detected — equipment operating normally</div>';
+                return;
+            }
+            var html = '';
+            for (var i = 0; i < result.anomalies.length; i++) {
+                var a = result.anomalies[i];
+                var cls = a.severity === 'high' ? 'crit' : 'warn';
+                html += '<div class="alert alert-' + cls + '">' +
+                    '<strong>' + a.type.replace(/_/g, ' ').toUpperCase() + '</strong> — ' +
+                    'Value: ' + (a.value !== undefined ? a.value : '—') +
+                    ', Z-score: ' + (a.zScore || '—') +
+                    ', Severity: ' + a.severity + '</div>';
+            }
+            el.innerHTML = html;
+        }
+
+        // ── Failure Prediction ─────────────────────────────────────
+        function showPrediction() {
+            var eqId = document.getElementById('predictionEq').value;
+            if (!eqId) { alert('Select equipment'); return; }
+            var result = pm.predictFailure(eqId);
+            var el = document.getElementById('predictionResults');
+            if (!result.success) { el.innerHTML = '<div class="alert alert-crit">❌ ' + result.error + '</div>'; return; }
+            var riskColors = { minimal: 'green', low: 'green', moderate: 'yellow', high: 'orange', critical: 'red' };
+            var html = '<div style="text-align:center;margin-bottom:16px;">' +
+                '<div style="font-size:13px;color:var(--muted);">Current Reliability</div>' +
+                '<div style="font-size:28px;font-weight:700;">' + (result.currentReliability * 100).toFixed(1) + '%</div>' +
+                '<span class="badge badge-' + (riskColors[result.riskLevel] || 'blue') + '">' + result.riskLevel.toUpperCase() + ' RISK</span></div>';
+            html += '<table><thead><tr><th>Horizon</th><th>Failure Probability</th><th>Risk</th></tr></thead><tbody>';
+            var horizons = [['Next 100h', result.horizons.next100h], ['Next 500h', result.horizons.next500h], ['Next 1000h', result.horizons.next1000h]];
+            for (var i = 0; i < horizons.length; i++) {
+                var h = horizons[i];
+                html += '<tr><td>' + h[0] + '</td><td>' + (h[1].probability * 100).toFixed(1) + '%</td>' +
+                    '<td><span class="badge badge-' + (riskColors[h[1].risk] || 'blue') + '">' + h[1].risk + '</span></td></tr>';
+            }
+            html += '</tbody></table>';
+            html += '<div style="font-size:11px;color:var(--muted);margin-top:8px;">Model: Weibull (β=2.5) · Operating: ' +
+                result.operatingHours + 'h / ' + result.expectedLifeHours + 'h expected</div>';
+            el.innerHTML = html;
+        }
+
+        // ── Update UI ──────────────────────────────────────────────
+        function updateUI() {
+            updateDropdowns();
+            var dashboard = pm.getDashboard();
+            // Fleet health gauge
+            var score = dashboard.fleetHealthScore;
+            var circumference = 235.6;
+            var offset = circumference - (score / 100 * circumference);
+            var gaugeEl = document.getElementById('healthGauge');
+            gaugeEl.setAttribute('stroke-dashoffset', offset);
+            gaugeEl.setAttribute('stroke', score >= 80 ? 'var(--green)' : score >= 50 ? 'var(--yellow)' : 'var(--red)');
+            document.getElementById('healthText').textContent = score;
+            document.getElementById('eqCount').textContent = dashboard.equipmentCount;
+            document.getElementById('healthyCount').textContent = dashboard.statusBreakdown.healthy;
+            document.getElementById('degradingCount').textContent = dashboard.statusBreakdown.degrading;
+            document.getElementById('criticalCount').textContent = dashboard.statusBreakdown.critical + dashboard.statusBreakdown.overdue;
+
+            // Recommendations
+            var recEl = document.getElementById('recommendations');
+            if (dashboard.recommendations.length === 0 && dashboard.equipmentCount > 0) {
+                recEl.innerHTML = '<div class="alert alert-ok">✅ Fleet healthy — no actions needed</div>';
+            } else if (dashboard.recommendations.length > 0) {
+                var html = '';
+                for (var i = 0; i < dashboard.recommendations.length; i++) {
+                    var cls = dashboard.recommendations[i].indexOf('IMMEDIATE') === 0 ? 'crit' : dashboard.recommendations[i].indexOf('OVERDUE') === 0 ? 'warn' : 'info';
+                    html += '<div class="alert alert-' + cls + '">' + dashboard.recommendations[i] + '</div>';
+                }
+                recEl.innerHTML = html;
+            }
+
+            // Fleet list
+            updateFleetList();
+            updateSchedule();
+        }
+
+        function updateDropdowns() {
+            var selects = ['usageEq', 'anomalyEq', 'predictionEq'];
+            for (var s = 0; s < selects.length; s++) {
+                var sel = document.getElementById(selects[s]);
+                var current = sel.value;
+                sel.innerHTML = '<option value="">Select...</option>';
+                for (var i = 0; i < registeredIds.length; i++) {
+                    var eq = pm.getEquipment(registeredIds[i]);
+                    if (eq.success) {
+                        var opt = document.createElement('option');
+                        opt.value = registeredIds[i];
+                        opt.textContent = eq.equipment.name + ' (' + registeredIds[i] + ')';
+                        sel.appendChild(opt);
+                    }
+                }
+                sel.value = current;
+            }
+        }
+
+        function updateFleetList() {
+            var el = document.getElementById('fleetList');
+            if (registeredIds.length === 0) {
+                el.innerHTML = '<div style="text-align:center;color:var(--muted);padding:40px;font-size:13px;">No equipment registered</div>';
+                return;
+            }
+            var html = '';
+            for (var i = 0; i < registeredIds.length; i++) {
+                var eq = pm.getEquipment(registeredIds[i]);
+                if (!eq.success) continue;
+                var e = eq.equipment;
+                var pred = pm.predictFailure(registeredIds[i]);
+                var wear = pm.analyzeWear(registeredIds[i]);
+                var lifePercent = (e.totalOperatingHours / e.expectedLifeHours * 100).toFixed(1);
+                var maintPercent = (e.hoursSinceLastMaintenance / e.maintenanceIntervalHours * 100).toFixed(0);
+                var riskColors = { minimal: 'green', low: 'green', moderate: 'yellow', high: 'orange', critical: 'red' };
+                var risk = pred.success ? pred.riskLevel : 'unknown';
+                var barColor = Number(lifePercent) > 80 ? 'var(--red)' : Number(lifePercent) > 50 ? 'var(--yellow)' : 'var(--green)';
+                var maintColor = Number(maintPercent) > 100 ? 'var(--red)' : Number(maintPercent) > 80 ? 'var(--yellow)' : 'var(--green)';
+
+                html += '<div class="eq-card"><div class="eq-header"><span class="eq-name">' + e.name + '</span>' +
+                    '<span class="badge badge-' + (riskColors[risk] || 'blue') + '">' + risk.toUpperCase() + '</span></div>' +
+                    '<div class="eq-meta">' +
+                    '<span>Category: ' + e.category.replace(/_/g, ' ') + '</span>' +
+                    '<span>Criticality: ' + e.criticality + '</span>' +
+                    '<span>Operating: ' + e.totalOperatingHours.toFixed(0) + 'h / ' + e.expectedLifeHours + 'h</span>' +
+                    '<span>Since Maint: ' + e.hoursSinceLastMaintenance.toFixed(0) + 'h / ' + e.maintenanceIntervalHours + 'h</span>' +
+                    '</div>' +
+                    '<div style="margin-top:8px;font-size:11px;color:var(--muted);">Life consumed</div>' +
+                    '<div class="progress-bar"><div class="progress-fill" style="width:' + Math.min(lifePercent, 100) + '%;background:' + barColor + ';"></div></div>' +
+                    '<div style="font-size:11px;color:var(--muted);margin-top:6px;">Maintenance interval</div>' +
+                    '<div class="progress-bar"><div class="progress-fill" style="width:' + Math.min(maintPercent, 100) + '%;background:' + maintColor + ';"></div></div>' +
+                    '</div>';
+            }
+            el.innerHTML = html;
+        }
+
+        function updateSchedule() {
+            var schedule = pm.optimizeSchedule();
+            var body = document.getElementById('scheduleBody');
+            if (!schedule.success || schedule.schedule.length === 0) {
+                body.innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--muted);">No schedule data</td></tr>';
+                return;
+            }
+            var html = '';
+            var prioColors = { critical: 'red', high: 'orange', medium: 'yellow', low: 'blue' };
+            for (var i = 0; i < schedule.schedule.length; i++) {
+                var s = schedule.schedule[i];
+                html += '<tr><td>' + s.name + '</td><td>' + s.category.replace(/_/g, ' ') + '</td>' +
+                    '<td>' + s.criticality + '</td>' +
+                    '<td><strong>' + s.urgencyScore + '</strong></td>' +
+                    '<td>' + s.action.replace(/_/g, ' ') + '</td>' +
+                    '<td><span class="badge badge-' + (prioColors[s.priority] || 'blue') + '">' + s.priority + '</span></td>' +
+                    '<td>' + s.hoursUntilDue + 'h</td>' +
+                    '<td><span class="badge badge-' + ({minimal:'green',low:'green',moderate:'yellow',high:'orange',critical:'red'}[s.failureRisk] || 'blue') + '">' + s.failureRisk + '</span></td></tr>';
+            }
+            body.innerHTML = html;
+        }
+
+        // ── Reset ──────────────────────────────────────────────────
+        function resetAll() {
+            pm = createPredictiveMaintenance();
+            registeredIds = [];
+            document.getElementById('healthGauge').setAttribute('stroke-dashoffset', '235.6');
+            document.getElementById('healthText').textContent = '—';
+            document.getElementById('eqCount').textContent = '0';
+            document.getElementById('healthyCount').textContent = '0';
+            document.getElementById('degradingCount').textContent = '0';
+            document.getElementById('criticalCount').textContent = '0';
+            document.getElementById('recommendations').innerHTML = '<div style="text-align:center;color:var(--muted);padding:40px;font-size:13px;">Register equipment to get recommendations</div>';
+            document.getElementById('fleetList').innerHTML = '<div style="text-align:center;color:var(--muted);padding:40px;font-size:13px;">No equipment registered</div>';
+            document.getElementById('scheduleBody').innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--muted);">Register equipment to see schedule</td></tr>';
+            document.getElementById('anomalyResults').innerHTML = '<div style="text-align:center;color:var(--muted);padding:20px;font-size:13px;">Select equipment and scan</div>';
+            document.getElementById('predictionResults').innerHTML = '<div style="text-align:center;color:var(--muted);padding:20px;font-size:13px;">Select equipment to see failure prediction</div>';
+            updateDropdowns();
+        }
+    </script>
+</body>
+</html>

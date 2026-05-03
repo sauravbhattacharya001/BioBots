@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Smart Experiment Planner — BioBots</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧪</text></svg>">
+    <style>
+        :root {
+            --bg: #0f172a; --surface: #1e293b; --border: #334155;
+            --text: #e2e8f0; --muted: #94a3b8; --accent: #3b82f6;
+            --accent-hover: #2563eb; --green: #22c55e; --red: #ef4444;
+            --yellow: #eab308; --orange: #f97316; --purple: #a855f7;
+            --cyan: #06b6d4; --radius: 8px;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+        .header { background: var(--surface); border-bottom: 1px solid var(--border); padding: 20px 32px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
+        .header h1 { font-size: 24px; font-weight: 700; }
+        .header h1 span { color: var(--accent); }
+        .header p { color: var(--muted); font-size: 14px; }
+        .header-left { display: flex; flex-direction: column; }
+        .header-right { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+        .container { max-width: 1400px; margin: 0 auto; padding: 24px; display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        @media (max-width: 900px) { .container { grid-template-columns: 1fr; padding: 16px; } }
+        .full-width { grid-column: 1 / -1; }
+        .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; }
+        .card h2 { font-size: 16px; font-weight: 600; margin-bottom: 14px; display: flex; align-items: center; gap: 8px; }
+        .btn { display: inline-flex; align-items: center; gap: 6px; padding: 8px 18px; background: var(--accent); color: #fff; border: none; border-radius: 6px; font-size: 13px; font-weight: 600; cursor: pointer; transition: background .2s; }
+        .btn:hover { background: var(--accent-hover); }
+        .btn-sm { padding: 5px 12px; font-size: 12px; }
+        .btn-green { background: var(--green); }
+        .btn-green:hover { background: #16a34a; }
+        .btn-purple { background: var(--purple); }
+        .btn-purple:hover { background: #9333ea; }
+        .stats-row { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 16px; }
+        .stat { background: var(--bg); border: 1px solid var(--border); border-radius: 6px; padding: 12px 16px; flex: 1; min-width: 100px; text-align: center; }
+        .stat .val { font-size: 22px; font-weight: 700; }
+        .stat .lbl { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .5px; margin-top: 2px; }
+        .badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 600; }
+        .badge-green { background: rgba(34,197,94,.15); color: var(--green); }
+        .badge-yellow { background: rgba(234,179,8,.15); color: var(--yellow); }
+        .badge-red { background: rgba(239,68,68,.15); color: var(--red); }
+        .badge-blue { background: rgba(59,130,246,.15); color: var(--accent); }
+        .badge-purple { background: rgba(168,85,247,.15); color: var(--purple); }
+        .badge-cyan { background: rgba(6,182,212,.15); color: var(--cyan); }
+        table { width: 100%; border-collapse: collapse; font-size: 12px; }
+        th, td { padding: 8px 10px; text-align: left; border-bottom: 1px solid var(--border); }
+        th { color: var(--muted); font-weight: 600; text-transform: uppercase; font-size: 11px; letter-spacing: .5px; }
+        td { font-variant-numeric: tabular-nums; }
+        .alert { padding: 10px 14px; border-radius: 6px; margin-bottom: 8px; font-size: 13px; display: flex; align-items: flex-start; gap: 8px; }
+        .alert-ok { background: rgba(34,197,94,.1); border: 1px solid rgba(34,197,94,.3); color: var(--green); }
+        .alert-warn { background: rgba(234,179,8,.1); border: 1px solid rgba(234,179,8,.3); color: var(--yellow); }
+        .alert-crit { background: rgba(239,68,68,.1); border: 1px solid rgba(239,68,68,.3); color: var(--red); }
+        .alert-info { background: rgba(59,130,246,.1); border: 1px solid rgba(59,130,246,.3); color: var(--accent); }
+        textarea { width: 100%; padding: 12px; background: var(--bg); border: 1px solid var(--border); border-radius: 6px; color: var(--text); font-family: inherit; font-size: 14px; resize: vertical; min-height: 60px; }
+        textarea:focus { outline: none; border-color: var(--accent); }
+        select { padding: 6px 10px; background: var(--bg); border: 1px solid var(--border); border-radius: 4px; color: var(--text); font-size: 13px; }
+        .phase-bar { display: flex; height: 32px; border-radius: 6px; overflow: hidden; margin-bottom: 8px; }
+        .phase-segment { display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 600; color: #fff; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; padding: 0 4px; }
+        .risk-meter { height: 10px; background: var(--border); border-radius: 5px; overflow: hidden; }
+        .risk-fill { height: 100%; border-radius: 5px; transition: width .3s; }
+        .proto-box { background: var(--bg); border: 1px solid var(--border); border-radius: 6px; padding: 16px; font-family: 'Consolas', 'Courier New', monospace; font-size: 11px; white-space: pre-wrap; max-height: 400px; overflow-y: auto; line-height: 1.5; }
+        .example-btn { background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 8px 12px; color: var(--text); font-size: 12px; cursor: pointer; transition: all .2s; text-align: left; }
+        .example-btn:hover { border-color: var(--accent); background: rgba(59,130,246,.05); }
+        input[type="number"] { padding: 6px 8px; background: var(--bg); border: 1px solid var(--border); border-radius: 4px; color: var(--text); font-size: 12px; width: 100%; }
+        .form-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+        .form-grid label { font-size: 12px; color: var(--muted); display: block; margin-bottom: 2px; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="header-left">
+            <h1>🧪 Smart Experiment <span>Planner</span></h1>
+            <p>Goal-Driven Design · Parameter Space Optimization · Risk Assessment · Protocol Export</p>
+        </div>
+        <div class="header-right">
+            <button class="btn btn-purple" id="exportBtn" onclick="exportProtocol()" disabled>📄 Export Protocol</button>
+        </div>
+    </div>
+
+    <div class="container">
+        <!-- Goal Input -->
+        <div class="card full-width">
+            <h2>🎯 Research Goal</h2>
+            <textarea id="goalInput" placeholder="Describe your experiment goal in natural language, e.g.: 'optimize bioink viscosity for cartilage printing with chondrocytes in alginate'"></textarea>
+            <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+                <div>
+                    <label style="font-size:12px;color:var(--muted);">Replicates</label>
+                    <input type="number" id="replicates" value="3" min="1" max="10" style="width:60px;">
+                </div>
+                <div>
+                    <label style="font-size:12px;color:var(--muted);">Levels/Factor</label>
+                    <input type="number" id="levelsPerFactor" value="3" min="2" max="7" style="width:60px;">
+                </div>
+                <div>
+                    <label style="font-size:12px;color:var(--muted);">Strategy</label>
+                    <select id="strategyOverride">
+                        <option value="">Auto-detect</option>
+                        <option value="factorial">Full Factorial</option>
+                        <option value="ccd">Central Composite (CCD)</option>
+                        <option value="latin-hypercube">Latin Hypercube</option>
+                        <option value="ab">A/B Comparison</option>
+                        <option value="dose-response">Dose-Response</option>
+                    </select>
+                </div>
+                <button class="btn btn-green" style="margin-left:auto;" onclick="generatePlan()">🔬 Generate Plan</button>
+            </div>
+            <div style="margin-top:12px;">
+                <div style="font-size:12px;color:var(--muted);margin-bottom:6px;">Try an example:</div>
+                <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                    <button class="example-btn" onclick="setGoal('optimize bioink viscosity for cartilage printing with chondrocytes in alginate')">🦴 Optimize cartilage bioink</button>
+                    <button class="example-btn" onclick="setGoal('compare gelatin vs collagen for fibroblast viability')">🔬 Compare materials</button>
+                    <button class="example-btn" onclick="setGoal('screen factors affecting printability of PEGDA at different temperatures and pressures')">🔎 Screen printability factors</button>
+                    <button class="example-btn" onclick="setGoal('dose response of alginate concentration on cell viability')">📈 Dose-response curve</button>
+                    <button class="example-btn" onclick="setGoal('validate print speed settings for hyaluronic acid with MSCs')">✅ Validate settings</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Goal Analysis -->
+        <div class="card">
+            <h2>🧠 Goal Analysis</h2>
+            <div id="goalAnalysis">
+                <div style="text-align:center;color:var(--muted);padding:40px;font-size:13px;">
+                    Enter a research goal and generate a plan
+                </div>
+            </div>
+        </div>
+
+        <!-- Plan Summary -->
+        <div class="card">
+            <h2>📊 Plan Summary</h2>
+            <div id="planSummary">
+                <div style="text-align:center;color:var(--muted);padding:40px;font-size:13px;">
+                    Plan will appear here
+                </div>
+            </div>
+        </div>
+
+        <!-- Parameter Space -->
+        <div class="card">
+            <h2>📐 Parameter Space</h2>
+            <div id="paramSpace">
+                <div style="text-align:center;color:var(--muted);padding:40px;font-size:13px;">
+                    Parameters will be shown after plan generation
+                </div>
+            </div>
+        </div>
+
+        <!-- Risk Assessment -->
+        <div class="card">
+            <h2>⚠️ Risk Assessment</h2>
+            <div id="riskAssessment">
+                <div style="text-align:center;color:var(--muted);padding:40px;font-size:13px;">
+                    Risk analysis will appear after plan generation
+                </div>
+            </div>
+        </div>
+
+        <!-- Experiment Matrix -->
+        <div class="card full-width">
+            <h2>🧫 Experiment Matrix</h2>
+            <div id="experimentMatrix" style="max-height:400px;overflow-y:auto;">
+                <div style="text-align:center;color:var(--muted);padding:40px;font-size:13px;">
+                    Condition table will appear after plan generation
+                </div>
+            </div>
+        </div>
+
+        <!-- Timeline -->
+        <div class="card">
+            <h2>⏱️ Timeline Estimate</h2>
+            <div id="timeline">
+                <div style="text-align:center;color:var(--muted);padding:40px;font-size:13px;">
+                    Timeline will be calculated after plan generation
+                </div>
+            </div>
+        </div>
+
+        <!-- Resources -->
+        <div class="card">
+            <h2>💰 Resource Estimate</h2>
+            <div id="resources">
+                <div style="text-align:center;color:var(--muted);padding:40px;font-size:13px;">
+                    Resource estimates will appear after plan generation
+                </div>
+            </div>
+        </div>
+
+        <!-- Alternative Strategies -->
+        <div class="card full-width">
+            <h2>🔄 Alternative Design Strategies</h2>
+            <div id="alternatives">
+                <div style="text-align:center;color:var(--muted);padding:40px;font-size:13px;">
+                    Alternative strategies will be suggested after plan generation
+                </div>
+            </div>
+        </div>
+
+        <!-- Protocol Export -->
+        <div class="card full-width" id="protocolCard" style="display:none;">
+            <h2>📄 Experiment Protocol</h2>
+            <div id="protocolText" class="proto-box"></div>
+            <button class="btn btn-sm" style="margin-top:8px;" onclick="copyProtocol()">📋 Copy to Clipboard</button>
+        </div>
+    </div>
+
+    <script src="shared/validation.js"></script>
+    <script src="shared/sanitize.js"></script>
+    <script src="shared/experimentPlanner.js"></script>
+    <script>
+        var ep = createExperimentPlanner();
+        var currentPlan = null;
+
+        function setGoal(text) {
+            document.getElementById('goalInput').value = text;
+            generatePlan();
+        }
+
+        function generatePlan() {
+            var goal = document.getElementById('goalInput').value.trim();
+            if (!goal) { alert('Please enter a research goal'); return; }
+            var opts = {
+                replicates: Number(document.getElementById('replicates').value) || 3,
+                levelsPerFactor: Number(document.getElementById('levelsPerFactor').value) || 3
+            };
+            var strategy = document.getElementById('strategyOverride').value;
+            if (strategy) opts.strategy = strategy;
+
+            try {
+                currentPlan = ep.plan(goal, opts);
+            } catch (e) {
+                alert('Error generating plan: ' + e.message);
+                return;
+            }
+
+            document.getElementById('exportBtn').disabled = false;
+            updateGoalAnalysis(currentPlan);
+            updatePlanSummary(currentPlan);
+            updateParamSpace(currentPlan);
+            updateRiskAssessment(currentPlan);
+            updateMatrix(currentPlan);
+            updateTimeline(currentPlan);
+            updateResources(currentPlan);
+            updateAlternatives(currentPlan);
+        }
+
+        function updateGoalAnalysis(plan) {
+            var g = plan.goalAnalysis;
+            var typeColors = { optimization: 'blue', comparison: 'purple', screening: 'cyan', validation: 'green', 'dose-response': 'yellow' };
+            var html = '<div style="margin-bottom:12px;">' +
+                '<span class="badge badge-' + (typeColors[g.type] || 'blue') + '" style="font-size:13px;padding:4px 12px;">' + g.type.toUpperCase() + '</span>' +
+                '<span style="margin-left:8px;font-size:12px;color:var(--muted);">Confidence: ' + (g.confidence * 100).toFixed(0) + '%</span></div>';
+            html += '<div style="font-size:13px;margin-bottom:8px;"><strong>Direction:</strong> ' + g.direction + '</div>';
+            html += '<div style="font-size:13px;margin-bottom:8px;"><strong>Target Parameters:</strong> ' +
+                g.targetParameters.map(function(p) { return '<span class="badge badge-blue">' + p + '</span>'; }).join(' ') + '</div>';
+            html += '<div style="font-size:13px;margin-bottom:8px;"><strong>Materials:</strong> ' +
+                g.materials.map(function(m) { return '<span class="badge badge-green">' + m + '</span>'; }).join(' ') + '</div>';
+            if (g.cellTypes.length > 0) {
+                html += '<div style="font-size:13px;"><strong>Cell Types:</strong> ' +
+                    g.cellTypes.map(function(c) { return '<span class="badge badge-purple">' + c + '</span>'; }).join(' ') + '</div>';
+            }
+            document.getElementById('goalAnalysis').innerHTML = html;
+        }
+
+        function updatePlanSummary(plan) {
+            var html = '<div class="stats-row">' +
+                '<div class="stat"><div class="val" style="color:var(--accent);">' + plan.experimentMatrix.conditionCount + '</div><div class="lbl">Conditions</div></div>' +
+                '<div class="stat"><div class="val">' + plan.experimentMatrix.replicates + '</div><div class="lbl">Replicates</div></div>' +
+                '<div class="stat"><div class="val" style="color:var(--cyan);">' + plan.experimentMatrix.totalRuns + '</div><div class="lbl">Total Runs</div></div>' +
+                '<div class="stat"><div class="val" style="color:var(--yellow);">' + plan.timeline.totalHours + 'h</div><div class="lbl">Est. Time</div></div></div>';
+            html += '<div style="display:flex;gap:8px;flex-wrap:wrap;">' +
+                '<span class="badge badge-blue">' + plan.experimentMatrix.strategy + '</span>' +
+                '<span class="badge badge-' + ({LOW:'green',MODERATE:'yellow',HIGH:'red'}[plan.risks.overallRiskLevel]) + '">Risk: ' + plan.risks.overallRiskLevel + '</span>' +
+                '<span class="badge badge-purple">$' + plan.resources.estimatedCost.amount + ' est.</span></div>';
+            html += '<div style="margin-top:12px;font-size:13px;color:var(--muted);">' + plan.summary + '</div>';
+            document.getElementById('planSummary').innerHTML = html;
+        }
+
+        function updateParamSpace(plan) {
+            var html = '<table><thead><tr><th>Factor</th><th>Range</th><th>Unit</th><th>Levels</th></tr></thead><tbody>';
+            for (var i = 0; i < plan.parameterSpace.factors.length; i++) {
+                var f = plan.parameterSpace.factors[i];
+                html += '<tr><td><strong>' + f.name + '</strong></td>' +
+                    '<td>' + f.range[0] + ' – ' + f.range[1] + '</td>' +
+                    '<td>' + f.unit + '</td>' +
+                    '<td>' + f.levels.join(', ') + '</td></tr>';
+            }
+            html += '</tbody></table>';
+            html += '<div style="margin-top:8px;font-size:12px;color:var(--muted);">Material: <strong>' +
+                plan.parameterSpace.material + '</strong> — ' +
+                (plan.parameterSpace.materialInfo.notes || '') + '</div>';
+            document.getElementById('paramSpace').innerHTML = html;
+        }
+
+        function updateRiskAssessment(plan) {
+            var r = plan.risks;
+            var riskColor = r.overallRiskScore >= 60 ? 'var(--red)' : r.overallRiskScore >= 30 ? 'var(--yellow)' : 'var(--green)';
+            var html = '<div style="margin-bottom:12px;">' +
+                '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">' +
+                '<span style="font-size:13px;">Overall Risk Score</span>' +
+                '<strong style="color:' + riskColor + ';">' + r.overallRiskScore + '/100</strong></div>' +
+                '<div class="risk-meter"><div class="risk-fill" style="width:' + r.overallRiskScore + '%;background:' + riskColor + ';"></div></div></div>';
+
+            if (r.highRiskConditions > 0) {
+                html += '<div class="alert alert-crit">⚠️ ' + r.highRiskConditions + ' high-risk condition(s) detected</div>';
+            }
+
+            if (r.mitigations.length > 0) {
+                html += '<div style="font-size:13px;font-weight:600;margin:12px 0 6px;">Recommended Mitigations:</div>';
+                for (var i = 0; i < r.mitigations.length; i++) {
+                    var m = r.mitigations[i];
+                    html += '<div style="font-size:12px;padding:4px 0;border-bottom:1px solid var(--border);">' +
+                        '<span class="badge badge-' + (m.priority === 'high' ? 'red' : 'yellow') + '">' + m.priority + '</span> ' +
+                        m.action + ' <span style="color:var(--muted);">(' + m.category.replace(/_/g, ' ') + ')</span></div>';
+                }
+            } else {
+                html += '<div class="alert alert-ok">✅ Low risk — no special mitigations needed</div>';
+            }
+            document.getElementById('riskAssessment').innerHTML = html;
+        }
+
+        function updateMatrix(plan) {
+            var conditions = plan.experimentMatrix.conditions;
+            if (conditions.length === 0) {
+                document.getElementById('experimentMatrix').innerHTML = '<div style="text-align:center;color:var(--muted);padding:40px;">No conditions generated</div>';
+                return;
+            }
+            var factors = plan.parameterSpace.factors.map(function(f) { return f.name; });
+            var html = '<table><thead><tr><th>#</th>';
+            for (var fi = 0; fi < factors.length; fi++) html += '<th>' + factors[fi] + '</th>';
+            html += '<th>Type</th></tr></thead><tbody>';
+            for (var ci = 0; ci < conditions.length; ci++) {
+                var c = conditions[ci];
+                html += '<tr><td><span class="badge badge-blue">' + (c._conditionId || 'C' + (ci + 1)) + '</span></td>';
+                for (var fi2 = 0; fi2 < factors.length; fi2++) {
+                    html += '<td>' + (c[factors[fi2]] !== undefined ? c[factors[fi2]] : '—') + '</td>';
+                }
+                html += '<td style="color:var(--muted);">' + (c._type || '—') + '</td></tr>';
+            }
+            html += '</tbody></table>';
+            document.getElementById('experimentMatrix').innerHTML = html;
+        }
+
+        function updateTimeline(plan) {
+            var t = plan.timeline;
+            var colors = ['#3b82f6', '#22c55e', '#eab308', '#f97316', '#a855f7', '#06b6d4'];
+            var html = '<div style="margin-bottom:12px;font-size:14px;"><strong>' + t.totalHours + ' hours</strong> estimated (' + t.totalMinutes + ' min)</div>';
+            // Phase bar
+            html += '<div class="phase-bar">';
+            for (var i = 0; i < t.phases.length; i++) {
+                var p = t.phases[i];
+                var pct = (p.durationMin / t.totalMinutes * 100).toFixed(1);
+                if (Number(pct) < 2) pct = '2';
+                html += '<div class="phase-segment" style="width:' + pct + '%;background:' + colors[i % colors.length] + ';" title="' + p.name + ': ' + p.durationMin + ' min">' +
+                    (Number(pct) > 8 ? p.name.split(' ')[0] : '') + '</div>';
+            }
+            html += '</div>';
+            // Phase details
+            html += '<table><thead><tr><th>Phase</th><th>Duration</th></tr></thead><tbody>';
+            for (var j = 0; j < t.phases.length; j++) {
+                var ph = t.phases[j];
+                var isCritical = ph.name === t.criticalPath;
+                html += '<tr><td>' + (isCritical ? '🔴 ' : '') + ph.name + '</td><td>' + ph.durationMin + ' min' +
+                    (isCritical ? ' <span class="badge badge-red">critical path</span>' : '') + '</td></tr>';
+            }
+            html += '</tbody></table>';
+            html += '<div style="margin-top:8px;font-size:12px;color:var(--muted);">Parallelism: ' + t.parallelism + ' · Batches: ' + t.batches + '</div>';
+            document.getElementById('timeline').innerHTML = html;
+        }
+
+        function updateResources(plan) {
+            var r = plan.resources;
+            var html = '<div style="margin-bottom:12px;font-size:16px;font-weight:700;color:var(--green);">$' + r.estimatedCost.amount + ' <span style="font-size:12px;font-weight:400;color:var(--muted);">estimated</span></div>';
+            html += '<div style="font-size:13px;font-weight:600;margin-bottom:4px;">Materials</div>';
+            for (var i = 0; i < r.materials.length; i++) {
+                var m = r.materials[i];
+                html += '<div style="font-size:12px;padding:3px 0;">' + m.name + ': <strong>' + m.quantity + ' ' + m.unit + '</strong>' +
+                    (m.note ? ' <span style="color:var(--muted);">(' + m.note + ')</span>' : '') + '</div>';
+            }
+            html += '<div style="font-size:13px;font-weight:600;margin:8px 0 4px;">Consumables</div>';
+            for (var j = 0; j < r.consumables.length; j++) {
+                var c = r.consumables[j];
+                html += '<div style="font-size:12px;padding:3px 0;">' + c.name + ': <strong>' + c.quantity + '</strong></div>';
+            }
+            html += '<div style="font-size:13px;font-weight:600;margin:8px 0 4px;">Equipment</div>';
+            for (var k = 0; k < r.equipment.length; k++) {
+                var e = r.equipment[k];
+                html += '<div style="font-size:12px;padding:3px 0;">' + e.name + ': <strong>' + e.hoursNeeded + ' hours</strong></div>';
+            }
+            document.getElementById('resources').innerHTML = html;
+        }
+
+        function updateAlternatives(plan) {
+            var alts = plan.alternatives;
+            if (alts.length === 0) {
+                document.getElementById('alternatives').innerHTML = '<div class="alert alert-info">ℹ️ The selected strategy is the best fit for this goal — no alternatives suggested.</div>';
+                return;
+            }
+            var html = '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px;">';
+            for (var i = 0; i < alts.length; i++) {
+                var a = alts[i];
+                var suitColor = a.suitability >= 0.7 ? 'green' : a.suitability >= 0.4 ? 'yellow' : 'red';
+                html += '<div style="background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:14px;">' +
+                    '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">' +
+                    '<strong>' + a.strategy + '</strong>' +
+                    '<span class="badge badge-' + suitColor + '">Suitability: ' + (a.suitability * 100).toFixed(0) + '%</span></div>' +
+                    '<div style="font-size:12px;color:var(--muted);margin-bottom:6px;">' +
+                    a.conditions + ' conditions · ' + a.totalRuns + ' runs · ' + a.estimatedHours + 'h</div>';
+                if (a.pros.length > 0) {
+                    html += '<div style="font-size:11px;margin-bottom:4px;"><span style="color:var(--green);">✓</span> ' + a.pros.join(' · ') + '</div>';
+                }
+                if (a.cons.length > 0) {
+                    html += '<div style="font-size:11px;"><span style="color:var(--red);">✗</span> ' + a.cons.join(' · ') + '</div>';
+                }
+                html += '</div>';
+            }
+            html += '</div>';
+            document.getElementById('alternatives').innerHTML = html;
+        }
+
+        function exportProtocol() {
+            if (!currentPlan) return;
+            var protocol = ep.toProtocol(currentPlan);
+            document.getElementById('protocolText').textContent = protocol;
+            document.getElementById('protocolCard').style.display = 'block';
+            document.getElementById('protocolCard').scrollIntoView({ behavior: 'smooth' });
+        }
+
+        function copyProtocol() {
+            var text = document.getElementById('protocolText').textContent;
+            navigator.clipboard.writeText(text).then(function() {
+                alert('Protocol copied to clipboard!');
+            });
+        }
+    </script>
+</body>
+</html>
