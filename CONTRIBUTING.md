@@ -262,7 +262,7 @@ npx jest --watch
 
 ### Test Suite Overview
 
-The project has **148 test files** across `__tests__/` and `tests/` covering 88 shared modules. Key suites include:
+The project has **152 test files** across `__tests__/` and `tests/` covering 96 shared modules. Key suites include:
 
 | File | Tests | Coverage |
 |------|-------|----------|
@@ -270,7 +270,7 @@ The project has **148 test files** across `__tests__/` and `tests/` covering 88 
 | `compare.test.js` | ~40+ | `METRICS` constant, `formatNum()`, selection manager, search filtering, radar normalization, table highlighting, insight generation (viability, elasticity, crosslinking, pressure) |
 | `quality.test.js` | ~100+ | Quality scoring, normalization, grade assignment, color functions, Pearson correlation, heatmap colors, optimal ranges, weight customization, performer ranking, edge cases |
 
-Autonomous module test files (e.g., `predictiveMaintenance.test.js`, `experimentRiskAssessor.test.js`, `driftDetector.test.js`) follow the same pattern — each module in `docs/shared/` should have a corresponding `__tests__/<moduleName>.test.js`.
+Autonomous module test files (e.g., `predictiveMaintenance.test.js`, `experimentRiskAssessor.test.js`, `driftDetector.test.js`, `knowledgeDistiller.test.js`, `reproducibilityAnalyzer.test.js`) follow the same pattern — each module in `docs/shared/` should have a corresponding `__tests__/<moduleName>.test.js`.
 
 ### Coverage Thresholds
 
@@ -412,7 +412,7 @@ The module is now lazy-loaded on first access — no startup cost for consumers 
 
 ### Step 3: Add tests
 
-Create `__tests__/yourModule.test.js`. Follow the existing pattern — use `@jest-environment jsdom` if the module touches DOM APIs, plain Node otherwise. The project has **148 test files** covering all shared modules; match the style of a similar module.
+Create `__tests__/yourModule.test.js`. Follow the existing pattern — use `@jest-environment jsdom` if the module touches DOM APIs, plain Node otherwise. The project has **152 test files** covering all shared modules; match the style of a similar module.
 
 Minimum test coverage for a new module:
 - Construction / factory defaults
@@ -543,7 +543,7 @@ codeql database analyze biobots-db --format=sarif-latest --output=results.sarif
 | npm publish fails | Version already exists on registry | Bump the version number |
 | NuGet publish fails | Package version collision | Update version in `.nuspec` |
 
-## Module Catalog (94 shared modules)
+## Module Catalog (96 shared modules)
 
 All computation modules live in `docs/shared/`. They are grouped by domain:
 
@@ -572,7 +572,7 @@ All computation modules live in `docs/shared/`. They are grouped by domain:
 `experimentPlanner.js` • `experimentRandomizer.js` • `experimentReplicator.js` • `experimentRiskAssessor.js` • `labNotebook.js` • `labSafetyChecklist.js` • `plateMap.js` • `protocolDeviation.js` • `protocolEvolution.js` • `protocolGenerator.js` • `protocolTemplates.js`
 
 ### Autonomous Intelligence
-`anomalyCorrelator.js` • `crossExperimentLearner.js` • `failureAutopsy.js` • `labDigitalTwin.js` • `outcomeOracle.js` • `outcomePredictor.js` • `parameterRecommender.js` • `resourceForecaster.js` • `situationAwareness.js` • `workflowOptimizer.js` • `workflowOrchestrator.js`
+`anomalyCorrelator.js` • `crossExperimentLearner.js` • `failureAutopsy.js` • `knowledgeDistiller.js` • `labDigitalTwin.js` • `outcomeOracle.js` • `outcomePredictor.js` • `parameterRecommender.js` • `reproducibilityAnalyzer.js` • `resourceForecaster.js` • `situationAwareness.js` • `workflowOptimizer.js` • `workflowOrchestrator.js`
 
 ### Regulatory & Compliance
 `complianceAuditor.js` • `supplyChainResilience.js`
