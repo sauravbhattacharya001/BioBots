@@ -102,6 +102,7 @@ var manifest = [
     ['createWorkflowOptimizer',                  './docs/shared/workflowOptimizer',            'createWorkflowOptimizer'],
     ['createSupplyChainResilience',              './docs/shared/supplyChainResilience',        'createSupplyChainResilience'],
     ['createOutcomeOracle',                       './docs/shared/outcomeOracle',                'createOutcomeOracle'],
+    ['createReproducibilityAnalyzer',                './docs/shared/reproducibilityAnalyzer',      'createReproducibilityAnalyzer'],
 ];
 
 // ── Pre-computed lookup structures ─────────────────────────────────
