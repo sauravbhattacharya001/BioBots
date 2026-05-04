@@ -104,6 +104,7 @@ var manifest = [
     ['createOutcomeOracle',                       './docs/shared/outcomeOracle',                'createOutcomeOracle'],
     ['createReproducibilityAnalyzer',                './docs/shared/reproducibilityAnalyzer',      'createReproducibilityAnalyzer'],
     ['createKnowledgeDistiller',                      './docs/shared/knowledgeDistiller',            'createKnowledgeDistiller'],
+    ['createSchedulingIntelligence',                   './docs/shared/schedulingIntelligence',        'createSchedulingIntelligence'],
 ];
 
 // ── Pre-computed lookup structures ─────────────────────────────────
