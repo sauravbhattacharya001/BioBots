@@ -1,0 +1,944 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lab Preparation Suite — BioBots</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:#0f172a;color:#e2e8f0;min-height:100vh;padding:1.5rem}
+h1{font-size:1.5rem;margin-bottom:.25rem;color:#f8fafc}
+.subtitle{color:#94a3b8;margin-bottom:1.5rem;font-size:.9rem}
+h2{font-size:1.15rem;margin:1.5rem 0 .75rem;color:#f1f5f9;display:flex;align-items:center;gap:.5rem}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(360px,1fr));gap:1rem;margin-bottom:1.5rem}
+.card{background:#1e293b;border-radius:12px;padding:1.25rem;border:1px solid #334155}
+.card h3{font-size:1rem;margin-bottom:.75rem;display:flex;align-items:center;gap:.5rem}
+.badge{display:inline-block;padding:2px 10px;border-radius:999px;font-size:.75rem;font-weight:600;text-transform:uppercase}
+.badge-calc{background:#1e3a5f;color:#7dd3fc}
+.badge-track{background:#1a3a2e;color:#6ee7b7}
+.badge-analysis{background:#3b1764;color:#c4b5fd}
+.stat-row{display:flex;justify-content:space-between;padding:4px 0;font-size:.85rem;border-bottom:1px solid #334155}
+.stat-row:last-child{border-bottom:none}
+.stat-label{color:#94a3b8}.stat-val{color:#f1f5f9;font-weight:500}
+.field-group{margin-bottom:.75rem}
+.field-group label{display:block;font-size:.8rem;color:#94a3b8;margin-bottom:4px}
+select,input{background:#0f172a;color:#e2e8f0;border:1px solid #475569;padding:.45rem .65rem;border-radius:6px;font-size:.85rem;width:100%}
+button{background:#3b82f6;color:#fff;border:none;padding:.5rem 1rem;border-radius:8px;cursor:pointer;font-size:.85rem;font-weight:500;margin-top:.5rem}
+button:hover{background:#2563eb}
+button.secondary{background:#475569}button.secondary:hover{background:#64748b}
+.result{background:#0f172a;border:1px solid #334155;border-radius:8px;padding:.75rem;margin-top:.75rem;font-size:.85rem;max-height:300px;overflow-y:auto}
+.result-row{display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px solid #1e293b}
+.result-row:last-child{border-bottom:none}
+.result-header{color:#38bdf8;font-weight:600;font-size:.8rem;margin-bottom:.5rem}
+.nav-pills{display:flex;flex-wrap:wrap;gap:.5rem;margin-bottom:1.5rem}
+.nav-pills a{display:inline-block;padding:4px 12px;border-radius:999px;font-size:.8rem;background:#1e293b;color:#94a3b8;text-decoration:none;border:1px solid #334155;transition:all .2s}
+.nav-pills a:hover,.nav-pills a.active{background:#1e40af;color:#fff;border-color:#3b82f6}
+.summary-bar{background:#1e293b;border-radius:12px;padding:1rem 1.5rem;margin-bottom:1.5rem;border:1px solid #334155;display:flex;flex-wrap:wrap;gap:1.5rem;align-items:center}
+.summary-stat{text-align:center}
+.summary-stat .num{font-size:1.5rem;font-weight:700;color:#38bdf8}
+.summary-stat .lbl{font-size:.75rem;color:#94a3b8}
+.tabs{display:flex;border-bottom:2px solid #334155;margin-bottom:1rem;overflow-x:auto}
+.tab{padding:.6rem 1.2rem;cursor:pointer;font-size:.88rem;color:#94a3b8;border-bottom:2px solid transparent;margin-bottom:-2px;white-space:nowrap;transition:all .2s}
+.tab:hover{color:#e2e8f0}.tab.active{color:#38bdf8;border-bottom-color:#38bdf8;font-weight:600}
+.tab-panel{display:none}.tab-panel.active{display:block}
+.warn{color:#fbbf24;font-size:.82rem;margin-top:.5rem}
+.ok{color:#4ade80;font-size:.82rem;margin-top:.5rem}
+.error-msg{color:#f87171;font-size:.82rem;margin-top:.5rem}
+table{width:100%;border-collapse:collapse;font-size:.82rem;margin-top:.5rem}
+th{text-align:left;color:#94a3b8;padding:6px 8px;border-bottom:1px solid #475569;font-weight:600}
+td{padding:6px 8px;border-bottom:1px solid #1e293b}
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:.75rem}
+@media(max-width:600px){.two-col{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<h1>🧪 Lab Preparation Suite</h1>
+<p class="subtitle">Interactive calculators for buffer prep, media prep, centrifugation, PCR, serial dilution, gel electrophoresis, autoclaving, freeze-thaw tracking, and wash protocols</p>
+
+<div class="summary-bar">
+    <div class="summary-stat"><div class="num">9</div><div class="lbl">Calculators</div></div>
+    <div class="summary-stat"><div class="num">6</div><div class="lbl">Buffer Types</div></div>
+    <div class="summary-stat"><div class="num">6</div><div class="lbl">Media Types</div></div>
+    <div class="summary-stat"><div class="num">13</div><div class="lbl">Cell Protocols</div></div>
+    <div class="summary-stat"><div class="num">4</div><div class="lbl">Polymerase Presets</div></div>
+    <div class="summary-stat"><div class="num">7</div><div class="lbl">Wash Materials</div></div>
+</div>
+
+<div class="tabs" id="mainTabs">
+    <div class="tab active" data-tab="buffer">Buffer Prep</div>
+    <div class="tab" data-tab="media">Media Prep</div>
+    <div class="tab" data-tab="centrifuge">Centrifuge</div>
+    <div class="tab" data-tab="pcr">PCR Master Mix</div>
+    <div class="tab" data-tab="serial">Serial Dilution</div>
+    <div class="tab" data-tab="gel">Gel Electrophoresis</div>
+    <div class="tab" data-tab="autoclave">Autoclave</div>
+    <div class="tab" data-tab="freeze">Freeze-Thaw</div>
+    <div class="tab" data-tab="wash">Wash Protocol</div>
+</div>
+
+<!-- ════════════════ BUFFER PREP ════════════════ -->
+<div class="tab-panel active" id="panel-buffer">
+<h2>🧴 Buffer Preparation Calculator</h2>
+<div class="grid">
+    <div class="card">
+        <h3>Configure Recipe</h3>
+        <div class="field-group">
+            <label>Buffer Type</label>
+            <select id="bufBuffer">
+                <option value="PBS">PBS (Phosphate Buffered Saline)</option>
+                <option value="TRIS">Tris-HCl</option>
+                <option value="TBS">TBS (Tris Buffered Saline)</option>
+                <option value="HEPES">HEPES</option>
+                <option value="MES">MES</option>
+                <option value="MOPS">MOPS</option>
+            </select>
+        </div>
+        <div class="two-col">
+            <div class="field-group">
+                <label>Target Volume (mL)</label>
+                <input type="number" id="bufVol" value="1000" min="1">
+            </div>
+            <div class="field-group">
+                <label>Target pH</label>
+                <input type="number" id="bufPH" value="7.4" step="0.1" min="2" max="12">
+            </div>
+        </div>
+        <div class="field-group">
+            <label>Concentration</label>
+            <select id="bufConc">
+                <option value="1X">1X (Working)</option>
+                <option value="10X">10X (Stock)</option>
+            </select>
+        </div>
+        <button onclick="calcBuffer()">Calculate Recipe</button>
+        <div id="bufResult" class="result" style="display:none"></div>
+    </div>
+    <div class="card">
+        <h3>📋 Buffer Reference</h3>
+        <table>
+            <tr><th>Buffer</th><th>pKa</th><th>pH Range</th><th>Default pH</th></tr>
+            <tr><td>PBS</td><td>7.20</td><td>6.8–8.0</td><td>7.4</td></tr>
+            <tr><td>Tris-HCl</td><td>8.06</td><td>7.0–9.0</td><td>7.5</td></tr>
+            <tr><td>TBS</td><td>8.06</td><td>7.0–9.0</td><td>7.6</td></tr>
+            <tr><td>HEPES</td><td>7.48</td><td>6.8–8.2</td><td>7.4</td></tr>
+            <tr><td>MES</td><td>6.15</td><td>5.5–6.7</td><td>6.0</td></tr>
+            <tr><td>MOPS</td><td>7.20</td><td>6.5–7.9</td><td>7.0</td></tr>
+        </table>
+        <div style="margin-top:.75rem;font-size:.82rem;color:#94a3b8">
+            <strong>Tip:</strong> Buffer capacity is optimal within ±1 pH unit of the pKa.
+            The Henderson-Hasselbalch equation is used for pH adjustment calculations.
+        </div>
+    </div>
+</div>
+</div>
+
+<!-- ════════════════ MEDIA PREP ════════════════ -->
+<div class="tab-panel" id="panel-media">
+<h2>🧫 Media Preparation Calculator</h2>
+<div class="grid">
+    <div class="card">
+        <h3>Configure Media</h3>
+        <div class="field-group">
+            <label>Base Media</label>
+            <select id="mediaBase">
+                <option value="DMEM">DMEM</option>
+                <option value="RPMI">RPMI 1640</option>
+                <option value="MEM">MEM</option>
+                <option value="F12">Ham's F-12</option>
+                <option value="DMEM/F12">DMEM/F-12 (1:1)</option>
+                <option value="L15">Leibovitz's L-15</option>
+            </select>
+        </div>
+        <div class="field-group">
+            <label>Target Volume (mL)</label>
+            <input type="number" id="mediaVol" value="500" min="1">
+        </div>
+        <div class="field-group">
+            <label>FBS Percentage (%)</label>
+            <input type="number" id="mediaFBS" value="10" min="0" max="50" step="1">
+        </div>
+        <div class="field-group">
+            <label>Pen-Strep Percentage (%)</label>
+            <input type="number" id="mediaPenStrep" value="1" min="0" max="5" step="0.5">
+        </div>
+        <div class="field-group">
+            <label>L-Glutamine (mM)</label>
+            <input type="number" id="mediaGlut" value="2" min="0" max="10" step="0.5">
+        </div>
+        <button onclick="calcMedia()">Calculate Volumes</button>
+        <div id="mediaResult" class="result" style="display:none"></div>
+    </div>
+    <div class="card">
+        <h3>📋 Media Reference</h3>
+        <table>
+            <tr><th>Media</th><th>Powder (g/L)</th><th>NaHCO₃ (g/L)</th><th>Osmolality</th></tr>
+            <tr><td>DMEM</td><td>13.4</td><td>3.7</td><td>330 mOsm</td></tr>
+            <tr><td>RPMI 1640</td><td>10.4</td><td>2.0</td><td>290 mOsm</td></tr>
+            <tr><td>MEM</td><td>9.6</td><td>2.2</td><td>290 mOsm</td></tr>
+            <tr><td>Ham's F-12</td><td>10.6</td><td>1.176</td><td>300 mOsm</td></tr>
+            <tr><td>DMEM/F-12</td><td>12.0</td><td>2.438</td><td>310 mOsm</td></tr>
+            <tr><td>L-15</td><td>13.8</td><td>0</td><td>320 mOsm</td></tr>
+        </table>
+        <div style="margin-top:.75rem;font-size:.82rem;color:#94a3b8">
+            <strong>Note:</strong> L-15 is designed for CO₂-free incubation.
+            All volumes account for supplement displacement.
+        </div>
+    </div>
+</div>
+</div>
+
+<!-- ════════════════ CENTRIFUGE ════════════════ -->
+<div class="tab-panel" id="panel-centrifuge">
+<h2>🌀 Centrifuge Protocol Calculator</h2>
+<div class="grid">
+    <div class="card">
+        <h3>RPM ↔ RCF Converter</h3>
+        <div class="two-col">
+            <div class="field-group">
+                <label>RPM</label>
+                <input type="number" id="cfRpm" value="1500" min="1">
+            </div>
+            <div class="field-group">
+                <label>Rotor Radius (cm)</label>
+                <input type="number" id="cfRadius" value="10.5" min="1" step="0.5">
+            </div>
+        </div>
+        <button onclick="calcRcf()">RPM → RCF</button>
+        <button class="secondary" onclick="calcRpm()">RCF → RPM</button>
+        <div class="two-col" style="margin-top:.5rem">
+            <div class="field-group">
+                <label>RCF (× g)</label>
+                <input type="number" id="cfRcf" value="" placeholder="Result">
+            </div>
+        </div>
+        <div id="cfConvResult" class="result" style="display:none"></div>
+    </div>
+    <div class="card">
+        <h3>Cell Type Recommendations</h3>
+        <div class="field-group">
+            <label>Cell Type</label>
+            <select id="cfCell">
+                <option value="HeLa">HeLa</option>
+                <option value="HEK293">HEK293</option>
+                <option value="Jurkat">Jurkat (T-cells)</option>
+                <option value="CHO">CHO</option>
+                <option value="MSC">MSC (Stem Cells)</option>
+                <option value="iPSC">iPSC</option>
+                <option value="PBMC">PBMC</option>
+                <option value="E.coli">E. coli</option>
+                <option value="yeast">Yeast</option>
+                <option value="RBC">Red Blood Cells</option>
+                <option value="platelet">Platelets</option>
+                <option value="exosome">Exosomes</option>
+                <option value="primary_neuron">Primary Neurons</option>
+            </select>
+        </div>
+        <button onclick="showCellProtocol()">Show Protocol</button>
+        <div id="cfCellResult" class="result" style="display:none"></div>
+    </div>
+</div>
+</div>
+
+<!-- ════════════════ PCR MASTER MIX ════════════════ -->
+<div class="tab-panel" id="panel-pcr">
+<h2>🧬 PCR Master Mix Calculator</h2>
+<div class="grid">
+    <div class="card">
+        <h3>Configure Reactions</h3>
+        <div class="two-col">
+            <div class="field-group">
+                <label>Number of Reactions</label>
+                <input type="number" id="pcrReactions" value="8" min="1" max="384">
+            </div>
+            <div class="field-group">
+                <label>Reaction Volume (µL)</label>
+                <input type="number" id="pcrVolume" value="25" min="10" max="100">
+            </div>
+        </div>
+        <div class="two-col">
+            <div class="field-group">
+                <label>Polymerase</label>
+                <select id="pcrPoly">
+                    <option value="taq">Taq (Standard)</option>
+                    <option value="phusion">Phusion (High-Fidelity)</option>
+                    <option value="q5">Q5 (Ultra High-Fidelity)</option>
+                    <option value="kapa">KAPA HiFi</option>
+                </select>
+            </div>
+            <div class="field-group">
+                <label>Overage (%)</label>
+                <input type="number" id="pcrOverage" value="10" min="0" max="50">
+            </div>
+        </div>
+        <button onclick="calcPcr()">Calculate Mix</button>
+        <div id="pcrResult" class="result" style="display:none"></div>
+    </div>
+    <div class="card">
+        <h3>📋 Polymerase Comparison</h3>
+        <table>
+            <tr><th>Polymerase</th><th>Fidelity</th><th>Extension</th><th>Hot Start</th></tr>
+            <tr><td>Taq</td><td>1×</td><td>1 min/kb</td><td>No</td></tr>
+            <tr><td>Phusion</td><td>50×</td><td>15–30 s/kb</td><td>Yes</td></tr>
+            <tr><td>Q5</td><td>280×</td><td>20–30 s/kb</td><td>Yes</td></tr>
+            <tr><td>KAPA HiFi</td><td>100×</td><td>15–30 s/kb</td><td>Yes</td></tr>
+        </table>
+    </div>
+</div>
+</div>
+
+<!-- ════════════════ SERIAL DILUTION ════════════════ -->
+<div class="tab-panel" id="panel-serial">
+<h2>💧 Serial Dilution Calculator</h2>
+<div class="grid">
+    <div class="card">
+        <h3>Configure Dilution Series</h3>
+        <div class="two-col">
+            <div class="field-group">
+                <label>Initial Concentration</label>
+                <input type="number" id="sdInit" value="1000" min="0.001">
+            </div>
+            <div class="field-group">
+                <label>Unit</label>
+                <input type="text" id="sdUnit" value="µg/mL">
+            </div>
+        </div>
+        <div class="two-col">
+            <div class="field-group">
+                <label>Dilution Factor</label>
+                <select id="sdFactor">
+                    <option value="2">1:2 (Half-log)</option>
+                    <option value="3">1:3</option>
+                    <option value="5">1:5</option>
+                    <option value="10" selected>1:10 (Full-log)</option>
+                    <option value="custom">Custom</option>
+                </select>
+            </div>
+            <div class="field-group" id="sdCustomDiv" style="display:none">
+                <label>Custom Factor</label>
+                <input type="number" id="sdCustom" value="4" min="1.1" step="0.1">
+            </div>
+        </div>
+        <div class="two-col">
+            <div class="field-group">
+                <label>Number of Steps</label>
+                <input type="number" id="sdSteps" value="6" min="1" max="24">
+            </div>
+            <div class="field-group">
+                <label>Volume per Tube (mL)</label>
+                <input type="number" id="sdVol" value="1" min="0.01" step="0.1">
+            </div>
+        </div>
+        <button onclick="calcSerial()">Calculate Series</button>
+        <div id="sdResult" class="result" style="display:none"></div>
+    </div>
+</div>
+</div>
+
+<!-- ════════════════ GEL ELECTROPHORESIS ════════════════ -->
+<div class="tab-panel" id="panel-gel">
+<h2>⚡ Gel Electrophoresis Analyzer</h2>
+<div class="grid">
+    <div class="card">
+        <h3>Gel Recipe Calculator</h3>
+        <div class="two-col">
+            <div class="field-group">
+                <label>Gel Type</label>
+                <select id="gelType">
+                    <option value="agarose">Agarose (DNA)</option>
+                    <option value="page">Polyacrylamide (Protein)</option>
+                </select>
+            </div>
+            <div class="field-group">
+                <label>Gel Percentage (%)</label>
+                <input type="number" id="gelPct" value="1.0" min="0.5" max="20" step="0.5">
+            </div>
+        </div>
+        <div class="field-group">
+            <label>Gel Volume (mL)</label>
+            <input type="number" id="gelVol" value="50" min="10" max="500">
+        </div>
+        <button onclick="calcGel()">Calculate Recipe</button>
+        <div id="gelResult" class="result" style="display:none"></div>
+    </div>
+    <div class="card">
+        <h3>Resolution Advisor</h3>
+        <div class="field-group">
+            <label>Target Size (bp for DNA, kDa for protein)</label>
+            <input type="number" id="gelTarget" value="1000" min="1">
+        </div>
+        <div class="field-group">
+            <label>Molecule Type</label>
+            <select id="gelMol">
+                <option value="dna">DNA</option>
+                <option value="protein">Protein</option>
+            </select>
+        </div>
+        <button onclick="adviseGel()">Recommend Gel %</button>
+        <div id="gelAdvice" class="result" style="display:none"></div>
+    </div>
+</div>
+</div>
+
+<!-- ════════════════ AUTOCLAVE ════════════════ -->
+<div class="tab-panel" id="panel-autoclave">
+<h2>♨️ Autoclave Cycle Logger</h2>
+<div class="grid">
+    <div class="card">
+        <h3>Log New Cycle</h3>
+        <div class="two-col">
+            <div class="field-group">
+                <label>Autoclave ID</label>
+                <input type="text" id="acId" value="AC-001">
+            </div>
+            <div class="field-group">
+                <label>Cycle Type</label>
+                <select id="acType">
+                    <option value="gravity">Gravity (121°C, 30 min)</option>
+                    <option value="prevacuum">Pre-Vacuum (132°C, 4 min)</option>
+                    <option value="liquid">Liquid (121°C, 30 min, slow exhaust)</option>
+                    <option value="flash">Flash (132°C, 3 min, unwrapped)</option>
+                </select>
+            </div>
+        </div>
+        <div class="two-col">
+            <div class="field-group">
+                <label>Temperature (°C)</label>
+                <input type="number" id="acTemp" value="121" min="100" max="145">
+            </div>
+            <div class="field-group">
+                <label>Pressure (psi)</label>
+                <input type="number" id="acPres" value="15" min="10" max="35">
+            </div>
+        </div>
+        <div class="two-col">
+            <div class="field-group">
+                <label>Duration (minutes)</label>
+                <input type="number" id="acDur" value="30" min="1" max="120">
+            </div>
+            <div class="field-group">
+                <label>Operator</label>
+                <input type="text" id="acOp" value="">
+            </div>
+        </div>
+        <div class="field-group">
+            <label>Items (comma-separated)</label>
+            <input type="text" id="acItems" value="media bottles, pipette tips">
+        </div>
+        <button onclick="logAutoclave()">Validate & Log Cycle</button>
+        <div id="acResult" class="result" style="display:none"></div>
+    </div>
+    <div class="card">
+        <h3>📋 Protocol Reference</h3>
+        <table>
+            <tr><th>Cycle</th><th>Temp</th><th>Pressure</th><th>Duration</th></tr>
+            <tr><td>Gravity</td><td>≥121°C</td><td>≥15 psi</td><td>30–60 min</td></tr>
+            <tr><td>Pre-Vacuum</td><td>≥132°C</td><td>≥27 psi</td><td>4–18 min</td></tr>
+            <tr><td>Liquid</td><td>≥121°C</td><td>≥15 psi</td><td>30–60 min</td></tr>
+            <tr><td>Flash</td><td>≥132°C</td><td>≥27 psi</td><td>3–10 min</td></tr>
+        </table>
+        <div style="margin-top:.75rem;font-size:.82rem;color:#94a3b8">
+            <strong>Critical:</strong> Biological indicators (Geobacillus stearothermophilus)
+            must be included in every load for sterility assurance validation.
+        </div>
+    </div>
+</div>
+</div>
+
+<!-- ════════════════ FREEZE-THAW ════════════════ -->
+<div class="tab-panel" id="panel-freeze">
+<h2>❄️ Freeze-Thaw Cycle Tracker</h2>
+<div class="grid">
+    <div class="card">
+        <h3>Add Sample</h3>
+        <div class="two-col">
+            <div class="field-group">
+                <label>Sample ID</label>
+                <input type="text" id="ftId" value="S-001">
+            </div>
+            <div class="field-group">
+                <label>Cell Type</label>
+                <select id="ftCell">
+                    <option value="MSC">MSC (5%/cycle, max 5)</option>
+                    <option value="iPSC">iPSC (8%/cycle, max 3)</option>
+                    <option value="HEK293">HEK293 (3%/cycle, max 8)</option>
+                    <option value="CHO">CHO (3.5%/cycle, max 7)</option>
+                    <option value="fibroblast">Fibroblast (4%/cycle, max 6)</option>
+                    <option value="hepatocyte">Hepatocyte (7%/cycle, max 4)</option>
+                    <option value="neuron">Neuron (9%/cycle, max 3)</option>
+                    <option value="chondrocyte">Chondrocyte (5.5%/cycle, max 5)</option>
+                </select>
+            </div>
+        </div>
+        <div class="two-col">
+            <div class="field-group">
+                <label>Initial Viability (%)</label>
+                <input type="number" id="ftViab" value="95" min="0" max="100">
+            </div>
+            <div class="field-group">
+                <label>Cryoprotectant</label>
+                <select id="ftCryo">
+                    <option value="DMSO">DMSO (1.0× effectiveness)</option>
+                    <option value="glycerol">Glycerol (0.85×)</option>
+                    <option value="trehalose">Trehalose (0.90×)</option>
+                    <option value="ethylene_glycol">Ethylene Glycol (0.95×)</option>
+                    <option value="methylcellulose">Methylcellulose (0.80×)</option>
+                </select>
+            </div>
+        </div>
+        <button onclick="addFTSample()">Add Sample</button>
+        <button class="secondary" onclick="simThaw()">Simulate Thaw Cycle</button>
+        <div id="ftResult" class="result" style="display:none"></div>
+    </div>
+    <div class="card">
+        <h3>📋 Degradation Models</h3>
+        <table>
+            <tr><th>Cell Type</th><th>Loss/Cycle</th><th>Max Cycles</th><th>Warning</th></tr>
+            <tr><td>MSC</td><td>5.0%</td><td>5</td><td>&lt;70%</td></tr>
+            <tr><td>iPSC</td><td>8.0%</td><td>3</td><td>&lt;75%</td></tr>
+            <tr><td>HEK293</td><td>3.0%</td><td>8</td><td>&lt;60%</td></tr>
+            <tr><td>CHO</td><td>3.5%</td><td>7</td><td>&lt;60%</td></tr>
+            <tr><td>Fibroblast</td><td>4.0%</td><td>6</td><td>&lt;65%</td></tr>
+            <tr><td>Hepatocyte</td><td>7.0%</td><td>4</td><td>&lt;70%</td></tr>
+            <tr><td>Neuron</td><td>9.0%</td><td>3</td><td>&lt;75%</td></tr>
+            <tr><td>Chondrocyte</td><td>5.5%</td><td>5</td><td>&lt;68%</td></tr>
+        </table>
+    </div>
+</div>
+</div>
+
+<!-- ════════════════ WASH PROTOCOL ════════════════ -->
+<div class="tab-panel" id="panel-wash">
+<h2>🚿 Wash Protocol Calculator</h2>
+<div class="grid">
+    <div class="card">
+        <h3>Configure Wash</h3>
+        <div class="two-col">
+            <div class="field-group">
+                <label>Material / Crosslinker</label>
+                <select id="washMat">
+                    <option value="alginate-CaCl2">Alginate / CaCl₂</option>
+                    <option value="gelatin-GelMA">GelMA Photo-crosslinked</option>
+                    <option value="collagen-NaOH">Collagen / NaOH</option>
+                    <option value="fibrin-thrombin">Fibrin / Thrombin</option>
+                    <option value="PEG-UV">PEG-DA UV Cured</option>
+                    <option value="agarose-thermal">Agarose (Thermal)</option>
+                    <option value="silk-methanol">Silk / Methanol</option>
+                </select>
+            </div>
+            <div class="field-group">
+                <label>Construct Volume (mL)</label>
+                <input type="number" id="washVol" value="0.5" min="0.01" max="100" step="0.1">
+            </div>
+        </div>
+        <div class="field-group">
+            <label>Target Residual (fraction, e.g. 0.01 = 1%)</label>
+            <input type="number" id="washTarget" value="0.01" min="0.001" max="1" step="0.001">
+        </div>
+        <button onclick="calcWash()">Calculate Protocol</button>
+        <div id="washResult" class="result" style="display:none"></div>
+    </div>
+    <div class="card">
+        <h3>📋 Material Profiles</h3>
+        <table>
+            <tr><th>Material</th><th>Wash Solution</th><th>Temp</th><th>Cycles</th></tr>
+            <tr><td>Alginate/CaCl₂</td><td>DPBS</td><td>37°C</td><td>2–8</td></tr>
+            <tr><td>GelMA</td><td>Warm DPBS</td><td>37°C</td><td>3–10</td></tr>
+            <tr><td>Collagen/NaOH</td><td>PBS pH 7.4</td><td>25°C</td><td>3–10</td></tr>
+            <tr><td>Fibrin/Thrombin</td><td>Serum-free media</td><td>37°C</td><td>2–6</td></tr>
+            <tr><td>PEG-DA UV</td><td>DPBS</td><td>37°C</td><td>3–8</td></tr>
+            <tr><td>Agarose</td><td>PBS</td><td>25°C</td><td>2–6</td></tr>
+            <tr><td>Silk/Methanol</td><td>DI Water</td><td>25°C</td><td>4–12</td></tr>
+        </table>
+    </div>
+</div>
+</div>
+
+<!-- ════════════════ SCRIPTS ════════════════ -->
+<script src="shared/validation.js"></script>
+<script src="shared/stats.js"></script>
+<script src="shared/sanitize.js"></script>
+<script src="shared/bufferPrep.js"></script>
+<script src="shared/mediaPrep.js"></script>
+<script src="shared/centrifuge.js"></script>
+<script src="shared/pcrMasterMix.js"></script>
+<script src="shared/serialDilution.js"></script>
+<script src="shared/gelElectrophoresis.js"></script>
+<script src="shared/autoclave.js"></script>
+<script src="shared/freezeThaw.js"></script>
+<script src="shared/washProtocol.js"></script>
+<script>
+/* ── Tab switching ────────────────────────────────── */
+document.querySelectorAll('.tab').forEach(function(tab) {
+    tab.addEventListener('click', function() {
+        document.querySelectorAll('.tab').forEach(function(t) { t.classList.remove('active'); });
+        document.querySelectorAll('.tab-panel').forEach(function(p) { p.classList.remove('active'); });
+        tab.classList.add('active');
+        document.getElementById('panel-' + tab.dataset.tab).classList.add('active');
+    });
+});
+
+/* ── Serial Dilution custom factor toggle ─────────── */
+document.getElementById('sdFactor').addEventListener('change', function() {
+    document.getElementById('sdCustomDiv').style.display = this.value === 'custom' ? '' : 'none';
+});
+
+/* ── Helper ──────────────────────────────────────── */
+function fmt(n, d) { return Number(n).toFixed(d === undefined ? 2 : d); }
+function el(id) { return document.getElementById(id); }
+function show(id, html) { var e = el(id); e.style.display = ''; e.innerHTML = html; }
+
+/* ══════════════ Buffer Prep ══════════════ */
+function calcBuffer() {
+    try {
+        var calc = createBufferPrepCalculator();
+        var r = calc.prepare({
+            buffer: el('bufBuffer').value,
+            targetVolume: parseFloat(el('bufVol').value),
+            targetpH: parseFloat(el('bufPH').value),
+            concentration: el('bufConc').value
+        });
+        var html = '<div class="result-header">' + r.bufferName + ' — ' + r.concentration + '</div>';
+        html += '<div class="result-row"><span>Target Volume</span><span>' + fmt(r.targetVolume) + ' mL</span></div>';
+        html += '<div class="result-row"><span>Target pH</span><span>' + fmt(r.pH, 1) + '</span></div>';
+        if (r.components) {
+            r.components.forEach(function(c) {
+                html += '<div class="result-row"><span>' + c.name + '</span><span>' + fmt(c.mass, 3) + ' g</span></div>';
+            });
+        }
+        if (r.phAdjustment) {
+            html += '<div class="result-row"><span>pH Adjustment</span><span>' + r.phAdjustment + '</span></div>';
+        }
+        if (r.notes) html += '<div style="margin-top:.5rem;font-size:.8rem;color:#94a3b8">' + r.notes + '</div>';
+        show('bufResult', html);
+    } catch (e) { show('bufResult', '<div class="error-msg">⚠ ' + e.message + '</div>'); }
+}
+
+/* ══════════════ Media Prep ══════════════ */
+function calcMedia() {
+    try {
+        var calc = createMediaPrepCalculator();
+        var supps = [];
+        var fbs = parseFloat(el('mediaFBS').value);
+        var ps = parseFloat(el('mediaPenStrep').value);
+        var glut = parseFloat(el('mediaGlut').value);
+        if (fbs > 0) supps.push({ name: 'FBS', percentage: fbs });
+        if (ps > 0) supps.push({ name: 'Pen-Strep', percentage: ps });
+        if (glut > 0) supps.push({ name: 'L-Glutamine', concentration: glut, unit: 'mM', stockConcentration: 200, stockUnit: 'mM' });
+        var r = calc.prepare({
+            baseMedia: el('mediaBase').value,
+            targetVolume: parseFloat(el('mediaVol').value),
+            supplements: supps
+        });
+        var html = '<div class="result-header">' + r.mediaName + ' — ' + fmt(r.targetVolume) + ' mL</div>';
+        html += '<div class="result-row"><span>Base Media Volume</span><span>' + fmt(r.baseVolume) + ' mL</span></div>';
+        if (r.supplements) {
+            r.supplements.forEach(function(s) {
+                html += '<div class="result-row"><span>' + s.name + '</span><span>' + fmt(s.volume, 2) + ' mL</span></div>';
+            });
+        }
+        if (r.powder) {
+            html += '<div class="result-row"><span>Powder</span><span>' + fmt(r.powder.mass, 2) + ' g</span></div>';
+            html += '<div class="result-row"><span>NaHCO₃</span><span>' + fmt(r.powder.bicarbonate, 2) + ' g</span></div>';
+        }
+        show('mediaResult', html);
+    } catch (e) { show('mediaResult', '<div class="error-msg">⚠ ' + e.message + '</div>'); }
+}
+
+/* ══════════════ Centrifuge ══════════════ */
+var CELL_PROTOCOLS = {
+    HeLa:{rpm:1200,rcf:300,dur:5,temp:4,notes:'Standard adherent line; gentle spin'},
+    HEK293:{rpm:1000,rcf:200,dur:5,temp:4,notes:'Semi-adherent; low g-force'},
+    Jurkat:{rpm:1200,rcf:300,dur:5,temp:4,notes:'Suspension T-cells'},
+    CHO:{rpm:1000,rcf:200,dur:5,temp:4,notes:'Hamster ovary; gentle handling'},
+    MSC:{rpm:800,rcf:150,dur:7,temp:20,notes:'Very gentle to preserve potency'},
+    iPSC:{rpm:800,rcf:150,dur:5,temp:20,notes:'Minimal shear stress'},
+    PBMC:{rpm:1500,rcf:400,dur:10,temp:20,notes:'Ficoll gradient standard'},
+    'E.coli':{rpm:4000,rcf:3000,dur:10,temp:4,notes:'High g-force needed'},
+    yeast:{rpm:3000,rcf:1500,dur:5,temp:4,notes:'S. cerevisiae'},
+    RBC:{rpm:2000,rcf:500,dur:5,temp:4,notes:'Avoid hemolysis'},
+    platelet:{rpm:800,rcf:100,dur:15,temp:20,notes:'Very low g-force for PRP'},
+    exosome:{rpm:100000,rcf:100000,dur:70,temp:4,notes:'Ultracentrifugation; multi-step'},
+    primary_neuron:{rpm:700,rcf:100,dur:5,temp:20,notes:'Extremely fragile'}
+};
+
+function calcRcf() {
+    var rpm = parseFloat(el('cfRpm').value);
+    var r = parseFloat(el('cfRadius').value);
+    var rcf = 1.118e-5 * r * rpm * rpm;
+    el('cfRcf').value = fmt(rcf, 1);
+    show('cfConvResult', '<div class="result-row"><span>' + fmt(rpm,0) + ' RPM @ ' + fmt(r,1) + ' cm</span><span><strong>' + fmt(rcf,1) + ' × g</strong></span></div>');
+}
+
+function calcRpm() {
+    var rcf = parseFloat(el('cfRcf').value);
+    var r = parseFloat(el('cfRadius').value);
+    var rpm = Math.sqrt(rcf / (1.118e-5 * r));
+    el('cfRpm').value = Math.round(rpm);
+    show('cfConvResult', '<div class="result-row"><span>' + fmt(rcf,1) + ' × g @ ' + fmt(r,1) + ' cm</span><span><strong>' + Math.round(rpm) + ' RPM</strong></span></div>');
+}
+
+function showCellProtocol() {
+    var p = CELL_PROTOCOLS[el('cfCell').value];
+    if (!p) return;
+    var html = '<div class="result-header">' + el('cfCell').value + ' Protocol</div>';
+    html += '<div class="result-row"><span>RPM</span><span>' + p.rpm + '</span></div>';
+    html += '<div class="result-row"><span>RCF</span><span>' + p.rcf + ' × g</span></div>';
+    html += '<div class="result-row"><span>Duration</span><span>' + p.dur + ' min</span></div>';
+    html += '<div class="result-row"><span>Temperature</span><span>' + p.temp + '°C</span></div>';
+    html += '<div style="margin-top:.5rem;font-size:.8rem;color:#94a3b8">' + p.notes + '</div>';
+    show('cfCellResult', html);
+}
+
+/* ══════════════ PCR Master Mix ══════════════ */
+var POLY_PRESETS = {
+    taq:{name:'Taq',bufConc:10,mgCl2:1.5,dNTPs:0.2,primer:0.4,units:1.25,stock:5,extRate:'1 min/kb',fidelity:'1×',hotStart:false,proof:false},
+    phusion:{name:'Phusion',bufConc:5,mgCl2:1.5,dNTPs:0.2,primer:0.5,units:1.0,stock:2,extRate:'15–30 s/kb',fidelity:'50×',hotStart:true,proof:true},
+    q5:{name:'Q5',bufConc:5,mgCl2:2.0,dNTPs:0.2,primer:0.5,units:1.0,stock:2,extRate:'20–30 s/kb',fidelity:'280×',hotStart:true,proof:true},
+    kapa:{name:'KAPA HiFi',bufConc:5,mgCl2:2.5,dNTPs:0.3,primer:0.3,units:1.0,stock:1,extRate:'15–30 s/kb',fidelity:'100×',hotStart:true,proof:true}
+};
+
+function calcPcr() {
+    var n = parseInt(el('pcrReactions').value);
+    var vol = parseFloat(el('pcrVolume').value);
+    var ovg = parseFloat(el('pcrOverage').value) / 100;
+    var p = POLY_PRESETS[el('pcrPoly').value];
+    var total = n * (1 + ovg);
+    var totalVol = total * vol;
+    var bufVol = totalVol / p.bufConc;
+    var dntpVol = totalVol * p.dNTPs / 10; // from 10 mM stock
+    var primerF = totalVol * p.primer / 10; // from 10 µM stock
+    var polyVol = (total * p.units) / p.stock;
+    var waterVol = totalVol - bufVol - dntpVol - primerF * 2 - polyVol;
+
+    var html = '<div class="result-header">' + p.name + ' Master Mix — ' + n + ' reactions + ' + Math.round(ovg*100) + '% overage</div>';
+    html += '<div class="result-row"><span>Total Volume</span><span>' + fmt(totalVol, 1) + ' µL</span></div>';
+    html += '<div class="result-row"><span>' + p.bufConc + '× Buffer</span><span>' + fmt(bufVol, 1) + ' µL</span></div>';
+    html += '<div class="result-row"><span>dNTPs (10 mM each)</span><span>' + fmt(dntpVol, 1) + ' µL</span></div>';
+    html += '<div class="result-row"><span>Forward Primer (10 µM)</span><span>' + fmt(primerF, 1) + ' µL</span></div>';
+    html += '<div class="result-row"><span>Reverse Primer (10 µM)</span><span>' + fmt(primerF, 1) + ' µL</span></div>';
+    html += '<div class="result-row"><span>' + p.name + ' Polymerase</span><span>' + fmt(polyVol, 2) + ' µL</span></div>';
+    html += '<div class="result-row"><span>Nuclease-Free Water</span><span>' + fmt(waterVol, 1) + ' µL</span></div>';
+    html += '<div style="margin-top:.5rem;font-size:.8rem;color:#94a3b8">' +
+        'Extension rate: ' + p.extRate + ' | Fidelity: ' + p.fidelity +
+        (p.hotStart ? ' | Hot start' : '') +
+        (p.proof ? ' | Proofreading' : '') + '</div>';
+    show('pcrResult', html);
+}
+
+/* ══════════════ Serial Dilution ══════════════ */
+function calcSerial() {
+    var init = parseFloat(el('sdInit').value);
+    var factor = el('sdFactor').value === 'custom' ? parseFloat(el('sdCustom').value) : parseFloat(el('sdFactor').value);
+    var steps = parseInt(el('sdSteps').value);
+    var vol = parseFloat(el('sdVol').value);
+    var unit = el('sdUnit').value;
+
+    var transfer = vol / factor;
+    var diluent = vol - transfer;
+    var html = '<div class="result-header">1:' + factor + ' Serial Dilution — ' + steps + ' steps</div>';
+    html += '<table><tr><th>Step</th><th>Conc (' + unit + ')</th><th>Transfer (mL)</th><th>Diluent (mL)</th></tr>';
+    var conc = init;
+    for (var i = 0; i < steps; i++) {
+        conc = conc / factor;
+        html += '<tr><td>' + (i+1) + '</td><td>' + fmt(conc, 4) + '</td><td>' + fmt(transfer, 3) + '</td><td>' + fmt(diluent, 3) + '</td></tr>';
+    }
+    html += '</table>';
+    html += '<div style="margin-top:.5rem;font-size:.8rem;color:#94a3b8">Total dilution: 1:' + Math.pow(factor, steps).toExponential(1) +
+        ' | Final: ' + fmt(conc, 6) + ' ' + unit + '</div>';
+    show('sdResult', html);
+}
+
+/* ══════════════ Gel Electrophoresis ══════════════ */
+var AGAROSE_REC = [
+    {pct:0.5,min:10000,max:50000},{pct:0.7,min:5000,max:20000},{pct:1.0,min:500,max:10000},
+    {pct:1.2,min:400,max:7000},{pct:1.5,min:200,max:4000},{pct:2.0,min:50,max:2000},{pct:3.0,min:20,max:500}
+];
+var PAGE_REC = [
+    {pct:6,min:60,max:250},{pct:8,min:40,max:200},{pct:10,min:20,max:120},
+    {pct:12,min:10,max:70},{pct:15,min:3,max:40}
+];
+
+function calcGel() {
+    var type = el('gelType').value;
+    var pct = parseFloat(el('gelPct').value);
+    var vol = parseFloat(el('gelVol').value);
+    var html = '<div class="result-header">' + (type === 'agarose' ? 'Agarose' : 'Polyacrylamide') + ' Gel — ' + pct + '%</div>';
+    if (type === 'agarose') {
+        var ag = pct * vol / 100;
+        html += '<div class="result-row"><span>Agarose</span><span>' + fmt(ag, 3) + ' g</span></div>';
+        html += '<div class="result-row"><span>1× TAE/TBE Buffer</span><span>' + fmt(vol, 1) + ' mL</span></div>';
+        html += '<div class="result-row"><span>Ethidium Bromide or SYBR Safe</span><span>' + fmt(vol * 0.5 / 50, 1) + ' µL (if post-staining)</span></div>';
+        html += '<div style="margin-top:.5rem;font-size:.8rem;color:#94a3b8">Microwave until dissolved, cool to ~60°C, pour into cast.</div>';
+    } else {
+        var acryl30 = pct * vol / 30;
+        var tris = vol * 0.25;
+        var sds = vol * 0.01;
+        var aps = vol * 0.01;
+        var temed = vol * 0.001;
+        var water = vol - acryl30 - tris - sds - aps - temed;
+        html += '<div class="result-row"><span>30% Acrylamide/Bis</span><span>' + fmt(acryl30, 2) + ' mL</span></div>';
+        html += '<div class="result-row"><span>1.5 M Tris pH 8.8</span><span>' + fmt(tris, 2) + ' mL</span></div>';
+        html += '<div class="result-row"><span>10% SDS</span><span>' + fmt(sds, 2) + ' mL</span></div>';
+        html += '<div class="result-row"><span>10% APS</span><span>' + fmt(aps, 2) + ' mL</span></div>';
+        html += '<div class="result-row"><span>TEMED</span><span>' + fmt(temed, 3) + ' mL</span></div>';
+        html += '<div class="result-row"><span>dH₂O</span><span>' + fmt(water, 2) + ' mL</span></div>';
+    }
+    show('gelResult', html);
+}
+
+function adviseGel() {
+    var target = parseFloat(el('gelTarget').value);
+    var type = el('gelMol').value;
+    var recs = type === 'dna' ? AGAROSE_REC : PAGE_REC;
+    var unit = type === 'dna' ? 'bp' : 'kDa';
+    var matches = recs.filter(function(r) { return target >= r.min && target <= r.max; });
+    var html = '<div class="result-header">Recommendations for ' + target + ' ' + unit + '</div>';
+    if (matches.length === 0) {
+        html += '<div class="warn">⚠ Target size is outside standard gel ranges. Consider pulse-field (large DNA) or gradient gels.</div>';
+    } else {
+        matches.forEach(function(m) {
+            html += '<div class="result-row"><span>' + m.pct + '% ' + (type==='dna'?'agarose':'PAGE') + '</span><span>resolves ' + m.min + '–' + m.max + ' ' + unit + '</span></div>';
+        });
+        html += '<div class="ok">✓ ' + matches.length + ' gel concentration(s) suitable for your target.</div>';
+    }
+    show('gelAdvice', html);
+}
+
+/* ══════════════ Autoclave ══════════════ */
+var AC_PROTOCOLS = {
+    gravity:{name:'Gravity',minTemp:121,minPres:15,minDur:30,maxDur:60},
+    prevacuum:{name:'Pre-Vacuum',minTemp:132,minPres:27,minDur:4,maxDur:18},
+    liquid:{name:'Liquid',minTemp:121,minPres:15,minDur:30,maxDur:60},
+    flash:{name:'Flash',minTemp:132,minPres:27,minDur:3,maxDur:10}
+};
+
+function logAutoclave() {
+    var type = el('acType').value;
+    var proto = AC_PROTOCOLS[type];
+    var temp = parseFloat(el('acTemp').value);
+    var pres = parseFloat(el('acPres').value);
+    var dur = parseFloat(el('acDur').value);
+    var items = el('acItems').value.split(',').map(function(s) { return s.trim(); }).filter(Boolean);
+    var warnings = [];
+
+    if (temp < proto.minTemp) warnings.push('Temperature ' + temp + '°C below minimum ' + proto.minTemp + '°C');
+    if (pres < proto.minPres) warnings.push('Pressure ' + pres + ' psi below minimum ' + proto.minPres + ' psi');
+    if (dur < proto.minDur) warnings.push('Duration ' + dur + ' min below minimum ' + proto.minDur + ' min');
+    if (dur > proto.maxDur) warnings.push('Duration ' + dur + ' min exceeds recommended max ' + proto.maxDur + ' min');
+
+    var html = '<div class="result-header">' + proto.name + ' Cycle — ' + el('acId').value + '</div>';
+    html += '<div class="result-row"><span>Temperature</span><span>' + temp + '°C</span></div>';
+    html += '<div class="result-row"><span>Pressure</span><span>' + pres + ' psi</span></div>';
+    html += '<div class="result-row"><span>Duration</span><span>' + dur + ' min</span></div>';
+    html += '<div class="result-row"><span>Items</span><span>' + items.join(', ') + '</span></div>';
+    if (el('acOp').value) html += '<div class="result-row"><span>Operator</span><span>' + el('acOp').value + '</span></div>';
+
+    if (warnings.length > 0) {
+        html += '<div class="warn">⚠ Validation Warnings:<br>' + warnings.join('<br>') + '</div>';
+    } else {
+        html += '<div class="ok">✓ All parameters meet ' + proto.name + ' protocol requirements.</div>';
+    }
+    show('acResult', html);
+}
+
+/* ══════════════ Freeze-Thaw ══════════════ */
+var FT_MODELS = {
+    MSC:{loss:5,max:5,warn:70},iPSC:{loss:8,max:3,warn:75},HEK293:{loss:3,max:8,warn:60},
+    CHO:{loss:3.5,max:7,warn:60},fibroblast:{loss:4,max:6,warn:65},hepatocyte:{loss:7,max:4,warn:70},
+    neuron:{loss:9,max:3,warn:75},chondrocyte:{loss:5.5,max:5,warn:68}
+};
+var CRYO_MULT = {DMSO:1,glycerol:0.85,trehalose:0.9,ethylene_glycol:0.95,methylcellulose:0.8};
+var ftSamples = {};
+
+function addFTSample() {
+    var id = el('ftId').value;
+    var cell = el('ftCell').value;
+    var viab = parseFloat(el('ftViab').value);
+    var cryo = el('ftCryo').value;
+    ftSamples[id] = {cell:cell, viab:viab, cryo:cryo, cycles:0, history:[]};
+    var html = '<div class="ok">✓ Sample ' + id + ' added: ' + cell + ', ' + viab + '% viability, ' + cryo + '</div>';
+    show('ftResult', html);
+}
+
+function simThaw() {
+    var id = el('ftId').value;
+    var s = ftSamples[id];
+    if (!s) { show('ftResult','<div class="error-msg">⚠ Sample not found. Add it first.</div>'); return; }
+    var model = FT_MODELS[s.cell];
+    var mult = CRYO_MULT[s.cryo];
+    var loss = model.loss * (2 - mult); // worse cryo = more loss
+    s.cycles++;
+    s.viab = Math.max(0, s.viab - loss);
+    s.history.push({cycle:s.cycles, viab:s.viab});
+
+    var html = '<div class="result-header">Thaw Cycle ' + s.cycles + ' — ' + id + '</div>';
+    html += '<div class="result-row"><span>Current Viability</span><span>' + fmt(s.viab, 1) + '%</span></div>';
+    html += '<div class="result-row"><span>Viability Loss</span><span>-' + fmt(loss, 1) + '%</span></div>';
+    html += '<div class="result-row"><span>Cycles Used</span><span>' + s.cycles + ' / ' + model.max + '</span></div>';
+    if (s.viab < model.warn) html += '<div class="warn">⚠ Viability below warning threshold (' + model.warn + '%). Consider discarding.</div>';
+    else if (s.cycles >= model.max) html += '<div class="warn">⚠ Maximum recommended cycles reached.</div>';
+    else html += '<div class="ok">✓ Sample within acceptable parameters.</div>';
+
+    // History
+    html += '<table style="margin-top:.5rem"><tr><th>Cycle</th><th>Viability</th></tr>';
+    s.history.forEach(function(h) {
+        html += '<tr><td>' + h.cycle + '</td><td>' + fmt(h.viab,1) + '%</td></tr>';
+    });
+    html += '</table>';
+    show('ftResult', html);
+}
+
+/* ══════════════ Wash Protocol ══════════════ */
+var WASH_PROFILES = {
+    'alginate-CaCl2':{label:'Alginate/CaCl₂',sol:'DPBS',diffCoeff:1.2e-5,initConc:100,minCyc:2,maxCyc:8,temp:37},
+    'gelatin-GelMA':{label:'GelMA',sol:'Warm DPBS',diffCoeff:0.8e-5,initConc:50,minCyc:3,maxCyc:10,temp:37},
+    'collagen-NaOH':{label:'Collagen/NaOH',sol:'PBS pH 7.4',diffCoeff:0.6e-5,initConc:200,minCyc:3,maxCyc:10,temp:25},
+    'fibrin-thrombin':{label:'Fibrin/Thrombin',sol:'Serum-free media',diffCoeff:1.0e-5,initConc:30,minCyc:2,maxCyc:6,temp:37},
+    'PEG-UV':{label:'PEG-DA UV',sol:'DPBS',diffCoeff:0.9e-5,initConc:80,minCyc:3,maxCyc:8,temp:37},
+    'agarose-thermal':{label:'Agarose',sol:'PBS',diffCoeff:1.5e-5,initConc:40,minCyc:2,maxCyc:6,temp:25},
+    'silk-methanol':{label:'Silk/Methanol',sol:'DI Water',diffCoeff:0.4e-5,initConc:500,minCyc:4,maxCyc:12,temp:25}
+};
+
+function calcWash() {
+    var mat = el('washMat').value;
+    var vol = parseFloat(el('washVol').value);
+    var target = parseFloat(el('washTarget').value);
+    var prof = WASH_PROFILES[mat];
+
+    // Simple diffusion model: each wash removes ~63% (1 - 1/e) of remaining solute
+    var removalPerCycle = 0.63;
+    var residual = 1.0;
+    var cycles = 0;
+    while (residual > target && cycles < prof.maxCyc) {
+        residual *= (1 - removalPerCycle);
+        cycles++;
+    }
+    cycles = Math.max(cycles, prof.minCyc);
+
+    // Soak time based on diffusion (simplified: t ~ L² / D)
+    var charLength = Math.cbrt(vol) * 0.1; // cm, rough
+    var soakTimeSec = (charLength * charLength) / prof.diffCoeff;
+    var soakTimeMin = Math.max(5, Math.ceil(soakTimeSec / 60));
+
+    var washVol = Math.max(vol * 5, 2); // 5× construct volume, min 2 mL
+
+    var html = '<div class="result-header">' + prof.label + ' Wash Protocol</div>';
+    html += '<div class="result-row"><span>Wash Solution</span><span>' + prof.sol + '</span></div>';
+    html += '<div class="result-row"><span>Temperature</span><span>' + prof.temp + '°C</span></div>';
+    html += '<div class="result-row"><span>Wash Cycles</span><span>' + cycles + '</span></div>';
+    html += '<div class="result-row"><span>Soak Time / Cycle</span><span>~' + soakTimeMin + ' min</span></div>';
+    html += '<div class="result-row"><span>Wash Volume / Cycle</span><span>' + fmt(washVol, 1) + ' mL</span></div>';
+    html += '<div class="result-row"><span>Expected Residual</span><span>' + fmt(residual * 100, 2) + '%</span></div>';
+    html += '<div class="result-row"><span>Total Wash Time</span><span>~' + (cycles * soakTimeMin) + ' min</span></div>';
+    html += '<div class="result-row"><span>Agitation</span><span>Gentle orbital (60 rpm)</span></div>';
+
+    if (residual > target) {
+        html += '<div class="warn">⚠ Target residual (' + (target*100) + '%) may not be achievable within ' + prof.maxCyc + ' cycles. Consider extended soaking or increased wash volume.</div>';
+    } else {
+        html += '<div class="ok">✓ Protocol should achieve target residual within ' + cycles + ' cycles.</div>';
+    }
+    show('washResult', html);
+}
+</script>
+</body>
+</html>
