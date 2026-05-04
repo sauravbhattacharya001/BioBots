@@ -103,6 +103,7 @@ var manifest = [
     ['createSupplyChainResilience',              './docs/shared/supplyChainResilience',        'createSupplyChainResilience'],
     ['createOutcomeOracle',                       './docs/shared/outcomeOracle',                'createOutcomeOracle'],
     ['createReproducibilityAnalyzer',                './docs/shared/reproducibilityAnalyzer',      'createReproducibilityAnalyzer'],
+    ['createKnowledgeDistiller',                      './docs/shared/knowledgeDistiller',            'createKnowledgeDistiller'],
 ];
 
 // ── Pre-computed lookup structures ─────────────────────────────────
