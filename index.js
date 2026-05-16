@@ -105,6 +105,7 @@ var manifest = [
     ['createReproducibilityAnalyzer',                './docs/shared/reproducibilityAnalyzer',      'createReproducibilityAnalyzer'],
     ['createKnowledgeDistiller',                      './docs/shared/knowledgeDistiller',            'createKnowledgeDistiller'],
     ['createSchedulingIntelligence',                   './docs/shared/schedulingIntelligence',        'createSchedulingIntelligence'],
+    ['createSmartReorderAdvisor',                      './docs/shared/smartReorder',                  'createSmartReorderAdvisor'],
 ];
 
 // ── Pre-computed lookup structures ─────────────────────────────────

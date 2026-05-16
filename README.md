@@ -292,7 +292,7 @@ console.log(biobots.factoryCount);     // 80
 | **Print Engineering** | 10 | `createGCodeAnalyzer`, `createScaffoldCalculator`, `createNozzleAdvisor`, `createRecipeBuilder` |
 | **Cell Biology** | 8 | `createViabilityEstimator`, `createCellSeedingCalculator`, `createPassageTracker`, `createGrowthCurveAnalyzer` |
 | **Rheology & Physics** | 5 | `createRheologyModeler`, `createCrosslinkAnalyzer`, `createElectroporationCalculator` |
-| **Lab Operations** | 15 | `createLabInventoryManager`, `createWasteTracker`, `createEnvironmentalMonitor`, `createSterilityAssurance` |
+| **Lab Operations** | 16 | `createLabInventoryManager`, `createSmartReorderAdvisor`, `createWasteTracker`, `createEnvironmentalMonitor`, `createSterilityAssurance` |
 | **Quality & Analysis** | 12 | `createPrintQualityScorer`, `createYieldAnalyzer`, `createCapabilityAnalyzer`, `createDriftDetector` |
 | **Data & Export** | 8 | `createDataExporter`, `createPrintSessionLogger`, `createSampleTracker`, `createDilutionCalculator` |
 | **Automation** | 10 | `createProtocolGenerator`, `createJobEstimator`, `createMediaPrepCalculator`, `createCentrifugeCalculator` |
