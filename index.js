@@ -108,6 +108,7 @@ var manifest = [
     ['createSmartReorderAdvisor',                      './docs/shared/smartReorder',                  'createSmartReorderAdvisor'],
     ['createPerishableWasteForecaster',                './docs/shared/perishableWasteForecaster',     'createPerishableWasteForecaster'],
     ['createReagentSubstitutionAdvisor',               './docs/shared/reagentSubstitutionAdvisor',    'createReagentSubstitutionAdvisor'],
+    ['createShiftHandoffSynthesizer',                  './docs/shared/shiftHandoffSynthesizer',       'createShiftHandoffSynthesizer'],
 ];
 
 // ── Pre-computed lookup structures ─────────────────────────────────
