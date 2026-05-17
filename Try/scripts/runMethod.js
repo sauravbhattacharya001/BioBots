@@ -26,10 +26,18 @@ function runMethod(func) {
 
     // Allowlist valid property and arithmetic values to prevent URL path injection.
     // Without this, a crafted <option> value could manipulate the API path.
+    //
+    // NOTE: The property list MUST stay in lock-step with the <option value="...">
+    // entries under #property in Try/index.html. The arithmetic list mirrors
+    // #arithmetic (greater/lesser/equal) plus the aggregation button labels
+    // (Maximum/Minimum/Average) passed in by runMethod(func) callers.
+    // See GitHub issue #158 for the history of this allowlist.
     var VALID_PROPERTIES = [
-        'pressure', 'speed', 'temperature', 'viability',
-        'resolution', 'layerHeight', 'nozzleDiameter',
-        'crosslinkingIntensity', 'crosslinkingDuration'
+        'deadPercent', 'livePercent', 'elasticity',
+        'cl_duration', 'cl_intensity',
+        'extruder1', 'extruder2',
+        'layerHeight', 'layerNum',
+        'serial', 'wellplate'
     ];
     var VALID_ARITHMETIC = [
         'greater', 'lesser', 'equal',
