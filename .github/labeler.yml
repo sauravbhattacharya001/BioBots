@@ -1,23 +1,43 @@
-# Label definitions for actions/labeler
+# Label definitions for actions/labeler v6
 # See: https://github.com/actions/labeler
+#
+# Conventions:
+#   * Labels listed here must exist in the repo (create via `gh label create`).
+#   * `any-glob-to-any-file` matches if any changed file matches any glob.
+#   * Keep globs anchored to known paths so labels stay meaningful.
 
-# Language / component labels
+# ──────────────────────────────────────────────────────────────────────────────
+# Languages
+# ──────────────────────────────────────────────────────────────────────────────
 csharp:
   - changed-files:
       - any-glob-to-any-file:
           - 'Try/**/*.cs'
           - '*.sln'
-          - '*.csproj'
+          - '**/*.csproj'
           - '*.nuspec'
+          - 'BioBots.Models.nuspec'
 
 javascript:
   - changed-files:
       - any-glob-to-any-file:
+          - 'index.js'
+          - 'index.d.ts'
+          - 'jest.setup.js'
+          - 'jest.config.js'
+          - 'docs/shared/**/*.js'
           - 'Try/scripts/**/*.js'
-          - 'package.json'
-          - 'package-lock.json'
+          - '__tests__/**/*.js'
+          - 'tests/**/*.js'
 
-# Area labels
+python:
+  - changed-files:
+      - any-glob-to-any-file:
+          - '**/*.py'
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Areas
+# ──────────────────────────────────────────────────────────────────────────────
 api:
   - changed-files:
       - any-glob-to-any-file:
@@ -31,40 +51,93 @@ frontend:
       - any-glob-to-any-file:
           - 'Try/index.html'
           - 'Try/scripts/**'
-          - 'docs/**'
+          - 'docs/**/*.html'
+          - 'docs/**/*.css'
+          - 'docs/shared/**'
 
-data:
+npm-package:
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'index.js'
+          - 'index.d.ts'
+          - 'package.json'
+          - 'docs/shared/**/*.js'
+
+# Use existing repo label `area/data` (not `data`) so sync-labels doesn't drift.
+area/data:
   - changed-files:
       - any-glob-to-any-file:
           - 'bioprint-data.json'
           - 'docs/bioprint-data.json'
+          - 'docs/**/*.json'
 
 tests:
   - changed-files:
       - any-glob-to-any-file:
           - '__tests__/**'
+          - 'tests/**'
+          - 'jest.setup.js'
+          - 'jest.config.js'
+          - '**/test_*.py'
+          - '**/*.test.js'
 
+# ──────────────────────────────────────────────────────────────────────────────
+# Tooling / infra
+# ──────────────────────────────────────────────────────────────────────────────
 ci:
   - changed-files:
       - any-glob-to-any-file:
           - '.github/workflows/**'
           - '.github/labeler.yml'
           - '.github/dependabot.yml'
+          - 'codecov.yml'
 
 docker:
   - changed-files:
       - any-glob-to-any-file:
           - 'Dockerfile'
+          - 'Dockerfile.*'
           - '.dockerignore'
           - 'docker-compose*.yml'
+          - 'docker-compose*.yaml'
+
+dependencies:
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'package.json'
+          - 'package-lock.json'
+          - 'npm-shrinkwrap.json'
+          - 'Try/packages.config'
+          - '**/*.csproj'
+          - 'requirements*.txt'
+          - 'pyproject.toml'
+          - 'poetry.lock'
+          - '.github/dependabot.yml'
+
+copilot:
+  - changed-files:
+      - any-glob-to-any-file:
+          - '.github/copilot-instructions.md'
+          - '.github/copilot-setup-steps.yml'
+          - '.github/copilot-*.md'
+          - '.github/copilot-*.yml'
+
+security:
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'SECURITY.md'
+          - '.github/workflows/codeql.yml'
+          - '.github/ISSUE_TEMPLATE/security_vulnerability.yml'
 
 documentation:
   - changed-files:
       - any-glob-to-any-file:
-          - '*.md'
+          - '**/*.md'
           - 'docs/**/*.html'
           - 'CONTRIBUTING.md'
           - 'CHANGELOG.md'
+          - 'ARCHITECTURE.md'
+          - 'TESTING.md'
 
 config:
   - changed-files:
@@ -75,3 +148,4 @@ config:
           - '.editorconfig'
           - '.gitattributes'
           - '.gitignore'
+          - '.npmrc'
