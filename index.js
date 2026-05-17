@@ -106,6 +106,7 @@ var manifest = [
     ['createKnowledgeDistiller',                      './docs/shared/knowledgeDistiller',            'createKnowledgeDistiller'],
     ['createSchedulingIntelligence',                   './docs/shared/schedulingIntelligence',        'createSchedulingIntelligence'],
     ['createSmartReorderAdvisor',                      './docs/shared/smartReorder',                  'createSmartReorderAdvisor'],
+    ['createPerishableWasteForecaster',                './docs/shared/perishableWasteForecaster',     'createPerishableWasteForecaster'],
 ];
 
 // ── Pre-computed lookup structures ─────────────────────────────────

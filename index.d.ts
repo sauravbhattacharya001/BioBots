@@ -70,6 +70,7 @@ export function createStandardCurveCalculator(options?: Record<string, unknown>)
 // --- Lab Management ---
 export function createLabInventoryManager(options?: Record<string, unknown>): Record<string, unknown>;
 export function createSmartReorderAdvisor(options: { inventory: Record<string, unknown>; defaultLeadTimeDays?: number; safetyStockMultiplier?: number; targetCoverageDays?: number; minOrderUnits?: number }): Record<string, unknown>;
+export function createPerishableWasteForecaster(options: { inventory: Record<string, unknown>; horizonDays?: number; minWasteUnits?: number; unitCostFallback?: number; perishableCategories?: string[] }): Record<string, unknown>;
 export function createLabEquipmentScheduler(options?: Record<string, unknown>): Record<string, unknown>;
 export function createLabSafetyChecklist(options?: Record<string, unknown>): Record<string, unknown>;
 export function createLabDigitalTwin(options?: Record<string, unknown>): Record<string, unknown>;
