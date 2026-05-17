@@ -38,6 +38,10 @@
   ],
   "scripts": {
     "test": "jest --verbose --coverage",
+    "check:allowlist": "node scripts/check-runmethod-allowlist.js",
+    "lint:checks": "npm run check:allowlist",
+    "pretest": "npm run check:allowlist",
+    "pretest:ci": "npm run check:allowlist",
     "test:ci": "jest --verbose --coverage --coverageReporters=text --coverageReporters=lcov --coverageReporters=json-summary",
     "coverage": "jest --coverage --coverageReporters=text --coverageReporters=lcov --coverageReporters=json-summary --coverageReporters=html",
     "coverage:check": "jest --coverage --coverageReporters=text-summary",
