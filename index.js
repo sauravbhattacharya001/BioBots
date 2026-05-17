@@ -107,6 +107,7 @@ var manifest = [
     ['createSchedulingIntelligence',                   './docs/shared/schedulingIntelligence',        'createSchedulingIntelligence'],
     ['createSmartReorderAdvisor',                      './docs/shared/smartReorder',                  'createSmartReorderAdvisor'],
     ['createPerishableWasteForecaster',                './docs/shared/perishableWasteForecaster',     'createPerishableWasteForecaster'],
+    ['createReagentSubstitutionAdvisor',               './docs/shared/reagentSubstitutionAdvisor',    'createReagentSubstitutionAdvisor'],
 ];
 
 // ── Pre-computed lookup structures ─────────────────────────────────
