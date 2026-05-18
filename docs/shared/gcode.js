@@ -185,6 +185,7 @@ function createGCodeAnalyzer() {
         lineCount = 0;
         var gcodeLen = gcode.length;
         var lineStart = 0;
+        var trailedNewline = false;
 
         while (lineStart < gcodeLen) {
             var lineEnd = lineStart;
@@ -194,8 +195,9 @@ function createGCodeAnalyzer() {
             lineCount++;
             var line = gcode.substring(lineStart, lineEnd);
             // Skip \r\n or \r or \n
-            if (lineEnd < gcodeLen && gcode.charCodeAt(lineEnd) === 13) lineEnd++;
-            if (lineEnd < gcodeLen && gcode.charCodeAt(lineEnd) === 10) lineEnd++;
+            trailedNewline = false;
+            if (lineEnd < gcodeLen && gcode.charCodeAt(lineEnd) === 13) { lineEnd++; trailedNewline = true; }
+            if (lineEnd < gcodeLen && gcode.charCodeAt(lineEnd) === 10) { lineEnd++; trailedNewline = true; }
             lineStart = lineEnd;
 
             var parsed = parseLine(line);
@@ -362,7 +364,10 @@ function createGCodeAnalyzer() {
 
         return {
             summary: {
-                lineCount: lineCount,
+                // Match the conventional "wc -l + 1" behavior used in most editors
+                // and slicers: a trailing newline produces an additional (empty) line.
+                // e.g. "G28\nG1 X10\n" reports 3 lines (G28, G1 X10, empty trailer).
+                lineCount: lineCount + (trailedNewline ? 1 : 0),
                 commandCount: commandCount,
                 layerCount: layerArray.length,
                 estimatedTimeMin: round(totalTimeMin),

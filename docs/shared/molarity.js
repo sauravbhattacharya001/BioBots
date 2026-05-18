@@ -73,7 +73,10 @@ function createMolarityCalculator() {
             var volL = opts.volumeMl / 1000;
             var mass = opts.molarity * volL * mw;
             return {
-                massG: round(mass),
+                // Use 4 decimal places to preserve precision for sub-gram quantities
+                // (e.g. 7.305 g with default 2-decimal rounding becomes 7.31, losing
+                // meaningful precision for small-scale reagent prep).
+                massG: round(mass, 4),
                 molarity: opts.molarity,
                 volumeMl: opts.volumeMl,
                 mw: mw,
