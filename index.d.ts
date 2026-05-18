@@ -74,6 +74,7 @@ export function createPerishableWasteForecaster(options: { inventory: Record<str
 export function createReagentSubstitutionAdvisor(options: { inventory: Record<string, unknown>; substitutionMap?: Record<string, unknown>; riskAppetite?: 'cautious' | 'balanced' | 'aggressive'; minStockUnitsBuffer?: number; preferSameCategory?: boolean; now?: () => Date }): Record<string, unknown>;
 export function createShiftHandoffSynthesizer(options?: { now?: () => Date; riskAppetite?: 'cautious' | 'balanced' | 'aggressive' }): Record<string, unknown>;
 export function createBatchReleaseAdvisor(options?: { now?: () => Date; riskAppetite?: 'cautious' | 'balanced' | 'aggressive'; releaseThreshold?: number; reworkThreshold?: number; quarantineThreshold?: number }): Record<string, unknown>;
+export function createEquipmentDowntimeRiskAdvisor(options?: { now?: () => Date; riskAppetite?: 'cautious' | 'balanced' | 'aggressive' }): Record<string, unknown>;
 export function createLabEquipmentScheduler(options?: Record<string, unknown>): Record<string, unknown>;
 export function createLabSafetyChecklist(options?: Record<string, unknown>): Record<string, unknown>;
 export function createLabDigitalTwin(options?: Record<string, unknown>): Record<string, unknown>;
