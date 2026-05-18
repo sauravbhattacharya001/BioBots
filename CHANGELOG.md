@@ -15,8 +15,14 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
-- **18 new factory functions** exported from `index.js`, growing the public
-  surface from 73 (in 1.2.0) to **91**. Notable additions:
+- **19 new factory functions** exported from `index.js`, growing the public
+  surface from 73 (in 1.2.0) to **92**. Notable additions:
+  - `createBatchReleaseAdvisor` — agentic per-batch final-disposition advisor
+    (RELEASE / RELEASE_WITH_NOTE / REWORK / QUARANTINE_HOLD / REJECT_DESTROY)
+    with A–F grade, 0–100 release score, P0–P3 playbook, cross-signal insights
+    (sterility, mycoplasma, environmental excursions, deviations, viability,
+    expired-reagent lineage, intended-use criticality), deterministic via
+    injected `now()`, and text/markdown/json renderers.
   - `createCrossExperimentLearner` — pattern discovery across past experiments
     with correlation analysis (project v1.43.0).
   - `createExperimentRiskAssessor` — real-time biosafety + resource + regulatory

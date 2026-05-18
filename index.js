@@ -109,6 +109,7 @@ var manifest = [
     ['createPerishableWasteForecaster',                './docs/shared/perishableWasteForecaster',     'createPerishableWasteForecaster'],
     ['createReagentSubstitutionAdvisor',               './docs/shared/reagentSubstitutionAdvisor',    'createReagentSubstitutionAdvisor'],
     ['createShiftHandoffSynthesizer',                  './docs/shared/shiftHandoffSynthesizer',       'createShiftHandoffSynthesizer'],
+    ['createBatchReleaseAdvisor',                      './docs/shared/batchReleaseAdvisor',           'createBatchReleaseAdvisor'],
 ];
 
 // ── Pre-computed lookup structures ─────────────────────────────────
