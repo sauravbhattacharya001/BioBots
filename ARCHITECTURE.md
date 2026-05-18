@@ -8,7 +8,7 @@ Technical overview of the BioBots Tool codebase — a browser-based bioprinting 
 BioBots/
 ├── docs/                    # GitHub Pages site (HTML + shared JS)
 │   ├── index.html           # Landing page / dashboard hub
-│   ├── shared/              # Core computation modules (67 modules)
+│   ├── shared/              # Core computation modules (102 modules)
 │   │   ├── calculator.js    # Bioink volume & cost calculator
 │   │   ├── capability.js    # Six Sigma process capability (Cp/Cpk/Pp/Ppk)
 │   │   ├── constants.js     # Shared constants & defaults
@@ -23,9 +23,9 @@ BioBots/
 │   │   ├── scaffold.js      # Scaffold geometry, porosity, mechanics
 │   │   ├── utils.js         # DOM helpers, formatting, rounding
 │   │   └── viability.js     # Cell viability estimator
-│   ├── *.html               # Dashboard pages (69 pages)
+│   ├── *.html               # Dashboard pages (94 pages)
 │   └── bioprint-data.json   # Sample print dataset
-├── __tests__/               # Jest test suite (125 files)
+├── __tests__/               # Jest test suite (168 files)
 ├── tests/                   # Assert-based tests (viability)
 ├── Try/                     # ASP.NET Web API project
 │   └── scripts/             # 27 bioprinting simulation modules
@@ -36,7 +36,7 @@ BioBots/
 
 ### 1. Shared Computation Layer (`docs/shared/`)
 
-Pure-function JavaScript modules with no DOM dependencies. 67 modules use
+Pure-function JavaScript modules with no DOM dependencies. 102 modules use
 the revealing module pattern (`function createXxx() { ... return { ... }; }`)
 for encapsulation and testability.
 
@@ -60,7 +60,7 @@ for encapsulation and testability.
 | `validation.js` | (exports) | Shared input validation (`validatePositive`, `round`, `clamp`) | 3 |
 | `viability.js` | `createViabilityEstimator()` | Multi-stressor cell survival modeling | 9 |
 
-**Lab chemistry & biology modules** (51 additional modules):
+**Lab chemistry & biology modules** (85+ additional modules):
 
 | Module | Purpose |
 |--------|---------|
@@ -123,7 +123,7 @@ for encapsulation and testability.
 
 ### 2. Dashboard Layer (`docs/*.html`)
 
-69 single-page HTML dashboards, each focused on one analysis domain. Pages
+94 single-page HTML dashboards, each focused on one analysis domain. Pages
 load shared modules via `<script>` and use vanilla JavaScript for interactivity.
 
 | Category | Pages | Description |
@@ -162,7 +162,7 @@ operations. Each exports a factory function returning domain-specific methods.
 
 ### 4. Test Layer
 
-**Jest suite** (`__tests__/`, 125 files): Tests for all shared modules,
+**Jest suite** (`__tests__/`, 168 files): Tests for all shared modules,
 simulation scripts, and dashboard logic. Uses `--env node` for pure
 computation tests. Organized by category:
 
@@ -191,9 +191,69 @@ viability estimator (72 tests) using Node's built-in `assert` module.
 
 **Running tests:**
 ```bash
-npx jest --env node         # Jest (all 125 suites)
+npx jest --env node         # Jest (all 168 suites)
 node tests/viability.test.js  # Assert-based viability tests
 ```
+
+## Security Patterns
+
+Several cross-cutting security patterns are enforced across the shared
+modules. New modules MUST follow them.
+
+### Prototype-Pollution Defense
+
+Any module that accepts user-supplied keys to look up into an object
+(parameter overrides, template registries, recipe maps, etc.) must use
+**own-property checks**, not truthy lookups, to avoid resolving inherited
+keys such as `toString`, `hasOwnProperty`, `valueOf`, `constructor`,
+`__proto__`, or `prototype`.
+
+Wrong (allows inherited-key bypass; can mutate `Object.prototype`):
+
+```js
+for (var key in overrides) {
+    if (table[key]) {                          // ❌ inherited keys resolve truthy
+        table[key].value = overrides[key];     // ❌ can pollute Object.prototype
+    }
+}
+```
+
+Right (own-property + dangerous-key strip):
+
+```js
+var _isDangerousKey = require('./sanitize').isDangerousKey;
+var _hasOwn = Object.prototype.hasOwnProperty;
+function _own(obj, key) { return obj != null && _hasOwn.call(obj, key); }
+
+for (var key in overrides) {
+    if (!_own(overrides, key)) continue;       // ✅ skip inherited
+    if (_isDangerousKey(key)) continue;        // ✅ block __proto__/constructor/prototype
+    if (_own(table, key)) {                    // ✅ no toString/valueOf bypass
+        table[key].value = overrides[key];
+    }
+}
+```
+
+For untrusted *objects* (not just keys), use `stripDangerousKeys()` from
+`docs/shared/sanitize.js` to strip `__proto__`, `constructor`, and
+`prototype` recursively before merging into trusted state. For
+dot-separated paths supplied by users (e.g. `print_data.livePercent`),
+use `safeResolvePath()` from `sanitize.js` — it rejects any segment that
+appears in the dangerous-key set.
+
+### CSV Formula-Injection Defense (CWE-1236)
+
+All CSV-bound values must go through `csvSafe()` from
+`docs/shared/csvSafe.js`. It prefixes the OWASP dangerous-leader set
+(`=`, `+`, `-`, `@`, `\t`, `\r`, `|`) with a leading apostrophe, while
+preserving legitimate signed numbers, and applies RFC-4180 quoting for
+commas, quotes, newlines, and leading/trailing whitespace.
+
+### XSS Escaping
+
+All user-supplied or dataset-supplied strings rendered to the DOM must go
+through `escapeHtml()` from `docs/shared/constants.js` before being
+interpolated into `innerHTML` / template strings.
 
 ## Data Flow
 
@@ -271,3 +331,6 @@ New analysis modules should follow the existing pattern:
 3. Create `docs/my-module.html` dashboard page
 4. Update `CHANGELOG.md` under `[Unreleased]`
 5. Update the module table in this document
+6. If the module accepts user-supplied keys, paths, or CSV-bound values,
+   apply the patterns in the [Security Patterns](#security-patterns)
+   section above and add a security regression test

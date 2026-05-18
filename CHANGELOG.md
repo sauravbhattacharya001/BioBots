@@ -13,6 +13,24 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Security
+
+- **protocolTemplates: prototype-pollution defense.** `customize()` and
+  `addTemplate()` no longer trust inherited-key lookups. Previously, an
+  override key matching an `Object.prototype` member (e.g. `toString`,
+  `hasOwnProperty`, `valueOf`) would resolve truthy via the prototype
+  chain, bypass range/option validation, and mutate the built-in via
+  `tpl.parameters[key].value = val` — polluting `Object.prototype` for
+  the entire process. The fix uses `Object.prototype.hasOwnProperty.call`
+  for both source and target lookups, also strips `__proto__` /
+  `constructor` / `prototype` via `isDangerousKey`, and validates that
+  custom template ids are strings. New regression suite
+  `__tests__/protocolTemplates.prototype-pollution.test.js` covers all
+  bypass vectors.
+- **ARCHITECTURE.md: cross-cutting security patterns** (prototype-pollution
+  defense, CSV formula-injection defense, XSS escaping) documented with
+  wrong/right examples so new modules follow the same conventions.
+
 ### Added
 
 - **19 new factory functions** exported from `index.js`, growing the public

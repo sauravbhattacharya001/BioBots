@@ -27,6 +27,15 @@
 var _sanitize = require('./sanitize');
 var _isDangerousKey = _sanitize.isDangerousKey;
 
+// Use Object.prototype.hasOwnProperty.call(...) instead of `key in obj` or
+// `obj[key]`-as-truthy to avoid resolving inherited properties such as
+// `toString`, `hasOwnProperty`, or `valueOf` on untrusted lookups. Without
+// this, customize()/addTemplate() would accept inherited keys, bypass
+// range/option validation, and (for customize) mutate Object.prototype
+// built-ins via `tpl.parameters[key].value = val`.
+var _hasOwn = Object.prototype.hasOwnProperty;
+function _own(obj, key) { return obj != null && _hasOwn.call(obj, key); }
+
 var TEMPLATES = {
     'cell-thawing': {
         name: 'Cell Thawing Protocol',
@@ -309,8 +318,9 @@ function createProtocolTemplateLibrary() {
             }
             overrides = overrides || {};
             for (var key in overrides) {
-                if (_isDangerousKey(key)) continue;
-                if (tpl.parameters[key]) {
+                if (!_own(overrides, key)) continue;        // skip inherited
+                if (_isDangerousKey(key)) continue;          // __proto__/constructor/prototype
+                if (_own(tpl.parameters, key)) {             // own-prop only; no toString/valueOf bypass
                     var param = tpl.parameters[key];
                     var val = overrides[key];
                     if (param.range && (val < param.range[0] || val > param.range[1])) {
@@ -422,7 +432,10 @@ function createProtocolTemplateLibrary() {
             if (!template.name || !template.category || !template.steps) {
                 return { success: false, error: 'Template must have name, category, and steps.' };
             }
-            if (TEMPLATES[id]) {
+            if (typeof id !== 'string' || _isDangerousKey(id)) {
+                return { success: false, error: 'Invalid template id.' };
+            }
+            if (_own(TEMPLATES, id)) {
                 return { success: false, error: 'Cannot overwrite built-in template: ' + id };
             }
             customTemplates[id] = deepClone(template);
