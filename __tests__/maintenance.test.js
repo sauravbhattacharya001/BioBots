@@ -19,10 +19,13 @@ function createDOM() {
     html = html.replace(/<script src="shared\/data-loader\.js"><\/script>/, '');
     // Inject a stub for loadBioprintData before the main IIFE so the XHR
     // fallback (which tries to fetch bioprint-data.json from localhost) is
-    // never reached.
+    // never reached. The real API returns a Promise resolving to the data
+    // array (it accepts a {validate} options object), so the stub must do
+    // the same — otherwise the .then() chain throws and refresh() never
+    // runs (schedule/alerts/impact never render).
     html = html.replace(
         '<script>',
-        '<script>window.loadBioprintData = function(cb) { cb([]); };</script>\n<script>',
+        '<script>window.loadBioprintData = function() { return Promise.resolve([]); };</script>\n<script>',
     );
 
     const dom = new JSDOM(html, {
@@ -35,13 +38,18 @@ function createDOM() {
 
 let dom, window, document;
 
-beforeEach(() => {
+beforeEach(async () => {
     dom = createDOM();
     window = dom.window;
     document = window.document;
     window.localStorage.clear();
     const event = new window.Event('DOMContentLoaded');
     document.dispatchEvent(event);
+    // loadPrintData() is async (returns a Promise) and calls refresh() in a
+    // .then(), so we must let the microtask queue drain before tests query
+    // the rendered DOM. Two awaits cover the inner .then() + render work.
+    await Promise.resolve();
+    await Promise.resolve();
 });
 
 afterEach(() => {
