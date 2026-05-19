@@ -1,5 +1,7 @@
 'use strict';
 
+var csvSafe = require('./csvSafe').csvSafe;
+
 /**
  * Mycoplasma Test Logger
  *
@@ -201,40 +203,6 @@ function createMycoplasmaTestLogger(options) {
             parts.push('⚠️ High positivity rate (' + positivityRate + '%) — review lab practices.');
         }
         return parts.join(' ');
-    }
-
-    /**
-     * Escape a string for safe CSV output.
-     * - Prefixes formula-injection characters (=, +, -, @, \t, \r) with
-     *   a single-quote to force text mode (OWASP CSV injection defense).
-     * - Wraps in double-quotes and escapes internal quotes when the value
-     *   contains commas, quotes, or newlines.
-     * @param {string} str - Raw field value.
-     * @returns {string} Safely escaped CSV field.
-     */
-    function csvSafe(str) {
-        if (str == null) return '';
-        str = String(str);
-        if (str.length === 0) return '';
-
-        // CSV formula injection defense (OWASP / CWE-1236)
-        var firstChar = str.charAt(0);
-        if (firstChar === '=' || firstChar === '+' || firstChar === '-' ||
-            firstChar === '@' || firstChar === '\t' || firstChar === '\r' ||
-            firstChar === '|') {
-            // Preserve legitimate negative/positive numbers (e.g. -3.14, +1.5)
-            if (!((firstChar === '-' || firstChar === '+') && str.length > 1 && isFinite(Number(str)))) {
-                str = "'" + str;
-            }
-        }
-
-        // Quote if contains comma, double-quote, or newline
-        if (str.indexOf(',') !== -1 || str.indexOf('"') !== -1 ||
-            str.indexOf('\n') !== -1 || str.indexOf('\r') !== -1 ||
-            str !== str.trim()) {
-            return '"' + str.replace(/"/g, '""') + '"';
-        }
-        return str;
     }
 
     function exportRecords(format) {

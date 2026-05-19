@@ -1,7 +1,9 @@
 'use strict';
 
+var csvSafe = require('./csvSafe').csvSafe;
+
 /**
- * Sample Label Generator — creates formatted lab sample labels with
+ * Sample Label Generator - creates formatted lab sample labels with
  * unique IDs, metadata, and optional barcode-ready strings.
  *
  * Generates standardized labels for tubes, plates, slides, and containers
@@ -116,32 +118,6 @@ function createSampleLabelGenerator() {
         }
         _counter = startNum + count - 1;
         return labels;
-    }
-
-    /**
-     * Escape a value for safe CSV inclusion, defending against formula
-     * injection (CWE-1236).  Characters that spreadsheet applications
-     * interpret as formula leaders (= + - @ \t \r) are prefixed with a
-     * single-quote to force text mode — unless the value is a valid
-     * number (e.g. -3.14).
-     */
-    function csvSafe(value) {
-        if (value == null) return '';
-        var str = String(value);
-        var first = str.charAt(0);
-        if (first === '=' || first === '+' || first === '-' ||
-            first === '@' || first === '\t' || first === '\r' ||
-            first === '|') {
-            if (!((first === '-' || first === '+') && str.length > 1 && isFinite(Number(str)))) {
-                str = "'" + str;
-            }
-        }
-        if (str.indexOf(',') !== -1 || str.indexOf('"') !== -1 ||
-            str.indexOf('\n') !== -1 || str.indexOf('\r') !== -1 ||
-            str !== str.trim()) {
-            return '"' + str.replace(/"/g, '""') + '"';
-        }
-        return str;
     }
 
     function toCSV(labels) {

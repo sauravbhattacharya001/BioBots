@@ -67,6 +67,7 @@ var PARAMS = ['temperature', 'co2', 'humidity', 'o2'];
 /* ── helpers ─────────────────────────────────────────────────── */
 var _stats = require('./stats');
 var _round = require('./validation').round;
+var csvSafe = require('./csvSafe').csvSafe;
 
 function mean(arr) {
   if (!arr.length) return null;
@@ -273,29 +274,6 @@ function createEnvironmentalMonitor(opts) {
   function clear() {
     readings.length = 0;
     alerts.length = 0;
-  }
-
-  /**
-   * Escape a value for safe CSV inclusion, defending against formula
-   * injection (CWE-1236).
-   */
-  function csvSafe(value) {
-    if (value == null) return '';
-    var str = String(value);
-    var first = str.charAt(0);
-    if (first === '=' || first === '+' || first === '-' ||
-        first === '@' || first === '\t' || first === '\r' ||
-        first === '|') {
-      if (!((first === '-' || first === '+') && str.length > 1 && isFinite(Number(str)))) {
-        str = "'" + str;
-      }
-    }
-    if (str.indexOf(',') !== -1 || str.indexOf('"') !== -1 ||
-        str.indexOf('\n') !== -1 || str.indexOf('\r') !== -1 ||
-        str !== str.trim()) {
-      return '"' + str.replace(/"/g, '""') + '"';
-    }
-    return str;
   }
 
   function exportCSV() {
