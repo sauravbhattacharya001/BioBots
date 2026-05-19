@@ -52,7 +52,13 @@ class TraitSnapshot:
                 self.shannon -= freq * math.log(freq)
 
         # Simpson's diversity: D = 1 - sum(p^2)
-        self.simpson = 1.0 - sum(f ** 2 for f in self.frequencies.values())
+        # Empty population has no diversity (probability two random members
+        # differ is undefined and conventionally reported as 0, matching
+        # Shannon and heterozygosity above).
+        if self.total > 0:
+            self.simpson = 1.0 - sum(f ** 2 for f in self.frequencies.values())
+        else:
+            self.simpson = 0.0
 
         # Heterozygosity: fraction with non-modal value
         if self.total > 0 and self.modal_value is not None:
