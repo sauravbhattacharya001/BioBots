@@ -6,10 +6,14 @@
  * Covers: registerEquipment, registerReagent, recordEnvironmentalReading,
  * recordEquipmentUsage, recordReagentUsage, simulate, getHealthScore,
  * detectAnomalies, getTimeline, exportState, DEMO_SCENARIOS.
+ *
+ * NOTE: This suite uses Jest's globals (describe / it / beforeEach / expect)
+ * to match the rest of the repository. It was previously authored against the
+ * Node built-in test runner (node:test + node:assert/strict), which Jest
+ * silently failed to load ("Your test suite must contain at least one test"),
+ * meaning ~50 assertions covering this module were never actually executed.
  */
 
-const { describe, it, beforeEach } = require('node:test');
-const assert = require('node:assert/strict');
 const { createLabDigitalTwin } = require('../docs/shared/labDigitalTwin');
 
 // ---------------------------------------------------------------------------
@@ -26,29 +30,29 @@ describe('registerEquipment', () => {
       installDate: '2025-01-15', maintenanceIntervalDays: 90,
       usageHoursPerDay: 6
     });
-    assert.equal(eq.id, 'P1');
-    assert.equal(eq.name, 'Printer-1');
-    assert.equal(eq.type, 'bioprinter');
-    assert.equal(eq.maintenanceIntervalDays, 90);
-    assert.equal(eq.totalUsageHours, 0);
+    expect(eq.id).toBe('P1');
+    expect(eq.name).toBe('Printer-1');
+    expect(eq.type).toBe('bioprinter');
+    expect(eq.maintenanceIntervalDays).toBe(90);
+    expect(eq.totalUsageHours).toBe(0);
   });
 
   it('defaults name to id when not provided', () => {
     const eq = twin.registerEquipment({ id: 'X1' });
-    assert.equal(eq.name, 'X1');
+    expect(eq.name).toBe('X1');
   });
 
   it('throws on missing id', () => {
-    assert.throws(() => twin.registerEquipment({}), /id/);
+    expect(() => twin.registerEquipment({})).toThrow(/id/);
   });
 
   it('throws on null input', () => {
-    assert.throws(() => twin.registerEquipment(null), /id/);
+    expect(() => twin.registerEquipment(null)).toThrow(/id/);
   });
 
   it('throws on dangerous key (prototype pollution)', () => {
-    assert.throws(() => twin.registerEquipment({ id: '__proto__' }), /Invalid/);
-    assert.throws(() => twin.registerEquipment({ id: 'constructor' }), /Invalid/);
+    expect(() => twin.registerEquipment({ id: '__proto__' })).toThrow(/Invalid/);
+    expect(() => twin.registerEquipment({ id: 'constructor' })).toThrow(/Invalid/);
   });
 });
 
@@ -65,25 +69,25 @@ describe('registerReagent', () => {
       id: 'R1', name: 'Alginate 2%', lotNumber: 'LOT-A1',
       expiryDate: '2026-06-01', currentVolumeMl: 500, reorderThresholdMl: 100
     });
-    assert.equal(r.id, 'R1');
-    assert.equal(r.name, 'Alginate 2%');
-    assert.equal(r.currentVolumeMl, 500);
-    assert.equal(r.reorderThresholdMl, 100);
-    assert.equal(r.initialVolumeMl, 500);
+    expect(r.id).toBe('R1');
+    expect(r.name).toBe('Alginate 2%');
+    expect(r.currentVolumeMl).toBe(500);
+    expect(r.reorderThresholdMl).toBe(100);
+    expect(r.initialVolumeMl).toBe(500);
   });
 
   it('throws on missing id', () => {
-    assert.throws(() => twin.registerReagent({}), /id/);
+    expect(() => twin.registerReagent({})).toThrow(/id/);
   });
 
   it('throws on dangerous key', () => {
-    assert.throws(() => twin.registerReagent({ id: '__proto__' }), /Invalid/);
+    expect(() => twin.registerReagent({ id: '__proto__' })).toThrow(/Invalid/);
   });
 
   it('defaults currentVolumeMl to 1000', () => {
     const r = twin.registerReagent({ id: 'R2' });
-    assert.equal(r.currentVolumeMl, 1000);
-    assert.equal(r.initialVolumeMl, 1000);
+    expect(r.currentVolumeMl).toBe(1000);
+    expect(r.initialVolumeMl).toBe(1000);
   });
 });
 
@@ -99,19 +103,19 @@ describe('recordEnvironmentalReading', () => {
     const r = twin.recordEnvironmentalReading({
       temperatureC: 23.5, humidityPct: 48, co2Pct: 5.2, particleCount: 120
     });
-    assert.equal(r.temperatureC, 23.5);
-    assert.equal(r.humidityPct, 48);
-    assert.equal(r.co2Pct, 5.2);
-    assert.equal(r.particleCount, 120);
-    assert.ok(r.timestamp);
+    expect(r.temperatureC).toBe(23.5);
+    expect(r.humidityPct).toBe(48);
+    expect(r.co2Pct).toBe(5.2);
+    expect(r.particleCount).toBe(120);
+    expect(r.timestamp).toBeTruthy();
   });
 
   it('defaults values when not provided', () => {
     const r = twin.recordEnvironmentalReading({});
-    assert.equal(r.temperatureC, 22);
-    assert.equal(r.humidityPct, 45);
-    assert.equal(r.co2Pct, 5);
-    assert.equal(r.particleCount, 100);
+    expect(r.temperatureC).toBe(22);
+    expect(r.humidityPct).toBe(45);
+    expect(r.co2Pct).toBe(5);
+    expect(r.particleCount).toBe(100);
   });
 });
 
@@ -130,11 +134,11 @@ describe('recordEquipmentUsage', () => {
     twin.recordEquipmentUsage('P1', 4, 'scaffold print');
     twin.recordEquipmentUsage('P1', 2, 'test run');
     const state = twin.exportState();
-    assert.equal(state.equipment.P1.totalUsageHours, 6);
+    expect(state.equipment.P1.totalUsageHours).toBe(6);
   });
 
   it('throws on unknown equipment', () => {
-    assert.throws(() => twin.recordEquipmentUsage('UNKNOWN', 1), /Unknown equipment/);
+    expect(() => twin.recordEquipmentUsage('UNKNOWN', 1)).toThrow(/Unknown equipment/);
   });
 });
 
@@ -152,17 +156,17 @@ describe('recordReagentUsage', () => {
   it('decrements volume', () => {
     twin.recordReagentUsage('R1', 50, 'print job');
     const state = twin.exportState();
-    assert.equal(state.reagents.R1.currentVolumeMl, 450);
+    expect(state.reagents.R1.currentVolumeMl).toBe(450);
   });
 
   it('does not go below zero', () => {
     twin.recordReagentUsage('R1', 600, 'bulk use');
     const state = twin.exportState();
-    assert.equal(state.reagents.R1.currentVolumeMl, 0);
+    expect(state.reagents.R1.currentVolumeMl).toBe(0);
   });
 
   it('throws on unknown reagent', () => {
-    assert.throws(() => twin.recordReagentUsage('UNKNOWN', 10), /Unknown reagent/);
+    expect(() => twin.recordReagentUsage('UNKNOWN', 10)).toThrow(/Unknown reagent/);
   });
 });
 
@@ -176,31 +180,31 @@ describe('getHealthScore', () => {
     twin.registerEquipment({ id: 'P1', maintenanceIntervalDays: 90 });
     twin.registerReagent({ id: 'R1', currentVolumeMl: 500, reorderThresholdMl: 100 });
     const score = twin.getHealthScore();
-    assert.ok(score.overall >= 80);
-    assert.equal(score.equipmentCount, 1);
-    assert.equal(score.reagentCount, 1);
-    assert.ok(['A', 'B', 'C', 'D', 'F'].includes(score.grade));
+    expect(score.overall).toBeGreaterThanOrEqual(80);
+    expect(score.equipmentCount).toBe(1);
+    expect(score.reagentCount).toBe(1);
+    expect(['A', 'B', 'C', 'D', 'F']).toContain(score.grade);
   });
 
   it('degrades when reagent is below threshold', () => {
     const twin = createLabDigitalTwin();
     twin.registerReagent({ id: 'R1', currentVolumeMl: 50, reorderThresholdMl: 100 });
     const score = twin.getHealthScore();
-    assert.ok(score.reagents < 100);
+    expect(score.reagents).toBeLessThan(100);
   });
 
   it('degrades when reagent is depleted', () => {
     const twin = createLabDigitalTwin();
     twin.registerReagent({ id: 'R1', currentVolumeMl: 0, reorderThresholdMl: 100 });
     const score = twin.getHealthScore();
-    assert.ok(score.reagents < 50);
+    expect(score.reagents).toBeLessThan(50);
   });
 
   it('handles empty twin (no equipment or reagents)', () => {
     const twin = createLabDigitalTwin();
     const score = twin.getHealthScore();
-    assert.equal(score.overall, 100);
-    assert.equal(score.equipmentCount, 0);
+    expect(score.overall).toBe(100);
+    expect(score.equipmentCount).toBe(0);
   });
 });
 
@@ -214,7 +218,7 @@ describe('detectAnomalies', () => {
     for (let i = 0; i < 4; i++) {
       twin.recordEnvironmentalReading({ temperatureC: 22 });
     }
-    assert.deepEqual(twin.detectAnomalies(), []);
+    expect(twin.detectAnomalies()).toEqual([]);
   });
 
   it('detects temperature anomaly via z-score', () => {
@@ -224,11 +228,11 @@ describe('detectAnomalies', () => {
     }
     twin.recordEnvironmentalReading({ temperatureC: 45, humidityPct: 45, co2Pct: 5, particleCount: 100 });
     const anomalies = twin.detectAnomalies();
-    assert.ok(anomalies.length > 0);
+    expect(anomalies.length).toBeGreaterThan(0);
     const tempAnomaly = anomalies.find(a => a.metric === 'temperatureC');
-    assert.ok(tempAnomaly);
-    assert.ok(tempAnomaly.zScore > 2);
-    assert.ok(['warning', 'critical'].includes(tempAnomaly.severity));
+    expect(tempAnomaly).toBeTruthy();
+    expect(tempAnomaly.zScore).toBeGreaterThan(2);
+    expect(['warning', 'critical']).toContain(tempAnomaly.severity);
   });
 
   it('no anomalies for consistent readings', () => {
@@ -237,7 +241,7 @@ describe('detectAnomalies', () => {
       twin.recordEnvironmentalReading({ temperatureC: 22, humidityPct: 45, co2Pct: 5, particleCount: 100 });
     }
     const anomalies = twin.detectAnomalies();
-    assert.equal(anomalies.length, 0);
+    expect(anomalies.length).toBe(0);
   });
 });
 
@@ -249,23 +253,22 @@ describe('simulate', () => {
   it('returns structured simulation result', () => {
     const twin = createLabDigitalTwin.DEMO_SCENARIOS.standard();
     const sim = twin.simulate(30);
-    assert.equal(sim.simulationDays, 30);
-    assert.ok(sim.healthScore);
-    assert.ok(Array.isArray(sim.equipmentFailureRisks));
-    assert.ok(Array.isArray(sim.reagentDepletions));
-    assert.ok(Array.isArray(sim.environmentalDrifts));
-    assert.ok(Array.isArray(sim.recommendations));
+    expect(sim.simulationDays).toBe(30);
+    expect(sim.healthScore).toBeTruthy();
+    expect(Array.isArray(sim.equipmentFailureRisks)).toBe(true);
+    expect(Array.isArray(sim.reagentDepletions)).toBe(true);
+    expect(Array.isArray(sim.environmentalDrifts)).toBe(true);
+    expect(Array.isArray(sim.recommendations)).toBe(true);
   });
 
   it('recommendations include priority field', () => {
     const twin = createLabDigitalTwin.DEMO_SCENARIOS.highThroughput();
     const sim = twin.simulate(60);
-    assert.ok(sim.recommendations.length > 0);
+    expect(sim.recommendations.length).toBeGreaterThan(0);
     for (const rec of sim.recommendations) {
-      assert.ok(['critical', 'high', 'medium', 'low'].includes(rec.priority),
-        `Unexpected priority: ${rec.priority}`);
-      assert.ok(rec.category);
-      assert.ok(rec.message);
+      expect(['critical', 'high', 'medium', 'low']).toContain(rec.priority);
+      expect(rec.category).toBeTruthy();
+      expect(rec.message).toBeTruthy();
     }
   });
 
@@ -277,8 +280,8 @@ describe('simulate', () => {
     });
     const sim = twin.simulate(7);
     const maintenanceRecs = sim.recommendations.filter(r => r.category === 'equipment');
-    assert.ok(maintenanceRecs.length > 0);
-    assert.equal(maintenanceRecs[0].priority, 'critical');
+    expect(maintenanceRecs.length).toBeGreaterThan(0);
+    expect(maintenanceRecs[0].priority).toBe('critical');
   });
 
   it('detects reagent depletion warning', () => {
@@ -290,13 +293,13 @@ describe('simulate', () => {
     twin.recordReagentUsage('LOW', 10, 'use2');
     const sim = twin.simulate(30);
     const reagentRecs = sim.recommendations.filter(r => r.category === 'reagent');
-    assert.ok(reagentRecs.length > 0);
+    expect(reagentRecs.length).toBeGreaterThan(0);
   });
 
   it('defaults to 30 days', () => {
     const twin = createLabDigitalTwin.DEMO_SCENARIOS.startup();
     const sim = twin.simulate();
-    assert.equal(sim.simulationDays, 30);
+    expect(sim.simulationDays).toBe(30);
   });
 });
 
@@ -310,9 +313,9 @@ describe('getTimeline', () => {
     twin.recordReagentUsage('ALG', 100, 'batch 1');
     twin.recordReagentUsage('ALG', 100, 'batch 2');
     const events = twin.getTimeline(90);
-    assert.ok(Array.isArray(events));
+    expect(Array.isArray(events)).toBe(true);
     for (let i = 1; i < events.length; i++) {
-      assert.ok(events[i].daysFromNow >= events[i - 1].daysFromNow);
+      expect(events[i].daysFromNow).toBeGreaterThanOrEqual(events[i - 1].daysFromNow);
     }
   });
 
@@ -324,7 +327,7 @@ describe('getTimeline', () => {
     });
     const events = twin.getTimeline(60);
     const maintEvents = events.filter(e => e.type === 'maintenance');
-    assert.ok(maintEvents.length > 0);
+    expect(maintEvents.length).toBeGreaterThan(0);
   });
 
   it('includes expiry events', () => {
@@ -333,13 +336,13 @@ describe('getTimeline', () => {
     twin.registerReagent({ id: 'R1', name: 'Expiring', expiryDate: soon, currentVolumeMl: 500 });
     const events = twin.getTimeline(30);
     const expiryEvents = events.filter(e => e.type === 'expiry');
-    assert.ok(expiryEvents.length > 0);
+    expect(expiryEvents.length).toBeGreaterThan(0);
   });
 
   it('defaults to 30 days window', () => {
     const twin = createLabDigitalTwin.DEMO_SCENARIOS.startup();
     const events = twin.getTimeline();
-    assert.ok(Array.isArray(events));
+    expect(Array.isArray(events)).toBe(true);
   });
 });
 
@@ -351,20 +354,20 @@ describe('exportState', () => {
   it('returns JSON state with all sections', () => {
     const twin = createLabDigitalTwin.DEMO_SCENARIOS.standard();
     const state = twin.exportState();
-    assert.ok(state.equipment);
-    assert.ok(state.reagents);
-    assert.ok(Array.isArray(state.environmentalReadings));
-    assert.ok(state.healthScore);
-    assert.ok(state.exportedAt);
+    expect(state.equipment).toBeTruthy();
+    expect(state.reagents).toBeTruthy();
+    expect(Array.isArray(state.environmentalReadings)).toBe(true);
+    expect(state.healthScore).toBeTruthy();
+    expect(state.exportedAt).toBeTruthy();
   });
 
   it('returns text format when requested', () => {
     const twin = createLabDigitalTwin.DEMO_SCENARIOS.standard();
     const text = twin.exportState('text');
-    assert.equal(typeof text, 'string');
-    assert.ok(text.includes('Lab Digital Twin State'));
-    assert.ok(text.includes('Equipment'));
-    assert.ok(text.includes('Reagents'));
+    expect(typeof text).toBe('string');
+    expect(text).toContain('Lab Digital Twin State');
+    expect(text).toContain('Equipment');
+    expect(text).toContain('Reagents');
   });
 });
 
@@ -376,23 +379,23 @@ describe('DEMO_SCENARIOS', () => {
   it('standard scenario is functional', () => {
     const twin = createLabDigitalTwin.DEMO_SCENARIOS.standard();
     const sim = twin.simulate(14);
-    assert.ok(sim.healthScore.overall > 0);
-    assert.ok(sim.equipmentFailureRisks.length > 0);
+    expect(sim.healthScore.overall).toBeGreaterThan(0);
+    expect(sim.equipmentFailureRisks.length).toBeGreaterThan(0);
   });
 
   it('highThroughput scenario is functional', () => {
     const twin = createLabDigitalTwin.DEMO_SCENARIOS.highThroughput();
     const score = twin.getHealthScore();
-    assert.equal(score.equipmentCount, 3);
-    assert.equal(score.reagentCount, 2);
+    expect(score.equipmentCount).toBe(3);
+    expect(score.reagentCount).toBe(2);
   });
 
   it('startup scenario is functional', () => {
     const twin = createLabDigitalTwin.DEMO_SCENARIOS.startup();
     const score = twin.getHealthScore();
-    assert.equal(score.equipmentCount, 1);
-    assert.equal(score.reagentCount, 1);
-    assert.equal(score.readingCount, 1);
+    expect(score.equipmentCount).toBe(1);
+    expect(score.reagentCount).toBe(1);
+    expect(score.readingCount).toBe(1);
   });
 });
 
@@ -416,11 +419,11 @@ describe('full lifecycle integration', () => {
     }
 
     const state = twin.exportState();
-    assert.equal(state.equipment.P1.totalUsageHours, 10);
-    assert.equal(state.reagents.R1.currentVolumeMl, 50);
+    expect(state.equipment.P1.totalUsageHours).toBe(10);
+    expect(state.reagents.R1.currentVolumeMl).toBe(50);
 
     const score = twin.getHealthScore();
-    assert.ok(score.overall > 0);
-    assert.ok(score.overall <= 100);
+    expect(score.overall).toBeGreaterThan(0);
+    expect(score.overall).toBeLessThanOrEqual(100);
   });
 });
