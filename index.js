@@ -111,6 +111,7 @@ var manifest = [
     ['createShiftHandoffSynthesizer',                  './docs/shared/shiftHandoffSynthesizer',       'createShiftHandoffSynthesizer'],
     ['createBatchReleaseAdvisor',                      './docs/shared/batchReleaseAdvisor',           'createBatchReleaseAdvisor'],
     ['createEquipmentDowntimeRiskAdvisor',             './docs/shared/equipmentDowntimeRiskAdvisor',  'createEquipmentDowntimeRiskAdvisor'],
+    ['createContaminationPropagationAdvisor',          './docs/shared/contaminationPropagationAdvisor', 'createContaminationPropagationAdvisor'],
 ];
 
 // ── Pre-computed lookup structures ─────────────────────────────────

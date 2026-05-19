@@ -91,6 +91,7 @@ export function createCompatibilityMatrix(options?: Record<string, unknown>): Re
 export function createFreezeThawTracker(options?: Record<string, unknown>): Record<string, unknown>;
 export function createContaminationRiskScorer(options?: Record<string, unknown>): Record<string, unknown>;
 export function createContaminationEarlyWarning(options?: Record<string, unknown>): Record<string, unknown>;
+export function createContaminationPropagationAdvisor(options?: { now?: () => Date; riskAppetite?: 'cautious' | 'balanced' | 'aggressive' }): Record<string, unknown>;
 export function createMycoplasmaTestLogger(options?: Record<string, unknown>): Record<string, unknown>;
 export function createMediaOptimizer(options?: Record<string, unknown>): Record<string, unknown>;
 
