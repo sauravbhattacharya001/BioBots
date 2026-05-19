@@ -63,6 +63,22 @@ describe('GrowthCurveAnalyzer', function () {
         expect(csv.split('\n').length).toBeGreaterThan(1);
     });
 
+    test('toCSV escapes phase names that look like spreadsheet formulas (CWE-1236)', function () {
+        var result = analyzer.analyze(sampleData);
+        // Simulate a tampered analysis with a malicious phase name (could occur
+        // if phase taxonomy is loaded from untrusted config).
+        if (result.phases && result.phases.length > 0) {
+            result.phases[0].name = '=cmd|"/c calc"!A0';
+            result.phases[0].startIndex = 0;
+            result.phases[0].endIndex = result.dataPoints - 1;
+        }
+        var csv = analyzer.toCSV(result);
+        // Malicious cell must NOT appear unescaped after a comma.
+        expect(csv).not.toMatch(/,=cmd\|/);
+        // Should be wrapped (RFC-4180 quoting + text-mode leader).
+        expect(csv).toMatch(/"'=cmd/);
+    });
+
     test('validates input', function () {
         expect(function () { analyzer.analyze({}); }).toThrow();
         expect(function () { analyzer.analyze({ timepoints: [1], counts: [1, 2] }); }).toThrow();

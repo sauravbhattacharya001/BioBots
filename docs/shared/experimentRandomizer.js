@@ -1,5 +1,7 @@
 'use strict';
 
+var _csvSafe = require('./csvSafe').csvSafe;
+
 /**
  * Experiment Randomizer — randomized experimental design for bioprinting studies.
  *
@@ -325,14 +327,22 @@ function createExperimentRandomizer() {
      * @returns {string}
      */
     function toCSV(design) {
+        // SECURITY (CWE-1236): treatment names and blinding codes are user-supplied
+        // and may begin with =, +, -, @, |, \t, or \r — characters that spreadsheet
+        // applications (Excel, Google Sheets, LibreOffice Calc) interpret as formulas
+        // or DDE commands when the CSV is opened. They may also contain commas,
+        // double-quotes, or newlines that break naive concatenation. Route every
+        // user-controlled cell through csvSafe, which applies OWASP formula-leader
+        // escaping plus RFC-4180 quoting.
         var rows = [];
 
         if (design.type === 'LatinSquare') {
             rows.push('Unit,Row,Column,Treatment' + (design.blindingCodes ? ',Code' : ''));
             for (var i = 0; i < design.assignments.length; i++) {
                 var a = design.assignments[i];
-                var line = a.unit + ',' + a.row + ',' + a.column + ',' + a.treatment;
-                if (design.blindingCodes) { line += ',' + design.blindingCodes[a.treatment]; }
+                var line = _csvSafe(a.unit) + ',' + _csvSafe(a.row) + ',' +
+                           _csvSafe(a.column) + ',' + _csvSafe(a.treatment);
+                if (design.blindingCodes) { line += ',' + _csvSafe(design.blindingCodes[a.treatment]); }
                 rows.push(line);
             }
         } else if (design.type === 'RCBD') {
@@ -340,8 +350,9 @@ function createExperimentRandomizer() {
             for (var b = 0; b < design.blockDetails.length; b++) {
                 for (var j = 0; j < design.blockDetails[b].assignments.length; j++) {
                     var ba = design.blockDetails[b].assignments[j];
-                    var bline = ba.unit + ',' + ba.block + ',' + ba.position + ',' + ba.treatment;
-                    if (design.blindingCodes) { bline += ',' + design.blindingCodes[ba.treatment]; }
+                    var bline = _csvSafe(ba.unit) + ',' + _csvSafe(ba.block) + ',' +
+                                _csvSafe(ba.position) + ',' + _csvSafe(ba.treatment);
+                    if (design.blindingCodes) { bline += ',' + _csvSafe(design.blindingCodes[ba.treatment]); }
                     rows.push(bline);
                 }
             }
@@ -349,8 +360,8 @@ function createExperimentRandomizer() {
             rows.push('Unit,Treatment' + (design.blindingCodes ? ',Code' : ''));
             for (var k = 0; k < design.assignments.length; k++) {
                 var ca = design.assignments[k];
-                var cline = ca.unit + ',' + ca.treatment;
-                if (design.blindingCodes) { cline += ',' + design.blindingCodes[ca.treatment]; }
+                var cline = _csvSafe(ca.unit) + ',' + _csvSafe(ca.treatment);
+                if (design.blindingCodes) { cline += ',' + _csvSafe(design.blindingCodes[ca.treatment]); }
                 rows.push(cline);
             }
         }

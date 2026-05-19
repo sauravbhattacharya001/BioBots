@@ -115,4 +115,80 @@ describe('ExperimentRandomizer', function () {
             expect(parsed.type).toBe('LatinSquare');
         });
     });
+
+    describe('toCSV security (CWE-1236 formula injection)', function () {
+        it('escapes treatment names beginning with =, +, @, |', function () {
+            var d = rand.completeRandomization({
+                treatments: ['=cmd|"/c calc"!A0', '+1+1', '@SUM(A1)', '|pwn'],
+                replicatesPerTreatment: 1,
+                seed: 7
+            });
+            var csv = rand.toCSV(d);
+            // No raw formula-leader cells should appear after a comma. Each must
+            // have a leading single-quote injected to force text mode.
+            expect(csv).not.toMatch(/,=cmd/);
+            expect(csv).not.toMatch(/,@SUM/);
+            expect(csv).not.toMatch(/,\|pwn/);
+            // The escaped form has a leading single-quote (possibly inside RFC-4180
+            // quotes when the cell also contains commas/quotes).
+            expect(csv).toMatch(/(,|\n|^)"?'=cmd/);
+            expect(csv).toMatch(/(,|\n|^)"?'@SUM/);
+            expect(csv).toMatch(/(,|\n|^)"?'\|pwn/);
+        });
+
+        it('does not corrupt legitimate negative numeric treatments', function () {
+            var d = rand.completeRandomization({
+                treatments: ['-3.14', 'Control'],
+                replicatesPerTreatment: 1,
+                seed: 1
+            });
+            var csv = rand.toCSV(d);
+            // legitimate negative number should not be quoted/escaped
+            expect(csv).toMatch(/(^|,|\n)-3\.14(,|$|\n)/);
+        });
+
+        it('RFC-4180-quotes treatment names containing commas and quotes', function () {
+            var d = rand.completeRandomization({
+                treatments: ['A, B', 'has"quote'],
+                replicatesPerTreatment: 1,
+                seed: 1
+            });
+            var csv = rand.toCSV(d);
+            expect(csv).toContain('"A, B"');
+            expect(csv).toContain('"has""quote"');
+            // header must still parse cleanly
+            expect(csv.split('\n').length).toBe(3);
+        });
+
+        it('escapes blinding codes too', function () {
+            var d = rand.completeRandomization({
+                treatments: ['A', 'B'],
+                replicatesPerTreatment: 1,
+                seed: 1,
+                blinded: true
+            });
+            // Force-poison a blinding code to simulate a tampered design imported
+            // from an external source.
+            d.blindingCodes['A'] = '=HYPERLINK("http://evil")';
+            var csv = rand.toCSV(d);
+            expect(csv).not.toMatch(/,=HYPERLINK/);
+            expect(csv).toMatch(/(,|\n|^)"?'=HYPERLINK/);
+        });
+
+        it('RCBD: escapes injected treatment in every block row', function () {
+            var d = rand.rcbd({
+                treatments: ['=BAD()', 'OK'],
+                blocks: 2,
+                seed: 3
+            });
+            var csv = rand.toCSV(d);
+            expect(csv).not.toMatch(/,=BAD\(\)/);
+        });
+
+        it('LatinSquare: escapes injected treatment', function () {
+            var d = rand.latinSquare({ treatments: ['=X', 'Y'], seed: 1 });
+            var csv = rand.toCSV(d);
+            expect(csv).not.toMatch(/,=X(,|$|\n)/);
+        });
+    });
 });

@@ -1,5 +1,7 @@
 'use strict';
 
+var _csvSafe = require('./csvSafe').csvSafe;
+
 /**
  * Growth Curve Analyzer — fit cell/bacterial growth data to identify phases,
  * compute doubling time, and compare conditions.
@@ -354,6 +356,11 @@ function createGrowthCurveAnalyzer() {
          * @returns {string} CSV content
          */
         toCSV: function (analysis) {
+            // SECURITY (CWE-1236): phase names are template-controlled and numeric
+            // fields may stringify as values like '-Infinity' or '-3.14e10'. Route
+            // every cell through csvSafe to apply OWASP formula-leader escaping
+            // and RFC-4180 quoting so the exported CSV is safe to open in Excel,
+            // Google Sheets, and LibreOffice Calc.
             var lines = ['Time,Count,GrowthRate,Phase,LogisticFit'];
             var n = analysis.dataPoints;
             for (var i = 0; i < n; i++) {
@@ -369,7 +376,7 @@ function createGrowthCurveAnalyzer() {
                 var count = analysis.counts ? analysis.counts[i] : '';
                 var rate = i > 0 && i - 1 < analysis.growthRates.length ? analysis.growthRates[i - 1] : '';
                 var predicted = analysis.logisticFit.predicted[i] != null ? analysis.logisticFit.predicted[i] : '';
-                lines.push(time + ',' + count + ',' + rate + ',' + phase + ',' + predicted);
+                lines.push(_csvSafe(time) + ',' + _csvSafe(count) + ',' + _csvSafe(rate) + ',' + _csvSafe(phase) + ',' + _csvSafe(predicted));
             }
             return lines.join('\n');
         }

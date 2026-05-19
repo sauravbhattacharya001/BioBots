@@ -613,7 +613,15 @@ function createComplianceAuditor() {
         var risk = assessRisk();
         var remediation = getRemediationPlan();
 
+        // PERF: O(N^2) -> O(N). The previous implementation called
+        // evidenceRefs.indexOf(...) inside a 4-deep loop while iterating every
+        // framework -> category -> check -> evidenceId, then doing a linear
+        // scan of the growing `evidenceRefs` array per id. With even modest
+        // catalogues (5 frameworks x 6 categories x 8 checks x 5 evidence ids =
+        // ~1.2k ids) the dedup work alone dominated report generation. Use a
+        // Set for O(1) membership while preserving first-seen ordering.
         var evidenceRefs = [];
+        var seenEvidence = new Set();
         for (var f = 0; f < latest.frameworks.length; f++) {
             var fw = latest.frameworks[f];
             for (var c = 0; c < fw.categories.length; c++) {
@@ -622,8 +630,10 @@ function createComplianceAuditor() {
                     var check = cat.checks[ch];
                     if (check.evidence && check.evidence.length > 0) {
                         for (var e = 0; e < check.evidence.length; e++) {
-                            if (evidenceRefs.indexOf(check.evidence[e]) === -1) {
-                                evidenceRefs.push(check.evidence[e]);
+                            var ev = check.evidence[e];
+                            if (!seenEvidence.has(ev)) {
+                                seenEvidence.add(ev);
+                                evidenceRefs.push(ev);
                             }
                         }
                     }
@@ -719,9 +729,17 @@ function createComplianceAuditor() {
         }
         var otKeys = Object.keys(opTypeGaps);
         for (var ok = 0; ok < otKeys.length; ok++) {
+            // PERF: was O(N^2) per operation type via indexOf-based dedup.
+            // Use a Set for O(N) uniqueness while preserving insertion order.
+            var fwArr = opTypeGaps[otKeys[ok]];
+            var seenFws = new Set();
             var uniqueFws = [];
-            for (var uf = 0; uf < opTypeGaps[otKeys[ok]].length; uf++) {
-                if (uniqueFws.indexOf(opTypeGaps[otKeys[ok]][uf]) === -1) uniqueFws.push(opTypeGaps[otKeys[ok]][uf]);
+            for (var uf = 0; uf < fwArr.length; uf++) {
+                var fwName = fwArr[uf];
+                if (!seenFws.has(fwName)) {
+                    seenFws.add(fwName);
+                    uniqueFws.push(fwName);
+                }
             }
             if (uniqueFws.length >= 2) {
                 insights.push({
