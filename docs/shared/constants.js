@@ -74,3 +74,19 @@ const METRIC_DESCRIPTORS = [
     { key: 'layerNum',     label: 'Layer Count',  unit: '',    higherBetter: true,  get: p => p.print_info.resolution.layerNum },
     { key: 'wellplate',    label: 'Wellplate',    unit: '',    higherBetter: null,  get: p => p.print_info.wellplate },
 ];
+
+// -- Module Exports (Node.js / CommonJS) ----------------------------
+// In browser/<script> contexts these symbols are already on the global
+// scope. In Node (Jest CommonJS, the SDK's index.js consumers) we need
+// an explicit module.exports so `require('./constants').escapeHtml`
+// returns the real function instead of undefined (see utils.js fallback
+// path). Regression guard: __tests__/constants.test.js.
+if (typeof module !== 'undefined' && module.exports) {
+    module.exports = {
+        escapeHtml: escapeHtml,
+        METRICS: METRICS,
+        metricLabels: metricLabels,
+        metricColors: metricColors,
+        METRIC_DESCRIPTORS: METRIC_DESCRIPTORS,
+    };
+}
