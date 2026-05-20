@@ -53,23 +53,21 @@ var SENSITIVITY_CLASSES = [
 
 // ── Statistical helpers ────────────────────────────────────────────
 
-function mean(arr) {
-    if (!arr || arr.length === 0) return 0;
-    var sum = 0;
-    for (var i = 0; i < arr.length; i++) sum += arr[i];
-    return sum / arr.length;
-}
+// Hot-path numerical helpers delegate to the shared `./stats` module
+// (Kahan-compensated mean, single-pass linearRegression, single-pass minMax)
+// to avoid drift with the canonical implementations and inherit the
+// numerical-stability + stack-safety guarantees documented there.
+//
+// `pearsonCorrelation` keeps the MIN_SAMPLES_FOR_CORRELATION gate that is
+// specific to this module's recommendation semantics, and `percentile`
+// below keeps its 0..1 fractional API used pervasively in this file (the
+// shared `percentile` takes 0..100, so swapping would silently break thresholds).
 
-function stddev(arr) {
-    if (!arr || arr.length < 2) return 0;
-    var m = mean(arr);
-    var sumSq = 0;
-    for (var i = 0; i < arr.length; i++) {
-        var d = arr[i] - m;
-        sumSq += d * d;
-    }
-    return Math.sqrt(sumSq / (arr.length - 1));
-}
+var _stats = require('./stats');
+var mean = _stats.mean;
+var stddev = _stats.stddev;
+var _statsLinReg = _stats.linearRegression;
+var minMax = _stats.minMax;
 
 function pearsonCorrelation(xs, ys) {
     if (!xs || !ys || xs.length !== ys.length || xs.length < MIN_SAMPLES_FOR_CORRELATION) return null;
@@ -99,26 +97,15 @@ function percentile(sortedArr, p) {
     return sortedArr[lo] * (1 - frac) + sortedArr[hi] * frac;
 }
 
+// Thin wrapper that clamps r2 to [0, +inf): when the linear fit is
+// worse than predicting the mean (ssRes > ssTot) the shared regression
+// returns a negative r2, but all downstream confidence/rationale code
+// in this module assumes r2 in [0, 1] ("no explanatory power" floor).
 function linearRegression(xs, ys) {
     var n = xs.length;
     if (n < 2) return { slope: 0, intercept: 0, r2: 0 };
-    var mx = mean(xs);
-    var my = mean(ys);
-    var num = 0, den = 0, ssTot = 0;
-    for (var i = 0; i < n; i++) {
-        num += (xs[i] - mx) * (ys[i] - my);
-        den += (xs[i] - mx) * (xs[i] - mx);
-        ssTot += (ys[i] - my) * (ys[i] - my);
-    }
-    var slope = den === 0 ? 0 : num / den;
-    var intercept = my - slope * mx;
-    var ssRes = 0;
-    for (var i = 0; i < n; i++) {
-        var pred = slope * xs[i] + intercept;
-        ssRes += (ys[i] - pred) * (ys[i] - pred);
-    }
-    var r2 = ssTot === 0 ? 0 : 1 - ssRes / ssTot;
-    return { slope: slope, intercept: intercept, r2: Math.max(0, r2) };
+    var reg = _statsLinReg(xs, ys);
+    return { slope: reg.slope, intercept: reg.intercept, r2: Math.max(0, reg.r2) };
 }
 
 function getConfidenceLevel(score) {
@@ -378,7 +365,8 @@ function createCrossExperimentLearner(options) {
                 if (typeof v === 'number' && isFinite(v)) allValues.push(v);
             }
             if (allValues.length < 2) return;
-            var overallRange = Math.max.apply(null, allValues) - Math.min.apply(null, allValues);
+            var _allMm = minMax(allValues);
+            var overallRange = _allMm.max - _allMm.min;
             var goldenRange = golden.max - golden.min;
             var tightness = overallRange === 0 ? 1 : 1 - (goldenRange / overallRange);
             tightness = Math.max(0, Math.min(1, tightness));
@@ -456,8 +444,9 @@ function createCrossExperimentLearner(options) {
                     zScore: Math.round(zScore * 100) / 100,
                     direction: zScore > 0 ? 'too_high' : 'too_low',
                     dangerZone: {
-                        min: zScore < 0 ? Math.min.apply(null, failValues) : failMean - stddev(failValues),
-                        max: zScore > 0 ? Math.max.apply(null, failValues) : failMean + stddev(failValues)
+                        // Single-pass min/max — no Math.*.apply stack risk on large failValues
+                        min: zScore < 0 ? minMax(failValues).min : failMean - stddev(failValues),
+                        max: zScore > 0 ? minMax(failValues).max : failMean + stddev(failValues)
                     },
                     failureCount: failValues.length,
                     severity: Math.abs(zScore) > 2 ? 'CRITICAL' : Math.abs(zScore) > 1.5 ? 'HIGH' : 'MODERATE'
@@ -542,8 +531,9 @@ function createCrossExperimentLearner(options) {
                 // Solve for x: targetValue = slope*x + intercept
                 suggestedValue = (targetValue - reg.intercept) / reg.slope;
                 // Clamp to observed range ±20%
-                var minObs = Math.min.apply(null, xs);
-                var maxObs = Math.max.apply(null, xs);
+                var _xsMm = minMax(xs);
+                var minObs = _xsMm.min;
+                var maxObs = _xsMm.max;
                 var rangeBuffer = (maxObs - minObs) * 0.2;
                 suggestedValue = Math.max(minObs - rangeBuffer, Math.min(maxObs + rangeBuffer, suggestedValue));
             } else {
