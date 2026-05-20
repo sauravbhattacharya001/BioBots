@@ -1,7 +1,9 @@
 'use strict';
 
 var _vRound = require('./validation').round;
-var _statsLinReg = require('./stats').linearRegression;
+var _stats = require('./stats');
+var _statsLinReg = _stats.linearRegression;
+var _statsMinMax = _stats.minMax;
 
 /**
  * Standard Curve Calculator — fit a linear regression to known
@@ -85,8 +87,10 @@ function createStandardCurveCalculator() {
         var reg = _linearRegression(points);
 
         var concentrations = opts.standards.map(function (s) { return s.concentration; });
-        var minConc = Math.min.apply(null, concentrations);
-        var maxConc = Math.max.apply(null, concentrations);
+        // Single-pass min/max (avoids Math.min/max.apply stack-overflow risk on large standards arrays)
+        var _mm = _statsMinMax(concentrations);
+        var minConc = _mm.min;
+        var maxConc = _mm.max;
 
         return {
             slope:     _round(reg.slope),

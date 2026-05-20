@@ -37,6 +37,8 @@ var round = require('./validation').round;
 var _stats = require('./stats');
 var mean = _stats.mean;
 var stddev = _stats.stddev;
+var linearRegression = _stats.linearRegression;
+var minMax = _stats.minMax;
 
 // ── Common molecular weight markers (kDa) ──────────────────────────
 var MARKER_LADDERS = {
@@ -181,8 +183,7 @@ function createWesternBlotAnalyzer() {
             // stats.linearRegression which computes slope, intercept, and R²
             // in a single O(n) pass instead of the previous two-pass approach.
             var logKdas = kdas.map(function (k) { return Math.log10(k); });
-            var _linReg = require('./stats').linearRegression;
-            var reg = _linReg(rfs, logKdas);
+            var reg = linearRegression(rfs, logKdas);
             var slope = reg.slope;
             var intercept = reg.intercept;
             var r2 = reg.r2;
@@ -261,6 +262,7 @@ function createWesternBlotAnalyzer() {
                 });
             }
 
+            var _fcMm = minMax(fc);
             return {
                 targetProtein: targetName,
                 loadingControl: controlName,
@@ -269,8 +271,9 @@ function createWesternBlotAnalyzer() {
                 summary: {
                     mean: round(mean(norm)),
                     sd: norm.length > 1 ? round(stddev(norm)) : 0,
-                    maxFoldChange: Math.max.apply(null, fc),
-                    minFoldChange: Math.min.apply(null, fc)
+                    // Single-pass min/max (avoids Math.min/max.apply stack-overflow risk)
+                    maxFoldChange: _fcMm.max,
+                    minFoldChange: _fcMm.min
                 }
             };
         },

@@ -21,6 +21,7 @@ var _csvSafe = require('./csvSafe').csvSafe;
 var _stats = require('./stats');
 var mean = _stats.mean;
 var linearRegression = _stats.linearRegression;
+var minMax = _stats.minMax;
 
 var _utilsRound = require('./utils').round;
 function round(v, d) { return _utilsRound(v, d != null ? d : 4); }
@@ -70,7 +71,7 @@ function detectPhases(timepoints, counts) {
         rates.push(dt > 0 ? (logCounts[j] - logCounts[j - 1]) / dt : 0);
     }
 
-    var maxRate = Math.max.apply(null, rates);
+    var maxRate = minMax(rates).max;
     var threshold = maxRate * 0.3; // 30% of max growth rate
 
     var phases = [];
@@ -150,8 +151,9 @@ function fitLogistic(timepoints, counts) {
     // 4PL: y = D + (A - D) / (1 + (t/C)^B)
     // A = min, D = max, C = inflection, B = steepness
     var n = counts.length;
-    var A = Math.min.apply(null, counts);
-    var D = Math.max.apply(null, counts);
+    var _mm0 = minMax(counts);
+    var A = _mm0.min;
+    var D = _mm0.max;
     var C = timepoints[Math.floor(n / 2)];
     var B = 1;
 
@@ -288,9 +290,10 @@ function createGrowthCurveAnalyzer() {
                 }
             }
 
-            // Basic stats
-            var maxCount = Math.max.apply(null, cts);
-            var minCount = Math.min.apply(null, cts);
+            // Basic stats (single-pass min/max - avoids apply() stack-overflow risk on large datasets)
+            var _mmCts = minMax(cts);
+            var maxCount = _mmCts.max;
+            var minCount = _mmCts.min;
             var foldChange = minCount > 0 ? round(maxCount / minCount) : null;
 
             return {

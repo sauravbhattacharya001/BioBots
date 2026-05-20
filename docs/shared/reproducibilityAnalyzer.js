@@ -28,6 +28,7 @@ var _stats = require('./stats');
 var mean = _stats.mean;
 var stddev = _stats.stddev;
 var linearRegression = _stats.linearRegression;
+var minMax = _stats.minMax;
 
 var _isDangerousKey = require('./sanitize').isDangerousKey;
 
@@ -454,7 +455,9 @@ function createReproducibilityAnalyzer(opts) {
             }
             if (opScores.length > 1) {
                 var scores_arr = opScores.map(function (o) { return o.score; });
-                var scoreRange = Math.max.apply(null, scores_arr) - Math.min.apply(null, scores_arr);
+                // Single-pass min/max (avoids Math.min/max.apply stack-overflow risk)
+                var _sm = minMax(scores_arr);
+                var scoreRange = _sm.max - _sm.min;
                 if (scoreRange > 15) {
                     recommendations.push({
                         priority: priority++,
