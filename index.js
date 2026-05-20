@@ -112,6 +112,7 @@ var manifest = [
     ['createBatchReleaseAdvisor',                      './docs/shared/batchReleaseAdvisor',           'createBatchReleaseAdvisor'],
     ['createEquipmentDowntimeRiskAdvisor',             './docs/shared/equipmentDowntimeRiskAdvisor',  'createEquipmentDowntimeRiskAdvisor'],
     ['createContaminationPropagationAdvisor',          './docs/shared/contaminationPropagationAdvisor', 'createContaminationPropagationAdvisor'],
+    ['createOperatorFatigueAdvisor',                   './docs/shared/operatorFatigueAdvisor',        'createOperatorFatigueAdvisor'],
 ];
 
 // ── Pre-computed lookup structures ─────────────────────────────────
