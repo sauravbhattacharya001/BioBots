@@ -131,6 +131,11 @@ export function listFactories(): string[];
 export function hasFactory(name: string): boolean;
 
 /**
+ * Batch queue prioritization advisor (agentic).
+ */
+export function createBatchQueuePrioritizationAdvisor(options?: Record<string, unknown>): Record<string, unknown>;
+
+/**
  * Total number of available factories.
  */
 export const factoryCount: number;
