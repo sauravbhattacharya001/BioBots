@@ -155,6 +155,21 @@ function _byId(records, idKey) {
 
 // �� factory �����������������������������������������������������
 
+/**
+ * Build a new ContaminationPropagationAdvisor.
+ *
+ * @param {Object} [options]
+ * @param {Function} [options.now] - Clock override; defaults to `new Date()`.
+ * @param {('cautious'|'balanced'|'aggressive')} [options.riskAppetite]
+ *   Default risk appetite for `evaluate()` calls that don't specify one.
+ * @returns {{
+ *   evaluate: function(Object): Object,
+ *   formatText: function(Object): string,
+ *   formatMarkdown: function(Object): string,
+ *   formatJson: function(Object): string
+ * }}
+ * @throws {Error} If `options.riskAppetite` is not recognized.
+ */
 function createContaminationPropagationAdvisor(options) {
     options = options || {};
     var now = typeof options.now === 'function' ? options.now : function () { return new Date(); };
@@ -163,6 +178,43 @@ function createContaminationPropagationAdvisor(options) {
         throw new Error('createContaminationPropagationAdvisor: unknown riskAppetite "' + defaultAppetite + '"');
     }
 
+    /**
+     * Trace contamination propagation forward from one or more source
+     * batches and emit per-batch verdicts plus a P0-first playbook.
+     *
+     * The advisor:
+     *   1. Walks the lineage graph forward from each source up to
+     *      `horizonHops` generations (default 4).
+     *   2. Sweeps for siblings sharing equipment / clean room / media
+     *      lot / reagent lot / operator within `contactWindowHours`
+     *      (default 24).
+     *   3. Scores each affected batch 0-100 weighted by source
+     *      severity, organism prior, hop depth, shipped/patient
+     *      linkage and existing batch status.
+     *   4. Assigns a verdict (DESTROY → RECALL → QUARANTINE →
+     *      RETEST_URGENT → RETEST_ROUTINE → MONITOR → UNAFFECTED)
+     *      and matching P0–P3 priority.
+     *   5. Synthesises a cross-batch playbook with owner / blast
+     *      radius / reversibility metadata.
+     *
+     * Pure function: never mutates the input.
+     *
+     * @param {Object} input
+     * @param {Array<Object>} input.sources - Confirmed/suspected/flagged
+     *   source batches with optional `organism` and `detectedAt`.
+     * @param {Array<Object>} input.lineage - Full lineage graph (batch
+     *   records with `parents`, optional `equipmentId`, `cleanRoomId`,
+     *   `sharedMediaLotId`, `sharedReagentLotIds`, `operatorId`,
+     *   `createdAt`, `shipped`, `patientId`, `status`).
+     * @param {Array<Object>} [input.shipments] - Shipment records keyed
+     *   to batchId, with optional `recalled` flag.
+     * @param {number} [input.horizonHops=4] - Maximum lineage depth.
+     * @param {number} [input.contactWindowHours=24] - Sibling time window.
+     * @param {string} [input.riskAppetite] - Per-call override.
+     * @returns {Object} Report `{ generatedAtISO, batches, playbook,
+     *   insights, summary, risk_appetite, ... }`.
+     * @throws {Error} If `input.riskAppetite` is not recognized.
+     */
     function evaluate(input) {
         input = input || {};
         var appetite = input.riskAppetite || defaultAppetite;

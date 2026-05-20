@@ -107,10 +107,46 @@ function _resolveAppetite(opts) {
 
 // ── core ────────────────────────────────────────────────────────
 
+/**
+ * Build a new BatchQueuePrioritizationAdvisor.
+ *
+ * The advisor is a pure factory: it captures only an injected `now()`
+ * clock so callers can produce deterministic output in tests / replays.
+ * The returned object exposes `prioritize`, `formatText`,
+ * `formatMarkdown`, `formatJson`, and the `VERDICTS` enum.
+ *
+ * @param {Object} [config]
+ * @param {Function} [config.now] - Override clock; defaults to `new Date()`.
+ * @returns {{
+ *   prioritize: function(Object, Object=): Object,
+ *   formatText: function(Object): string,
+ *   formatMarkdown: function(Object): string,
+ *   formatJson: function(Object): string,
+ *   VERDICTS: Object
+ * }}
+ */
 function createBatchQueuePrioritizationAdvisor(config) {
     config = _obj(config);
     var now = typeof config.now === 'function' ? config.now : function () { return new Date(); };
 
+    /**
+     * Score and rank a pending batch queue.
+     *
+     * Inputs are loose plain records; missing fields are treated as
+     * neutral. Output is a deterministic report containing per-batch
+     * scores/verdicts/priorities, a `recommendedRunOrder` (id list)
+     * sorted by priority → score → SLA deadline → id, a deduped
+     * playbook, cross-portfolio insights, and a risk-appetite stamp.
+     *
+     * @param {Object} [input]
+     * @param {Array<Object>} [input.batches] - Pending batch records.
+     * @param {Object} [input.context] - Shift context (equipment +
+     *   operator availability, completed dependencies, fleet load).
+     * @param {Object} [options]
+     * @param {('cautious'|'balanced'|'aggressive')} [options.risk_appetite]
+     *   Multiplier on scores; unknown values fall back to 'balanced'.
+     * @returns {Object} Prioritization report.
+     */
     function prioritize(input, options) {
         var nowDate = now();
         if (!(nowDate instanceof Date) || !isFinite(nowDate.getTime())) {

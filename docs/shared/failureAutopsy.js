@@ -260,6 +260,17 @@ function _generateId() {
 
 // ── Factory ────────────────────────────────────────────────────────
 
+/**
+ * Create a new Failure Autopsy engine instance.
+ *
+ * Each instance maintains its own private store of recorded failures,
+ * computed analyses, and recorded outcomes — call this once per
+ * logical fleet / project / tenant.
+ *
+ * @returns {Object} The autopsy API (recordFailure, analyze,
+ *   getTimeline, getRootCauses, getCorrectiveActions, recordOutcome,
+ *   getPatterns, getDashboard, generateReport).
+ */
 function createFailureAutopsy() {
     var _failures = {};
     var _analyses = {};
@@ -715,6 +726,27 @@ function createFailureAutopsy() {
 
     // ── Public API ─────────────────────────────────────────────
 
+    /**
+     * Record a print-failure event for later analysis.
+     *
+     * The event is deep-sanitized for prototype-pollution keys before
+     * being stored. If `event.id` is omitted, a unique id of the form
+     * `fail-<timestamp>-<rand>` is generated.
+     *
+     * @param {Object} event - Failure event payload.
+     * @param {string} [event.id] - Caller-supplied id. Generated if omitted.
+     * @param {string} [event.timestamp] - ISO timestamp of failure.
+     * @param {string} [event.material] - Material/bioink identifier.
+     * @param {Object} [event.parameters] - Print parameters
+     *   (temperature, pressure, speed, layerHeight, nozzleDiameter).
+     * @param {Object} [event.materialCondition] - Material lot conditions.
+     * @param {Array}  [event.environmental] - Time-stamped env readings.
+     * @param {Object} [event.equipment] - Printer state (printerId, hours, events).
+     * @param {string} [event.failureMode] - Free-form failure category.
+     * @returns {{ id: string, recorded: true }}
+     * @throws {Error} If `event` is null/not an object, or if a
+     *   caller-supplied `event.id` is not a string.
+     */
     function recordFailure(event) {
         if (!event || typeof event !== 'object') {
             throw new Error('Failure event must be a non-null object');
@@ -730,6 +762,21 @@ function createFailureAutopsy() {
         return { id: sanitized.id, recorded: true };
     }
 
+    /**
+     * Run all 7 forensic engines on a previously-recorded failure.
+     *
+     * Computes parameter deviations, material condition, environmental
+     * forensics, equipment state, timeline, ranked root causes, and
+     * corrective actions. The result is cached on the instance and
+     * also reachable through `getRootCauses`, `getCorrectiveActions`,
+     * `getTimeline`, and `generateReport`.
+     *
+     * @param {string} failureId - Id returned from `recordFailure`.
+     * @returns {Object} Full analysis report:
+     *   `{ failureId, timestamp, compositeSeverity, engines, rootCauses,
+     *     correctiveActions, summary }`.
+     * @throws {Error} If `failureId` is not a string or no failure exists.
+     */
     function analyze(failureId) {
         if (typeof failureId !== 'string') {
             throw new Error('failureId must be a string');
@@ -804,6 +851,15 @@ function createFailureAutopsy() {
         return 'Unknown';
     }
 
+    /**
+     * Return the reconstructed event timeline for a failure without
+     * running the full analysis pipeline. Useful for quick triage UIs.
+     *
+     * @param {string} failureId - Recorded failure id.
+     * @returns {Object} Chronological timeline
+     *   (`{ totalEvents, criticalMoment, events: [...] }`).
+     * @throws {Error} If `failureId` is not a string or no failure exists.
+     */
     function getTimeline(failureId) {
         if (typeof failureId !== 'string') {
             throw new Error('failureId must be a string');
@@ -815,6 +871,13 @@ function createFailureAutopsy() {
         return _reconstructTimeline(failure);
     }
 
+    /**
+     * Get the ranked root causes computed by `analyze`.
+     *
+     * @param {string} failureId - Recorded failure id.
+     * @returns {Array<{cause:string,label:string,confidence:number,evidence:Array}>}
+     * @throws {Error} If `analyze` has not been run for this failure.
+     */
     function getRootCauses(failureId) {
         var analysis = _analyses[failureId];
         if (!analysis) {
@@ -823,6 +886,16 @@ function createFailureAutopsy() {
         return analysis.rootCauses;
     }
 
+    /**
+     * Get the corrective-action list computed by `analyze`.
+     *
+     * Actions are sorted by priority and include effort and expected-
+     * impact estimates.
+     *
+     * @param {string} failureId - Recorded failure id.
+     * @returns {Array<{action:string,priority:string,effort:string,impact:number}>}
+     * @throws {Error} If `analyze` has not been run for this failure.
+     */
     function getCorrectiveActions(failureId) {
         var analysis = _analyses[failureId];
         if (!analysis) {
@@ -831,6 +904,20 @@ function createFailureAutopsy() {
         return analysis.correctiveActions;
     }
 
+    /**
+     * Record the realised outcome of a corrective action for a failure.
+     *
+     * Outcomes feed back into the confidence scoring of recurring root
+     * causes — recording "action X resolved this" boosts future
+     * confidence in signature X for the same fleet.
+     *
+     * @param {string} failureId - Recorded failure id.
+     * @param {Object} outcome - Outcome payload (free-form; sanitized
+     *   for prototype-pollution keys before storage). Typically:
+     *   `{ actionTaken, resolved: boolean, notes, signatureId }`.
+     * @returns {{ recorded: true, failureId: string }}
+     * @throws {Error} If args are invalid or the failure is unknown.
+     */
     function recordOutcome(failureId, outcome) {
         if (typeof failureId !== 'string') {
             throw new Error('failureId must be a string');
@@ -848,6 +935,19 @@ function createFailureAutopsy() {
         return { recorded: true, failureId: failureId };
     }
 
+    /**
+     * Detect recurring patterns across the whole failure history.
+     *
+     * Surfaces three pattern types:
+     *   - `recurring_root_cause` — same signature flagged >= 2 times
+     *   - `material_hotspot`     — same material implicated >= 2 times
+     *   - `equipment_repeat_offender` — same printer implicated >= 2 times
+     *
+     * Requires at least two recorded failures; with fewer, returns an
+     * empty patterns list and an explanatory `message`.
+     *
+     * @returns {{ patterns: Array, totalFailures: number, message?: string }}
+     */
     function getPatterns() {
         var failureIds = Object.keys(_failures);
         if (failureIds.length < 2) {
@@ -928,6 +1028,17 @@ function createFailureAutopsy() {
         return id;
     }
 
+    /**
+     * Fleet-level dashboard summarising all recorded failures.
+     *
+     * Aggregates composite severity into a 0–100 healthScore (inverted,
+     * higher is healthier), ranks top recurring root causes, top
+     * equipment by failure count, and the 5 most recent failures.
+     *
+     * @returns {Object} `{ totalFailures, analyzedCount, healthScore,
+     *   healthLabel, avgSeverity, topRootCauses, equipmentRanking,
+     *   recentFailures }`.
+     */
     function getDashboard() {
         var failureIds = Object.keys(_failures);
         var totalFailures = failureIds.length;
@@ -1014,6 +1125,15 @@ function createFailureAutopsy() {
         };
     }
 
+    /**
+     * Build a human-readable report bundle for a previously-analyzed
+     * failure, suitable for handoff to QA or for archival.
+     *
+     * @param {string} failureId - Recorded failure id.
+     * @returns {Object} `{ reportId, generatedAt, failure, analysis,
+     *   engines, outcome }`.
+     * @throws {Error} If `analyze` has not been run for this failure.
+     */
     function generateReport(failureId) {
         var analysis = _analyses[failureId];
         if (!analysis) {
