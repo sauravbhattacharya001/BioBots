@@ -193,7 +193,13 @@ function computeStats(values) {
 
 function keywordMatchScore(text, keywords) {
     if (!text || !keywords || keywords.length === 0) return 0;
-    var lower = text.toLowerCase();
+    return keywordMatchScoreLower(text.toLowerCase(), keywords);
+}
+
+// Variant that assumes `lower` is already lowercased. Used by the pattern
+// matcher hot path so the corpus is not re-lowercased per pattern.
+function keywordMatchScoreLower(lower, keywords) {
+    if (!lower || !keywords || keywords.length === 0) return 0;
     var hits = 0;
     for (var i = 0; i < keywords.length; i++) {
         if (lower.indexOf(keywords[i].toLowerCase()) !== -1) hits++;
@@ -387,15 +393,24 @@ function createIncidentReplay() {
             { cause: 'clog', effect: 'under_extrusion', label: 'Nozzle clog → Under-extrusion' }
         ];
 
+        // PERF: Precompute lowercased evidenceText once per event so each
+        // (event, pair) check is a single substring scan instead of rebuilding
+        // the evidenceText string and re-lowercasing it twice. For N events
+        // and 8 causal pairs this drops ~16N redundant string allocations.
+        var lowerTexts = new Array(sorted.length);
+        for (var li = 0; li < sorted.length; li++) {
+            lowerTexts[li] = evidenceText(sorted[li]).toLowerCase();
+        }
+
         for (var p = 0; p < causalPairs.length; p++) {
             var pair = causalPairs[p];
             var causeEvents = [];
             var effectEvents = [];
 
             for (var i = 0; i < sorted.length; i++) {
-                var text = evidenceText(sorted[i]);
-                if (text.toLowerCase().indexOf(pair.cause) !== -1) causeEvents.push(sorted[i]);
-                if (text.toLowerCase().indexOf(pair.effect) !== -1) effectEvents.push(sorted[i]);
+                var text = lowerTexts[i];
+                if (text.indexOf(pair.cause) !== -1) causeEvents.push(sorted[i]);
+                if (text.indexOf(pair.effect) !== -1) effectEvents.push(sorted[i]);
             }
 
             for (var c = 0; c < causeEvents.length; c++) {
@@ -426,12 +441,17 @@ function createIncidentReplay() {
         var allPatterns = BUILT_IN_PATTERNS.concat(customPatterns);
         if (allPatterns.length === 0 || sorted.length === 0) return [];
 
+        // PERF: Build evidenceSources + concatenated text in a single pass
+        // using an array+join (avoids quadratic-ish string growth) and
+        // pre-lowercase once so keywordMatchScore doesn't re-lowercase the
+        // entire corpus on every pattern iteration.
         var evidenceSources = {};
-        var allText = '';
+        var textParts = new Array(sorted.length);
         for (var i = 0; i < sorted.length; i++) {
             evidenceSources[sorted[i].source] = true;
-            allText += ' ' + evidenceText(sorted[i]);
+            textParts[i] = evidenceText(sorted[i]);
         }
+        var allTextLower = textParts.join(' ').toLowerCase();
 
         var matches = [];
         for (var p = 0; p < allPatterns.length; p++) {
@@ -447,8 +467,8 @@ function createIncidentReplay() {
             }
             var sourceScore = sig.sources && sig.sources.length > 0 ? sourceHits / sig.sources.length : 0;
 
-            // Keyword match score
-            var kwScore = sig.keywords ? keywordMatchScore(allText, sig.keywords) : 0;
+            // Keyword match score (allTextLower already lowercased)
+            var kwScore = sig.keywords ? keywordMatchScoreLower(allTextLower, sig.keywords) : 0;
 
             // Combined similarity
             var similarity = round((sourceScore * 0.4 + kwScore * 0.6), 2);
