@@ -85,9 +85,15 @@ function createLabEquipmentScheduler() {
         var eqConfig = EQUIPMENT_TYPES[eq.type];
         var durationHours = (end - start) / 3600000;
 
-        // Check daily usage limit
+        // Check daily usage limit.
+        // Day boundaries are computed in UTC so the rule is deterministic
+        // regardless of the runtime timezone (CI runs in UTC, devs run in
+        // local time). Using local-time setHours here previously caused a
+        // CI-only failure where a booking that landed in the local-time
+        // "same day" but a different UTC day was incorrectly allowed past
+        // the daily cap.
         var dayStart = new Date(start);
-        dayStart.setHours(0, 0, 0, 0);
+        dayStart.setUTCHours(0, 0, 0, 0);
         var dayEnd = dayStart.getTime() + 86400000;
         var dailyUsed = 0;
         for (var i = 0; i < eq.bookings.length; i++) {
@@ -248,7 +254,7 @@ function createLabEquipmentScheduler() {
             // Check daily limit (cached per day)
             if (!conflict) {
                 var dayStart = new Date(t);
-                dayStart.setHours(0, 0, 0, 0);
+                dayStart.setUTCHours(0, 0, 0, 0);
                 var dayStartMs = dayStart.getTime();
                 var dayEndMs = dayStartMs + 86400000;
                 if (getDailyUsage(dayStartMs, dayEndMs) + durationHours > eqConfig.maxDailyHours) {

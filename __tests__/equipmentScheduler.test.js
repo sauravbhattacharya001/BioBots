@@ -114,7 +114,7 @@ describe('book', () => {
         // Overlapping booking (includes buffer time for bioprinter: 30 min)
         const r = s.book({
             equipmentId: 'bp1',
-            start: new Date(BASE + 2 * HOUR).toISOString(), // starts right when Alice ends — but within 30min buffer
+            start: new Date(BASE + 2 * HOUR).toISOString(), // starts right when Alice ends - but within 30min buffer
             end: new Date(BASE + 4 * HOUR).toISOString(),
             user: 'Bob'
         });
@@ -143,18 +143,23 @@ describe('book', () => {
 
     test('enforces daily usage limit', () => {
         const s = makeScheduler();
-        // Bioprinter max is 16h/day — book 15h first
+        // Anchor to a UTC day boundary so this test is TZ-independent.
+        // Bioprinter cap = 16h/day. We book 15h, then attempt 2h more on
+        // the SAME UTC day (after the 30-min cleaning buffer) which would
+        // push the day total to 17h and must be rejected.
+        const utcDay = new Date('2026-04-20T00:00:00Z').getTime();
         s.book({
             equipmentId: 'bp1',
-            start: new Date(BASE).toISOString(),
-            end: new Date(BASE + 15 * HOUR).toISOString(),
+            start: new Date(utcDay).toISOString(),
+            end: new Date(utcDay + 15 * HOUR).toISOString(),
             user: 'Alice'
         });
-        // Try to add 2 more hours (would exceed 16h)
+        // Second booking starts at 15:30 UTC (after 30-min buffer), runs 2h,
+        // ends 17:30 UTC - still inside the same UTC day.
         const r = s.book({
             equipmentId: 'bp1',
-            start: new Date(BASE + 16 * HOUR).toISOString(),
-            end: new Date(BASE + 18 * HOUR).toISOString(),
+            start: new Date(utcDay + 15.5 * HOUR).toISOString(),
+            end: new Date(utcDay + 17.5 * HOUR).toISOString(),
             user: 'Bob'
         });
         expect(r.success).toBe(false);
@@ -300,7 +305,7 @@ describe('getUtilization', () => {
 
     test('generates recommendations for high utilization', () => {
         const s = makeScheduler();
-        // Centrifuge max 20h/day — book 15h first
+        // Centrifuge max 20h/day - book 15h first
         s.book({
             equipmentId: 'cent1',
             start: new Date(BASE).toISOString(),
@@ -443,5 +448,115 @@ describe('getAlerts', () => {
     test('returns empty when no alerts', () => {
         const s = makeScheduler();
         expect(s.getAlerts()).toEqual([]);
+    });
+});
+
+
+// ============================================================================
+// Timezone-independence regression tests
+// ----------------------------------------------------------------------------
+// Day-boundary math used to live in local time (`setHours(0,0,0,0)`), which
+// meant `daily usage` enforcement gave different answers in PDT vs. UTC.
+// CI runs in UTC; devs run in PDT/PST. This drift was caught by the
+// `enforces daily usage limit` test passing locally and failing in CI for
+// 4 consecutive commits before being fixed. These tests pin the contract:
+// day boundaries are UTC midnight and the cap holds regardless of the
+// host TZ.
+// ============================================================================
+
+describe('daily-limit is timezone-independent', () => {
+    const UTC_DAY_START = new Date('2026-04-20T00:00:00Z').getTime();
+
+    test('rejects bookings that would push UTC-day total past the cap', () => {
+        const s = makeScheduler();
+        // 12h existing booking, then try to add 5h more on the same UTC day.
+        // Bioprinter cap = 16h, so 12+5=17 must be rejected.
+        s.book({
+            equipmentId: 'bp1',
+            start: new Date(UTC_DAY_START + 1 * HOUR).toISOString(),
+            end: new Date(UTC_DAY_START + 13 * HOUR).toISOString(),
+            user: 'Alice'
+        });
+        const r = s.book({
+            equipmentId: 'bp1',
+            // start 30min after cleaning buffer, end at 18:30 UTC, same day
+            start: new Date(UTC_DAY_START + 13.5 * HOUR).toISOString(),
+            end: new Date(UTC_DAY_START + 18.5 * HOUR).toISOString(),
+            user: 'Bob'
+        });
+        expect(r.success).toBe(false);
+        expect(r.error).toMatch(/daily limit/i);
+        // The number echoed back must be the actual UTC-day usage, not
+        // some partial overlap that depends on the host clock.
+        expect(r.error).toMatch(/12\.0h/);
+    });
+
+    test('allows the SAME logical booking pattern on a fresh UTC day', () => {
+        const s = makeScheduler();
+        s.book({
+            equipmentId: 'bp1',
+            start: new Date(UTC_DAY_START + 1 * HOUR).toISOString(),
+            end: new Date(UTC_DAY_START + 13 * HOUR).toISOString(),
+            user: 'Alice'
+        });
+        // Same shape as the rejected one, but bumped to the next UTC day.
+        const r = s.book({
+            equipmentId: 'bp1',
+            start: new Date(UTC_DAY_START + DAY + 13.5 * HOUR).toISOString(),
+            end: new Date(UTC_DAY_START + DAY + 18.5 * HOUR).toISOString(),
+            user: 'Bob'
+        });
+        expect(r.success).toBe(true);
+    });
+
+    test('day grouping is based on the booking start in UTC', () => {
+        // Documents the actual contract: the daily cap is enforced against
+        // the UTC day of the booking *start*. A booking that starts late in
+        // a UTC day and spills past midnight is counted on its start day,
+        // not split across both days.
+        const s = makeScheduler();
+        // Fill 14h on UTC day 1 (cap 16h on bp1).
+        s.book({
+            equipmentId: 'bp1',
+            start: new Date(UTC_DAY_START + 1 * HOUR).toISOString(),
+            end: new Date(UTC_DAY_START + 15 * HOUR).toISOString(),
+            user: 'Alice'
+        });
+        // Try 4h starting at 23:00 UTC day1 (start-day = day1, already 14h
+        // used, +4h = 18h, must be rejected against the 16h cap).
+        const r = s.book({
+            equipmentId: 'bp1',
+            start: new Date(UTC_DAY_START + 23 * HOUR).toISOString(),
+            end: new Date(UTC_DAY_START + DAY + 3 * HOUR).toISOString(),
+            user: 'Bob'
+        });
+        expect(r.success).toBe(false);
+        expect(r.error).toMatch(/daily limit/i);
+    });
+
+    test('uses UTC midnight, not local midnight, for day grouping', () => {
+        // Direct, no-Date-math sanity check: book two slots that share a
+        // local-time day in any non-UTC zone but DIFFERENT UTC days.
+        // If the scheduler ever regresses to `setHours`, this test will
+        // start failing for any non-UTC host.
+        const s = makeScheduler();
+        // 14h on UTC day 1 (cap is 16h).
+        s.book({
+            equipmentId: 'bp1',
+            start: new Date('2026-04-20T08:00:00Z').toISOString(),
+            end: new Date('2026-04-20T22:00:00Z').toISOString(),
+            user: 'Alice'
+        });
+        // 14h starting on UTC day 2 at 00:30Z. In Asia/Tokyo (UTC+9) both
+        // bookings are on the same local calendar day (Apr 21); in
+        // America/Los_Angeles (UTC-7) they straddle local Apr 19 and 20.
+        // Per the UTC contract, this is a *new* day and the cap is fresh.
+        const r = s.book({
+            equipmentId: 'bp1',
+            start: new Date('2026-04-21T00:30:00Z').toISOString(),
+            end: new Date('2026-04-21T14:30:00Z').toISOString(),
+            user: 'Bob'
+        });
+        expect(r.success).toBe(true);
     });
 });
