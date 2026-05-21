@@ -115,6 +115,7 @@ var manifest = [
     ['createOperatorFatigueAdvisor',                   './docs/shared/operatorFatigueAdvisor',        'createOperatorFatigueAdvisor'],
     ['createBatchQueuePrioritizationAdvisor',          './docs/shared/batchQueuePrioritizationAdvisor', 'createBatchQueuePrioritizationAdvisor'],
     ['createCleanroomEnvironmentDriftAdvisor',         './docs/shared/cleanroomEnvironmentDriftAdvisor', 'createCleanroomEnvironmentDriftAdvisor'],
+    ['createCellBankVialAdvisor',                      './docs/shared/cellBankVialAdvisor',           'createCellBankVialAdvisor'],
 ];
 
 // ── Pre-computed lookup structures ─────────────────────────────────
