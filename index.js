@@ -116,6 +116,7 @@ var manifest = [
     ['createBatchQueuePrioritizationAdvisor',          './docs/shared/batchQueuePrioritizationAdvisor', 'createBatchQueuePrioritizationAdvisor'],
     ['createCleanroomEnvironmentDriftAdvisor',         './docs/shared/cleanroomEnvironmentDriftAdvisor', 'createCleanroomEnvironmentDriftAdvisor'],
     ['createCellBankVialAdvisor',                      './docs/shared/cellBankVialAdvisor',           'createCellBankVialAdvisor'],
+    ['createCellHarvestWindowAdvisor',                 './docs/shared/cellHarvestWindowAdvisor',      'createCellHarvestWindowAdvisor'],
 ];
 
 // ── Pre-computed lookup structures ─────────────────────────────────

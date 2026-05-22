@@ -136,6 +136,24 @@ export function hasFactory(name: string): boolean;
 export function createBatchQueuePrioritizationAdvisor(options?: Record<string, unknown>): Record<string, unknown>;
 
 /**
+ * Cell harvest window advisor (agentic).
+ *
+ * Audits a roster of active culture vessels and emits per-vessel verdicts
+ * (HARVEST_NOW / HARVEST_TODAY / HARVEST_TOMORROW / WAIT /
+ * OVERGROWN_DISCARD / UNHEALTHY_RESCUE / PASSAGE_LIMIT_REACHED /
+ * INSUFFICIENT_DATA), priorityScore 0-100, projected harvest window ISO,
+ * a P0-first deduped fleet playbook, structured insights, and A-F grade.
+ */
+export function createCellHarvestWindowAdvisor(options?: { now?: () => Date }): {
+    recommend: (input?: Record<string, unknown>, options?: Record<string, unknown>) => Record<string, unknown>;
+    simulate: (report: Record<string, unknown>, options?: Record<string, unknown>) => Record<string, unknown>;
+    formatText: (report: Record<string, unknown>) => string;
+    formatMarkdown: (report: Record<string, unknown>) => string;
+    formatJson: (report: Record<string, unknown>) => string;
+    VERDICTS: Record<string, string>;
+};
+
+/**
  * Total number of available factories.
  */
 export const factoryCount: number;
