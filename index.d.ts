@@ -182,6 +182,25 @@ export function createCryoChainIntegrityAdvisor(options?: {
 };
 
 /**
+ * SupplierQualityScorecardAdvisor (agentic).
+ *
+ * Per-supplier procurement triage. Emits PREFERRED / EXPAND_USAGE /
+ * APPROVED / DIVERSIFY_AWAY / PROBATION / BLACKLIST / INSUFFICIENT_DATA
+ * verdicts with A-F grade, P0-first deduped playbook, single-source
+ * detection, and portfolio summary. Pure, deterministic, never mutates
+ * inputs.
+ */
+export function createSupplierQualityScorecardAdvisor(options?: {
+    now?: () => Date;
+}): {
+    analyze: (input?: unknown, options?: Record<string, unknown>) => Record<string, unknown>;
+    format: (report: Record<string, unknown>, mode?: 'text' | 'md' | 'markdown' | 'json') => string;
+    formatText: (report: Record<string, unknown>) => string;
+    formatMarkdown: (report: Record<string, unknown>) => string;
+    formatJson: (report: Record<string, unknown>) => string;
+};
+
+/**
  * Total number of available factories.
  */
 export const factoryCount: number;

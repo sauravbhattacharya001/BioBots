@@ -118,6 +118,7 @@ var manifest = [
     ['createCellBankVialAdvisor',                      './docs/shared/cellBankVialAdvisor',           'createCellBankVialAdvisor'],
     ['createCellHarvestWindowAdvisor',                 './docs/shared/cellHarvestWindowAdvisor',      'createCellHarvestWindowAdvisor'],
     ['createCryoChainIntegrityAdvisor',                './docs/shared/cryoChainIntegrityAdvisor',     'createCryoChainIntegrityAdvisor'],
+    ['createSupplierQualityScorecardAdvisor',          './docs/shared/supplierQualityScorecardAdvisor', 'createSupplierQualityScorecardAdvisor'],
 ];
 
 // ── Pre-computed lookup structures ─────────────────────────────────
