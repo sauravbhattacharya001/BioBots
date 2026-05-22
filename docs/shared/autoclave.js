@@ -121,6 +121,13 @@ function hoursAgo(isoString) {
 
 function createAutoclaveLogger() {
     var cycles = [];
+    // O(1) cycleId -> cycle index for recordIndicator(); previously a
+    // linear scan that walked the entire cycle history on every read.
+    // Map is preferred over a plain object so cycle ids can never
+    // collide with Object.prototype keys (defense in depth — cycle ids
+    // are generated server-side here, but the indicator/recordIndicator
+    // entry point still takes a caller-supplied cycleId).
+    var cycleIndex = new Map();
     var autoclaves = {};
 
     /* ── Register an autoclave ── */
@@ -189,6 +196,7 @@ function createAutoclaveLogger() {
         };
 
         cycles.push(cycle);
+        cycleIndex.set(cycle.cycleId, cycle);
 
         return {
             cycleId: cycle.cycleId,
@@ -210,10 +218,7 @@ function createAutoclaveLogger() {
             throw new Error('Unknown indicator type: ' + opts.type + '. Valid: ' + Object.keys(INDICATOR_TYPES).join(', '));
         }
 
-        var cycle = null;
-        for (var i = 0; i < cycles.length; i++) {
-            if (cycles[i].cycleId === opts.cycleId) { cycle = cycles[i]; break; }
-        }
+        var cycle = cycleIndex.get(opts.cycleId);
         if (!cycle) { throw new Error('Cycle not found: ' + opts.cycleId); }
 
         var result = {
