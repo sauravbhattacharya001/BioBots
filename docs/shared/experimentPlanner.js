@@ -1,5 +1,7 @@
 'use strict';
 
+var _statsMinMax = require('./stats').minMax;
+
 /**
  * Smart Experiment Planner
  *
@@ -1004,8 +1006,10 @@ function createExperimentPlanner() {
                 }
             }
             if (vals.length > 0) {
-                var min = Math.min.apply(null, vals);
-                var max = Math.max.apply(null, vals);
+                // Single-pass min/max (avoids Math.min/max.apply on tuning-trial arrays)
+                var _vmm = _statsMinMax(vals);
+                var min = _vmm.min;
+                var max = _vmm.max;
                 var margin = (max - min) * 0.1 || (fac.range[1] - fac.range[0]) * 0.05;
                 var newRange = [
                     round2(Math.max(fac.range[0], min - margin)),

@@ -2,6 +2,7 @@
 
 var round = require('./validation').round;
 var _isDangerousKey = require('./sanitize').isDangerousKey;
+var _statsMinMax = require('./stats').minMax;
 
 /**
  * Quality Control Autopilot
@@ -530,14 +531,16 @@ function createQualityControlAutopilot() {
                     }
                 }
 
+                var _stMm = _statsMinMax(values);
                 metricReports[name] = {
                     label: config.label,
                     unit: config.unit,
                     sampleCount: values.length,
                     mean: round(mean, 4),
                     stdDev: round(sigma, 4),
-                    min: round(Math.min.apply(null, values), 4),
-                    max: round(Math.max.apply(null, values), 4),
+                    // Single-pass min/max (one walk for both, was two apply() spreads)
+                    min: round(_stMm.min, 4),
+                    max: round(_stMm.max, 4),
                     controlStatus: controlStatus,
                     controlLimits: {
                         ucl: round(mean + 3 * sigma, 4),
@@ -714,8 +717,10 @@ function createQualityControlAutopilot() {
             var sigma = computeStdDev(values, mean);
             var ucl = mean + 3 * sigma;
             var lcl = mean - 3 * sigma;
-            var chartMin = Math.min(lcl, Math.min.apply(null, values)) - sigma * 0.5;
-            var chartMax = Math.max(ucl, Math.max.apply(null, values)) + sigma * 0.5;
+            // Single-pass min/max for chart bounds (was two Math.{min,max}.apply spreads)
+            var _chartMm = _statsMinMax(values);
+            var chartMin = Math.min(lcl, _chartMm.min) - sigma * 0.5;
+            var chartMax = Math.max(ucl, _chartMm.max) + sigma * 0.5;
             var range = chartMax - chartMin;
             if (range === 0) range = 1;
 

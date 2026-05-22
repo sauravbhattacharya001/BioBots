@@ -1,5 +1,7 @@
 'use strict';
 
+const _statsMinMax = require('./stats').minMax;
+
 /**
  * Cell Viability Estimator for BioBots
  *
@@ -506,8 +508,10 @@ function createViabilityEstimator() {
 
             // Compute sensitivity index: (max - min) viability across range
             const viabilities = curve.map(function(c) { return c.viability; });
+            // Single-pass min/max (was two Math.{min,max}.apply spreads on sweep curves)
+            const _vMm = viabilities.length > 0 ? _statsMinMax(viabilities) : { min: 0, max: 0 };
             const sensitivityIndex = viabilities.length > 0
-                ? Math.max.apply(null, viabilities) - Math.min.apply(null, viabilities)
+                ? _vMm.max - _vMm.min
                 : 0;
 
             result[param] = {

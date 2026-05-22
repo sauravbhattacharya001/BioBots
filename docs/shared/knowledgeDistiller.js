@@ -1,5 +1,7 @@
 'use strict';
 
+var _statsMinMax = require('./stats').minMax;
+
 /**
  * Lab Knowledge Distillation Engine
  *
@@ -369,7 +371,7 @@ function createKnowledgeDistiller() {
                     }
                     opCounts.push(count);
                 }
-                var maxCount = Math.max.apply(null, opCounts);
+                var maxCount = _statsMinMax(opCounts).max;
                 if (maxCount < exps.length * 0.3 && exps.length >= 5) {
                     gaps.push({
                         category: 'fragmented',
@@ -650,7 +652,7 @@ function createKnowledgeDistiller() {
                     r2: round(reg.r2, 4),
                     windowCount: windows.length,
                     currentSuccessRate: round(windows[windows.length - 1].successRate * 100, 1),
-                    peakSuccessRate: round(Math.max.apply(null, ys) * 100, 1),
+                    peakSuccessRate: round(_statsMinMax(ys).max * 100, 1),
                     severity: decayRate > 10 ? 'critical' : decayRate > 5 ? 'high' : 'medium'
                 });
             }

@@ -1,5 +1,7 @@
 'use strict';
 
+var _statsMinMax = require('./stats').minMax;
+
 /**
  * Cross-linking Kinetics Analyzer for BioBots
  *
@@ -551,8 +553,10 @@ function createCrosslinkAnalyzer() {
         // Check for viability variation across bins
         if (bins.length >= 2) {
             var viabilities = bins.map(function (b) { return b.avgViability; });
-            var maxV = Math.max.apply(null, viabilities);
-            var minV = Math.min.apply(null, viabilities);
+            // Single-pass min/max (one O(n) walk instead of two apply() calls + spread)
+            var _vmm = _statsMinMax(viabilities);
+            var maxV = _vmm.max;
+            var minV = _vmm.min;
             if (maxV - minV > 20) {
                 var bestBin = bins[viabilities.indexOf(maxV)];
                 recs.push('Viability varies significantly across intensity ranges — best results at intensity ' + bestBin.label);

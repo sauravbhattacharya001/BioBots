@@ -1,5 +1,7 @@
 'use strict';
 
+var _statsMinMax = require('./stats').minMax;
+
 /**
  * Bioink Batch Genealogy Tracker
  *
@@ -121,7 +123,8 @@ function createBatchGenealogyTracker() {
             material: sources[0].material,
             volume: Math.round(totalVolume * 1000) / 1000,
             viability: avgViability,
-            passageNumber: Math.max.apply(null, sources.map(function (s) { return s.passageNumber; })),
+            // Single-pass max (avoids Math.max.apply spread-arg stack-overflow risk on large lineages)
+            passageNumber: _statsMinMax(sources.map(function (s) { return s.passageNumber; })).max,
             parentIds: sourceIds.slice(),
             childIds: [],
             event: 'pooled',

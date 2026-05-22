@@ -1,5 +1,7 @@
 'use strict';
 
+var _statsMinMax = require('./stats').minMax;
+
 /**
  * Protocol Evolution Engine
  *
@@ -568,7 +570,9 @@ function createProtocolEvolution(options) {
             }
             if (values.length < 2) continue;
             var cv = mean(values) !== 0 ? stddev(values) / Math.abs(mean(values)) : 0;
-            dimensions[pk] = { cv: cv, min: Math.min.apply(null, values), max: Math.max.apply(null, values) };
+            // Single-pass min/max instead of two Math.{min,max}.apply spreads
+            var _vmm = _statsMinMax(values);
+            dimensions[pk] = { cv: cv, min: _vmm.min, max: _vmm.max };
             diversityScores.push(cv);
         }
 

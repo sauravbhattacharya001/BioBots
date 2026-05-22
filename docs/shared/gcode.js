@@ -1,6 +1,7 @@
 'use strict';
 
 var round = require('./validation').round;
+var _statsMinMax = require('./stats').minMax;
 
 /**
  * GCode Analyzer for BioBots bioprinter.
@@ -407,7 +408,8 @@ function createGCodeAnalyzer() {
             },
             fan: {
                 speeds: fanSpeeds,
-                maxSpeed: fanSpeeds.length > 0 ? Math.max.apply(null, fanSpeeds) : 0
+                // Single-pass max (avoids Math.max.apply spread on long fanSpeed arrays from multi-hour prints)
+                maxSpeed: fanSpeeds.length > 0 ? _statsMinMax(fanSpeeds).max : 0
             },
             layers: layerArray
         };

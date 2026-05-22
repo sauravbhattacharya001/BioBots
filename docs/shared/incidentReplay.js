@@ -2,6 +2,7 @@
 
 var round = require('./validation').round;
 var _isDangerousKey = require('./sanitize').isDangerousKey;
+var _statsMinMax = require('./stats').minMax;
 
 /**
  * Lab Incident Replay Engine
@@ -727,8 +728,10 @@ function createIncidentReplay() {
 
         // Add gap-specific recommendations
         if (gaps.length > 0) {
+            // Single-pass max (avoids Math.max.apply spread on incident timelines with many micro-gaps)
+            var _gapMm = _statsMinMax(gaps.map(function (g) { return g.durationMinutes; }));
             var gapRec = 'Address ' + gaps.length + ' data gap(s) — longest: ' +
-                round(Math.max.apply(null, gaps.map(function (g) { return g.durationMinutes; })), 1) + ' minutes';
+                round(_gapMm.max, 1) + ' minutes';
             if (!seen[gapRec]) {
                 recs.push({ action: gapRec, priority: 'MEDIUM', rationale: 'Data gaps may conceal additional contributing factors' });
                 seen[gapRec] = true;
