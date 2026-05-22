@@ -303,4 +303,152 @@ describe('createCellBankVialAdvisor', function () {
         expect(sdk.hasFactory('createCellBankVialAdvisor')).toBe(true);
         expect(typeof sdk.createCellBankVialAdvisor).toBe('function');
     });
+
+    // ---------------------------------------------------------------
+    // Multi-request allocation contention (issue #159 regression suite)
+    // ---------------------------------------------------------------
+
+    test('two requests for the same line cannot double-book the same vial record', function () {
+        var report = makeAdvisor().evaluate({
+            cellLines: [hekLine({ workingFloor: 1, masterFloor: 1, warningRunway: 1 })],
+            vials: [
+                // Single physical record carrying 2 vials.
+                vial('V1', { bankType: 'working', vialCount: 2 }),
+            ],
+            requests: [
+                { id: 'R1', cellLine: 'HEK293', vialsNeeded: 2,
+                  intendedUse: 'experiment', neededByDate: '2026-06-15' },
+                { id: 'R2', cellLine: 'HEK293', vialsNeeded: 2,
+                  intendedUse: 'experiment', neededByDate: '2026-06-15' },
+            ],
+        });
+
+        var r1 = report.allocations.find(function (a) { return a.requestId === 'R1'; });
+        var r2 = report.allocations.find(function (a) { return a.requestId === 'R2'; });
+
+        expect(r1.fulfilled).toBe(true);
+        expect(r1.vialsAllocated).toBe(2);
+        expect(r2.fulfilled).toBe(false);
+        expect(r2.vialsAllocated).toBe(0);
+        expect(r2.shortfall).toBe(2);
+        // Total picks must not exceed physical stock.
+        var totalTaken = 0;
+        report.allocations.forEach(function (a) {
+            a.picks.forEach(function (p) { totalTaken += p.vialsTaken; });
+        });
+        expect(totalTaken).toBeLessThanOrEqual(2);
+        // Contention reason is distinct from raw insufficiency.
+        var reasonCodes = r2.reasons.map(function (r) { return r.code; });
+        expect(reasonCodes).toContain('STOCK_RESERVED_BY_PRIOR_REQUEST');
+        expect(reasonCodes).not.toContain('INSUFFICIENT_ELIGIBLE_VIALS');
+    });
+
+    test('picks across requests are disjoint per vial-id-slot when records have count > 1', function () {
+        var report = makeAdvisor().evaluate({
+            cellLines: [hekLine({ workingFloor: 1, masterFloor: 1, warningRunway: 1 })],
+            vials: [
+                vial('A', { bankType: 'working', vialCount: 2, passageNumber: 12, frozenAt: '2025-01-01' }),
+                vial('B', { bankType: 'working', vialCount: 2, passageNumber: 11, frozenAt: '2025-02-01' }),
+                vial('C', { bankType: 'working', vialCount: 1, passageNumber: 10, frozenAt: '2025-03-01' }),
+            ],
+            requests: [
+                { id: 'R1', cellLine: 'HEK293', vialsNeeded: 3, intendedUse: 'experiment' },
+                { id: 'R2', cellLine: 'HEK293', vialsNeeded: 2, intendedUse: 'experiment' },
+            ],
+        });
+
+        // Per-vial total picks across all allocations must never exceed the
+        // physical vialCount for that record.
+        var perVial = Object.create(null);
+        report.allocations.forEach(function (a) {
+            a.picks.forEach(function (p) {
+                perVial[p.vialId] = (perVial[p.vialId] || 0) + p.vialsTaken;
+            });
+        });
+        expect(perVial.A || 0).toBeLessThanOrEqual(2);
+        expect(perVial.B || 0).toBeLessThanOrEqual(2);
+        expect(perVial.C || 0).toBeLessThanOrEqual(1);
+        // Both requests fully fulfilled because total stock (5) >= demand (5).
+        report.allocations.forEach(function (a) { expect(a.fulfilled).toBe(true); });
+    });
+
+    test('requests for different cell lines do not contend on each other', function () {
+        var report = makeAdvisor().evaluate({
+            cellLines: [
+                hekLine({ workingFloor: 1, masterFloor: 1, warningRunway: 1 }),
+                hekLine({ name: 'CHO', workingFloor: 1, masterFloor: 1, warningRunway: 1 }),
+            ],
+            vials: [
+                vial('H1', { bankType: 'working', vialCount: 1 }),
+                vial('C1', { cellLine: 'CHO', bankType: 'working', vialCount: 1 }),
+            ],
+            requests: [
+                { id: 'RH', cellLine: 'HEK293', vialsNeeded: 1, intendedUse: 'experiment' },
+                { id: 'RC', cellLine: 'CHO', vialsNeeded: 1, intendedUse: 'experiment' },
+            ],
+        });
+        var rh = report.allocations.find(function (a) { return a.requestId === 'RH'; });
+        var rc = report.allocations.find(function (a) { return a.requestId === 'RC'; });
+        expect(rh.fulfilled).toBe(true);
+        expect(rc.fulfilled).toBe(true);
+    });
+
+    test('rebanking and experiment requests do not share the experiment-preferred pool', function () {
+        // master vial reserved by a rebanking request must not block an
+        // experiment request that can be satisfied from working.
+        var report = makeAdvisor().evaluate({
+            cellLines: [hekLine({ workingFloor: 1, masterFloor: 1, warningRunway: 1 })],
+            vials: [
+                vial('M1', { bankType: 'master', vialCount: 1, passageNumber: 3 }),
+                vial('W1', { bankType: 'working', vialCount: 1, passageNumber: 10 }),
+            ],
+            requests: [
+                { id: 'RB', cellLine: 'HEK293', vialsNeeded: 1, intendedUse: 'rebanking' },
+                { id: 'EX', cellLine: 'HEK293', vialsNeeded: 1, intendedUse: 'experiment' },
+            ],
+        });
+        var rb = report.allocations.find(function (a) { return a.requestId === 'RB'; });
+        var ex = report.allocations.find(function (a) { return a.requestId === 'EX'; });
+        expect(rb.fulfilled).toBe(true);
+        expect(rb.picks[0].bankType).toBe('master');
+        expect(ex.fulfilled).toBe(true);
+        expect(ex.picks[0].bankType).toBe('working');
+    });
+
+    test('contention is reservedById is per-call, not module-scoped (idempotent evaluate)', function () {
+        var input = {
+            cellLines: [hekLine({ workingFloor: 1, masterFloor: 1, warningRunway: 1 })],
+            vials: [vial('V1', { bankType: 'working', vialCount: 2 })],
+            requests: [
+                { id: 'R1', cellLine: 'HEK293', vialsNeeded: 1, intendedUse: 'experiment' },
+                { id: 'R2', cellLine: 'HEK293', vialsNeeded: 1, intendedUse: 'experiment' },
+            ],
+        };
+        var a = makeAdvisor();
+        var report1 = a.evaluate(input);
+        var report2 = a.evaluate(input);
+        // Allocations must be identical across calls; reservedById from the
+        // first evaluate must not leak into the second.
+        expect(JSON.stringify(report1.allocations))
+            .toBe(JSON.stringify(report2.allocations));
+        report2.allocations.forEach(function (alloc) {
+            expect(alloc.fulfilled).toBe(true);
+        });
+    });
+
+    test('contested-shortfall surfaces EXPAND_BANK_OR_REPRIORITIZE_REQUESTS action in playbook', function () {
+        var report = makeAdvisor().evaluate({
+            cellLines: [hekLine({ workingFloor: 1, masterFloor: 1, warningRunway: 1 })],
+            vials: [vial('V1', { bankType: 'working', vialCount: 2 })],
+            requests: [
+                { id: 'R1', cellLine: 'HEK293', vialsNeeded: 2, intendedUse: 'experiment' },
+                { id: 'R2', cellLine: 'HEK293', vialsNeeded: 2, intendedUse: 'experiment' },
+            ],
+        });
+        var ids = report.playbook.map(function (p) { return p.id; });
+        expect(ids).toContain('EXPAND_BANK_OR_REPRIORITIZE_REQUESTS');
+        // The contested-shortfall path must not be misclassified as needing
+        // external sourcing - stock exists, it just collided.
+        expect(ids).not.toContain('REQUEST_EXTERNAL_VIAL_SOURCE');
+    });
 });

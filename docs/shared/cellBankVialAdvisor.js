@@ -469,7 +469,7 @@ function _classifyLine(line, vialClassifications, appetite) {
 // Allocation planner
 // ====================================================================
 
-function _eligiblePool(line, vials, vialClassifications, bankTypes) {
+function _eligiblePool(line, vials, vialClassifications, bankTypes, reservedById) {
     var byId = Object.create(null);
     for (var i = 0; i < vialClassifications.length; i++) byId[vialClassifications[i].id] = vialClassifications[i];
 
@@ -480,24 +480,30 @@ function _eligiblePool(line, vials, vialClassifications, bankTypes) {
         if (bankTypes.indexOf(v.bankType) === -1) continue;
         var vc = byId[v.id];
         if (!vc || vc.blocking) continue;
-        if (v.vialCount <= 0) continue;
-        pool.push(v);
+        // Subtract whatever the in-progress evaluation has already promised
+        // from earlier requests so two requests cannot double-book the same
+        // physical record. See issue #159.
+        var reserved = (reservedById && reservedById[v.id]) || 0;
+        var available = v.vialCount - reserved;
+        if (available <= 0) continue;
+        pool.push({ vial: v, available: available });
     }
 
     // FIFO by highest passage first (use up older stock while still in-spec),
     // tie-broken by earliest frozenAt (oldest stored first), then by id for
     // deterministic order.
     pool.sort(function (a, b) {
-        if (b.passageNumber !== a.passageNumber) return b.passageNumber - a.passageNumber;
-        var ta = a.frozenAt ? a.frozenAt.getTime() : Infinity;
-        var tb = b.frozenAt ? b.frozenAt.getTime() : Infinity;
+        var av = a.vial, bv = b.vial;
+        if (bv.passageNumber !== av.passageNumber) return bv.passageNumber - av.passageNumber;
+        var ta = av.frozenAt ? av.frozenAt.getTime() : Infinity;
+        var tb = bv.frozenAt ? bv.frozenAt.getTime() : Infinity;
         if (ta !== tb) return ta - tb;
-        return a.id < b.id ? -1 : (a.id > b.id ? 1 : 0);
+        return av.id < bv.id ? -1 : (av.id > bv.id ? 1 : 0);
     });
     return pool;
 }
 
-function _planAllocation(request, line, vials, vialClassifications, now) {
+function _planAllocation(request, line, vials, vialClassifications, now, reservedById) {
     var rule = INTENDED_USE_RULES[request.intendedUse];
     var reasons = [];
     var warnings = [];
@@ -518,14 +524,18 @@ function _planAllocation(request, line, vials, vialClassifications, now) {
         };
     }
 
-    var pool = _eligiblePool(request.cellLine, vials, vialClassifications, rule.allowedBanks);
+    var pool = _eligiblePool(request.cellLine, vials, vialClassifications, rule.allowedBanks, reservedById);
     var picks = [];
     var remaining = request.vialsNeeded;
     for (var i = 0; i < pool.length && remaining > 0; i++) {
-        var v = pool[i];
-        var take = Math.min(v.vialCount, remaining);
+        var entry = pool[i];
+        var v = entry.vial;
+        var take = Math.min(entry.available, remaining);
         picks.push({ vialId: v.id, bankType: v.bankType, passage: v.passageNumber,
                      vialsTaken: take });
+        if (reservedById) {
+            reservedById[v.id] = (reservedById[v.id] || 0) + take;
+        }
         remaining -= take;
     }
 
@@ -538,14 +548,31 @@ function _planAllocation(request, line, vials, vialClassifications, now) {
     }
     if (remaining > 0) {
         // Was the gap caused by exhausted allowed banks while other banks have stock?
+        // Probe each branch against a *fresh* (un-reserved) pool so we can tell
+        // "stock exists but a prior request already reserved it" apart from
+        // "stock simply does not exist anywhere".
         var altBanks = ['master', 'working', 'distribution'].filter(function (b) {
             return rule.allowedBanks.indexOf(b) === -1;
         });
         var altPool = _eligiblePool(request.cellLine, vials, vialClassifications, altBanks);
+        var unreservedAllowedPool = _eligiblePool(
+            request.cellLine, vials, vialClassifications, rule.allowedBanks);
+        var unreservedAllowedCapacity = 0;
+        for (var p = 0; p < unreservedAllowedPool.length; p++) {
+            unreservedAllowedCapacity += unreservedAllowedPool[p].available;
+        }
+        var allocatedHere = request.vialsNeeded - remaining;
         if (altPool.length > 0) {
             reasons.push({ code: 'ALTERNATE_BANK_HAS_STOCK',
                            detail: altBanks.join('+') + ' has usable vials but is not allowed for ' +
                                    request.intendedUse });
+        } else if (unreservedAllowedCapacity > allocatedHere) {
+            // The allowed banks DO have enough stock in absolute terms, but
+            // earlier allocations in this same evaluate() already reserved it.
+            reasons.push({ code: 'STOCK_RESERVED_BY_PRIOR_REQUEST',
+                           detail: 'short by ' + remaining + ' vial(s) across ' +
+                                   rule.allowedBanks.join('+') +
+                                   ' - stock exists but is already promised to earlier request(s)' });
         } else {
             reasons.push({ code: 'INSUFFICIENT_ELIGIBLE_VIALS',
                            detail: 'short by ' + remaining + ' vial(s) across ' +
@@ -702,6 +729,9 @@ function _buildPlaybook(lineClassifications, vialClassifications, allocations, a
     var truly_short = unfulfilled.filter(function (a) {
         return a.reasons.some(function (r) { return r.code === 'INSUFFICIENT_ELIGIBLE_VIALS'; });
     });
+    var contested = unfulfilled.filter(function (a) {
+        return a.reasons.some(function (r) { return r.code === 'STOCK_RESERVED_BY_PRIOR_REQUEST'; });
+    });
     if (reroutable.length > 0) {
         actions.push({
             id: 'REROUTE_REQUEST_TO_DIFFERENT_BANK',
@@ -724,6 +754,22 @@ function _buildPlaybook(lineClassifications, vialClassifications, allocations, a
             blastRadius: 4,
             reversibility: 'low',
             relatedRequests: truly_short.map(function (a) { return a.requestId; }),
+        });
+    }
+    if (contested.length > 0) {
+        // Stock exists, but earlier requests in the same evaluate() already
+        // promised it. Surfacing this distinctly tells the operator to expand
+        // the bank *sooner*, not just place an external order, and to consider
+        // re-prioritising requests competing for the same line.
+        actions.push({
+            id: 'EXPAND_BANK_OR_REPRIORITIZE_REQUESTS',
+            priority: 'P1',
+            label: 'Expand bank or re-prioritise ' + contested.length + ' contested request(s)',
+            reason: 'allowed bank has stock but it is already reserved by earlier request(s)',
+            owner: 'cell_culture_lead',
+            blastRadius: 2,
+            reversibility: 'high',
+            relatedRequests: contested.map(function (a) { return a.requestId; }),
         });
     }
 
@@ -1135,9 +1181,22 @@ function createCellBankVialAdvisor(options) {
             });
         }
 
-        // Allocations
+        // Allocations.
+        //
+        // Plan requests sequentially against a shared `reservedById` map so
+        // that a vial picked by an earlier request cannot also be picked by
+        // a later one. Without this map, two requests for the same cell line
+        // would both report `fulfilled: true` against the same physical
+        // record - see issue #159 (cellBankVialAdvisor over-allocates).
+        //
+        // We process requests in the caller-supplied order. That keeps the
+        // public contract stable: callers who care about prioritisation are
+        // expected to order their requests beforehand. Future work could
+        // sort by neededByDate / priority before allocating.
+        var reservedById = Object.create(null);
         var allocations = requests.map(function (r) {
-            return _planAllocation(r, lineIdx[r.cellLine] || null, vials, vialClassifications, nowVal);
+            return _planAllocation(r, lineIdx[r.cellLine] || null,
+                                   vials, vialClassifications, nowVal, reservedById);
         });
 
         // Playbook, insights, score, grade
