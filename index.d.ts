@@ -154,6 +154,34 @@ export function createCellHarvestWindowAdvisor(options?: { now?: () => Date }): 
 };
 
 /**
+ * CryoChainIntegrityAdvisor (agentic).
+ *
+ * Monitors cryogenic storage hardware (-80 / -150 freezers, LN2 dewars,
+ * vapour-phase shippers) and sample-out-of-cryo events. Emits per-asset
+ * verdicts (CRITICAL_EXCURSION / TEMP_DRIFT / LN2_REFILL_NEEDED /
+ * LN2_RUNWAY_LOW / EXCESS_DOOR_TIME / FREQUENT_DOOR_OPEN / STALE_SENSOR /
+ * STABLE / INSUFFICIENT_DATA), per-sample-event verdicts
+ * (SAMPLE_LOST_TO_THAW / SAMPLE_OVER_EXPOSED / SAMPLE_REPEAT_HANDLING /
+ * SAMPLE_OK), a P0-first deduped playbook, structured insights, and an
+ * A-F grade. Pure, deterministic, never mutates inputs.
+ */
+export function createCryoChainIntegrityAdvisor(options?: {
+    now?: () => Date;
+    risk_appetite?: 'cautious' | 'balanced' | 'aggressive';
+    excursionMinSec?: number;
+    ln2RefillThresholdPct?: number;
+    ln2CriticalPct?: number;
+    benchExposureMaxSec?: number;
+}): {
+    evaluate: (input?: Record<string, unknown>) => Record<string, unknown>;
+    formatText: (report: Record<string, unknown>) => string;
+    formatMarkdown: (report: Record<string, unknown>) => string;
+    formatJson: (report: Record<string, unknown>) => string;
+    VERDICTS: Record<string, string>;
+    SAMPLE_VERDICTS: Record<string, string>;
+};
+
+/**
  * Total number of available factories.
  */
 export const factoryCount: number;
