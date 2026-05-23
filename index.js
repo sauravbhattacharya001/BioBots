@@ -118,6 +118,7 @@ var manifest = [
     ['createCellBankVialAdvisor',                      './docs/shared/cellBankVialAdvisor',           'createCellBankVialAdvisor'],
     ['createCellHarvestWindowAdvisor',                 './docs/shared/cellHarvestWindowAdvisor',      'createCellHarvestWindowAdvisor'],
     ['createCryoChainIntegrityAdvisor',                './docs/shared/cryoChainIntegrityAdvisor',     'createCryoChainIntegrityAdvisor'],
+    ['createOperatorCompetencyAdvisor',         './docs/shared/operatorCompetencyAdvisor',     'createOperatorCompetencyAdvisor'],
     ['createSupplierQualityScorecardAdvisor',          './docs/shared/supplierQualityScorecardAdvisor', 'createSupplierQualityScorecardAdvisor'],
 ];
 

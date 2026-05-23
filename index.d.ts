@@ -182,6 +182,30 @@ export function createCryoChainIntegrityAdvisor(options?: {
 };
 
 /**
+ * OperatorCompetencyAdvisor (agentic).
+ *
+ * Per-operator long-arc competency / training / supervision triage.
+ * Sibling to operatorFatigueAdvisor (today-only fatigue). Emits
+ * COMPETENT / READY_TO_MENTOR / COACHING_RECOMMENDED / NEEDS_SUPERVISION /
+ * NEEDS_TRAINING / NEEDS_RECERTIFICATION / INSUFFICIENT_DATA verdicts,
+ * tracks per-target bench depth, expiring certifications, and emits a
+ * P0-first deduped playbook. Pure, deterministic, never mutates inputs.
+ */
+export function createOperatorCompetencyAdvisor(options?: {
+    now?: () => Date;
+}): {
+    analyze: (
+        operators: unknown,
+        requirements?: unknown,
+        options?: { risk_appetite?: 'cautious' | 'balanced' | 'aggressive' }
+    ) => Record<string, unknown>;
+    format: (report: Record<string, unknown>, mode?: 'text' | 'md' | 'markdown' | 'json') => string;
+    formatText: (report: Record<string, unknown>) => string;
+    formatMarkdown: (report: Record<string, unknown>) => string;
+    formatJson: (report: Record<string, unknown>) => string;
+};
+
+/**
  * SupplierQualityScorecardAdvisor (agentic).
  *
  * Per-supplier procurement triage. Emits PREFERRED / EXPAND_USAGE /
