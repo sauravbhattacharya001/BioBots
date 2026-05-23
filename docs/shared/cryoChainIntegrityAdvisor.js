@@ -638,23 +638,34 @@ function _buildPlaybook(assets, sampleEvts, appetite, grade) {
 
 function _buildInsights(assets, sampleEvts) {
     var insights = [];
-    var critCount = assets.filter(function (a) { return a.verdict === ASSET_VERDICTS.CRITICAL_EXCURSION; }).length;
-    var refillCount = assets.filter(function (a) { return a.verdict === ASSET_VERDICTS.LN2_REFILL_NEEDED; }).length;
-    var driftCount = assets.filter(function (a) { return a.verdict === ASSET_VERDICTS.TEMP_DRIFT; }).length;
-    var lostCount = sampleEvts.filter(function (s) { return s.verdict === SAMPLE_VERDICTS.SAMPLE_LOST_TO_THAW; }).length;
-    var irreplaceableLost = sampleEvts.filter(function (s) {
-        return s.verdict === SAMPLE_VERDICTS.SAMPLE_LOST_TO_THAW && s.irreplaceable;
-    }).length;
-    var doorCount = assets.filter(function (a) {
+    // Single-pass tally over assets — was 6 separate .filter().length scans (O(6N) → O(N)).
+    var critCount = 0, refillCount = 0, driftCount = 0, doorCount = 0, ln2RunwayShort = 0, stale = 0;
+    for (var i = 0; i < assets.length; i++) {
+        var a = assets[i];
+        var v = a.verdict;
+        if (v === ASSET_VERDICTS.CRITICAL_EXCURSION) critCount++;
+        else if (v === ASSET_VERDICTS.LN2_REFILL_NEEDED) refillCount++;
+        else if (v === ASSET_VERDICTS.TEMP_DRIFT) driftCount++;
+        else if (v === ASSET_VERDICTS.STALE_SENSOR) stale++;
         var vs = a.allVerdicts || [];
-        return vs.indexOf(ASSET_VERDICTS.EXCESS_DOOR_TIME) >= 0
-            || vs.indexOf(ASSET_VERDICTS.FREQUENT_DOOR_OPEN) >= 0;
-    }).length;
-    var ln2RunwayShort = assets.filter(function (a) {
-        return a.kind === 'ln2_dewar' && a.details.projectedDaysToCritical != null
-            && a.details.projectedDaysToCritical <= 7;
-    }).length;
-    var stale = assets.filter(function (a) { return a.verdict === ASSET_VERDICTS.STALE_SENSOR; }).length;
+        if (vs.indexOf(ASSET_VERDICTS.EXCESS_DOOR_TIME) >= 0
+            || vs.indexOf(ASSET_VERDICTS.FREQUENT_DOOR_OPEN) >= 0) {
+            doorCount++;
+        }
+        if (a.kind === 'ln2_dewar' && a.details.projectedDaysToCritical != null
+            && a.details.projectedDaysToCritical <= 7) {
+            ln2RunwayShort++;
+        }
+    }
+    // Single-pass tally over sample events — was 2 separate .filter().length scans.
+    var lostCount = 0, irreplaceableLost = 0;
+    for (var j = 0; j < sampleEvts.length; j++) {
+        var s = sampleEvts[j];
+        if (s.verdict === SAMPLE_VERDICTS.SAMPLE_LOST_TO_THAW) {
+            lostCount++;
+            if (s.irreplaceable) irreplaceableLost++;
+        }
+    }
 
     if (critCount > 0) insights.push('CRITICAL_COLD_CHAIN_FAILURE');
     if (irreplaceableLost > 0) insights.push('IRREPLACEABLE_SAMPLE_LOSS');
@@ -823,8 +834,13 @@ function createCryoChainIntegrityAdvisor(opts) {
         var playbook = _buildPlaybook(assetClassifications, sampleClassifications, appetite, grade);
         var insights = _buildInsights(assetClassifications, sampleClassifications);
 
-        var p0 = playbook.filter(function (p) { return p.priority === 'P0'; }).length;
-        var p1 = playbook.filter(function (p) { return p.priority === 'P1'; }).length;
+        // Single-pass priority tally — was 2 .filter().length scans over playbook.
+        var p0 = 0, p1 = 0;
+        for (var pi = 0; pi < playbook.length; pi++) {
+            var pr = playbook[pi].priority;
+            if (pr === 'P0') p0++;
+            else if (pr === 'P1') p1++;
+        }
         var headline = 'Cold-chain ' + assetClassifications.length + ' asset(s), '
             + sampleClassifications.length + ' event(s) - grade ' + grade
             + ', risk ' + riskScore + ', P0=' + p0 + ' P1=' + p1;

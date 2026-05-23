@@ -399,11 +399,17 @@ function buildPlaybook(perSupplier, portfolio, opts) {
 // ---------- Insights ----------
 function buildInsights(perSupplier, portfolio) {
     var ins = [];
-    var blacklisted = perSupplier.filter(function (s) { return s.verdict === V.BLACKLIST; }).length;
-    var contamCount = perSupplier.filter(function (s) { return s.reasons.indexOf('CONTAMINATION_HISTORY') >= 0; }).length;
-    var recallCount = perSupplier.filter(function (s) { return s.reasons.indexOf('RECALL_HISTORY') >= 0; }).length;
-    var lateCount = perSupplier.filter(function (s) { return s.reasons.indexOf('LOW_ON_TIME_RATE') >= 0; }).length;
-    var pricey = perSupplier.filter(function (s) { return s.reasons.indexOf('PRICE_PREMIUM') >= 0; }).length;
+    // Single-pass tally — was 5 separate .filter().length scans over perSupplier (O(5N) → O(N)).
+    var blacklisted = 0, contamCount = 0, recallCount = 0, lateCount = 0, pricey = 0;
+    for (var i = 0; i < perSupplier.length; i++) {
+        var s = perSupplier[i];
+        if (s.verdict === V.BLACKLIST) blacklisted++;
+        var r = s.reasons;
+        if (r.indexOf('CONTAMINATION_HISTORY') >= 0) contamCount++;
+        if (r.indexOf('RECALL_HISTORY') >= 0) recallCount++;
+        if (r.indexOf('LOW_ON_TIME_RATE') >= 0) lateCount++;
+        if (r.indexOf('PRICE_PREMIUM') >= 0) pricey++;
+    }
 
     if (blacklisted >= 2) ins.push('MULTI_SUPPLIER_FAILURE_PATTERN:' + blacklisted);
     if (contamCount >= 2) ins.push('CONTAMINATION_PATTERN_ACROSS_FLEET:' + contamCount);
@@ -569,12 +575,14 @@ function createSupplierQualityScorecardAdvisor(options) {
             return a.id < b.id ? -1 : (a.id > b.id ? 1 : 0);
         });
 
-        // Portfolio summary
-        var preferredCount = perSupplier.filter(function (s) {
-            return s.verdict === V.PREFERRED || s.verdict === V.EXPAND_USAGE;
-        }).length;
-        var probationCount = perSupplier.filter(function (s) { return s.verdict === V.PROBATION; }).length;
-        var blacklistCount = perSupplier.filter(function (s) { return s.verdict === V.BLACKLIST; }).length;
+        // Portfolio summary — single-pass tally (was 3 separate .filter().length scans).
+        var preferredCount = 0, probationCount = 0, blacklistCount = 0;
+        for (var pi = 0; pi < perSupplier.length; pi++) {
+            var pv = perSupplier[pi].verdict;
+            if (pv === V.PREFERRED || pv === V.EXPAND_USAGE) preferredCount++;
+            else if (pv === V.PROBATION) probationCount++;
+            else if (pv === V.BLACKLIST) blacklistCount++;
+        }
 
         // Single-sourced critical categories
         var singleSourced = [];
@@ -619,8 +627,13 @@ function createSupplierQualityScorecardAdvisor(options) {
         var playbook = buildPlaybook(perSupplier, portfolio, { risk_appetite: appetite });
         var insights = buildInsights(perSupplier, portfolio);
 
-        var p0 = playbook.filter(function (a) { return a.priority === 'P0'; }).length;
-        var p1 = playbook.filter(function (a) { return a.priority === 'P1'; }).length;
+        // Single-pass priority tally — was 2 .filter().length scans over playbook.
+        var p0 = 0, p1 = 0;
+        for (var bi = 0; bi < playbook.length; bi++) {
+            var pr = playbook[bi].priority;
+            if (pr === 'P0') p0++;
+            else if (pr === 'P1') p1++;
+        }
         var headline = 'VERDICT: grade=' + portfolio.grade
             + ' score=' + portfolio.score
             + ' N=' + portfolio.totalSuppliers
