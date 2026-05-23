@@ -51,6 +51,7 @@ const biobots = require('@sauravbhattacharya001/biobots');
 - [Buffer Prep Calculator](#buffer-prep-calculator)
 - [Media Optimizer](#media-optimizer)
 - [Western Blot Analyzer](#western-blot-analyzer)
+- [Agentic Advisors](#agentic-advisors)
 
 ---
 
@@ -929,6 +930,146 @@ const wb = biobots.createWesternBlotAnalyzer();
 | `report(opts)` | Generate a comprehensive analysis report |
 | `listLadders()` | List supported molecular weight ladders |
 | `listLoadingControls()` | List common loading control proteins |
+
+
+---
+
+## Agentic Advisors
+
+A family of pure-function planners that take a snapshot of lab state and emit a
+prioritized **playbook** plus per-entity verdicts, an A–F grade, structured
+`reasons[]`, and three renderers (`formatText`, `formatMarkdown`, `formatJson`).
+All share the same contract:
+
+- **Pure CommonJS, zero dependencies.**
+- **Deterministic** — inject `now: () => Date` to freeze time for tests/snapshots.
+- **Never mutate inputs** (each advisor deep-copies what it needs).
+- `formatJson` is **byte-stable** across calls (sorted keys, ISO dates).
+- `options.risk_appetite` (or `riskAppetite`) is `'cautious' | 'balanced' | 'aggressive'`
+  and influences how aggressively probation / blacklist / discard verdicts trigger.
+
+Each report includes a `playbook: [{ id, priority: 'P0'|'P1'|'P2'|'P3', label,
+reason, owner, blastRadius, reversibility, ... }]` sorted P0-first, and an
+`insights: string[]` of always-on diagnostic codes (e.g.
+`'IRREPLACEABLE_SAMPLE_LOSS'`, `'SINGLE_SOURCE_RISK:reagent,service'`).
+
+### `createSupplierQualityScorecardAdvisor({ now? })`
+
+Per-supplier procurement triage: which suppliers deserve more business,
+which need probation, which should be retired, and which categories are
+dangerously single-sourced.
+
+```js
+const { createSupplierQualityScorecardAdvisor } = require('@sauravbhattacharya001/biobots');
+const advisor = createSupplierQualityScorecardAdvisor({
+    now: () => new Date('2026-05-22T00:00:00Z')
+});
+const report = advisor.recommend({
+    suppliers: [{
+        id: 's1', name: 'Acme Reagents', category: 'reagent',
+        lotsDelivered: 24, lotsAccepted: 23, lotsRejected: 1,
+        onTimeDeliveries: 22, lateDeliveries: 2,
+        contaminationIncidents: 0, recalls: 0,
+        avgLeadTimeDays: 5, contractedLeadTimeDays: 7,
+        criticality: 4, isPreferred: true
+    }]
+}, { risk_appetite: 'balanced' });
+console.log(report.headline); // VERDICT: grade=A score=92 N=1 P0=0 P1=0 ...
+console.log(advisor.formatMarkdown(report));
+```
+
+**Verdicts:** `BLACKLIST`, `PROBATION`, `DIVERSIFY_AWAY`, `EXPAND_USAGE`,
+`PREFERRED`, `APPROVED`, `INSUFFICIENT_DATA`.
+
+**Report shape:** `{ headline, portfolio: { grade, score, totalSuppliers,
+preferredCount, probationCount, blacklistCount, singleSourcedCategories[] },
+perSupplier[], playbook[], insights[] }`.
+
+### `createCryoChainIntegrityAdvisor({ now? })`
+
+Cold-chain integrity monitor for cryogenic storage (-80, -150, LN2 dewars,
+vapour-phase) plus sample-out-of-cryo handling events. Detects critical
+excursions, LN2 refill needs, temperature drift, excess door time, telemetry
+gaps, and irreplaceable sample loss; projects LN2 runway days.
+
+```js
+const { createCryoChainIntegrityAdvisor } = require('@sauravbhattacharya001/biobots');
+const advisor = createCryoChainIntegrityAdvisor({
+    now: () => new Date('2026-05-22T12:00:00Z')
+});
+const report = advisor.recommend({
+    freezers: [{
+        id: 'F-80-A', kind: 'minus80', setpointC: -80, toleranceC: 5,
+        readings: [
+            { ts: '2026-05-22T11:00:00Z', tempC: -78 },
+            { ts: '2026-05-22T11:30:00Z', tempC: -65 } // excursion
+        ],
+        criticality: 5, contents: { vialCount: 240, irreplaceableCount: 12 }
+    }],
+    sampleEvents: [{
+        id: 'e1', sampleId: 'patient-007', ts: '2026-05-22T10:00:00Z',
+        kind: 'bench_exposure', durationSec: 720, exposedTempC: 22,
+        irreplaceable: true
+    }]
+}, { risk_appetite: 'cautious' });
+// report.playbook[0].priority === 'P0', insights include 'IRREPLACEABLE_SAMPLE_LOSS'
+```
+
+**Asset verdicts:** `CRITICAL_EXCURSION`, `LN2_REFILL_NEEDED`, `TEMP_DRIFT`,
+`STALE_SENSOR`, `EXCESS_DOOR_TIME`, `FREQUENT_DOOR_OPEN`, plus a `NOMINAL`
+baseline. **Sample verdicts:** `SAMPLE_LOST_TO_THAW` and friends.
+
+### `createCellHarvestWindowAdvisor({ now? })`
+
+Per-vessel harvest-window planner. Given confluency, viability, passage,
+growth history, and downstream `experimentTarget`, emits per-vessel verdicts
+(`HARVEST_NOW` / `HARVEST_TODAY` / `HARVEST_TOMORROW` / `WAIT` /
+`OVERGROWN_DISCARD` / `UNHEALTHY_RESCUE` / `PASSAGE_LIMIT_REACHED`),
+projected harvest window ISO, and a cross-fleet P0-first playbook.
+
+```js
+const advisor = biobots.createCellHarvestWindowAdvisor({
+    now: () => new Date('2026-05-22T09:00:00Z')
+});
+const report = advisor.recommend({
+    vessels: [{
+        id: 'V1', cellLine: 'HEK293', seededAt: '2026-05-18T09:00:00Z',
+        confluencyPct: 88, viabilityPct: 95, experimentTarget: 'assay'
+    }]
+});
+```
+
+### `createCellBankVialAdvisor({ now? })`
+
+Cryogenic cell-line vial inventory and allocation planner. Reconciles
+master / working / distribution banks against incoming `requests`, flags
+vials per passage, viability, QC age, and freeze-thaw cycles, and produces
+an allocation plan plus expansion/rebanking actions when a tier nears its
+floor.
+
+Per-vial verdicts include `EXPIRED_VIABILITY`, `AGED_OUT_PASSAGE`,
+`QC_OVERDUE`, `HIGH_THAW_CYCLES`, `APPROACHING_MAX_PASSAGE`, `RESERVED`,
+`PRIME_MASTER`, and `READY_TO_THAW`. The same vial is **never double-booked**
+across simultaneous requests in a single `recommend()` call (closes #159).
+
+### Other agentic advisors
+
+The same contract is implemented by:
+
+- `createBatchReleaseAdvisor` — release-or-hold decisions per batch
+- `createBatchQueuePrioritizationAdvisor` — reorder the active batch queue
+- `createContaminationPropagationAdvisor` — trace contamination blast radius
+- `createEquipmentDowntimeRiskAdvisor` — cross-fleet failure-risk scoring
+- `createCleanroomEnvironmentDriftAdvisor` — ambient temp / RH / particle drift
+- `createOperatorFatigueAdvisor` — shift-load and fatigue triage
+- `createShiftHandoffSynthesizer` — P0-first end-of-shift briefing
+- `createSmartReorderAdvisor` / `createReagentSubstitutionAdvisor`
+- `createSupplyChainResilienceAdvisor` / `createPerishableWasteForecaster`
+
+All are exposed lazily via the top-level `require('@sauravbhattacharya001/biobots')`
+facade — see `index.d.ts` for the full TypeScript surface.
+
+---
 
 ---
 
