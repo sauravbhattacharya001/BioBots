@@ -120,6 +120,7 @@ var manifest = [
     ['createCryoChainIntegrityAdvisor',                './docs/shared/cryoChainIntegrityAdvisor',     'createCryoChainIntegrityAdvisor'],
     ['createOperatorCompetencyAdvisor',         './docs/shared/operatorCompetencyAdvisor',     'createOperatorCompetencyAdvisor'],
     ['createSupplierQualityScorecardAdvisor',          './docs/shared/supplierQualityScorecardAdvisor', 'createSupplierQualityScorecardAdvisor'],
+    ['createReagentLotRecallReadinessAdvisor',         './docs/shared/reagentLotRecallReadinessAdvisor', 'createReagentLotRecallReadinessAdvisor'],
 ];
 
 // ── Pre-computed lookup structures ─────────────────────────────────
