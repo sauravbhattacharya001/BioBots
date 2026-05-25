@@ -24,4 +24,5 @@ module.exports = {
   stddev:     stats.stddev,
   median:     stats.median,
   percentile: stats.percentile,
+  minMax:     stats.minMax,
 };

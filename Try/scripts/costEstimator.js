@@ -1,6 +1,6 @@
 'use strict';
 
-const { round } = require('./scriptUtils');
+const { round, minMax } = require('./scriptUtils');
 const { stripDangerousKeys } = require('../../docs/shared/sanitize');
 
 /** Shallow-strip prototype-polluting keys (CWE-1321). */
@@ -427,10 +427,14 @@ function createCostEstimator(options) {
     });
 
     const costs = results.map(function(r) { return r.totalCost; });
-    const totalBatch = costs.reduce(function(a, b) { return a + b; }, 0);
+    // Single-pass sum + min/max (avoids 3 passes over the same array and
+    // sidesteps Math.min/max.apply spread-arg stack-overflow on large batches).
+    let totalBatch = 0;
+    for (let ci = 0; ci < costs.length; ci++) totalBatch += costs[ci];
     const avgCost = totalBatch / results.length;
-    const minCost = Math.min.apply(null, costs);
-    const maxCost = Math.max.apply(null, costs);
+    const mm = minMax(costs);
+    const minCost = mm.min;
+    const maxCost = mm.max;
 
     return {
       results: results,

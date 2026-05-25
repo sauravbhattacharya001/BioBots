@@ -5,6 +5,7 @@ var clamp = _utils.clamp;
 var round = _utils.round;
 var mean = _utils.mean;
 var stddev = _utils.stddev;
+var minMax = _utils.minMax;
 
 var _sanitize = require('../../docs/shared/sanitize');
 var _isDangerousKey = _sanitize.isDangerousKey;
@@ -507,14 +508,15 @@ function createMaterialLotTracker(opts) {
       else if (cv <= 20) consistency = 'poor';
       else consistency = 'critical';
 
+      var vmm = minMax(vals);
       return {
         parameter: param,
         lotCount: vals.length,
         mean: round(mean(vals), 4),
         stddev: round(stddev(vals), 4),
         cv: round(cv, 2),
-        min: round(Math.min.apply(null, vals), 4),
-        max: round(Math.max.apply(null, vals), 4),
+        min: round(vmm.min, 4),
+        max: round(vmm.max, 4),
         consistency: consistency,
         entries: entries
       };

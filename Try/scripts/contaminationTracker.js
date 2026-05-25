@@ -4,6 +4,7 @@ var _utils = require('./scriptUtils');
 var clamp = _utils.clamp;
 var round = _utils.round;
 var mean = _utils.mean;
+var minMax = _utils.minMax;
 var _sanitize = require('../../docs/shared/sanitize');
 var _stripDangerousKeys = _sanitize.stripDangerousKeys;
 
@@ -717,28 +718,39 @@ function createContaminationTracker() {
     });
 
     var result = {};
+    // Single-pass min/max via stats.minMax (avoids Math.min/max.apply spread
+    // which can stack-overflow on long environment-log arrays).
     if (temps.length >= 2) {
+      var tmm = minMax(temps);
+      var tAbove = 0;
+      for (var ti = 0; ti < temps.length; ti++) { if (temps[ti] > 28) tAbove++; }
       result.temperature = {
         mean: round(mean(temps), 1),
-        min: Math.min.apply(null, temps),
-        max: Math.max.apply(null, temps),
-        aboveThreshold: temps.filter(function (t) { return t > 28; }).length
+        min: tmm.min,
+        max: tmm.max,
+        aboveThreshold: tAbove
       };
     }
     if (humids.length >= 2) {
+      var hmm = minMax(humids);
+      var hAbove = 0;
+      for (var hi = 0; hi < humids.length; hi++) { if (humids[hi] > 65) hAbove++; }
       result.humidity = {
         mean: round(mean(humids), 1),
-        min: Math.min.apply(null, humids),
-        max: Math.max.apply(null, humids),
-        aboveThreshold: humids.filter(function (h) { return h > 65; }).length
+        min: hmm.min,
+        max: hmm.max,
+        aboveThreshold: hAbove
       };
     }
     if (aqis.length >= 2) {
+      var amm = minMax(aqis);
+      var aAbove = 0;
+      for (var ai = 0; ai < aqis.length; ai++) { if (aqis[ai] > 50) aAbove++; }
       result.airQuality = {
         mean: round(mean(aqis), 1),
-        min: Math.min.apply(null, aqis),
-        max: Math.max.apply(null, aqis),
-        aboveThreshold: aqis.filter(function (a) { return a > 50; }).length
+        min: amm.min,
+        max: amm.max,
+        aboveThreshold: aAbove
       };
     }
 

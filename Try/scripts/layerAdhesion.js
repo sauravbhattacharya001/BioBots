@@ -1,6 +1,6 @@
 'use strict';
 
-const { clamp, validatePositive, validateNonNegative, mean, round } = require('./scriptUtils');
+const { clamp, validatePositive, validateNonNegative, mean, round, minMax } = require('./scriptUtils');
 
 /**
  * Bioprint Layer Adhesion Predictor
@@ -342,6 +342,7 @@ function createLayerAdhesionPredictor() {
       return iface.adhesionKPa < min.adhesionKPa ? iface : min;
     }, interfaces[0]);
 
+    var strMM = minMax(strengths);
     return {
       material: MATERIALS[params.material].name,
       layerCount: layers,
@@ -349,8 +350,8 @@ function createLayerAdhesionPredictor() {
       interfaces: interfaces,
       summary: {
         meanAdhesionKPa: round(mean(strengths), 2),
-        minAdhesionKPa: round(Math.min.apply(null, strengths), 2),
-        maxAdhesionKPa: round(Math.max.apply(null, strengths), 2),
+        minAdhesionKPa: round(strMM.min, 2),
+        maxAdhesionKPa: round(strMM.max, 2),
         weakestInterface: weakest.interface,
         weakestRisk: weakest.riskLevel,
       },
