@@ -129,15 +129,20 @@ function _hoursBetween(a, b) {
     return Math.abs(a.getTime() - b.getTime()) / 3600000;
 }
 
+var _DANGEROUS_KEYS = { '__proto__': true, 'constructor': true, 'prototype': true };
+
 function _deepCloneRecord(r) {
     // Shallow-deep enough for our plain JSON-y records; never mutates input.
-    var out = {};
-    for (var k in r) {
-        if (Object.prototype.hasOwnProperty.call(r, k)) {
-            var v = r[k];
-            if (Array.isArray(v)) out[k] = v.slice();
-            else out[k] = v;
-        }
+    // Uses Object.create(null) + dangerous-key filtering to prevent
+    // prototype pollution from untrusted lineage/shipment records.
+    var out = Object.create(null);
+    var keys = Object.keys(r);
+    for (var i = 0; i < keys.length; i++) {
+        var k = keys[i];
+        if (_DANGEROUS_KEYS[k] === true) continue;
+        var v = r[k];
+        if (Array.isArray(v)) out[k] = v.slice();
+        else out[k] = v;
     }
     return out;
 }
